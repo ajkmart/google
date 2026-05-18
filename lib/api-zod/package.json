@@ -7,6 +7,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@workspace/logger": "workspace:*",
+    "@workspace/service-constants": "workspace:*",
     "zod": "catalog:"
   }
 }
