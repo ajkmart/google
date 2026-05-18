@@ -1,4 +1,7 @@
 export { executeCaptcha, isRecaptchaLoaded } from "./captcha/index";
+export { canonicalizePhone, formatPhoneForApi, isValidPhone } from "./phone";
+export { decodeJwt, isTokenExpired } from "./jwt";
+export type { JwtPayload } from "./jwt";
 export {
   GoogleOAuthProvider,
   useGoogleLogin,
@@ -14,3 +17,5 @@ export { TwoFactorSetup, TwoFactorVerify } from "./two-factor/index";
 export type { TwoFactorSetupProps, TwoFactorVerifyProps } from "./two-factor/types";
 export { MagicLinkSender } from "./magic-link/index";
 export type { MagicLinkSenderProps } from "./magic-link/types";
+export { useAuthConfig, invalidateAuthConfigCache } from "./useAuthConfig";
+export type { AuthConfig } from "./useAuthConfig";

@@ -9,6 +9,32 @@ export {
   setOnTokenRefreshed,
 } from "./custom-fetch";
 export type { AuthTokenGetter } from "./custom-fetch";
+export {
+  createApiFetcher,
+  RefreshError,
+  FetchTimeoutError,
+} from "./createApiFetcher";
+export type {
+  CreateApiFetcherConfig,
+  CoreFetch,
+  CoreFetchOpts,
+  RefreshResult,
+} from "./createApiFetcher";
+export {
+  createCircuitBreaker,
+  CircuitOpenError,
+} from "./circuitBreaker";
+export type {
+  CircuitBreakerConfig,
+  ApiCircuitBreaker,
+} from "./circuitBreaker";
+export {
+  createResilientFetcher,
+} from "./resilience";
+export type {
+  ResilientFetcherConfig,
+  ResilientFetcher,
+} from "./resilience";
 export { rateRide, getDispatchStatus, retryRideDispatch } from "./ride-dispatch";
 export {
   getBanners, getTrending, getForYou, getSimilar,
