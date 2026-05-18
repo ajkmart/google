@@ -1,11 +1,14 @@
 import { defineConfig } from "drizzle-kit";
 import path from "path";
-import { databaseUrl } from "./src/connection-url";
+
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is required — provision the database or set it in Replit Secrets.");
+}
 
 export default defineConfig({
-  schema: path.join(__dirname, "./src/schema/index.ts"),
+  schema: path.join(__dirname, "../../lib/db/src/schema/index.ts"),
   dialect: "postgresql",
   dbCredentials: {
-    url: databaseUrl,
+    url: process.env.DATABASE_URL,
   },
 });
