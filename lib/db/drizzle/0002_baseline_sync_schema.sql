@@ -1,14 +1,14 @@
-CREATE TYPE "public"."language_mode" AS ENUM('en', 'ur', 'roman', 'en_roman', 'en_ur');--> statement-breakpoint
-CREATE TYPE "public"."condition_mode" AS ENUM('default', 'ai_recommended', 'custom');--> statement-breakpoint
-CREATE TYPE "public"."condition_severity" AS ENUM('warning', 'restriction_normal', 'restriction_strict', 'suspension', 'ban');--> statement-breakpoint
-CREATE TYPE "public"."condition_type" AS ENUM('warning_l1', 'warning_l2', 'warning_l3', 'restriction_service_block', 'restriction_wallet_freeze', 'restriction_promo_block', 'restriction_order_cap', 'restriction_review_block', 'restriction_cash_only', 'restriction_new_order_block', 'restriction_rate_limit', 'restriction_pending_review_gate', 'restriction_device_restriction', 'suspension_temporary', 'suspension_extended', 'suspension_pending_review', 'ban_soft', 'ban_hard', 'ban_fraud');--> statement-breakpoint
-CREATE TYPE "public"."error_severity" AS ENUM('critical', 'medium', 'minor');--> statement-breakpoint
-CREATE TYPE "public"."error_status" AS ENUM('new', 'acknowledged', 'in_progress', 'resolved');--> statement-breakpoint
-CREATE TYPE "public"."error_type" AS ENUM('frontend_crash', 'api_error', 'db_error', 'route_error', 'ui_error', 'unhandled_exception');--> statement-breakpoint
-CREATE TYPE "public"."resolution_method" AS ENUM('manual', 'auto_resolved', 'task_created');--> statement-breakpoint
-CREATE TYPE "public"."error_source_app" AS ENUM('customer', 'rider', 'vendor', 'admin', 'api');--> statement-breakpoint
-CREATE TYPE "public"."customer_report_status" AS ENUM('new', 'reviewed', 'closed');--> statement-breakpoint
-CREATE TABLE "users" (
+CREATE TYPE IF NOT EXISTS "public"."language_mode" AS ENUM('en', 'ur', 'roman', 'en_roman', 'en_ur');--> statement-breakpoint
+CREATE TYPE IF NOT EXISTS "public"."condition_mode" AS ENUM('default', 'ai_recommended', 'custom');--> statement-breakpoint
+CREATE TYPE IF NOT EXISTS "public"."condition_severity" AS ENUM('warning', 'restriction_normal', 'restriction_strict', 'suspension', 'ban');--> statement-breakpoint
+CREATE TYPE IF NOT EXISTS "public"."condition_type" AS ENUM('warning_l1', 'warning_l2', 'warning_l3', 'restriction_service_block', 'restriction_wallet_freeze', 'restriction_promo_block', 'restriction_order_cap', 'restriction_review_block', 'restriction_cash_only', 'restriction_new_order_block', 'restriction_rate_limit', 'restriction_pending_review_gate', 'restriction_device_restriction', 'suspension_temporary', 'suspension_extended', 'suspension_pending_review', 'ban_soft', 'ban_hard', 'ban_fraud');--> statement-breakpoint
+CREATE TYPE IF NOT EXISTS "public"."error_severity" AS ENUM('critical', 'medium', 'minor');--> statement-breakpoint
+CREATE TYPE IF NOT EXISTS "public"."error_status" AS ENUM('new', 'acknowledged', 'in_progress', 'resolved');--> statement-breakpoint
+CREATE TYPE IF NOT EXISTS "public"."error_type" AS ENUM('frontend_crash', 'api_error', 'db_error', 'route_error', 'ui_error', 'unhandled_exception');--> statement-breakpoint
+CREATE TYPE IF NOT EXISTS "public"."resolution_method" AS ENUM('manual', 'auto_resolved', 'task_created');--> statement-breakpoint
+CREATE TYPE IF NOT EXISTS "public"."error_source_app" AS ENUM('customer', 'rider', 'vendor', 'admin', 'api');--> statement-breakpoint
+CREATE TYPE IF NOT EXISTS "public"."customer_report_status" AS ENUM('new', 'reviewed', 'closed');--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "users" (
 	"id" text PRIMARY KEY NOT NULL,
 	"phone" text,
 	"name" text,
@@ -104,7 +104,7 @@ CREATE TABLE "users" (
 	CONSTRAINT "users_wallet_non_negative" CHECK ("users"."wallet_balance" >= 0)
 );
 --> statement-breakpoint
-CREATE TABLE "products" (
+CREATE TABLE IF NOT EXISTS "products" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
@@ -134,7 +134,7 @@ CREATE TABLE "products" (
 	CONSTRAINT "products_price_positive" CHECK ("products"."price" > 0)
 );
 --> statement-breakpoint
-CREATE TABLE "orders" (
+CREATE TABLE IF NOT EXISTS "orders" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"type" text NOT NULL,
@@ -168,7 +168,7 @@ CREATE TABLE "orders" (
 	CONSTRAINT "orders_total_non_negative" CHECK ("orders"."total" >= 0)
 );
 --> statement-breakpoint
-CREATE TABLE "wallet_transactions" (
+CREATE TABLE IF NOT EXISTS "wallet_transactions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"type" text NOT NULL,
@@ -180,7 +180,7 @@ CREATE TABLE "wallet_transactions" (
 	CONSTRAINT "wallet_txn_amount_non_negative" CHECK ("wallet_transactions"."amount" >= 0)
 );
 --> statement-breakpoint
-CREATE TABLE "rides" (
+CREATE TABLE IF NOT EXISTS "rides" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"type" text NOT NULL,
@@ -229,7 +229,7 @@ CREATE TABLE "rides" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "ride_bids" (
+CREATE TABLE IF NOT EXISTS "ride_bids" (
 	"id" text PRIMARY KEY NOT NULL,
 	"ride_id" text NOT NULL,
 	"rider_id" text NOT NULL,
@@ -243,7 +243,7 @@ CREATE TABLE "ride_bids" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "live_locations" (
+CREATE TABLE IF NOT EXISTS "live_locations" (
 	"user_id" text PRIMARY KEY NOT NULL,
 	"latitude" numeric(10, 6) NOT NULL,
 	"longitude" numeric(10, 6) NOT NULL,
@@ -255,7 +255,7 @@ CREATE TABLE "live_locations" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "pharmacy_orders" (
+CREATE TABLE IF NOT EXISTS "pharmacy_orders" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"rider_id" text,
@@ -272,7 +272,7 @@ CREATE TABLE "pharmacy_orders" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "parcel_bookings" (
+CREATE TABLE IF NOT EXISTS "parcel_bookings" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"sender_name" text NOT NULL,
@@ -293,7 +293,7 @@ CREATE TABLE "parcel_bookings" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "notifications" (
+CREATE TABLE IF NOT EXISTS "notifications" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"title" text NOT NULL,
@@ -313,7 +313,7 @@ CREATE TABLE "notifications" (
 	"resolution_notes" text
 );
 --> statement-breakpoint
-CREATE TABLE "saved_addresses" (
+CREATE TABLE IF NOT EXISTS "saved_addresses" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"label" text NOT NULL,
@@ -324,7 +324,7 @@ CREATE TABLE "saved_addresses" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "user_settings" (
+CREATE TABLE IF NOT EXISTS "user_settings" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"notif_orders" boolean DEFAULT true NOT NULL,
@@ -340,7 +340,7 @@ CREATE TABLE "user_settings" (
 	CONSTRAINT "user_settings_user_id_unique" UNIQUE("user_id")
 );
 --> statement-breakpoint
-CREATE TABLE "platform_settings" (
+CREATE TABLE IF NOT EXISTS "platform_settings" (
 	"key" text PRIMARY KEY NOT NULL,
 	"value" text NOT NULL,
 	"label" text NOT NULL,
@@ -348,7 +348,7 @@ CREATE TABLE "platform_settings" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "flash_deals" (
+CREATE TABLE IF NOT EXISTS "flash_deals" (
 	"id" text PRIMARY KEY NOT NULL,
 	"product_id" text NOT NULL,
 	"title" text,
@@ -363,7 +363,7 @@ CREATE TABLE "flash_deals" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "promo_codes" (
+CREATE TABLE IF NOT EXISTS "promo_codes" (
 	"id" text PRIMARY KEY NOT NULL,
 	"code" text NOT NULL,
 	"description" text,
@@ -381,7 +381,7 @@ CREATE TABLE "promo_codes" (
 	CONSTRAINT "promo_codes_code_unique" UNIQUE("code")
 );
 --> statement-breakpoint
-CREATE TABLE "admin_accounts" (
+CREATE TABLE IF NOT EXISTS "admin_accounts" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"secret" text NOT NULL,
@@ -396,7 +396,7 @@ CREATE TABLE "admin_accounts" (
 	CONSTRAINT "admin_accounts_secret_unique" UNIQUE("secret")
 );
 --> statement-breakpoint
-CREATE TABLE "admin_audit_log" (
+CREATE TABLE IF NOT EXISTS "admin_audit_log" (
 	"id" text PRIMARY KEY NOT NULL,
 	"admin_id" text,
 	"event" text NOT NULL,
@@ -408,7 +408,7 @@ CREATE TABLE "admin_audit_log" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "admin_sessions" (
+CREATE TABLE IF NOT EXISTS "admin_sessions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"admin_id" text NOT NULL,
 	"refresh_token_hash" text NOT NULL,
@@ -421,7 +421,7 @@ CREATE TABLE "admin_sessions" (
 	"revoked_at" timestamp
 );
 --> statement-breakpoint
-CREATE TABLE "admin_password_reset_tokens" (
+CREATE TABLE IF NOT EXISTS "admin_password_reset_tokens" (
 	"id" text PRIMARY KEY NOT NULL,
 	"admin_id" text NOT NULL,
 	"token_hash" text NOT NULL,
@@ -435,7 +435,7 @@ CREATE TABLE "admin_password_reset_tokens" (
 	CONSTRAINT "admin_password_reset_tokens_token_hash_unique" UNIQUE("token_hash")
 );
 --> statement-breakpoint
-CREATE TABLE "admin_password_hash_snapshots" (
+CREATE TABLE IF NOT EXISTS "admin_password_hash_snapshots" (
 	"admin_id" text PRIMARY KEY NOT NULL,
 	"secret_hash" text NOT NULL,
 	"password_changed_at" timestamp,
@@ -443,7 +443,7 @@ CREATE TABLE "admin_password_hash_snapshots" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "rbac_admin_role_assignments" (
+CREATE TABLE IF NOT EXISTS "rbac_admin_role_assignments" (
 	"admin_id" text NOT NULL,
 	"role_id" text NOT NULL,
 	"granted_by" text,
@@ -451,7 +451,7 @@ CREATE TABLE "rbac_admin_role_assignments" (
 	CONSTRAINT "rbac_admin_role_assignments_admin_id_role_id_pk" PRIMARY KEY("admin_id","role_id")
 );
 --> statement-breakpoint
-CREATE TABLE "rbac_permissions" (
+CREATE TABLE IF NOT EXISTS "rbac_permissions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"label" text NOT NULL,
 	"category" text NOT NULL,
@@ -459,14 +459,14 @@ CREATE TABLE "rbac_permissions" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "rbac_role_permissions" (
+CREATE TABLE IF NOT EXISTS "rbac_role_permissions" (
 	"role_id" text NOT NULL,
 	"permission_id" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "rbac_role_permissions_role_id_permission_id_pk" PRIMARY KEY("role_id","permission_id")
 );
 --> statement-breakpoint
-CREATE TABLE "rbac_roles" (
+CREATE TABLE IF NOT EXISTS "rbac_roles" (
 	"id" text PRIMARY KEY NOT NULL,
 	"slug" text NOT NULL,
 	"name" text NOT NULL,
@@ -477,7 +477,7 @@ CREATE TABLE "rbac_roles" (
 	CONSTRAINT "rbac_roles_slug_unique" UNIQUE("slug")
 );
 --> statement-breakpoint
-CREATE TABLE "rbac_user_role_assignments" (
+CREATE TABLE IF NOT EXISTS "rbac_user_role_assignments" (
 	"user_id" text NOT NULL,
 	"role_id" text NOT NULL,
 	"scope_type" text DEFAULT 'global' NOT NULL,
@@ -487,7 +487,7 @@ CREATE TABLE "rbac_user_role_assignments" (
 	CONSTRAINT "rbac_user_role_assignments_user_id_role_id_scope_type_pk" PRIMARY KEY("user_id","role_id","scope_type")
 );
 --> statement-breakpoint
-CREATE TABLE "reviews" (
+CREATE TABLE IF NOT EXISTS "reviews" (
 	"id" text PRIMARY KEY NOT NULL,
 	"order_id" text NOT NULL,
 	"user_id" text NOT NULL,
@@ -511,7 +511,7 @@ CREATE TABLE "reviews" (
 	CONSTRAINT "reviews_rider_rating_range" CHECK ("reviews"."rider_rating"  IS NULL OR "reviews"."rider_rating" BETWEEN 1 AND 5)
 );
 --> statement-breakpoint
-CREATE TABLE "system_snapshots" (
+CREATE TABLE IF NOT EXISTS "system_snapshots" (
 	"id" text PRIMARY KEY NOT NULL,
 	"label" text NOT NULL,
 	"action_id" text NOT NULL,
@@ -520,7 +520,7 @@ CREATE TABLE "system_snapshots" (
 	"expires_at" timestamp NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "demo_backups" (
+CREATE TABLE IF NOT EXISTS "demo_backups" (
 	"id" text PRIMARY KEY NOT NULL,
 	"label" text NOT NULL,
 	"tables_json" text NOT NULL,
@@ -529,7 +529,7 @@ CREATE TABLE "demo_backups" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "ride_service_types" (
+CREATE TABLE IF NOT EXISTS "ride_service_types" (
 	"id" text PRIMARY KEY NOT NULL,
 	"key" text NOT NULL,
 	"name" text NOT NULL,
@@ -550,7 +550,7 @@ CREATE TABLE "ride_service_types" (
 	CONSTRAINT "ride_service_types_key_unique" UNIQUE("key")
 );
 --> statement-breakpoint
-CREATE TABLE "popular_locations" (
+CREATE TABLE IF NOT EXISTS "popular_locations" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"name_urdu" text,
@@ -564,7 +564,7 @@ CREATE TABLE "popular_locations" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "school_routes" (
+CREATE TABLE IF NOT EXISTS "school_routes" (
 	"id" text PRIMARY KEY NOT NULL,
 	"route_name" text NOT NULL,
 	"school_name" text NOT NULL,
@@ -589,7 +589,7 @@ CREATE TABLE "school_routes" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "school_subscriptions" (
+CREATE TABLE IF NOT EXISTS "school_subscriptions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"route_id" text NOT NULL,
@@ -605,7 +605,7 @@ CREATE TABLE "school_subscriptions" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "ride_event_logs" (
+CREATE TABLE IF NOT EXISTS "ride_event_logs" (
 	"id" text PRIMARY KEY NOT NULL,
 	"ride_id" text NOT NULL,
 	"rider_id" text,
@@ -617,7 +617,7 @@ CREATE TABLE "ride_event_logs" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "refresh_tokens" (
+CREATE TABLE IF NOT EXISTS "refresh_tokens" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"token_hash" text NOT NULL,
@@ -632,7 +632,7 @@ CREATE TABLE "refresh_tokens" (
 	CONSTRAINT "refresh_tokens_token_hash_unique" UNIQUE("token_hash")
 );
 --> statement-breakpoint
-CREATE TABLE "auth_audit_log" (
+CREATE TABLE IF NOT EXISTS "auth_audit_log" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text,
 	"event" text NOT NULL,
@@ -642,7 +642,7 @@ CREATE TABLE "auth_audit_log" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "magic_link_tokens" (
+CREATE TABLE IF NOT EXISTS "magic_link_tokens" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"token_hash" text NOT NULL,
@@ -652,7 +652,7 @@ CREATE TABLE "magic_link_tokens" (
 	CONSTRAINT "magic_link_tokens_token_hash_unique" UNIQUE("token_hash")
 );
 --> statement-breakpoint
-CREATE TABLE "rider_penalties" (
+CREATE TABLE IF NOT EXISTS "rider_penalties" (
 	"id" text PRIMARY KEY NOT NULL,
 	"rider_id" text NOT NULL,
 	"type" text NOT NULL,
@@ -661,7 +661,7 @@ CREATE TABLE "rider_penalties" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "ride_ratings" (
+CREATE TABLE IF NOT EXISTS "ride_ratings" (
 	"id" text PRIMARY KEY NOT NULL,
 	"ride_id" text NOT NULL,
 	"user_id" text NOT NULL,
@@ -674,14 +674,14 @@ CREATE TABLE "ride_ratings" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "ride_notified_riders" (
+CREATE TABLE IF NOT EXISTS "ride_notified_riders" (
 	"id" text PRIMARY KEY NOT NULL,
 	"ride_id" text NOT NULL,
 	"rider_id" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "location_logs" (
+CREATE TABLE IF NOT EXISTS "location_logs" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"role" text DEFAULT 'rider' NOT NULL,
@@ -695,7 +695,7 @@ CREATE TABLE "location_logs" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "rate_limits" (
+CREATE TABLE IF NOT EXISTS "rate_limits" (
 	"key" text PRIMARY KEY NOT NULL,
 	"attempts" integer DEFAULT 0 NOT NULL,
 	"locked_until" timestamp,
@@ -703,7 +703,7 @@ CREATE TABLE "rate_limits" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "product_variants" (
+CREATE TABLE IF NOT EXISTS "product_variants" (
 	"id" text PRIMARY KEY NOT NULL,
 	"product_id" text NOT NULL,
 	"label" text NOT NULL,
@@ -719,7 +719,7 @@ CREATE TABLE "product_variants" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "banners" (
+CREATE TABLE IF NOT EXISTS "banners" (
 	"id" text PRIMARY KEY NOT NULL,
 	"title" text NOT NULL,
 	"subtitle" text,
@@ -739,7 +739,7 @@ CREATE TABLE "banners" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "user_interactions" (
+CREATE TABLE IF NOT EXISTS "user_interactions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"product_id" text NOT NULL,
@@ -748,7 +748,7 @@ CREATE TABLE "user_interactions" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "rider_profiles" (
+CREATE TABLE IF NOT EXISTS "rider_profiles" (
 	"user_id" text PRIMARY KEY NOT NULL,
 	"vehicle_type" text,
 	"vehicle_plate" text,
@@ -761,7 +761,7 @@ CREATE TABLE "rider_profiles" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "vendor_profiles" (
+CREATE TABLE IF NOT EXISTS "vendor_profiles" (
 	"user_id" text PRIMARY KEY NOT NULL,
 	"store_name" text,
 	"store_category" text,
@@ -783,7 +783,7 @@ CREATE TABLE "vendor_profiles" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "push_subscriptions" (
+CREATE TABLE IF NOT EXISTS "push_subscriptions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"role" text DEFAULT 'customer' NOT NULL,
@@ -794,7 +794,7 @@ CREATE TABLE "push_subscriptions" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "pending_otps" (
+CREATE TABLE IF NOT EXISTS "pending_otps" (
 	"id" text PRIMARY KEY NOT NULL,
 	"phone" text NOT NULL,
 	"otp_hash" text NOT NULL,
@@ -804,7 +804,7 @@ CREATE TABLE "pending_otps" (
 	CONSTRAINT "pending_otps_phone_unique" UNIQUE("phone")
 );
 --> statement-breakpoint
-CREATE TABLE "kyc_verifications" (
+CREATE TABLE IF NOT EXISTS "kyc_verifications" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"status" text DEFAULT 'pending' NOT NULL,
@@ -825,7 +825,7 @@ CREATE TABLE "kyc_verifications" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "user_sessions" (
+CREATE TABLE IF NOT EXISTS "user_sessions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"token_hash" text NOT NULL,
@@ -840,7 +840,7 @@ CREATE TABLE "user_sessions" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "login_history" (
+CREATE TABLE IF NOT EXISTS "login_history" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"ip" text,
@@ -853,7 +853,7 @@ CREATE TABLE "login_history" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "van_bookings" (
+CREATE TABLE IF NOT EXISTS "van_bookings" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"schedule_id" text NOT NULL,
@@ -877,7 +877,7 @@ CREATE TABLE "van_bookings" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "van_drivers" (
+CREATE TABLE IF NOT EXISTS "van_drivers" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"van_code" text NOT NULL,
@@ -889,7 +889,7 @@ CREATE TABLE "van_drivers" (
 	CONSTRAINT "van_drivers_van_code_unique" UNIQUE("van_code")
 );
 --> statement-breakpoint
-CREATE TABLE "van_routes" (
+CREATE TABLE IF NOT EXISTS "van_routes" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"name_urdu" text,
@@ -914,7 +914,7 @@ CREATE TABLE "van_routes" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "van_schedules" (
+CREATE TABLE IF NOT EXISTS "van_schedules" (
 	"id" text PRIMARY KEY NOT NULL,
 	"route_id" text NOT NULL,
 	"vehicle_id" text,
@@ -929,7 +929,7 @@ CREATE TABLE "van_schedules" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "van_vehicles" (
+CREATE TABLE IF NOT EXISTS "van_vehicles" (
 	"id" text PRIMARY KEY NOT NULL,
 	"driver_id" text,
 	"plate_number" text NOT NULL,
@@ -941,14 +941,14 @@ CREATE TABLE "van_vehicles" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "wishlist" (
+CREATE TABLE IF NOT EXISTS "wishlist" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"product_id" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "service_zones" (
+CREATE TABLE IF NOT EXISTS "service_zones" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"city" text NOT NULL,
@@ -964,7 +964,7 @@ CREATE TABLE "service_zones" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "categories" (
+CREATE TABLE IF NOT EXISTS "categories" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"icon" text DEFAULT 'grid-outline' NOT NULL,
@@ -976,7 +976,7 @@ CREATE TABLE "categories" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "location_history" (
+CREATE TABLE IF NOT EXISTS "location_history" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"ride_id" text,
@@ -987,7 +987,7 @@ CREATE TABLE "location_history" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "map_api_usage_log" (
+CREATE TABLE IF NOT EXISTS "map_api_usage_log" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"provider" text NOT NULL,
 	"endpoint_type" text NOT NULL,
@@ -998,7 +998,7 @@ CREATE TABLE "map_api_usage_log" (
 	CONSTRAINT "map_api_usage_log_unique" UNIQUE("provider","endpoint_type","date")
 );
 --> statement-breakpoint
-CREATE TABLE "delivery_access_requests" (
+CREATE TABLE IF NOT EXISTS "delivery_access_requests" (
 	"id" text PRIMARY KEY NOT NULL,
 	"vendor_id" text NOT NULL,
 	"service_type" text DEFAULT 'all' NOT NULL,
@@ -1009,7 +1009,7 @@ CREATE TABLE "delivery_access_requests" (
 	"notes" text
 );
 --> statement-breakpoint
-CREATE TABLE "delivery_whitelist" (
+CREATE TABLE IF NOT EXISTS "delivery_whitelist" (
 	"id" text PRIMARY KEY NOT NULL,
 	"type" text NOT NULL,
 	"target_id" text NOT NULL,
@@ -1023,7 +1023,7 @@ CREATE TABLE "delivery_whitelist" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "system_audit_log" (
+CREATE TABLE IF NOT EXISTS "system_audit_log" (
 	"id" text PRIMARY KEY NOT NULL,
 	"admin_id" text,
 	"admin_name" text,
@@ -1035,7 +1035,7 @@ CREATE TABLE "system_audit_log" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "account_conditions" (
+CREATE TABLE IF NOT EXISTS "account_conditions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"user_role" text NOT NULL,
@@ -1056,7 +1056,7 @@ CREATE TABLE "account_conditions" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "condition_rules" (
+CREATE TABLE IF NOT EXISTS "condition_rules" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
@@ -1073,7 +1073,7 @@ CREATE TABLE "condition_rules" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "condition_settings" (
+CREATE TABLE IF NOT EXISTS "condition_settings" (
 	"id" text PRIMARY KEY NOT NULL,
 	"mode" "condition_mode" DEFAULT 'default' NOT NULL,
 	"custom_thresholds" jsonb,
@@ -1082,7 +1082,7 @@ CREATE TABLE "condition_settings" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "popup_campaigns" (
+CREATE TABLE IF NOT EXISTS "popup_campaigns" (
 	"id" text PRIMARY KEY NOT NULL,
 	"title" text NOT NULL,
 	"body" text,
@@ -1110,7 +1110,7 @@ CREATE TABLE "popup_campaigns" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "popup_impressions" (
+CREATE TABLE IF NOT EXISTS "popup_impressions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"popup_id" text NOT NULL,
 	"user_id" text NOT NULL,
@@ -1119,7 +1119,7 @@ CREATE TABLE "popup_impressions" (
 	"session_id" text
 );
 --> statement-breakpoint
-CREATE TABLE "popup_templates" (
+CREATE TABLE IF NOT EXISTS "popup_templates" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
@@ -1140,7 +1140,7 @@ CREATE TABLE "popup_templates" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "campaigns" (
+CREATE TABLE IF NOT EXISTS "campaigns" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
@@ -1160,7 +1160,7 @@ CREATE TABLE "campaigns" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "campaign_participations" (
+CREATE TABLE IF NOT EXISTS "campaign_participations" (
 	"id" text PRIMARY KEY NOT NULL,
 	"campaign_id" text NOT NULL,
 	"vendor_id" text NOT NULL,
@@ -1169,7 +1169,7 @@ CREATE TABLE "campaign_participations" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "offer_redemptions" (
+CREATE TABLE IF NOT EXISTS "offer_redemptions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"offer_id" text NOT NULL,
 	"user_id" text NOT NULL,
@@ -1178,7 +1178,7 @@ CREATE TABLE "offer_redemptions" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "offers" (
+CREATE TABLE IF NOT EXISTS "offers" (
 	"id" text PRIMARY KEY NOT NULL,
 	"campaign_id" text,
 	"name" text NOT NULL,
@@ -1212,7 +1212,7 @@ CREATE TABLE "offers" (
 	CONSTRAINT "offers_code_unique" UNIQUE("code")
 );
 --> statement-breakpoint
-CREATE TABLE "offer_templates" (
+CREATE TABLE IF NOT EXISTS "offer_templates" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
@@ -1238,7 +1238,7 @@ CREATE TABLE "offer_templates" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "support_messages" (
+CREATE TABLE IF NOT EXISTS "support_messages" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"message" text NOT NULL,
@@ -1248,7 +1248,7 @@ CREATE TABLE "support_messages" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "faqs" (
+CREATE TABLE IF NOT EXISTS "faqs" (
 	"id" text PRIMARY KEY NOT NULL,
 	"category" text DEFAULT 'General' NOT NULL,
 	"question" text NOT NULL,
@@ -1259,7 +1259,7 @@ CREATE TABLE "faqs" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "error_reports" (
+CREATE TABLE IF NOT EXISTS "error_reports" (
 	"id" text PRIMARY KEY NOT NULL,
 	"timestamp" timestamp DEFAULT now() NOT NULL,
 	"source_app" "error_source_app" NOT NULL,
@@ -1283,7 +1283,7 @@ CREATE TABLE "error_reports" (
 	"occurrence_count" integer DEFAULT 1 NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "customer_error_reports" (
+CREATE TABLE IF NOT EXISTS "customer_error_reports" (
 	"id" text PRIMARY KEY NOT NULL,
 	"timestamp" timestamp DEFAULT now() NOT NULL,
 	"customer_name" text NOT NULL,
@@ -1301,7 +1301,7 @@ CREATE TABLE "customer_error_reports" (
 	"reviewed_at" timestamp
 );
 --> statement-breakpoint
-CREATE TABLE "error_resolution_backups" (
+CREATE TABLE IF NOT EXISTS "error_resolution_backups" (
 	"id" text PRIMARY KEY NOT NULL,
 	"error_report_id" text NOT NULL,
 	"previous_status" text NOT NULL,
@@ -1311,7 +1311,7 @@ CREATE TABLE "error_resolution_backups" (
 	"expires_at" timestamp NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "auto_resolve_log" (
+CREATE TABLE IF NOT EXISTS "auto_resolve_log" (
 	"id" text PRIMARY KEY NOT NULL,
 	"error_report_id" text NOT NULL,
 	"reason" text NOT NULL,
@@ -1319,7 +1319,7 @@ CREATE TABLE "auto_resolve_log" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "ai_moderation_logs" (
+CREATE TABLE IF NOT EXISTS "ai_moderation_logs" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"action_type" text NOT NULL,
@@ -1329,7 +1329,7 @@ CREATE TABLE "ai_moderation_logs" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "call_logs" (
+CREATE TABLE IF NOT EXISTS "call_logs" (
 	"id" text PRIMARY KEY NOT NULL,
 	"caller_id" text NOT NULL,
 	"callee_id" text NOT NULL,
@@ -1341,7 +1341,7 @@ CREATE TABLE "call_logs" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "chat_messages" (
+CREATE TABLE IF NOT EXISTS "chat_messages" (
 	"id" text PRIMARY KEY NOT NULL,
 	"conversation_id" text NOT NULL,
 	"sender_id" text NOT NULL,
@@ -1366,7 +1366,7 @@ CREATE TABLE "chat_messages" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "communication_flags" (
+CREATE TABLE IF NOT EXISTS "communication_flags" (
 	"id" text PRIMARY KEY NOT NULL,
 	"message_id" text,
 	"reason" text NOT NULL,
@@ -1376,7 +1376,7 @@ CREATE TABLE "communication_flags" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "communication_requests" (
+CREATE TABLE IF NOT EXISTS "communication_requests" (
 	"id" text PRIMARY KEY NOT NULL,
 	"sender_id" text NOT NULL,
 	"receiver_id" text NOT NULL,
@@ -1386,7 +1386,7 @@ CREATE TABLE "communication_requests" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "communication_roles" (
+CREATE TABLE IF NOT EXISTS "communication_roles" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
@@ -1401,7 +1401,7 @@ CREATE TABLE "communication_roles" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "comm_conversations" (
+CREATE TABLE IF NOT EXISTS "comm_conversations" (
 	"id" text PRIMARY KEY NOT NULL,
 	"participant1_id" text NOT NULL,
 	"participant2_id" text NOT NULL,
@@ -1414,7 +1414,7 @@ CREATE TABLE "comm_conversations" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "idempotency_keys" (
+CREATE TABLE IF NOT EXISTS "idempotency_keys" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"idempotency_key" text NOT NULL,
@@ -1423,7 +1423,7 @@ CREATE TABLE "idempotency_keys" (
 	CONSTRAINT "idempotency_keys_user_key_uniq" UNIQUE("user_id","idempotency_key")
 );
 --> statement-breakpoint
-CREATE TABLE "qr_codes" (
+CREATE TABLE IF NOT EXISTS "qr_codes" (
 	"id" text PRIMARY KEY NOT NULL,
 	"code" text NOT NULL,
 	"type" text DEFAULT 'payment' NOT NULL,
@@ -1435,7 +1435,7 @@ CREATE TABLE "qr_codes" (
 	CONSTRAINT "qr_codes_code_unique" UNIQUE("code")
 );
 --> statement-breakpoint
-CREATE TABLE "chat_reports" (
+CREATE TABLE IF NOT EXISTS "chat_reports" (
 	"id" text PRIMARY KEY NOT NULL,
 	"reporter_id" text NOT NULL,
 	"reported_user_id" text NOT NULL,
@@ -1447,14 +1447,14 @@ CREATE TABLE "chat_reports" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "weather_config" (
+CREATE TABLE IF NOT EXISTS "weather_config" (
 	"id" text PRIMARY KEY DEFAULT 'default' NOT NULL,
 	"widget_enabled" boolean DEFAULT true NOT NULL,
 	"cities" text DEFAULT 'Muzaffarabad,Rawalakot,Mirpur,Bagh,Kotli,Neelum' NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "vendor_schedules" (
+CREATE TABLE IF NOT EXISTS "vendor_schedules" (
 	"id" text PRIMARY KEY NOT NULL,
 	"vendor_id" text NOT NULL,
 	"day_of_week" integer NOT NULL,
@@ -1465,7 +1465,7 @@ CREATE TABLE "vendor_schedules" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "ab_assignments" (
+CREATE TABLE IF NOT EXISTS "ab_assignments" (
 	"id" text PRIMARY KEY NOT NULL,
 	"experiment_id" text NOT NULL,
 	"user_id" text NOT NULL,
@@ -1474,7 +1474,7 @@ CREATE TABLE "ab_assignments" (
 	"assigned_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "ab_experiments" (
+CREATE TABLE IF NOT EXISTS "ab_experiments" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"description" text DEFAULT '' NOT NULL,
@@ -1485,7 +1485,7 @@ CREATE TABLE "ab_experiments" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "webhook_logs" (
+CREATE TABLE IF NOT EXISTS "webhook_logs" (
 	"id" text PRIMARY KEY NOT NULL,
 	"webhook_id" text NOT NULL,
 	"event" text NOT NULL,
@@ -1499,7 +1499,7 @@ CREATE TABLE "webhook_logs" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "webhook_registrations" (
+CREATE TABLE IF NOT EXISTS "webhook_registrations" (
 	"id" text PRIMARY KEY NOT NULL,
 	"url" text NOT NULL,
 	"events" jsonb DEFAULT '[]'::jsonb NOT NULL,
@@ -1510,7 +1510,7 @@ CREATE TABLE "webhook_registrations" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "deep_links" (
+CREATE TABLE IF NOT EXISTS "deep_links" (
 	"id" text PRIMARY KEY NOT NULL,
 	"short_code" text NOT NULL,
 	"target_screen" text NOT NULL,
@@ -1521,7 +1521,7 @@ CREATE TABLE "deep_links" (
 	CONSTRAINT "deep_links_short_code_unique" UNIQUE("short_code")
 );
 --> statement-breakpoint
-CREATE TABLE "stock_subscriptions" (
+CREATE TABLE IF NOT EXISTS "stock_subscriptions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"product_id" text NOT NULL,
@@ -1529,7 +1529,7 @@ CREATE TABLE "stock_subscriptions" (
 	CONSTRAINT "stock_subscriptions_user_product_uniq" UNIQUE("user_id","product_id")
 );
 --> statement-breakpoint
-CREATE TABLE "consent_log" (
+CREATE TABLE IF NOT EXISTS "consent_log" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"consent_type" text NOT NULL,
@@ -1540,7 +1540,7 @@ CREATE TABLE "consent_log" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "terms_versions" (
+CREATE TABLE IF NOT EXISTS "terms_versions" (
 	"policy" text NOT NULL,
 	"version" text NOT NULL,
 	"effective_at" timestamp DEFAULT now() NOT NULL,
@@ -1550,7 +1550,7 @@ CREATE TABLE "terms_versions" (
 	CONSTRAINT "terms_versions_policy_version_pk" PRIMARY KEY("policy","version")
 );
 --> statement-breakpoint
-CREATE TABLE "release_notes" (
+CREATE TABLE IF NOT EXISTS "release_notes" (
 	"id" text PRIMARY KEY NOT NULL,
 	"version" text NOT NULL,
 	"release_date" text NOT NULL,
@@ -1560,7 +1560,7 @@ CREATE TABLE "release_notes" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "vendor_plans" (
+CREATE TABLE IF NOT EXISTS "vendor_plans" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"slug" text NOT NULL,
@@ -1578,7 +1578,7 @@ CREATE TABLE "vendor_plans" (
 	CONSTRAINT "vendor_plans_slug_unique" UNIQUE("slug")
 );
 --> statement-breakpoint
-CREATE TABLE "admin_role_presets" (
+CREATE TABLE IF NOT EXISTS "admin_role_presets" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"slug" text NOT NULL,
@@ -1590,7 +1590,7 @@ CREATE TABLE "admin_role_presets" (
 	CONSTRAINT "admin_role_presets_slug_unique" UNIQUE("slug")
 );
 --> statement-breakpoint
-CREATE TABLE "sms_gateways" (
+CREATE TABLE IF NOT EXISTS "sms_gateways" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"provider" text NOT NULL,
@@ -1607,7 +1607,7 @@ CREATE TABLE "sms_gateways" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "whitelist_users" (
+CREATE TABLE IF NOT EXISTS "whitelist_users" (
 	"id" text PRIMARY KEY NOT NULL,
 	"identifier" text NOT NULL,
 	"label" text,
@@ -1620,7 +1620,7 @@ CREATE TABLE "whitelist_users" (
 	CONSTRAINT "whitelist_users_identifier_unique" UNIQUE("identifier")
 );
 --> statement-breakpoint
-CREATE TABLE "otp_bypass_audit" (
+CREATE TABLE IF NOT EXISTS "otp_bypass_audit" (
 	"id" text PRIMARY KEY NOT NULL,
 	"event_type" text NOT NULL,
 	"user_id" text,
@@ -1635,7 +1635,7 @@ CREATE TABLE "otp_bypass_audit" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "integration_test_history" (
+CREATE TABLE IF NOT EXISTS "integration_test_history" (
 	"id" text PRIMARY KEY NOT NULL,
 	"type" text NOT NULL,
 	"ok" boolean NOT NULL,
@@ -1646,7 +1646,7 @@ CREATE TABLE "integration_test_history" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "search_logs" (
+CREATE TABLE IF NOT EXISTS "search_logs" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "search_logs_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"query" text NOT NULL,
 	"result_count" integer DEFAULT 0 NOT NULL,
@@ -1654,7 +1654,7 @@ CREATE TABLE "search_logs" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "file_scan_results" (
+CREATE TABLE IF NOT EXISTS "file_scan_results" (
 	"id" text PRIMARY KEY NOT NULL,
 	"scanned_at" timestamp DEFAULT now() NOT NULL,
 	"duration_ms" integer NOT NULL,
@@ -1663,7 +1663,7 @@ CREATE TABLE "file_scan_results" (
 	"triggered_by" text DEFAULT 'manual' NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "admin_action_audit_log" (
+CREATE TABLE IF NOT EXISTS "admin_action_audit_log" (
 	"id" text PRIMARY KEY NOT NULL,
 	"admin_id" text,
 	"admin_name" text,
@@ -1677,14 +1677,14 @@ CREATE TABLE "admin_action_audit_log" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "otp_attempts" (
+CREATE TABLE IF NOT EXISTS "otp_attempts" (
 	"key" text PRIMARY KEY NOT NULL,
 	"count" integer DEFAULT 0 NOT NULL,
 	"first_at" timestamp DEFAULT now() NOT NULL,
 	"expires_at" timestamp NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "order_audit_log" (
+CREATE TABLE IF NOT EXISTS "order_audit_log" (
 	"id" text PRIMARY KEY NOT NULL,
 	"order_id" text NOT NULL,
 	"vendor_id" text NOT NULL,
@@ -1694,7 +1694,7 @@ CREATE TABLE "order_audit_log" (
 	"changed_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "product_stock_history" (
+CREATE TABLE IF NOT EXISTS "product_stock_history" (
 	"id" text PRIMARY KEY NOT NULL,
 	"product_id" text NOT NULL,
 	"vendor_id" text NOT NULL,
@@ -1707,7 +1707,7 @@ CREATE TABLE "product_stock_history" (
 	"changed_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "data_export_logs" (
+CREATE TABLE IF NOT EXISTS "data_export_logs" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text,
 	"ip" text DEFAULT 'unknown' NOT NULL,
@@ -1718,7 +1718,7 @@ CREATE TABLE "data_export_logs" (
 	"masked_phone" text
 );
 --> statement-breakpoint
-CREATE TABLE "sentry_known_issues" (
+CREATE TABLE IF NOT EXISTS "sentry_known_issues" (
 	"fingerprint" text PRIMARY KEY NOT NULL,
 	"title" text NOT NULL,
 	"sentry_id" text,
@@ -1726,13 +1726,13 @@ CREATE TABLE "sentry_known_issues" (
 	"last_seen_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "cart_snapshots" (
+CREATE TABLE IF NOT EXISTS "cart_snapshots" (
 	"user_id" text PRIMARY KEY NOT NULL,
 	"items" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "totp_recovery_codes" (
+CREATE TABLE IF NOT EXISTS "totp_recovery_codes" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"code_hash" text NOT NULL,
@@ -1740,7 +1740,7 @@ CREATE TABLE "totp_recovery_codes" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "user_totp_setup" (
+CREATE TABLE IF NOT EXISTS "user_totp_setup" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"secret" text NOT NULL,
@@ -1748,7 +1748,7 @@ CREATE TABLE "user_totp_setup" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "referral_codes" (
+CREATE TABLE IF NOT EXISTS "referral_codes" (
 	"id" text PRIMARY KEY NOT NULL,
 	"code" text NOT NULL,
 	"owner_user_id" text NOT NULL,
@@ -1760,7 +1760,7 @@ CREATE TABLE "referral_codes" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "referral_usages" (
+CREATE TABLE IF NOT EXISTS "referral_usages" (
 	"id" text PRIMARY KEY NOT NULL,
 	"code_id" text NOT NULL,
 	"referee_user_id" text NOT NULL,
@@ -1769,7 +1769,7 @@ CREATE TABLE "referral_usages" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "pharmacy_prescription_refs" (
+CREATE TABLE IF NOT EXISTS "pharmacy_prescription_refs" (
 	"ref_id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"photo_url" text NOT NULL,
@@ -1777,7 +1777,7 @@ CREATE TABLE "pharmacy_prescription_refs" (
 	"expires_at" timestamp NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "loyalty_campaigns" (
+CREATE TABLE IF NOT EXISTS "loyalty_campaigns" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
@@ -1790,7 +1790,7 @@ CREATE TABLE "loyalty_campaigns" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "loyalty_rewards" (
+CREATE TABLE IF NOT EXISTS "loyalty_rewards" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
@@ -1803,7 +1803,7 @@ CREATE TABLE "loyalty_rewards" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "security_events" (
+CREATE TABLE IF NOT EXISTS "security_events" (
 	"id" text PRIMARY KEY NOT NULL,
 	"type" text NOT NULL,
 	"ip" text NOT NULL,
@@ -1813,7 +1813,7 @@ CREATE TABLE "security_events" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "whatsapp_delivery_logs" (
+CREATE TABLE IF NOT EXISTS "whatsapp_delivery_logs" (
 	"id" text PRIMARY KEY NOT NULL,
 	"phone" text NOT NULL,
 	"message" text NOT NULL,
@@ -1825,7 +1825,7 @@ CREATE TABLE "whatsapp_delivery_logs" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "business_rules" (
+CREATE TABLE IF NOT EXISTS "business_rules" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"description" text DEFAULT '' NOT NULL,
@@ -1838,7 +1838,7 @@ CREATE TABLE "business_rules" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "account_recovery_tokens" (
+CREATE TABLE IF NOT EXISTS "account_recovery_tokens" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"token_hash" text NOT NULL,
@@ -1954,213 +1954,213 @@ ALTER TABLE "referral_usages" ADD CONSTRAINT "referral_usages_referee_user_id_us
 ALTER TABLE "referral_usages" ADD CONSTRAINT "referral_usages_referrer_user_id_users_id_fk" FOREIGN KEY ("referrer_user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "pharmacy_prescription_refs" ADD CONSTRAINT "pharmacy_prescription_refs_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "account_recovery_tokens" ADD CONSTRAINT "account_recovery_tokens_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "products_vendor_id_idx" ON "products" USING btree ("vendor_id");--> statement-breakpoint
-CREATE INDEX "products_category_idx" ON "products" USING btree ("category");--> statement-breakpoint
-CREATE INDEX "products_in_stock_idx" ON "products" USING btree ("in_stock");--> statement-breakpoint
-CREATE INDEX "products_type_idx" ON "products" USING btree ("type");--> statement-breakpoint
-CREATE INDEX "orders_user_id_idx" ON "orders" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "orders_rider_id_idx" ON "orders" USING btree ("rider_id");--> statement-breakpoint
-CREATE INDEX "orders_vendor_id_idx" ON "orders" USING btree ("vendor_id");--> statement-breakpoint
-CREATE INDEX "orders_status_idx" ON "orders" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "orders_created_at_idx" ON "orders" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "wallet_txn_user_id_idx" ON "wallet_transactions" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "wallet_txn_created_at_idx" ON "wallet_transactions" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "wallet_txn_reference_idx" ON "wallet_transactions" USING btree ("reference");--> statement-breakpoint
-CREATE INDEX "rides_user_id_idx" ON "rides" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "rides_rider_id_idx" ON "rides" USING btree ("rider_id");--> statement-breakpoint
-CREATE INDEX "rides_status_idx" ON "rides" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "rides_created_at_idx" ON "rides" USING btree ("created_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "ride_bids_ride_rider_uidx" ON "ride_bids" USING btree ("ride_id","rider_id") WHERE status = 'pending';--> statement-breakpoint
-CREATE INDEX "ride_bids_ride_id_idx" ON "ride_bids" USING btree ("ride_id");--> statement-breakpoint
-CREATE INDEX "ride_bids_rider_id_idx" ON "ride_bids" USING btree ("rider_id");--> statement-breakpoint
-CREATE INDEX "ride_bids_status_idx" ON "ride_bids" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "live_locations_role_idx" ON "live_locations" USING btree ("role");--> statement-breakpoint
-CREATE INDEX "live_locations_lat_lng_idx" ON "live_locations" USING btree ("latitude","longitude");--> statement-breakpoint
-CREATE INDEX "live_locations_role_updated_idx" ON "live_locations" USING btree ("role","updated_at");--> statement-breakpoint
-CREATE INDEX "pharmacy_orders_user_id_idx" ON "pharmacy_orders" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "pharmacy_orders_rider_id_idx" ON "pharmacy_orders" USING btree ("rider_id");--> statement-breakpoint
-CREATE INDEX "pharmacy_orders_status_idx" ON "pharmacy_orders" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "pharmacy_orders_created_at_idx" ON "pharmacy_orders" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "parcel_bookings_user_id_idx" ON "parcel_bookings" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "parcel_bookings_rider_id_idx" ON "parcel_bookings" USING btree ("rider_id");--> statement-breakpoint
-CREATE INDEX "parcel_bookings_status_idx" ON "parcel_bookings" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "parcel_bookings_created_at_idx" ON "parcel_bookings" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "notifications_user_id_idx" ON "notifications" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "notifications_user_read_idx" ON "notifications" USING btree ("user_id","is_read");--> statement-breakpoint
-CREATE INDEX "notifications_created_at_idx" ON "notifications" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "notifications_sos_status_idx" ON "notifications" USING btree ("sos_status");--> statement-breakpoint
-CREATE INDEX "saved_addresses_user_id_idx" ON "saved_addresses" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "flash_deals_product_id_idx" ON "flash_deals" USING btree ("product_id");--> statement-breakpoint
-CREATE INDEX "flash_deals_is_active_idx" ON "flash_deals" USING btree ("is_active");--> statement-breakpoint
-CREATE INDEX "flash_deals_end_time_idx" ON "flash_deals" USING btree ("end_time");--> statement-breakpoint
-CREATE INDEX "promo_codes_vendor_id_idx" ON "promo_codes" USING btree ("vendor_id");--> statement-breakpoint
-CREATE INDEX "promo_codes_is_active_idx" ON "promo_codes" USING btree ("is_active");--> statement-breakpoint
-CREATE INDEX "promo_codes_expires_at_idx" ON "promo_codes" USING btree ("expires_at");--> statement-breakpoint
-CREATE INDEX "admin_password_reset_tokens_admin_idx" ON "admin_password_reset_tokens" USING btree ("admin_id");--> statement-breakpoint
-CREATE INDEX "admin_password_reset_tokens_expires_idx" ON "admin_password_reset_tokens" USING btree ("expires_at");--> statement-breakpoint
-CREATE INDEX "rbac_admin_role_assignments_admin_idx" ON "rbac_admin_role_assignments" USING btree ("admin_id");--> statement-breakpoint
-CREATE INDEX "rbac_role_permissions_role_idx" ON "rbac_role_permissions" USING btree ("role_id");--> statement-breakpoint
-CREATE INDEX "rbac_user_role_assignments_user_idx" ON "rbac_user_role_assignments" USING btree ("user_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "reviews_order_user_uidx" ON "reviews" USING btree ("order_id","user_id");--> statement-breakpoint
-CREATE INDEX "reviews_user_id_idx" ON "reviews" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "reviews_vendor_id_idx" ON "reviews" USING btree ("vendor_id");--> statement-breakpoint
-CREATE INDEX "reviews_rider_id_idx" ON "reviews" USING btree ("rider_id");--> statement-breakpoint
-CREATE INDEX "reviews_product_id_idx" ON "reviews" USING btree ("product_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "school_subs_user_route_uidx" ON "school_subscriptions" USING btree ("user_id","route_id") WHERE status != 'cancelled';--> statement-breakpoint
-CREATE INDEX "school_subs_user_id_idx" ON "school_subscriptions" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "school_subs_route_id_idx" ON "school_subscriptions" USING btree ("route_id");--> statement-breakpoint
-CREATE INDEX "school_subs_status_idx" ON "school_subscriptions" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "ride_event_logs_ride_id_idx" ON "ride_event_logs" USING btree ("ride_id");--> statement-breakpoint
-CREATE INDEX "ride_event_logs_rider_id_idx" ON "ride_event_logs" USING btree ("rider_id");--> statement-breakpoint
-CREATE INDEX "idx_refresh_tokens_family_id" ON "refresh_tokens" USING btree ("token_family_id");--> statement-breakpoint
-CREATE INDEX "rider_penalties_rider_id_idx" ON "rider_penalties" USING btree ("rider_id");--> statement-breakpoint
-CREATE INDEX "rider_penalties_type_idx" ON "rider_penalties" USING btree ("type");--> statement-breakpoint
-CREATE INDEX "rider_penalties_created_at_idx" ON "rider_penalties" USING btree ("created_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "ride_ratings_ride_id_uidx" ON "ride_ratings" USING btree ("ride_id");--> statement-breakpoint
-CREATE INDEX "ride_ratings_rider_id_idx" ON "ride_ratings" USING btree ("rider_id");--> statement-breakpoint
-CREATE INDEX "ride_ratings_user_id_idx" ON "ride_ratings" USING btree ("user_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "ride_notified_riders_ride_rider_uidx" ON "ride_notified_riders" USING btree ("ride_id","rider_id");--> statement-breakpoint
-CREATE INDEX "ride_notified_riders_ride_id_idx" ON "ride_notified_riders" USING btree ("ride_id");--> statement-breakpoint
-CREATE INDEX "location_logs_user_ts_idx" ON "location_logs" USING btree ("user_id","created_at");--> statement-breakpoint
-CREATE INDEX "location_logs_user_idx" ON "location_logs" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "location_logs_role_idx" ON "location_logs" USING btree ("role");--> statement-breakpoint
-CREATE INDEX "location_logs_role_ts_idx" ON "location_logs" USING btree ("role","created_at");--> statement-breakpoint
-CREATE INDEX "location_logs_lat_lng_idx" ON "location_logs" USING btree ("latitude","longitude");--> statement-breakpoint
-CREATE INDEX "product_variants_product_id_idx" ON "product_variants" USING btree ("product_id");--> statement-breakpoint
-CREATE INDEX "product_variants_type_idx" ON "product_variants" USING btree ("type");--> statement-breakpoint
-CREATE INDEX "product_variants_sku_idx" ON "product_variants" USING btree ("sku");--> statement-breakpoint
-CREATE INDEX "banners_is_active_idx" ON "banners" USING btree ("is_active");--> statement-breakpoint
-CREATE INDEX "banners_placement_idx" ON "banners" USING btree ("placement");--> statement-breakpoint
-CREATE INDEX "banners_sort_order_idx" ON "banners" USING btree ("sort_order");--> statement-breakpoint
-CREATE INDEX "user_interactions_user_id_idx" ON "user_interactions" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "user_interactions_product_id_idx" ON "user_interactions" USING btree ("product_id");--> statement-breakpoint
-CREATE INDEX "user_interactions_type_idx" ON "user_interactions" USING btree ("interaction_type");--> statement-breakpoint
-CREATE INDEX "user_interactions_created_at_idx" ON "user_interactions" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "push_sub_user_idx" ON "push_subscriptions" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "push_sub_role_idx" ON "push_subscriptions" USING btree ("role");--> statement-breakpoint
-CREATE INDEX "push_sub_type_idx" ON "push_subscriptions" USING btree ("token_type");--> statement-breakpoint
-CREATE INDEX "user_sessions_user_id_idx" ON "user_sessions" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "login_history_user_id_idx" ON "login_history" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "van_bookings_user_id_idx" ON "van_bookings" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "van_bookings_schedule_id_idx" ON "van_bookings" USING btree ("schedule_id");--> statement-breakpoint
-CREATE INDEX "van_bookings_travel_date_idx" ON "van_bookings" USING btree ("travel_date");--> statement-breakpoint
-CREATE INDEX "van_bookings_status_idx" ON "van_bookings" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "van_drivers_user_id_idx" ON "van_drivers" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "van_drivers_van_code_idx" ON "van_drivers" USING btree ("van_code");--> statement-breakpoint
-CREATE INDEX "van_routes_is_active_idx" ON "van_routes" USING btree ("is_active");--> statement-breakpoint
-CREATE INDEX "van_schedules_route_id_idx" ON "van_schedules" USING btree ("route_id");--> statement-breakpoint
-CREATE INDEX "van_schedules_vehicle_id_idx" ON "van_schedules" USING btree ("vehicle_id");--> statement-breakpoint
-CREATE INDEX "van_schedules_driver_id_idx" ON "van_schedules" USING btree ("driver_id");--> statement-breakpoint
-CREATE INDEX "van_vehicles_driver_id_idx" ON "van_vehicles" USING btree ("driver_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "wishlist_user_product_uidx" ON "wishlist" USING btree ("user_id","product_id");--> statement-breakpoint
-CREATE INDEX "wishlist_user_id_idx" ON "wishlist" USING btree ("user_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "service_zones_name_uq" ON "service_zones" USING btree ("name");--> statement-breakpoint
-CREATE INDEX "service_zones_is_active_idx" ON "service_zones" USING btree ("is_active");--> statement-breakpoint
-CREATE INDEX "service_zones_city_idx" ON "service_zones" USING btree ("city");--> statement-breakpoint
-CREATE INDEX "categories_type_idx" ON "categories" USING btree ("type");--> statement-breakpoint
-CREATE INDEX "categories_parent_id_idx" ON "categories" USING btree ("parent_id");--> statement-breakpoint
-CREATE INDEX "categories_sort_order_idx" ON "categories" USING btree ("sort_order");--> statement-breakpoint
-CREATE INDEX "categories_is_active_idx" ON "categories" USING btree ("is_active");--> statement-breakpoint
-CREATE INDEX "location_history_user_id_idx" ON "location_history" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "location_history_created_at_idx" ON "location_history" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "location_history_user_created_idx" ON "location_history" USING btree ("user_id","created_at");--> statement-breakpoint
-CREATE INDEX "delivery_access_requests_vendor_idx" ON "delivery_access_requests" USING btree ("vendor_id");--> statement-breakpoint
-CREATE INDEX "delivery_access_requests_status_idx" ON "delivery_access_requests" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "delivery_whitelist_type_target_service_idx" ON "delivery_whitelist" USING btree ("type","target_id","service_type");--> statement-breakpoint
-CREATE INDEX "delivery_whitelist_type_status_idx" ON "delivery_whitelist" USING btree ("type","status");--> statement-breakpoint
-CREATE INDEX "ac_u_idx" ON "account_conditions" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "ac_t_idx" ON "account_conditions" USING btree ("condition_type");--> statement-breakpoint
-CREATE INDEX "popup_campaigns_status_idx" ON "popup_campaigns" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "popup_campaigns_priority_idx" ON "popup_campaigns" USING btree ("priority");--> statement-breakpoint
-CREATE INDEX "popup_campaigns_start_date_idx" ON "popup_campaigns" USING btree ("start_date");--> statement-breakpoint
-CREATE INDEX "popup_campaigns_end_date_idx" ON "popup_campaigns" USING btree ("end_date");--> statement-breakpoint
-CREATE INDEX "popup_impressions_popup_id_idx" ON "popup_impressions" USING btree ("popup_id");--> statement-breakpoint
-CREATE INDEX "popup_impressions_user_id_idx" ON "popup_impressions" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "popup_impressions_popup_user_idx" ON "popup_impressions" USING btree ("popup_id","user_id");--> statement-breakpoint
-CREATE INDEX "campaigns_status_idx" ON "campaigns" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "campaigns_start_date_idx" ON "campaigns" USING btree ("start_date");--> statement-breakpoint
-CREATE INDEX "campaigns_end_date_idx" ON "campaigns" USING btree ("end_date");--> statement-breakpoint
-CREATE INDEX "campaigns_priority_idx" ON "campaigns" USING btree ("priority");--> statement-breakpoint
-CREATE INDEX "campaign_participations_campaign_id_idx" ON "campaign_participations" USING btree ("campaign_id");--> statement-breakpoint
-CREATE INDEX "campaign_participations_vendor_id_idx" ON "campaign_participations" USING btree ("vendor_id");--> statement-breakpoint
-CREATE INDEX "offer_redemptions_offer_id_idx" ON "offer_redemptions" USING btree ("offer_id");--> statement-breakpoint
-CREATE INDEX "offer_redemptions_user_id_idx" ON "offer_redemptions" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "offer_redemptions_order_id_idx" ON "offer_redemptions" USING btree ("order_id");--> statement-breakpoint
-CREATE INDEX "offer_redemptions_created_at_idx" ON "offer_redemptions" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "offers_campaign_id_idx" ON "offers" USING btree ("campaign_id");--> statement-breakpoint
-CREATE INDEX "offers_status_idx" ON "offers" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "offers_type_idx" ON "offers" USING btree ("type");--> statement-breakpoint
-CREATE INDEX "offers_code_idx" ON "offers" USING btree ("code");--> statement-breakpoint
-CREATE INDEX "offers_start_date_idx" ON "offers" USING btree ("start_date");--> statement-breakpoint
-CREATE INDEX "offers_end_date_idx" ON "offers" USING btree ("end_date");--> statement-breakpoint
-CREATE INDEX "offers_applies_to_idx" ON "offers" USING btree ("applies_to");--> statement-breakpoint
-CREATE INDEX "offers_vendor_id_idx" ON "offers" USING btree ("vendor_id");--> statement-breakpoint
-CREATE INDEX "ai_log_user_idx" ON "ai_moderation_logs" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "ai_log_type_idx" ON "ai_moderation_logs" USING btree ("action_type");--> statement-breakpoint
-CREATE INDEX "ai_log_created_idx" ON "ai_moderation_logs" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "call_caller_idx" ON "call_logs" USING btree ("caller_id");--> statement-breakpoint
-CREATE INDEX "call_callee_idx" ON "call_logs" USING btree ("callee_id");--> statement-breakpoint
-CREATE INDEX "call_status_idx" ON "call_logs" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "call_started_idx" ON "call_logs" USING btree ("started_at");--> statement-breakpoint
-CREATE INDEX "msg_conv_idx" ON "chat_messages" USING btree ("conversation_id");--> statement-breakpoint
-CREATE INDEX "msg_sender_idx" ON "chat_messages" USING btree ("sender_id");--> statement-breakpoint
-CREATE INDEX "msg_created_idx" ON "chat_messages" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "msg_delivery_idx" ON "chat_messages" USING btree ("delivery_status");--> statement-breakpoint
-CREATE INDEX "flag_msg_idx" ON "communication_flags" USING btree ("message_id");--> statement-breakpoint
-CREATE INDEX "flag_resolved_idx" ON "communication_flags" USING btree ("resolved_at");--> statement-breakpoint
-CREATE INDEX "comm_req_sender_idx" ON "communication_requests" USING btree ("sender_id");--> statement-breakpoint
-CREATE INDEX "comm_req_receiver_idx" ON "communication_requests" USING btree ("receiver_id");--> statement-breakpoint
-CREATE INDEX "comm_req_status_idx" ON "communication_requests" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "conv_p1_idx" ON "comm_conversations" USING btree ("participant1_id");--> statement-breakpoint
-CREATE INDEX "conv_p2_idx" ON "comm_conversations" USING btree ("participant2_id");--> statement-breakpoint
-CREATE INDEX "conv_status_idx" ON "comm_conversations" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "conv_last_msg_idx" ON "comm_conversations" USING btree ("last_message_at");--> statement-breakpoint
-CREATE INDEX "qr_codes_type_idx" ON "qr_codes" USING btree ("type");--> statement-breakpoint
-CREATE INDEX "qr_codes_is_active_idx" ON "qr_codes" USING btree ("is_active");--> statement-breakpoint
-CREATE INDEX "qr_codes_code_idx" ON "qr_codes" USING btree ("code");--> statement-breakpoint
-CREATE INDEX "chat_reports_reporter_idx" ON "chat_reports" USING btree ("reporter_id");--> statement-breakpoint
-CREATE INDEX "chat_reports_reported_idx" ON "chat_reports" USING btree ("reported_user_id");--> statement-breakpoint
-CREATE INDEX "chat_reports_status_idx" ON "chat_reports" USING btree ("status");--> statement-breakpoint
-CREATE UNIQUE INDEX "vendor_schedules_vendor_day_idx" ON "vendor_schedules" USING btree ("vendor_id","day_of_week");--> statement-breakpoint
-CREATE INDEX "ab_assignments_experiment_idx" ON "ab_assignments" USING btree ("experiment_id");--> statement-breakpoint
-CREATE INDEX "ab_assignments_user_idx" ON "ab_assignments" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "ab_assignments_variant_idx" ON "ab_assignments" USING btree ("variant");--> statement-breakpoint
-CREATE UNIQUE INDEX "ab_assignments_exp_user_unique" ON "ab_assignments" USING btree ("experiment_id","user_id");--> statement-breakpoint
-CREATE INDEX "ab_experiments_status_idx" ON "ab_experiments" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "webhook_logs_webhook_idx" ON "webhook_logs" USING btree ("webhook_id");--> statement-breakpoint
-CREATE INDEX "webhook_logs_event_idx" ON "webhook_logs" USING btree ("event");--> statement-breakpoint
-CREATE INDEX "webhook_logs_created_idx" ON "webhook_logs" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "webhook_registrations_active_idx" ON "webhook_registrations" USING btree ("is_active");--> statement-breakpoint
-CREATE INDEX "deep_links_short_code_idx" ON "deep_links" USING btree ("short_code");--> statement-breakpoint
-CREATE INDEX "deep_links_target_idx" ON "deep_links" USING btree ("target_screen");--> statement-breakpoint
-CREATE INDEX "stock_subscriptions_user_id_idx" ON "stock_subscriptions" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "stock_subscriptions_product_id_idx" ON "stock_subscriptions" USING btree ("product_id");--> statement-breakpoint
-CREATE INDEX "terms_versions_policy_effective_idx" ON "terms_versions" USING btree ("policy","effective_at");--> statement-breakpoint
-CREATE INDEX "integration_test_history_type_idx" ON "integration_test_history" USING btree ("type");--> statement-breakpoint
-CREATE INDEX "integration_test_history_created_at_idx" ON "integration_test_history" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "search_logs_result_count_created_at_idx" ON "search_logs" USING btree ("result_count","created_at");--> statement-breakpoint
-CREATE INDEX "search_logs_query_idx" ON "search_logs" USING btree ("query");--> statement-breakpoint
-CREATE INDEX "search_logs_created_at_idx" ON "search_logs" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "order_audit_log_order_id_idx" ON "order_audit_log" USING btree ("order_id");--> statement-breakpoint
-CREATE INDEX "order_audit_log_vendor_id_idx" ON "order_audit_log" USING btree ("vendor_id");--> statement-breakpoint
-CREATE INDEX "order_audit_log_changed_at_idx" ON "order_audit_log" USING btree ("changed_at");--> statement-breakpoint
-CREATE INDEX "product_stock_history_product_id_idx" ON "product_stock_history" USING btree ("product_id");--> statement-breakpoint
-CREATE INDEX "product_stock_history_vendor_id_idx" ON "product_stock_history" USING btree ("vendor_id");--> statement-breakpoint
-CREATE INDEX "product_stock_history_changed_at_idx" ON "product_stock_history" USING btree ("changed_at");--> statement-breakpoint
-CREATE INDEX "product_stock_history_order_id_idx" ON "product_stock_history" USING btree ("order_id");--> statement-breakpoint
-CREATE INDEX "cart_snapshots_updated_at_idx" ON "cart_snapshots" USING btree ("updated_at");--> statement-breakpoint
-CREATE INDEX "totp_recovery_codes_user_id_idx" ON "totp_recovery_codes" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "user_totp_setup_user_id_idx" ON "user_totp_setup" USING btree ("user_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "referral_codes_code_uidx" ON "referral_codes" USING btree ("code");--> statement-breakpoint
-CREATE INDEX "referral_codes_owner_user_id_idx" ON "referral_codes" USING btree ("owner_user_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "referral_usages_referee_uidx" ON "referral_usages" USING btree ("referee_user_id");--> statement-breakpoint
-CREATE INDEX "referral_usages_code_id_idx" ON "referral_usages" USING btree ("code_id");--> statement-breakpoint
-CREATE INDEX "referral_usages_referrer_idx" ON "referral_usages" USING btree ("referrer_user_id");--> statement-breakpoint
-CREATE INDEX "pharmacy_prescription_refs_user_id_idx" ON "pharmacy_prescription_refs" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "pharmacy_prescription_refs_expires_at_idx" ON "pharmacy_prescription_refs" USING btree ("expires_at");--> statement-breakpoint
-CREATE INDEX "loyalty_campaigns_status_idx" ON "loyalty_campaigns" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "loyalty_campaigns_start_idx" ON "loyalty_campaigns" USING btree ("start_date");--> statement-breakpoint
-CREATE INDEX "loyalty_campaigns_end_idx" ON "loyalty_campaigns" USING btree ("end_date");--> statement-breakpoint
-CREATE INDEX "loyalty_rewards_active_idx" ON "loyalty_rewards" USING btree ("is_active");--> statement-breakpoint
-CREATE INDEX "loyalty_rewards_type_idx" ON "loyalty_rewards" USING btree ("reward_type");--> statement-breakpoint
-CREATE INDEX "loyalty_rewards_cost_idx" ON "loyalty_rewards" USING btree ("points_cost");
+CREATE INDEX IF NOT EXISTS "products_vendor_id_idx" ON "products" USING btree ("vendor_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "products_category_idx" ON "products" USING btree ("category");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "products_in_stock_idx" ON "products" USING btree ("in_stock");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "products_type_idx" ON "products" USING btree ("type");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "orders_user_id_idx" ON "orders" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "orders_rider_id_idx" ON "orders" USING btree ("rider_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "orders_vendor_id_idx" ON "orders" USING btree ("vendor_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "orders_status_idx" ON "orders" USING btree ("status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "orders_created_at_idx" ON "orders" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "wallet_txn_user_id_idx" ON "wallet_transactions" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "wallet_txn_created_at_idx" ON "wallet_transactions" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "wallet_txn_reference_idx" ON "wallet_transactions" USING btree ("reference");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "rides_user_id_idx" ON "rides" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "rides_rider_id_idx" ON "rides" USING btree ("rider_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "rides_status_idx" ON "rides" USING btree ("status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "rides_created_at_idx" ON "rides" USING btree ("created_at");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "ride_bids_ride_rider_uidx" ON "ride_bids" USING btree ("ride_id","rider_id") WHERE status = 'pending';--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ride_bids_ride_id_idx" ON "ride_bids" USING btree ("ride_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ride_bids_rider_id_idx" ON "ride_bids" USING btree ("rider_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ride_bids_status_idx" ON "ride_bids" USING btree ("status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "live_locations_role_idx" ON "live_locations" USING btree ("role");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "live_locations_lat_lng_idx" ON "live_locations" USING btree ("latitude","longitude");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "live_locations_role_updated_idx" ON "live_locations" USING btree ("role","updated_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "pharmacy_orders_user_id_idx" ON "pharmacy_orders" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "pharmacy_orders_rider_id_idx" ON "pharmacy_orders" USING btree ("rider_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "pharmacy_orders_status_idx" ON "pharmacy_orders" USING btree ("status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "pharmacy_orders_created_at_idx" ON "pharmacy_orders" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "parcel_bookings_user_id_idx" ON "parcel_bookings" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "parcel_bookings_rider_id_idx" ON "parcel_bookings" USING btree ("rider_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "parcel_bookings_status_idx" ON "parcel_bookings" USING btree ("status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "parcel_bookings_created_at_idx" ON "parcel_bookings" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "notifications_user_id_idx" ON "notifications" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "notifications_user_read_idx" ON "notifications" USING btree ("user_id","is_read");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "notifications_created_at_idx" ON "notifications" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "notifications_sos_status_idx" ON "notifications" USING btree ("sos_status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "saved_addresses_user_id_idx" ON "saved_addresses" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "flash_deals_product_id_idx" ON "flash_deals" USING btree ("product_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "flash_deals_is_active_idx" ON "flash_deals" USING btree ("is_active");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "flash_deals_end_time_idx" ON "flash_deals" USING btree ("end_time");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "promo_codes_vendor_id_idx" ON "promo_codes" USING btree ("vendor_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "promo_codes_is_active_idx" ON "promo_codes" USING btree ("is_active");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "promo_codes_expires_at_idx" ON "promo_codes" USING btree ("expires_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "admin_password_reset_tokens_admin_idx" ON "admin_password_reset_tokens" USING btree ("admin_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "admin_password_reset_tokens_expires_idx" ON "admin_password_reset_tokens" USING btree ("expires_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "rbac_admin_role_assignments_admin_idx" ON "rbac_admin_role_assignments" USING btree ("admin_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "rbac_role_permissions_role_idx" ON "rbac_role_permissions" USING btree ("role_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "rbac_user_role_assignments_user_idx" ON "rbac_user_role_assignments" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "reviews_order_user_uidx" ON "reviews" USING btree ("order_id","user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "reviews_user_id_idx" ON "reviews" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "reviews_vendor_id_idx" ON "reviews" USING btree ("vendor_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "reviews_rider_id_idx" ON "reviews" USING btree ("rider_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "reviews_product_id_idx" ON "reviews" USING btree ("product_id");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "school_subs_user_route_uidx" ON "school_subscriptions" USING btree ("user_id","route_id") WHERE status != 'cancelled';--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "school_subs_user_id_idx" ON "school_subscriptions" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "school_subs_route_id_idx" ON "school_subscriptions" USING btree ("route_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "school_subs_status_idx" ON "school_subscriptions" USING btree ("status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ride_event_logs_ride_id_idx" ON "ride_event_logs" USING btree ("ride_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ride_event_logs_rider_id_idx" ON "ride_event_logs" USING btree ("rider_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_refresh_tokens_family_id" ON "refresh_tokens" USING btree ("token_family_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "rider_penalties_rider_id_idx" ON "rider_penalties" USING btree ("rider_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "rider_penalties_type_idx" ON "rider_penalties" USING btree ("type");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "rider_penalties_created_at_idx" ON "rider_penalties" USING btree ("created_at");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "ride_ratings_ride_id_uidx" ON "ride_ratings" USING btree ("ride_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ride_ratings_rider_id_idx" ON "ride_ratings" USING btree ("rider_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ride_ratings_user_id_idx" ON "ride_ratings" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "ride_notified_riders_ride_rider_uidx" ON "ride_notified_riders" USING btree ("ride_id","rider_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ride_notified_riders_ride_id_idx" ON "ride_notified_riders" USING btree ("ride_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "location_logs_user_ts_idx" ON "location_logs" USING btree ("user_id","created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "location_logs_user_idx" ON "location_logs" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "location_logs_role_idx" ON "location_logs" USING btree ("role");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "location_logs_role_ts_idx" ON "location_logs" USING btree ("role","created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "location_logs_lat_lng_idx" ON "location_logs" USING btree ("latitude","longitude");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "product_variants_product_id_idx" ON "product_variants" USING btree ("product_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "product_variants_type_idx" ON "product_variants" USING btree ("type");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "product_variants_sku_idx" ON "product_variants" USING btree ("sku");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "banners_is_active_idx" ON "banners" USING btree ("is_active");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "banners_placement_idx" ON "banners" USING btree ("placement");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "banners_sort_order_idx" ON "banners" USING btree ("sort_order");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "user_interactions_user_id_idx" ON "user_interactions" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "user_interactions_product_id_idx" ON "user_interactions" USING btree ("product_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "user_interactions_type_idx" ON "user_interactions" USING btree ("interaction_type");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "user_interactions_created_at_idx" ON "user_interactions" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "push_sub_user_idx" ON "push_subscriptions" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "push_sub_role_idx" ON "push_subscriptions" USING btree ("role");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "push_sub_type_idx" ON "push_subscriptions" USING btree ("token_type");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "user_sessions_user_id_idx" ON "user_sessions" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "login_history_user_id_idx" ON "login_history" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "van_bookings_user_id_idx" ON "van_bookings" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "van_bookings_schedule_id_idx" ON "van_bookings" USING btree ("schedule_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "van_bookings_travel_date_idx" ON "van_bookings" USING btree ("travel_date");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "van_bookings_status_idx" ON "van_bookings" USING btree ("status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "van_drivers_user_id_idx" ON "van_drivers" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "van_drivers_van_code_idx" ON "van_drivers" USING btree ("van_code");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "van_routes_is_active_idx" ON "van_routes" USING btree ("is_active");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "van_schedules_route_id_idx" ON "van_schedules" USING btree ("route_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "van_schedules_vehicle_id_idx" ON "van_schedules" USING btree ("vehicle_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "van_schedules_driver_id_idx" ON "van_schedules" USING btree ("driver_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "van_vehicles_driver_id_idx" ON "van_vehicles" USING btree ("driver_id");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "wishlist_user_product_uidx" ON "wishlist" USING btree ("user_id","product_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "wishlist_user_id_idx" ON "wishlist" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "service_zones_name_uq" ON "service_zones" USING btree ("name");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "service_zones_is_active_idx" ON "service_zones" USING btree ("is_active");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "service_zones_city_idx" ON "service_zones" USING btree ("city");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "categories_type_idx" ON "categories" USING btree ("type");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "categories_parent_id_idx" ON "categories" USING btree ("parent_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "categories_sort_order_idx" ON "categories" USING btree ("sort_order");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "categories_is_active_idx" ON "categories" USING btree ("is_active");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "location_history_user_id_idx" ON "location_history" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "location_history_created_at_idx" ON "location_history" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "location_history_user_created_idx" ON "location_history" USING btree ("user_id","created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "delivery_access_requests_vendor_idx" ON "delivery_access_requests" USING btree ("vendor_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "delivery_access_requests_status_idx" ON "delivery_access_requests" USING btree ("status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "delivery_whitelist_type_target_service_idx" ON "delivery_whitelist" USING btree ("type","target_id","service_type");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "delivery_whitelist_type_status_idx" ON "delivery_whitelist" USING btree ("type","status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ac_u_idx" ON "account_conditions" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ac_t_idx" ON "account_conditions" USING btree ("condition_type");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "popup_campaigns_status_idx" ON "popup_campaigns" USING btree ("status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "popup_campaigns_priority_idx" ON "popup_campaigns" USING btree ("priority");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "popup_campaigns_start_date_idx" ON "popup_campaigns" USING btree ("start_date");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "popup_campaigns_end_date_idx" ON "popup_campaigns" USING btree ("end_date");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "popup_impressions_popup_id_idx" ON "popup_impressions" USING btree ("popup_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "popup_impressions_user_id_idx" ON "popup_impressions" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "popup_impressions_popup_user_idx" ON "popup_impressions" USING btree ("popup_id","user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "campaigns_status_idx" ON "campaigns" USING btree ("status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "campaigns_start_date_idx" ON "campaigns" USING btree ("start_date");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "campaigns_end_date_idx" ON "campaigns" USING btree ("end_date");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "campaigns_priority_idx" ON "campaigns" USING btree ("priority");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "campaign_participations_campaign_id_idx" ON "campaign_participations" USING btree ("campaign_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "campaign_participations_vendor_id_idx" ON "campaign_participations" USING btree ("vendor_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "offer_redemptions_offer_id_idx" ON "offer_redemptions" USING btree ("offer_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "offer_redemptions_user_id_idx" ON "offer_redemptions" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "offer_redemptions_order_id_idx" ON "offer_redemptions" USING btree ("order_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "offer_redemptions_created_at_idx" ON "offer_redemptions" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "offers_campaign_id_idx" ON "offers" USING btree ("campaign_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "offers_status_idx" ON "offers" USING btree ("status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "offers_type_idx" ON "offers" USING btree ("type");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "offers_code_idx" ON "offers" USING btree ("code");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "offers_start_date_idx" ON "offers" USING btree ("start_date");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "offers_end_date_idx" ON "offers" USING btree ("end_date");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "offers_applies_to_idx" ON "offers" USING btree ("applies_to");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "offers_vendor_id_idx" ON "offers" USING btree ("vendor_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ai_log_user_idx" ON "ai_moderation_logs" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ai_log_type_idx" ON "ai_moderation_logs" USING btree ("action_type");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ai_log_created_idx" ON "ai_moderation_logs" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "call_caller_idx" ON "call_logs" USING btree ("caller_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "call_callee_idx" ON "call_logs" USING btree ("callee_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "call_status_idx" ON "call_logs" USING btree ("status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "call_started_idx" ON "call_logs" USING btree ("started_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "msg_conv_idx" ON "chat_messages" USING btree ("conversation_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "msg_sender_idx" ON "chat_messages" USING btree ("sender_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "msg_created_idx" ON "chat_messages" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "msg_delivery_idx" ON "chat_messages" USING btree ("delivery_status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "flag_msg_idx" ON "communication_flags" USING btree ("message_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "flag_resolved_idx" ON "communication_flags" USING btree ("resolved_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "comm_req_sender_idx" ON "communication_requests" USING btree ("sender_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "comm_req_receiver_idx" ON "communication_requests" USING btree ("receiver_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "comm_req_status_idx" ON "communication_requests" USING btree ("status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "conv_p1_idx" ON "comm_conversations" USING btree ("participant1_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "conv_p2_idx" ON "comm_conversations" USING btree ("participant2_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "conv_status_idx" ON "comm_conversations" USING btree ("status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "conv_last_msg_idx" ON "comm_conversations" USING btree ("last_message_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "qr_codes_type_idx" ON "qr_codes" USING btree ("type");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "qr_codes_is_active_idx" ON "qr_codes" USING btree ("is_active");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "qr_codes_code_idx" ON "qr_codes" USING btree ("code");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "chat_reports_reporter_idx" ON "chat_reports" USING btree ("reporter_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "chat_reports_reported_idx" ON "chat_reports" USING btree ("reported_user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "chat_reports_status_idx" ON "chat_reports" USING btree ("status");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "vendor_schedules_vendor_day_idx" ON "vendor_schedules" USING btree ("vendor_id","day_of_week");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ab_assignments_experiment_idx" ON "ab_assignments" USING btree ("experiment_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ab_assignments_user_idx" ON "ab_assignments" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ab_assignments_variant_idx" ON "ab_assignments" USING btree ("variant");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "ab_assignments_exp_user_unique" ON "ab_assignments" USING btree ("experiment_id","user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ab_experiments_status_idx" ON "ab_experiments" USING btree ("status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "webhook_logs_webhook_idx" ON "webhook_logs" USING btree ("webhook_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "webhook_logs_event_idx" ON "webhook_logs" USING btree ("event");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "webhook_logs_created_idx" ON "webhook_logs" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "webhook_registrations_active_idx" ON "webhook_registrations" USING btree ("is_active");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "deep_links_short_code_idx" ON "deep_links" USING btree ("short_code");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "deep_links_target_idx" ON "deep_links" USING btree ("target_screen");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "stock_subscriptions_user_id_idx" ON "stock_subscriptions" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "stock_subscriptions_product_id_idx" ON "stock_subscriptions" USING btree ("product_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "terms_versions_policy_effective_idx" ON "terms_versions" USING btree ("policy","effective_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "integration_test_history_type_idx" ON "integration_test_history" USING btree ("type");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "integration_test_history_created_at_idx" ON "integration_test_history" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "search_logs_result_count_created_at_idx" ON "search_logs" USING btree ("result_count","created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "search_logs_query_idx" ON "search_logs" USING btree ("query");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "search_logs_created_at_idx" ON "search_logs" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "order_audit_log_order_id_idx" ON "order_audit_log" USING btree ("order_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "order_audit_log_vendor_id_idx" ON "order_audit_log" USING btree ("vendor_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "order_audit_log_changed_at_idx" ON "order_audit_log" USING btree ("changed_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "product_stock_history_product_id_idx" ON "product_stock_history" USING btree ("product_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "product_stock_history_vendor_id_idx" ON "product_stock_history" USING btree ("vendor_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "product_stock_history_changed_at_idx" ON "product_stock_history" USING btree ("changed_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "product_stock_history_order_id_idx" ON "product_stock_history" USING btree ("order_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "cart_snapshots_updated_at_idx" ON "cart_snapshots" USING btree ("updated_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "totp_recovery_codes_user_id_idx" ON "totp_recovery_codes" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "user_totp_setup_user_id_idx" ON "user_totp_setup" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "referral_codes_code_uidx" ON "referral_codes" USING btree ("code");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "referral_codes_owner_user_id_idx" ON "referral_codes" USING btree ("owner_user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "referral_usages_referee_uidx" ON "referral_usages" USING btree ("referee_user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "referral_usages_code_id_idx" ON "referral_usages" USING btree ("code_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "referral_usages_referrer_idx" ON "referral_usages" USING btree ("referrer_user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "pharmacy_prescription_refs_user_id_idx" ON "pharmacy_prescription_refs" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "pharmacy_prescription_refs_expires_at_idx" ON "pharmacy_prescription_refs" USING btree ("expires_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "loyalty_campaigns_status_idx" ON "loyalty_campaigns" USING btree ("status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "loyalty_campaigns_start_idx" ON "loyalty_campaigns" USING btree ("start_date");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "loyalty_campaigns_end_idx" ON "loyalty_campaigns" USING btree ("end_date");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "loyalty_rewards_active_idx" ON "loyalty_rewards" USING btree ("is_active");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "loyalty_rewards_type_idx" ON "loyalty_rewards" USING btree ("reward_type");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "loyalty_rewards_cost_idx" ON "loyalty_rewards" USING btree ("points_cost");
