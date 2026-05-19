@@ -275,7 +275,7 @@ export default function Chat() {
     } catch (e) {
       setSendError((e as Error)?.message || "Failed to load messages");
     }
-    setTimeout(() => scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight), 100);
+    setTimeout(() => { const el = scrollRef.current; if (el) el.scrollTo(0, el.scrollHeight); }, 100);
   };
 
   const sendMessage = async () => {
@@ -318,7 +318,7 @@ export default function Chat() {
       });
       setMessages(prev => [...prev, msg]);
       loadConversations();
-      setTimeout(() => scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight), 100);
+      setTimeout(() => { const el = scrollRef.current; if (el) el.scrollTo(0, el.scrollHeight); }, 100);
     } catch (e) {
       setSendError((e as Error)?.message || "Failed to upload file");
     }

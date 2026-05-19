@@ -5,6 +5,9 @@ import { GpsMiniMap } from "./GpsMiniMap";
 export function GpsStampCard({ order }: { order: any }) {
   const cLat = Number(order.customerLat);
   const cLng = Number(order.customerLng);
+
+  if (!Number.isFinite(cLat) || !Number.isFinite(cLng)) return null;
+
   const dLat = order.deliveryLat != null ? Number(order.deliveryLat) : null;
   const dLng = order.deliveryLng != null ? Number(order.deliveryLng) : null;
   const hasDual = dLat != null && dLng != null && Number.isFinite(dLat) && Number.isFinite(dLng);

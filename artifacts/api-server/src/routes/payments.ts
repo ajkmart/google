@@ -53,9 +53,14 @@ async function trackPayment(txnRef: string, orderId?: string) {
 }
 
 async function resolvePayment(txnRef: string, status: "success" | "failed") {
-  await db.update(ordersTable)
-    .set({ paymentStatus: status, updatedAt: new Date() })
-    .where(eq(ordersTable.txnRef, txnRef));
+  try {
+    await db.update(ordersTable)
+      .set({ paymentStatus: status, updatedAt: new Date() })
+      .where(eq(ordersTable.txnRef, txnRef));
+  } catch (err) {
+    logger.warn({ txnRef, status, err: err instanceof Error ? err.message : String(err) }, "[payments] resolvePayment DB update failed");
+    throw err;
+  }
 }
 
 async function confirmOrder(orderId: string): Promise<void> {

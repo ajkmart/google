@@ -147,8 +147,14 @@ function TransactionsPanel() {
     if (!ids.length) return;
     setBulkProcessing(true);
     try {
-      await Promise.all(ids.map(id => adminFetch(`/wallet/transfers/${id}/approve`, { method: "POST" })));
-      toast({ title: "Approved", description: `Successfully approved ${ids.length} transfers` });
+      const results = await Promise.allSettled(ids.map(id => adminFetch(`/wallet/transfers/${id}/approve`, { method: "POST" })));
+      const failed = results.filter(r => r.status === "rejected").length;
+      const succeeded = results.length - failed;
+      if (failed > 0) {
+        toast({ title: "Partial Success", description: `${succeeded} approved, ${failed} failed — check individual transfers for errors`, variant: "destructive" });
+      } else {
+        toast({ title: "Approved", description: `Successfully approved ${ids.length} transfers` });
+      }
       setSelectedIds(new Set());
       qc.invalidateQueries({ queryKey: ["admin-wallet-transfers"] });
     } catch (e: unknown) {

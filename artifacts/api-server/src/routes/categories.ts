@@ -29,18 +29,23 @@ const SEED_CATEGORIES = [
 ];
 
 async function ensureSeedCategories() {
-  const existing = await db.select({ id: categoriesTable.id }).from(categoriesTable).limit(1);
-  if (existing.length > 0) return;
-  for (const cat of SEED_CATEGORIES) {
-    await db.insert(categoriesTable).values({
-      id: cat.id,
-      name: cat.name,
-      icon: cat.icon,
-      type: cat.type,
-      sortOrder: cat.sortOrder,
-      parentId: null,
-      isActive: true,
-    }).onConflictDoNothing();
+  try {
+    const existing = await db.select({ id: categoriesTable.id }).from(categoriesTable).limit(1);
+    if (existing.length > 0) return;
+    for (const cat of SEED_CATEGORIES) {
+      await db.insert(categoriesTable).values({
+        id: cat.id,
+        name: cat.name,
+        icon: cat.icon,
+        type: cat.type,
+        sortOrder: cat.sortOrder,
+        parentId: null,
+        isActive: true,
+      }).onConflictDoNothing();
+    }
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[categories] ensureSeedCategories failed — startup seeding skipped");
+    throw err;
   }
 }
 

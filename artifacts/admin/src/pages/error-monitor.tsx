@@ -2018,6 +2018,7 @@ export default function ErrorMonitor() {
                       document.body.removeChild(ta);
                     // eslint-disable-next-line ajk-local/no-silent-catch -- clipboard copy failure is non-critical; user can copy manually
                     } catch (clipErr) {
+                      console.debug("[error-monitor] clipboard fallback failed:", clipErr);
                     }
                   }
                 }}
@@ -2065,6 +2066,7 @@ export default function ErrorMonitor() {
                         document.body.removeChild(ta);
                       // eslint-disable-next-line ajk-local/no-silent-catch -- clipboard copy failure is non-critical; user can copy manually
                       } catch (clipErr) {
+                        console.debug("[error-monitor] clipboard fallback failed:", clipErr);
                       }
                     }
                   }}

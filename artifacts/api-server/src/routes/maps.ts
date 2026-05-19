@@ -591,6 +591,7 @@ router.get("/reverse-geocode", async (req, res, next) => {
    Falls back to Haversine + speed estimate when no engine is available.
 ══════════════════════════════════════════════════════════ */
 router.get("/directions", async (req, res, next) => {
+  try {
   const oLat = parseFloat(String(req.query.origin_lat ?? ""));
   const oLng = parseFloat(String(req.query.origin_lng ?? ""));
   const dLat = parseFloat(String(req.query.dest_lat   ?? ""));
@@ -638,7 +639,7 @@ router.get("/directions", async (req, res, next) => {
         source:          "osrm",
       });
     } catch (err) {
-      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+      logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[maps/directions] OSRM failed — using haversine fallback");
       res.json(haversineFallback("fallback"));
     }
     return;
@@ -668,7 +669,7 @@ router.get("/directions", async (req, res, next) => {
         source:          "mapbox",
       });
     } catch (err) {
-      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+      logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[maps/directions] Mapbox failed — using haversine fallback");
       res.json(haversineFallback("fallback"));
     }
     return;
@@ -701,9 +702,10 @@ router.get("/directions", async (req, res, next) => {
       source:          "google",
     });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[maps/directions] Google Directions failed — using haversine fallback");
     res.json(haversineFallback("fallback"));
   }
+  } catch (err) { next(err); }
 });
 
 /* ══════════════════════════════════════════════════════════

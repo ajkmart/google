@@ -182,6 +182,7 @@ router.get("/:id/debt", async (req, res, next) => {
 });
 
 router.post("/export-data", exportDataLimiter, validateBody(ExportDataSchema), async (req, res, next) => {
+  try {
   const userId = req.customerId!;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!user) {
@@ -225,8 +226,7 @@ router.post("/export-data", exportDataLimiter, validateBody(ExportDataSchema), a
       db.select().from(parcelBookingsTable).where(eq(parcelBookingsTable.userId, userId)).orderBy(desc(parcelBookingsTable.createdAt)),
     ]);
   } catch (err) {
-    sendError(res, "Failed to retrieve your data. Please try again later.");
-    return;
+    next(err); return;
   }
 
   const exportData = {
@@ -344,16 +344,22 @@ router.post("/export-data", exportDataLimiter, validateBody(ExportDataSchema), a
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Content-Disposition", `attachment; filename="ajkmart-data-export-${userId.slice(-8)}.json"`);
   res.json(exportData);
+  } catch (err) { next(err); }
 });
 
 async function saveAvatarBuffer(userId: string, buffer: Buffer, mime: string) {
-  const ext = mime === "image/png" ? ".png" : mime === "image/webp" ? ".webp" : ".jpg";
-  const uniqueName = `avatar_${userId.slice(-8)}_${randomUUID().slice(0, 8)}${ext}`;
-  await mkdir(UPLOADS_DIR, { recursive: true });
-  await writeFile(path.join(UPLOADS_DIR, uniqueName), buffer);
-  const avatarUrl = `/api/uploads/${uniqueName}`;
-  await db.update(usersTable).set({ avatar: avatarUrl, updatedAt: new Date() }).where(eq(usersTable.id, userId));
-  return avatarUrl;
+  try {
+    const ext = mime === "image/png" ? ".png" : mime === "image/webp" ? ".webp" : ".jpg";
+    const uniqueName = `avatar_${userId.slice(-8)}_${randomUUID().slice(0, 8)}${ext}`;
+    await mkdir(UPLOADS_DIR, { recursive: true });
+    await writeFile(path.join(UPLOADS_DIR, uniqueName), buffer);
+    const avatarUrl = `/api/uploads/${uniqueName}`;
+    await db.update(usersTable).set({ avatar: avatarUrl, updatedAt: new Date() }).where(eq(usersTable.id, userId));
+    return avatarUrl;
+  } catch (err) {
+    logger.warn({ userId, err: err instanceof Error ? err.message : String(err) }, "[users] saveAvatarBuffer failed");
+    throw err;
+  }
 }
 
 router.post("/avatar", (req, res, next) => {
@@ -407,6 +413,7 @@ router.post("/avatar", (req, res, next) => {
 });
 
 router.put("/profile", validateBody(ProfileUpdateSchema), async (req, res, next) => {
+  try {
   const userId = req.customerId!;
 
   /* Rate limit: max 10 profile updates per minute per user */
@@ -512,6 +519,7 @@ router.put("/profile", validateBody(ProfileUpdateSchema), async (req, res, next)
     kycStatus: user.kycStatus,
     createdAt: user.createdAt.toISOString(),
   }, "پروفائل کامیابی سے اپ ڈیٹ ہو گیا۔");
+  } catch (err) { next(err); }
 });
 
 router.delete("/delete-account", validateBody(DeleteAccountSchema), async (req, res, next) => {

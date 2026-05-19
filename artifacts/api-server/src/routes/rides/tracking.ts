@@ -102,6 +102,7 @@ async function buildRideSSEPayload(rideId: string): Promise<Record<string, unkno
 }
 
 router.get("/:id/stream", customerAuth, async (req, res, next) => {
+  try {
   const callerId = req.customerId!;
   const rideId = String(req.params["id"] as string);
 
@@ -162,6 +163,14 @@ router.get("/:id/stream", customerAuth, async (req, res, next) => {
   heartbeatTimer = setInterval(() => {
     try { res.write(": heartbeat\n\n"); } catch (err) { /* intentional: non-fatal guard */ void err; }
   }, SSE_HEARTBEAT_MS);
+  } catch (err) {
+    if (res.headersSent) {
+      logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[rides/stream] SSE error after headers sent");
+      try { res.end(); } catch { /* already closed */ }
+    } else {
+      next(err);
+    }
+  }
 });
 
 router.get("/:id", customerAuth, verifyOwnership("ride"), async (req, res, next) => {
