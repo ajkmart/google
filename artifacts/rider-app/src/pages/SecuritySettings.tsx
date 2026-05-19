@@ -146,11 +146,11 @@ export default function SecuritySettings() {
   };
 
   const handleToggle2fa = async () => {
+    setError("");
     if (is2faEnabled) {
       setView("verify-disable");
     } else {
       setLoading(true);
-      setError("");
       try {
         const data = await api.twoFactorSetup();
         setSetupData({

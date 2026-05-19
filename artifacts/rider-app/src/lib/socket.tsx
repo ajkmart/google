@@ -152,6 +152,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     type BatteryManager = { level: number; addEventListener: (event: string, cb: () => void) => void; removeEventListener: (event: string, cb: () => void) => void };
     let batt: BatteryManager | undefined;
+    let mounted = true;
     const onLevelChange = () => {
       if (batt) {
         batteryLevelRef.current = batt.level;
@@ -160,12 +161,16 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     };
     (navigator as unknown as { getBattery?: () => Promise<BatteryManager> }).getBattery?.()
       .then((b) => {
+        if (!mounted) return;
         batt = b;
         batteryLevelRef.current = batt.level;
         setBatteryLevelState(batt.level);
         batt.addEventListener("levelchange", onLevelChange);
       }).catch((err) => { console.warn('[artifacts/rider-app/src/lib/socket.tsx]', err); }); // eslint-disable-line no-console
-    return () => { batt?.removeEventListener("levelchange", onLevelChange); };
+    return () => {
+      mounted = false;
+      batt?.removeEventListener("levelchange", onLevelChange);
+    };
   }, []);
 
   /* Heartbeat effect - keyed on the socket instance so connect listeners rebind */

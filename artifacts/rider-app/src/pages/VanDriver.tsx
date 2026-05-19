@@ -241,6 +241,7 @@ export default function VanDriver() {
          UI banner so users see the same red bar that mutation failures use,
          rather than introducing a parallel display surface. */
   const gpsInflightRef = useRef<boolean>(false);
+  const gpsStoppedRef = useRef<boolean>(false);
   const highAccuracyRef = useRef<boolean>(true);
   const setGpsError = (msg: string | null) => {
     /* Only overwrite the error banner when there's something to show — never
@@ -256,6 +257,7 @@ export default function VanDriver() {
       return;
     }
     setBroadcasting(true);
+    gpsStoppedRef.current = false;
     setGpsError(null);
     const schedId = selectedSchedule.id;
     const schedDate = selectedSchedule.date;
@@ -267,6 +269,7 @@ export default function VanDriver() {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           gpsInflightRef.current = false;
+          if (gpsStoppedRef.current) return;
           setGpsError(null);
           setRiderPos([pos.coords.latitude, pos.coords.longitude]);
           sendLocation(schedId, schedDate, pos.coords.latitude, pos.coords.longitude).catch((err) => { console.warn('[artifacts/rider-app/src/pages/VanDriver.tsx]', err); }); // eslint-disable-line no-console
@@ -294,6 +297,7 @@ export default function VanDriver() {
 
   function stopGpsBroadcast() {
     setBroadcasting(false);
+    gpsStoppedRef.current = true;
     gpsInflightRef.current = false;
     if (gpsIntervalRef.current) {
       clearInterval(gpsIntervalRef.current);

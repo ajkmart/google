@@ -395,12 +395,19 @@ export default function Chat() {
       if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop());
 
       const data = await api.apiFetch("/communication/calls/initiate", { method: "POST", body: JSON.stringify({ calleeId, conversationId: selectedConv?.id }) });
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      } catch (mediaErr) {
+        setSendError((mediaErr as Error)?.message || "Microphone access denied");
+        return;
+      }
+      localStreamRef.current = stream;
+
       setCallId(data.callId);
       setCallActive(true);
       timerRef.current = setInterval(() => setCallTimer(t => t + 1), 1000);
-
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-      localStreamRef.current = stream;
       const trickleIce = data.trickleIce !== false;
       trickleIceRef.current = trickleIce;
 
@@ -495,7 +502,7 @@ export default function Chat() {
     setAiLoading(true);
 
     try {
-      const result = await api.aiChat(text, aiMessages.slice(-10));
+      const result = await api.aiChat(text, newHistory.slice(-10));
       setAiMessages(prev => [...prev, { role: "assistant", content: result.reply }]);
     } catch (err) { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
     finally {
