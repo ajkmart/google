@@ -174,7 +174,7 @@ router.patch("/alerts/:id/acknowledge", adminAuth, async (req, res) => {
   try {
   const admin = getAdminFromReq(req);
 
-  const alertId = req.params["id"];
+  const alertId = req.params["id"] as string;
   const [existing] = await db.select().from(notificationsTable)
     .where(and(eq(notificationsTable.id, alertId), eq(notificationsTable.type, "sos")))
     .limit(1);
@@ -207,7 +207,7 @@ router.patch("/alerts/:id/resolve", adminAuth, async (req, res) => {
   try {
   const admin = getAdminFromReq(req);
 
-  const alertId = req.params["id"];
+  const alertId = req.params["id"] as string;
   const notes = typeof req.body?.notes === "string" ? req.body.notes.trim() : null;
 
   const [existing] = await db.select().from(notificationsTable)

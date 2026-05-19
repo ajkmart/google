@@ -222,7 +222,7 @@ router.post("/popups", async (req: AdminRequest, res) => {
 
 router.patch("/popups/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [existing] = await db
       .select()
       .from(popupCampaignsTable)
@@ -245,7 +245,7 @@ router.patch("/popups/:id", async (req, res) => {
 
 router.delete("/popups/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [existing] = await db
       .select()
       .from(popupCampaignsTable)
@@ -264,7 +264,7 @@ router.delete("/popups/:id", async (req, res) => {
 /* ── POST /popups/clone/:id — duplicate a campaign ── */
 router.post("/popups/clone/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [existing] = await db.select().from(popupCampaignsTable).where(eq(popupCampaignsTable.id, id)).limit(1);
     if (!existing) { sendNotFound(res, "Campaign not found"); return; }
 
@@ -288,7 +288,7 @@ router.post("/popups/clone/:id", async (req, res) => {
 /* ── GET /popups/:id/analytics — per-campaign analytics ── */
 router.get("/popups/:id/analytics", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const rows = await db
       .select({
         action: popupImpressionsTable.action,
@@ -343,7 +343,7 @@ router.post("/popups/templates", async (req, res) => {
 
 router.patch("/popups/templates/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [existing] = await db.select().from(popupTemplatesTable).where(eq(popupTemplatesTable.id, id)).limit(1);
     if (!existing) { sendNotFound(res, "Template not found"); return; }
     const [updated] = await db.update(popupTemplatesTable)
@@ -359,7 +359,7 @@ router.patch("/popups/templates/:id", async (req, res) => {
 
 router.delete("/popups/templates/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     await db.delete(popupTemplatesTable).where(eq(popupTemplatesTable.id, id));
     sendSuccess(res, { deleted: true });
   } catch (err) {

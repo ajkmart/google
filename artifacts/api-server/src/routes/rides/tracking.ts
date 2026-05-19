@@ -103,7 +103,7 @@ async function buildRideSSEPayload(rideId: string): Promise<Record<string, unkno
 
 router.get("/:id/stream", customerAuth, async (req, res) => {
   const callerId = req.customerId!;
-  const rideId = String(req.params["id"]);
+  const rideId = String(req.params["id"] as string);
 
   const [ride] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
   if (!ride) { sendNotFound(res, "Ride not found"); return; }
@@ -167,7 +167,7 @@ router.get("/:id/stream", customerAuth, async (req, res) => {
 router.get("/:id", customerAuth, verifyOwnership("ride"), async (req, res) => {
   const callerId = req.customerId!;
 
-  const rideId = String(req.params["id"]);
+  const rideId = String(req.params["id"] as string);
   const [ride] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
   if (!ride) { sendNotFound(res, "Ride not found"); return; }
 
@@ -261,7 +261,7 @@ router.get("/:id", customerAuth, verifyOwnership("ride"), async (req, res) => {
 router.get("/:id/track", customerAuth, async (req, res) => {
   const callerId = req.customerId!;
 
-  const rideId = String(req.params["id"]);
+  const rideId = String(req.params["id"] as string);
   const [ride] = await db.select({
     id: ridesTable.id, status: ridesTable.status, riderId: ridesTable.riderId,
     userId: ridesTable.userId, pickupLat: ridesTable.pickupLat, pickupLng: ridesTable.pickupLng,
@@ -363,7 +363,7 @@ router.post("/:id/event-log", riderAuth, loadRide(), requireRideOwner("riderId")
 
 router.get("/:id/event-logs", adminAuth, async (req, res) => {
   const logs = await db.select().from(rideEventLogsTable)
-    .where(eq(rideEventLogsTable.rideId, String(req.params["id"])))
+    .where(eq(rideEventLogsTable.rideId, String(req.params["id"] as string)))
     .orderBy(asc(rideEventLogsTable.createdAt));
 
   const formatted = logs.map(l => ({

@@ -93,7 +93,7 @@ router.get("/vendors", async (_req, res) => {
         walletBalance: parseFloat(v.walletBalance ?? "0"),
         isActive: v.isActive, isBanned: v.isBanned,
         approvalStatus: v.approvalStatus, approvalNote: v.approvalNote,
-        roles: v.roles, role: v.role,
+        roles: v.roles, role: v.roles,
         createdAt: v.createdAt.toISOString(),
         lastLoginAt: v.lastLoginAt ? v.lastLoginAt.toISOString() : null,
         totalOrders: Number(stats.totalOrders ?? 0),
@@ -112,14 +112,14 @@ router.patch("/vendors/:id/status", async (req, res) => {
   if (isBanned    !== undefined) updates.isBanned    = isBanned;
   if (banReason   !== undefined) updates.banReason   = banReason || null;
   if (securityNote !== undefined) updates.securityNote = securityNote || null;
-  const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, req.params["id"]!)).returning();
+  const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, req.params["id"] as string)).returning();
   if (!user) { res.status(404).json({ error: "Vendor not found" }); return; }
   if (isBanned || isActive === false) {
-    revokeAllUserSessions(req.params["id"]!).catch((e: Error) => {
-      logger.warn({ err: e.message, userId: req.params["id"] }, "[admin] session revocation failed after vendor ban/deactivation");
+    revokeAllUserSessions(req.params["id"] as string).catch((e: Error) => {
+      logger.warn({ err: e.message, userId: req.params["id"] as string }, "[admin] session revocation failed after vendor ban/deactivation");
     });
     if (isBanned) {
-      await sendUserNotification(req.params["id"]!, "Store Account Suspended ⚠️", banReason || "Your vendor account has been suspended. Contact support.", "warning", "warning-outline");
+      await sendUserNotification(req.params["id"] as string, "Store Account Suspended ⚠️", banReason || "Your vendor account has been suspended. Contact support.", "warning", "warning-outline");
     }
   }
   res.json({ ...user, walletBalance: parseFloat(String(user.walletBalance ?? "0")) });
@@ -130,7 +130,7 @@ router.post("/vendors/:id/payout", async (req, res) => {
   if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
     res.status(400).json({ error: "Valid amount required" }); return;
   }
-  const [vendor] = await db.select().from(usersTable).where(eq(usersTable.id, req.params["id"]!)).limit(1);
+  const [vendor] = await db.select().from(usersTable).where(eq(usersTable.id, req.params["id"] as string)).limit(1);
   if (!vendor) { res.status(404).json({ error: "Vendor not found" }); return; }
   const amt = Number(amount);
   const currentBal = parseFloat(vendor.walletBalance ?? "0");
@@ -152,7 +152,7 @@ router.post("/vendors/:id/credit", async (req, res) => {
   if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
     res.status(400).json({ error: "Valid amount required" }); return;
   }
-  const [vendor] = await db.select().from(usersTable).where(eq(usersTable.id, req.params["id"]!)).limit(1);
+  const [vendor] = await db.select().from(usersTable).where(eq(usersTable.id, req.params["id"] as string)).limit(1);
   if (!vendor) { res.status(404).json({ error: "Vendor not found" }); return; }
   const amt = Number(amount);
   const newBal = parseFloat(vendor.walletBalance ?? "0") + amt;
@@ -203,7 +203,7 @@ router.get("/riders", async (_req, res) => {
       penaltyTotal: penaltyMap.get(r.id) ?? 0,
       avgRating: ratingMap.get(r.id)?.avg ?? 0,
       ratingCount: ratingMap.get(r.id)?.count ?? 0,
-      roles: r.roles, role: r.role,
+      roles: r.roles, role: r.roles,
       isOnline: (r as any).isOnline ?? false,
       createdAt: r.createdAt.toISOString(),
       lastLoginAt: r.lastLoginAt ? r.lastLoginAt.toISOString() : null,
@@ -218,14 +218,14 @@ router.patch("/riders/:id/status", async (req, res) => {
   if (isActive  !== undefined) updates.isActive  = isActive;
   if (isBanned  !== undefined) updates.isBanned  = isBanned;
   if (banReason !== undefined) updates.banReason = banReason || null;
-  const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, req.params["id"]!)).returning();
+  const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, req.params["id"] as string)).returning();
   if (!user) { res.status(404).json({ error: "Rider not found" }); return; }
   if (isBanned || isActive === false) {
-    revokeAllUserSessions(req.params["id"]!).catch((e: Error) => {
-      logger.warn({ err: e.message, userId: req.params["id"] }, "[admin] session revocation failed after rider ban/deactivation");
+    revokeAllUserSessions(req.params["id"] as string).catch((e: Error) => {
+      logger.warn({ err: e.message, userId: req.params["id"] as string }, "[admin] session revocation failed after rider ban/deactivation");
     });
     if (isBanned) {
-      await sendUserNotification(req.params["id"]!, "Rider Account Suspended ⚠️", banReason || "Your rider account has been suspended. Contact support.", "warning", "warning-outline");
+      await sendUserNotification(req.params["id"] as string, "Rider Account Suspended ⚠️", banReason || "Your rider account has been suspended. Contact support.", "warning", "warning-outline");
     }
   }
   res.json({ ...user, walletBalance: parseFloat(String(user.walletBalance ?? "0")) });
@@ -236,7 +236,7 @@ router.post("/riders/:id/payout", async (req, res) => {
   if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
     res.status(400).json({ error: "Valid amount required" }); return;
   }
-  const [rider] = await db.select().from(usersTable).where(eq(usersTable.id, req.params["id"]!)).limit(1);
+  const [rider] = await db.select().from(usersTable).where(eq(usersTable.id, req.params["id"] as string)).limit(1);
   if (!rider) { res.status(404).json({ error: "Rider not found" }); return; }
   const amt = Number(amount);
   const currentBal = parseFloat(rider.walletBalance ?? "0");
@@ -266,7 +266,7 @@ router.post("/riders/:id/bonus", async (req, res) => {
   if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
     res.status(400).json({ error: "Valid amount required" }); return;
   }
-  const riderId = req.params["id"]!;
+  const riderId = req.params["id"] as string;
   const amt = Number(amount);
   const txId = generateId();
 
@@ -298,7 +298,7 @@ router.post("/riders/:id/bonus", async (req, res) => {
 });
 
 router.get("/riders/:id/penalties", async (req, res) => {
-  const riderId = req.params["id"]!;
+  const riderId = req.params["id"] as string;
   const penalties = await db.select().from(riderPenaltiesTable)
     .where(eq(riderPenaltiesTable.riderId, riderId))
     .orderBy(desc(riderPenaltiesTable.createdAt))
@@ -307,7 +307,7 @@ router.get("/riders/:id/penalties", async (req, res) => {
 });
 
 router.get("/riders/:id/ratings", async (req, res) => {
-  const riderId = req.params["id"]!;
+  const riderId = req.params["id"] as string;
   const ratings = await db.select().from(rideRatingsTable)
     .where(eq(rideRatingsTable.riderId, riderId))
     .orderBy(desc(rideRatingsTable.createdAt))
@@ -316,7 +316,7 @@ router.get("/riders/:id/ratings", async (req, res) => {
 });
 
 router.post("/riders/:id/restrict", async (req, res) => {
-  const riderId = req.params["id"]!;
+  const riderId = req.params["id"] as string;
   const [user] = await db.update(usersTable)
     .set({ isRestricted: true, updatedAt: new Date() })
     .where(eq(usersTable.id, riderId))
@@ -327,7 +327,7 @@ router.post("/riders/:id/restrict", async (req, res) => {
 });
 
 router.post("/riders/:id/unrestrict", async (req, res) => {
-  const riderId = req.params["id"]!;
+  const riderId = req.params["id"] as string;
   const [user] = await db.update(usersTable)
     .set({ isRestricted: false, updatedAt: new Date() })
     .where(eq(usersTable.id, riderId))
@@ -359,7 +359,7 @@ router.get("/withdrawal-requests", async (req, res) => {
 /* ── PATCH /admin/withdrawal-requests/:id/approve ─── */
 router.patch("/withdrawal-requests/:id/approve", async (req, res) => {
   const { refNo, note } = req.body;
-  const txId = req.params["id"]!;
+  const txId = req.params["id"] as string;
   const [tx] = await db.select().from(walletTransactionsTable).where(eq(walletTransactionsTable.id, txId)).limit(1);
   if (!tx) { res.status(404).json({ error: "Withdrawal not found" }); return; }
   if (tx.reference && tx.reference !== "pending") {
@@ -383,7 +383,7 @@ router.patch("/withdrawal-requests/:id/approve", async (req, res) => {
 /* ── PATCH /admin/withdrawal-requests/:id/reject ─── */
 router.patch("/withdrawal-requests/:id/reject", async (req, res) => {
   const { reason } = req.body;
-  const txId = req.params["id"]!;
+  const txId = req.params["id"] as string;
   const [tx] = await db.select().from(walletTransactionsTable).where(eq(walletTransactionsTable.id, txId)).limit(1);
   if (!tx) { res.status(404).json({ error: "Withdrawal not found" }); return; }
   if (tx.reference && tx.reference !== "pending") {
@@ -483,7 +483,7 @@ router.get("/deposit-requests", async (req, res) => {
 /* ── PATCH /admin/deposit-requests/:id/approve — Approve a rider deposit (credits wallet, atomic) ─── */
 router.patch("/deposit-requests/:id/approve", async (req, res) => {
   const { refNo, note } = req.body;
-  const txId = req.params["id"]!;
+  const txId = req.params["id"] as string;
 
   const [tx] = await db.select().from(walletTransactionsTable).where(eq(walletTransactionsTable.id, txId)).limit(1);
   if (!tx) { res.status(404).json({ error: "Deposit not found" }); return; }
@@ -546,7 +546,7 @@ router.patch("/deposit-requests/:id/approve", async (req, res) => {
 /* ── PATCH /admin/deposit-requests/:id/reject — Reject a rider deposit (atomic state transition) ─── */
 router.patch("/deposit-requests/:id/reject", async (req, res) => {
   const { reason } = req.body;
-  const txId = req.params["id"]!;
+  const txId = req.params["id"] as string;
 
   /* Verify type first (cheap read) */
   const [tx] = await db.select().from(walletTransactionsTable).where(eq(walletTransactionsTable.id, txId)).limit(1);
@@ -594,7 +594,7 @@ router.post("/deposit-requests/bulk-approve", async (req, res) => {
     if (!isPending) { res.status(409).json({ error: `Deposit ${txId} already processed (${ref})` }); return; }
     const [user] = await db.select({ role: usersTable.roles }).from(usersTable).where(eq(usersTable.id, tx.userId)).limit(1);
     if (!user) { res.status(400).json({ error: `User not found for deposit ${txId}` }); return; }
-    if (user.role !== "customer") { res.status(400).json({ error: `Deposit ${txId} belongs to a ${user.role}, not a customer. Bulk actions are for customer deposits only.` }); return; }
+    if (user.roles !== "customer") { res.status(400).json({ error: `Deposit ${txId} belongs to a ${user.roles}, not a customer. Bulk actions are for customer deposits only.` }); return; }
     const amt = parseFloat(String(tx.amount));
     if (!Number.isFinite(amt) || amt <= 0) { res.status(400).json({ error: `Invalid amount for deposit ${txId}` }); return; }
     const txidSuffix = (tx.reference && tx.reference.includes("txid:")) ? `:${tx.reference.split("txid:").pop()}` : "";
@@ -656,7 +656,7 @@ router.post("/deposit-requests/bulk-reject", async (req, res) => {
     if (!isPending) { res.status(409).json({ error: `Deposit ${txId} already processed (${ref})` }); return; }
     const [user] = await db.select({ role: usersTable.roles }).from(usersTable).where(eq(usersTable.id, tx.userId)).limit(1);
     if (!user) { res.status(400).json({ error: `User not found for deposit ${txId}` }); return; }
-    if (user.role !== "customer") { res.status(400).json({ error: `Deposit ${txId} belongs to a ${user.role}, not a customer. Bulk actions are for customer deposits only.` }); return; }
+    if (user.roles !== "customer") { res.status(400).json({ error: `Deposit ${txId} belongs to a ${user.roles}, not a customer. Bulk actions are for customer deposits only.` }); return; }
     const txidSuffix = (tx.reference && tx.reference.includes("txid:")) ? `:${tx.reference.split("txid:").pop()}` : "";
     preChecked.push({ tx, rejRef: `rejected:${rejReason}${txidSuffix}` });
   }
@@ -697,7 +697,7 @@ router.post("/riders/:id/credit", async (req, res) => {
   if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
     res.status(400).json({ error: "Valid amount required" }); return;
   }
-  const [rider] = await db.select().from(usersTable).where(eq(usersTable.id, req.params["id"]!)).limit(1);
+  const [rider] = await db.select().from(usersTable).where(eq(usersTable.id, req.params["id"] as string)).limit(1);
   if (!rider) { res.status(404).json({ error: "Rider not found" }); return; }
   const roles = (rider.role || rider.roles || "").split(",").map((r: string) => r.trim());
   if (!roles.includes("rider")) { res.status(400).json({ error: "User is not a rider" }); return; }
@@ -726,16 +726,16 @@ router.patch("/vendors/:id/commission", async (req, res) => {
   }
   const [vendor] = await db.update(usersTable)
     .set({ commissionOverride: String(commissionPct), updatedAt: new Date() } as any)
-    .where(eq(usersTable.id, req.params["id"]!))
+    .where(eq(usersTable.id, req.params["id"] as string))
     .returning();
   if (!vendor) { res.status(404).json({ error: "Vendor not found" }); return; }
-  addAuditEntry({ action: "vendor_commission_override", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Commission override ${commissionPct}% for vendor ${req.params["id"]}`, result: "success" });
+  addAuditEntry({ action: "vendor_commission_override", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Commission override ${commissionPct}% for vendor ${req.params["id"] as string}`, result: "success" });
   res.json({ success: true, commissionPct });
 });
 
 /* ── PATCH /admin/riders/:id/online — toggle rider online/offline ── */
 router.post("/riders/:id/override-suspension", async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   const [user] = await db.select({ id: usersTable.id, autoSuspendedAt: usersTable.autoSuspendedAt })
     .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!user) { res.status(404).json({ error: "Rider not found" }); return; }
@@ -761,7 +761,7 @@ router.post("/riders/:id/override-suspension", async (req, res) => {
 
 /* ── POST /admin/vendors/:id/override-suspension — override auto-suspension ─ */
 router.post("/vendors/:id/override-suspension", async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   const [user] = await db.select({ id: usersTable.id, autoSuspendedAt: usersTable.autoSuspendedAt })
     .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!user) { res.status(404).json({ error: "Vendor not found" }); return; }

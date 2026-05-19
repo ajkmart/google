@@ -71,7 +71,7 @@ router.get("/conversations", async (req, res) => {
 
 router.get("/conversations/:id/messages", async (req, res) => {
   try {
-    const conversationId = req.params["id"]!;
+    const conversationId = req.params["id"] as string;
     const limit = Math.min(Number(req.query["limit"]) || 100, 500);
     const offset = Number(req.query["offset"]) || 0;
 
@@ -108,7 +108,7 @@ router.get("/conversations/:id/messages", async (req, res) => {
 
 router.post("/users/:id/chat-mute", async (req, res) => {
   try {
-    const userId = req.params["id"]!;
+    const userId = req.params["id"] as string;
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!user) { sendNotFound(res, "User not found"); return; }
 
@@ -123,7 +123,7 @@ router.post("/users/:id/chat-mute", async (req, res) => {
 
 router.post("/users/:id/chat-unmute", async (req, res) => {
   try {
-    const userId = req.params["id"]!;
+    const userId = req.params["id"] as string;
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!user) { sendNotFound(res, "User not found"); return; }
 
@@ -176,7 +176,7 @@ router.get("/reports", async (req, res) => {
 
 router.patch("/reports/:id/resolve", async (req, res) => {
   try {
-    const reportId = req.params["id"]!;
+    const reportId = req.params["id"] as string;
     const [report] = await db.select().from(chatReportsTable).where(eq(chatReportsTable.id, reportId)).limit(1);
     if (!report) { sendNotFound(res, "Report not found"); return; }
 

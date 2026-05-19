@@ -48,7 +48,7 @@ router.delete("/sessions/:id", async (req, res) => {
   const auth = extractAuthUser(req);
   if (!auth) { sendUnauthorized(res, "Authentication required"); return; }
 
-  const { id } = req.params;
+  const { id } = req.params as Record<string, string>;
   const [session] = await db
     .select()
     .from(userSessionsTable)

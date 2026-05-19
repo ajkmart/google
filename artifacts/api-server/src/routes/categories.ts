@@ -186,7 +186,7 @@ router.patch("/:id", adminAuth, async (req, res) => {
   const [updated] = await db
     .update(categoriesTable)
     .set(updates)
-    .where(eq(categoriesTable.id, req.params["id"]!))
+    .where(eq(categoriesTable.id, req.params["id"] as string))
     .returning();
 
   if (!updated) {
@@ -203,7 +203,7 @@ router.patch("/:id", adminAuth, async (req, res) => {
 
 router.delete("/:id", adminAuth, async (req, res) => {
   try {
-  const id = req.params["id"]!;
+  const id = req.params["id"] as string;
 
   await db
     .update(categoriesTable)

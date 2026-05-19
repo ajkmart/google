@@ -9,7 +9,7 @@ const router = Router();
 
 router.get("/users/:id/addresses", requirePermission("users.view"), async (req, res) => {
   try {
-    const userId = req.params["id"]!;
+    const userId = req.params["id"] as string;
     const [user] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!user) { sendNotFound(res, "User not found"); return; }
 

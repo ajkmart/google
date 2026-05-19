@@ -290,7 +290,7 @@ router.get("/routes/:id", async (req, res) => {
     const [route] = await db
       .select()
       .from(vanRoutesTable)
-      .where(eq(vanRoutesTable.id, req.params["id"]!))
+      .where(eq(vanRoutesTable.id, req.params["id"] as string))
       .limit(1);
     if (!route) {
       sendNotFound(res, "Route not found.");
@@ -339,7 +339,7 @@ router.get("/routes/:id", async (req, res) => {
 
 router.get("/schedules/:id/availability", async (req, res) => {
   try {
-    const scheduleId = req.params["id"]!;
+    const scheduleId = req.params["id"] as string;
     const date = String(req.query["date"] ?? "");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       sendError(res, "date query param required (YYYY-MM-DD).", 400);
@@ -793,7 +793,7 @@ router.get("/bookings", customerAuth, async (req, res) => {
 router.patch("/bookings/:id/cancel", customerAuth, async (req, res) => {
   try {
     const userId = req.customerId!;
-    const bookingId = req.params["id"]!;
+    const bookingId = req.params["id"] as string;
     const reason = String(req.body?.reason ?? "customer_cancelled");
 
     const [booking] = await db
@@ -1051,7 +1051,7 @@ router.get(
 router.patch("/driver/bookings/:id/board", vanDriverAuth, async (req, res) => {
   try {
     const driverId = req.riderId!;
-    const bookingId = req.params["id"]!;
+    const bookingId = req.params["id"] as string;
 
     const [booking] = await db
       .select({
@@ -1688,7 +1688,7 @@ router.patch("/admin/routes/:id", adminAuth, async (req, res) => {
     const [route] = await db
       .update(vanRoutesTable)
       .set(updates)
-      .where(eq(vanRoutesTable.id, req.params["id"]!))
+      .where(eq(vanRoutesTable.id, req.params["id"] as string))
       .returning();
     if (!route) {
       sendNotFound(res, "Route not found.");
@@ -1706,7 +1706,7 @@ router.delete("/admin/routes/:id", adminAuth, async (req, res) => {
     await db
       .update(vanRoutesTable)
       .set({ isActive: false, updatedAt: new Date() })
-      .where(eq(vanRoutesTable.id, req.params["id"]!));
+      .where(eq(vanRoutesTable.id, req.params["id"] as string));
     sendSuccess(res, { message: "Route deactivated." });
   } catch (e) {
     sendError(res, "Failed to deactivate route.", 500);
@@ -1773,7 +1773,7 @@ router.patch("/admin/vehicles/:id", adminAuth, async (req, res) => {
     const [vehicle] = await db
       .update(vanVehiclesTable)
       .set({ ...p.data, updatedAt: new Date() })
-      .where(eq(vanVehiclesTable.id, req.params["id"]!))
+      .where(eq(vanVehiclesTable.id, req.params["id"] as string))
       .returning();
     if (!vehicle) {
       sendNotFound(res, "Vehicle not found.");
@@ -1934,7 +1934,7 @@ router.patch("/admin/schedules/:id", adminAuth, async (req, res) => {
     const [schedule] = await db
       .update(vanSchedulesTable)
       .set({ ...p.data, updatedAt: new Date() })
-      .where(eq(vanSchedulesTable.id, req.params["id"]!))
+      .where(eq(vanSchedulesTable.id, req.params["id"] as string))
       .returning();
     if (!schedule) {
       sendNotFound(res, "Schedule not found.");
@@ -1951,7 +1951,7 @@ router.delete("/admin/schedules/:id", adminAuth, async (req, res) => {
     await db
       .update(vanSchedulesTable)
       .set({ isActive: false, updatedAt: new Date() })
-      .where(eq(vanSchedulesTable.id, req.params["id"]!));
+      .where(eq(vanSchedulesTable.id, req.params["id"] as string));
     sendSuccess(res, { message: "Schedule deactivated." });
   } catch (e) {
     sendError(res, "Failed to deactivate schedule.", 500);
@@ -2057,7 +2057,7 @@ router.patch("/admin/drivers/:id", adminAuth, async (req, res) => {
     const [driver] = await db
       .update(vanDriversTable)
       .set({ ...p.data, updatedAt: new Date() })
-      .where(eq(vanDriversTable.id, req.params["id"]!))
+      .where(eq(vanDriversTable.id, req.params["id"] as string))
       .returning();
     if (!driver) {
       sendNotFound(res, "Van driver not found.");
@@ -2074,7 +2074,7 @@ router.delete("/admin/drivers/:id", adminAuth, async (req, res) => {
     await db
       .update(vanDriversTable)
       .set({ isActive: false, updatedAt: new Date() })
-      .where(eq(vanDriversTable.id, req.params["id"]!));
+      .where(eq(vanDriversTable.id, req.params["id"] as string));
     sendSuccess(res, { message: "Van driver deactivated." });
   } catch (e) {
     sendError(res, "Failed to deactivate van driver.", 500);
@@ -2156,7 +2156,7 @@ router.patch("/admin/bookings/:id/status", adminAuth, async (req, res) => {
     const [booking] = await db
       .update(vanBookingsTable)
       .set({ status: p.data.status, updatedAt: new Date() })
-      .where(eq(vanBookingsTable.id, req.params["id"]!))
+      .where(eq(vanBookingsTable.id, req.params["id"] as string))
       .returning();
     if (!booking) {
       sendNotFound(res, "Booking not found.");

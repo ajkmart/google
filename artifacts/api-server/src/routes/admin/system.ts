@@ -303,7 +303,7 @@ const patchSettingSchema = z.object({ value: z.string() });
 router.patch("/platform-settings/:key", validateBody(patchSettingSchema), async (req, res) => {
   try {
   const { value } = req.body;
-  const settingKey = req.params["key"]!;
+  const settingKey = req.params["key"] as string;
   const err = validateSettingValue(settingKey, String(value));
   if (err) { sendError(res, err, 422); return; }
   const [row] = await db
@@ -993,7 +993,7 @@ router.post("/blocked-ips", adminAuth, async (req, res) => {
 /* ── DELETE /admin/blocked-ips/:ip — unblock an IP ── */
 router.delete("/blocked-ips/:ip", adminAuth, async (req, res) => {
   try {
-  const ip = decodeURIComponent(String(req.params["ip"]));
+  const ip = decodeURIComponent(String(req.params["ip"] as string));
   const wasBlocked = await isIPBlocked(ip);
   await unblockIP(ip);
   addAuditEntry({
@@ -1032,7 +1032,7 @@ router.get("/login-lockouts", adminAuth, async (_req, res) => {
 /* ── DELETE /admin/login-lockouts/:phone — unlock a phone ── */
 router.delete("/login-lockouts/:phone", adminAuth, async (req, res) => {
   try {
-  const phone = decodeURIComponent(String(req.params["phone"]));
+  const phone = decodeURIComponent(String(req.params["phone"] as string));
   await unlockPhone(phone);
   addAuditEntry({
     action: "admin_unlock_phone",
@@ -1067,7 +1067,7 @@ router.get("/system/admin-ip-lockouts", adminAuth, async (_req: AdminRequest, re
 /* ── DELETE /admin/system/admin-ip-lockouts/:key — clear an admin IP lockout ── */
 router.delete("/system/admin-ip-lockouts/:key", adminAuth, async (req: AdminRequest, res) => {
   try {
-  const key = decodeURIComponent(String(req.params["key"]));
+  const key = decodeURIComponent(String(req.params["key"] as string));
   const existed = adminLoginAttempts.has(key);
   adminLoginAttempts.delete(key);
   addAuditEntry({
@@ -1785,7 +1785,7 @@ router.get("/reviews", adminAuth, async (req, res) => {
 router.patch("/reviews/:id/hide", adminAuth, async (req, res) => {
   try {
   const [existing] = await db.select({ id: reviewsTable.id, hidden: reviewsTable.hidden })
-    .from(reviewsTable).where(eq(reviewsTable.id, String(req.params["id"]))).limit(1);
+    .from(reviewsTable).where(eq(reviewsTable.id, String(req.params["id"] as string))).limit(1);
   if (!existing) { sendNotFound(res, "Review not found"); return; }
   const newHidden = !existing.hidden;
   await db.update(reviewsTable).set({ hidden: newHidden }).where(eq(reviewsTable.id, existing.id));
@@ -1801,7 +1801,7 @@ router.delete("/reviews/:id", adminAuth, async (req, res) => {
   try {
   const adminId = (req as AdminRequest).adminId ?? "admin";
   const [existing] = await db.select({ id: reviewsTable.id })
-    .from(reviewsTable).where(eq(reviewsTable.id, String(req.params["id"]))).limit(1);
+    .from(reviewsTable).where(eq(reviewsTable.id, String(req.params["id"] as string))).limit(1);
   if (!existing) { sendNotFound(res, "Review not found"); return; }
   await db.update(reviewsTable)
     .set({ deletedAt: new Date(), deletedBy: adminId, hidden: true })
@@ -1817,7 +1817,7 @@ router.delete("/reviews/:id", adminAuth, async (req, res) => {
 router.patch("/ride-ratings/:id/hide", adminAuth, async (req, res) => {
   try {
   const [existing] = await db.select({ id: rideRatingsTable.id, hidden: rideRatingsTable.hidden })
-    .from(rideRatingsTable).where(eq(rideRatingsTable.id, String(req.params["id"]))).limit(1);
+    .from(rideRatingsTable).where(eq(rideRatingsTable.id, String(req.params["id"] as string))).limit(1);
   if (!existing) { sendNotFound(res, "Ride rating not found"); return; }
   const newHidden = !existing.hidden;
   await db.update(rideRatingsTable).set({ hidden: newHidden }).where(eq(rideRatingsTable.id, existing.id));
@@ -1833,7 +1833,7 @@ router.delete("/ride-ratings/:id", adminAuth, async (req, res) => {
   try {
   const adminId = (req as AdminRequest).adminId ?? "admin";
   const [existing] = await db.select({ id: rideRatingsTable.id })
-    .from(rideRatingsTable).where(eq(rideRatingsTable.id, String(req.params["id"]))).limit(1);
+    .from(rideRatingsTable).where(eq(rideRatingsTable.id, String(req.params["id"] as string))).limit(1);
   if (!existing) { sendNotFound(res, "Ride rating not found"); return; }
   await db.update(rideRatingsTable)
     .set({ deletedAt: new Date(), deletedBy: adminId, hidden: true })
@@ -2092,7 +2092,7 @@ router.patch("/reviews/:id/approve", async (req, res) => {
   try {
   const [updated] = await db.update(reviewsTable)
     .set({ status: "visible" })
-    .where(and(eq(reviewsTable.id, req.params["id"]!), eq(reviewsTable.status, "pending_moderation")))
+    .where(and(eq(reviewsTable.id, req.params["id"] as string), eq(reviewsTable.status, "pending_moderation")))
     .returning();
   if (!updated) { sendNotFound(res, "Review not found or not pending moderation"); return; }
   sendSuccess(res, updated);
@@ -2107,7 +2107,7 @@ router.patch("/reviews/:id/reject", async (req, res) => {
   try {
   const [updated] = await db.update(reviewsTable)
     .set({ status: "rejected" })
-    .where(eq(reviewsTable.id, req.params["id"]!))
+    .where(eq(reviewsTable.id, req.params["id"] as string))
     .returning();
   if (!updated) { sendNotFound(res, "Review not found"); return; }
   sendSuccess(res, updated);
@@ -2293,7 +2293,7 @@ router.get("/sos/alerts", async (req, res) => {
 /* PATCH /admin/sos/alerts/:id/acknowledge */
 router.patch("/sos/alerts/:id/acknowledge", async (req, res) => {
   try {
-  const alertId  = req.params["id"];
+  const alertId  = req.params["id"] as string;
   const adminId  = (req as AdminRequest).adminId  ?? "admin";
   const adminName = (req as AdminRequest).adminName ?? "Admin";
 
@@ -2326,7 +2326,7 @@ router.patch("/sos/alerts/:id/acknowledge", async (req, res) => {
 /* PATCH /admin/sos/alerts/:id/resolve */
 router.patch("/sos/alerts/:id/resolve", async (req, res) => {
   try {
-  const alertId   = req.params["id"];
+  const alertId   = req.params["id"] as string;
   const adminId   = (req as AdminRequest).adminId  ?? "admin";
   const adminName = (req as AdminRequest).adminName ?? "Admin";
   const notes = typeof req.body?.notes === "string" ? req.body.notes.trim() : null;
@@ -2548,7 +2548,7 @@ router.patch("/wallet/transactions/:id/flag", adminAuth, async (req, res) => {
   try {
     const adminId = (req as AdminRequest).adminId ?? "admin";
     const { flag, reason } = req.body as { flag?: boolean; reason?: string };
-    const txId = req.params["id"]!;
+    const txId = req.params["id"] as string;
 
     const shouldFlag = flag !== false;
     await db.execute(sql`
@@ -2571,7 +2571,7 @@ router.patch("/wallet/transactions/:id/flag", adminAuth, async (req, res) => {
 router.post("/wallet/transfers/:id/approve", adminAuth, async (req, res) => {
   try {
     const adminId = (req as AdminRequest).adminId ?? "admin";
-    const txId = req.params["id"]!;
+    const txId = req.params["id"] as string;
     await db.execute(sql`
       UPDATE wallet_transactions
       SET flagged = false, flag_reason = NULL, flagged_by = ${adminId}, flagged_at = NOW()
@@ -2587,7 +2587,7 @@ router.post("/wallet/transfers/:id/approve", adminAuth, async (req, res) => {
 /* ── PATCH /admin/wallet/freeze-p2p/:userId — toggle P2P freeze ─────────── */
 router.patch("/wallet/freeze-p2p/:userId", adminAuth, async (req, res) => {
   try {
-    const targetId = req.params["userId"]!;
+    const targetId = req.params["userId"] as string;
     const [user] = await db.select({ id: usersTable.id, blockedServices: usersTable.blockedServices })
       .from(usersTable).where(eq(usersTable.id, targetId)).limit(1);
     if (!user) { sendNotFound(res, "User not found"); return; }
@@ -2812,7 +2812,7 @@ router.post("/retention-cleanup", adminAuth, async (req, res) => {
 /* ═══════════════════  Vendor Schedule Admin  ═══════════════════ */
 router.get("/vendor-schedules/:vendorId", async (req, res) => {
   try {
-  const vendorId = req.params["vendorId"]!;
+  const vendorId = req.params["vendorId"] as string;
   const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
   const rows = await db.select().from(vendorSchedulesTable).where(eq(vendorSchedulesTable.vendorId, vendorId));
   const schedule = DAY_NAMES.map((name, i) => {
@@ -2830,7 +2830,7 @@ router.get("/vendor-schedules/:vendorId", async (req, res) => {
 
 router.put("/vendor-schedules/:vendorId", adminAuth, async (req, res) => {
   try {
-  const vendorId = req.params["vendorId"]!;
+  const vendorId = req.params["vendorId"] as string;
   const { schedule } = req.body as { schedule: Array<{ dayOfWeek: number; openTime: string; closeTime: string; isEnabled: boolean }> };
   if (!Array.isArray(schedule)) { sendValidationError(res, "schedule array required"); return; }
 

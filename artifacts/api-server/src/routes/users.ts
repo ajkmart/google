@@ -150,7 +150,7 @@ router.use(customerAuth);
 
 router.get("/:id/debt", async (req, res) => {
   const userId = req.customerId!;
-  if (req.params["id"] !== userId) {
+  if (req.params["id"] as string !== userId) {
     sendForbidden(res, "Access denied");
     return;
   }
@@ -628,7 +628,7 @@ router.delete("/sessions/all", async (req, res) => {
 
 router.delete("/sessions/:sessionId", async (req, res) => {
   const userId = req.customerId!;
-  const sessionId = req.params["sessionId"]!;
+  const sessionId = req.params["sessionId"] as string;
 
   const [session] = await db.select().from(userSessionsTable)
     .where(and(eq(userSessionsTable.id, sessionId), eq(userSessionsTable.userId, userId)))

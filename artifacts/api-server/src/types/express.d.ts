@@ -29,6 +29,8 @@ declare global {
       userRole?: string;
       userRoles?: string[];
       tokenVersion?: number;
+      /** Override params to always be Record<string, string> for Express v5 compatibility */
+      params: Record<string, string>;
     }
   }
 }

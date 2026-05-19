@@ -81,7 +81,7 @@ router.put("/:id", validateBody(updateAddressSchema), async (req, res) => {
   try {
     const userId = req.customerId!;
     const { label, address, city, icon, isDefault } = req.body;
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
 
     const [existing] = await db.select().from(savedAddressesTable).where(eq(savedAddressesTable.id, id!)).limit(1);
     if (!existing) { sendNotFound(res, "Address not found", "پتہ نہیں ملا۔"); return; }
@@ -103,7 +103,7 @@ router.put("/:id", validateBody(updateAddressSchema), async (req, res) => {
 router.patch("/:id/set-default", async (req, res) => {
   try {
     const userId = req.customerId!;
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
 
     const [existing] = await db.select().from(savedAddressesTable).where(eq(savedAddressesTable.id, id!)).limit(1);
     if (!existing) { sendNotFound(res, "Address not found", "پتہ نہیں ملا۔"); return; }
@@ -127,11 +127,11 @@ router.delete("/:id", async (req, res) => {
   try {
     const userId = req.customerId!;
 
-    const [existing] = await db.select().from(savedAddressesTable).where(eq(savedAddressesTable.id, req.params["id"]!)).limit(1);
+    const [existing] = await db.select().from(savedAddressesTable).where(eq(savedAddressesTable.id, req.params["id"] as string)).limit(1);
     if (!existing) { sendNotFound(res, "Address not found", "پتہ نہیں ملا۔"); return; }
     if (existing.userId !== userId) { sendForbidden(res, "Access denied", "رسائی سے انکار۔"); return; }
 
-    await db.delete(savedAddressesTable).where(eq(savedAddressesTable.id, req.params["id"]!));
+    await db.delete(savedAddressesTable).where(eq(savedAddressesTable.id, req.params["id"] as string));
     sendSuccess(res, null);
   } catch (err) {
     sendError(res, "Internal server error", 500);

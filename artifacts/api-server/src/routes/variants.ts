@@ -17,7 +17,7 @@ function safeParseAttributes(raw: string | null | undefined): unknown {
 
 router.get("/product/:productId", async (req, res) => {
   try {
-    const productId = req.params["productId"]!;
+    const productId = req.params["productId"] as string;
     const variants = await db
       .select()
       .from(productVariantsTable)
@@ -44,7 +44,7 @@ router.get("/product/:productId", async (req, res) => {
 
 router.get("/product/:productId/all", adminAuth, async (req, res) => {
   try {
-    const productId = req.params["productId"]!;
+    const productId = req.params["productId"] as string;
     const variants = await db
       .select()
       .from(productVariantsTable)
@@ -120,7 +120,7 @@ const patchVariantSchema = z.object({
 
 router.patch("/:id", adminAuth, async (req, res) => {
   try {
-    const variantId = req.params["id"]!;
+    const variantId = req.params["id"] as string;
 
     const parsed = patchVariantSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -159,7 +159,7 @@ router.patch("/:id", adminAuth, async (req, res) => {
 
 router.delete("/:id", adminAuth, async (req, res) => {
   try {
-    const variantId = req.params["id"]!;
+    const variantId = req.params["id"] as string;
     const [deleted] = await db.delete(productVariantsTable).where(eq(productVariantsTable.id, variantId)).returning();
     if (!deleted) {
       res.status(404).json({ error: "Variant not found" });

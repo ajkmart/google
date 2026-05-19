@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 
 export function loadRide() {
   return async (req: Request, res: Response, next: NextFunction) => {
-    const rideId = String(req.params["id"] ?? "");
+    const rideId = String(req.params["id"] as string ?? "");
     if (!rideId) {
       res.status(400).json({ error: "Ride ID is required" });
       return;
@@ -31,7 +31,7 @@ export function requireRideState(allowedStates: string[]) {
     let ride = req.ride;
 
     if (!ride) {
-      const rideId = String(req.params["id"] ?? "");
+      const rideId = String(req.params["id"] as string ?? "");
       if (!rideId) {
         res.status(400).json({ error: "Ride ID is required" });
         return;

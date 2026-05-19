@@ -348,7 +348,7 @@ router.patch(
           isBanned: usersTable.isBanned,
         })
         .from(usersTable)
-        .where(eq(usersTable.id, req.params["id"]!))
+        .where(eq(usersTable.id, req.params["id"] as string))
         .limit(1);
       if (!existing) {
         sendNotFound(res, "Vendor not found");
@@ -372,22 +372,22 @@ router.patch(
       const [user] = await db
         .update(usersTable)
         .set(updates)
-        .where(eq(usersTable.id, req.params["id"]!))
+        .where(eq(usersTable.id, req.params["id"] as string))
         .returning();
       if (!user) {
         sendNotFound(res, "Vendor not found");
         return;
       }
       if (isBanned || isActive === false) {
-        revokeAllUserSessions(req.params["id"]!).catch((err: unknown) => {
+        revokeAllUserSessions(req.params["id"] as string).catch((err: unknown) => {
           logger.warn(
-            { err: err instanceof Error ? err.message : String(err), userId: req.params["id"] },
+            { err: err instanceof Error ? err.message : String(err), userId: req.params["id"] as string },
             "[wallets] revokeAllUserSessions (vendor ban) failed — sessions may persist",
           );
         });
         if (isBanned) {
           await sendUserNotification(
-            req.params["id"]!,
+            req.params["id"] as string,
             "Store Account Suspended ⚠️",
             banReason ||
               "Your vendor account has been suspended. Contact support.",
@@ -420,7 +420,7 @@ router.post(
     try {
       const adminReq = req as AdminRequest;
       const { amount, description } = req.body;
-      const vendorId = req.params["id"]!;
+      const vendorId = req.params["id"] as string;
 
       try {
         const result = await AuditService.executeWithAudit(
@@ -480,7 +480,7 @@ router.post(
     try {
       const adminReq = req as AdminRequest;
       const { amount, description } = req.body;
-      const vendorId = req.params["id"]!;
+      const vendorId = req.params["id"] as string;
 
       try {
         const result = await AuditService.executeWithAudit(
@@ -639,29 +639,29 @@ router.patch("/riders/:id/status", async (req, res) => {
       const [current] = await db
         .select({ isBanned: usersTable.isBanned })
         .from(usersTable)
-        .where(eq(usersTable.id, req.params["id"]!))
+        .where(eq(usersTable.id, req.params["id"] as string))
         .limit(1);
       if (!isBanned && !current?.isBanned) updates.approvalStatus = "approved";
     }
     const [user] = await db
       .update(usersTable)
       .set(updates)
-      .where(eq(usersTable.id, req.params["id"]!))
+      .where(eq(usersTable.id, req.params["id"] as string))
       .returning();
     if (!user) {
       sendNotFound(res, "Rider not found");
       return;
     }
     if (isBanned || isActive === false) {
-      revokeAllUserSessions(req.params["id"]!).catch((err: unknown) => {
+      revokeAllUserSessions(req.params["id"] as string).catch((err: unknown) => {
         logger.warn(
-          { err: err instanceof Error ? err.message : String(err), userId: req.params["id"] },
+          { err: err instanceof Error ? err.message : String(err), userId: req.params["id"] as string },
           "[wallets] revokeAllUserSessions (rider ban) failed — sessions may persist",
         );
       });
       if (isBanned) {
         await sendUserNotification(
-          req.params["id"]!,
+          req.params["id"] as string,
           "Rider Account Suspended ⚠️",
           banReason ||
             "Your rider account has been suspended. Contact support.",
@@ -690,7 +690,7 @@ router.post("/riders/:id/payout", async (req, res) => {
     const [rider] = await db
       .select()
       .from(usersTable)
-      .where(eq(usersTable.id, req.params["id"]!))
+      .where(eq(usersTable.id, req.params["id"] as string))
       .limit(1);
     if (!rider) {
       sendNotFound(res, "Rider not found");
@@ -775,7 +775,7 @@ router.post("/riders/:id/bonus", async (req, res) => {
       sendValidationError(res, "Valid amount required");
       return;
     }
-    const riderId = req.params["id"]!;
+    const riderId = req.params["id"] as string;
     const amt = Number(amount);
     const txId = generateId();
 
@@ -856,7 +856,7 @@ router.post("/riders/:id/bonus", async (req, res) => {
 
 router.get("/riders/:id/penalties", async (req, res) => {
   try {
-    const riderId = req.params["id"]!;
+    const riderId = req.params["id"] as string;
     const penalties = await db
       .select()
       .from(riderPenaltiesTable)
@@ -877,7 +877,7 @@ router.get("/riders/:id/penalties", async (req, res) => {
 
 router.get("/riders/:id/ratings", async (req, res) => {
   try {
-    const riderId = req.params["id"]!;
+    const riderId = req.params["id"] as string;
     const ratings = await db
       .select()
       .from(rideRatingsTable)
@@ -893,7 +893,7 @@ router.get("/riders/:id/ratings", async (req, res) => {
 
 router.post("/riders/:id/restrict", async (req, res) => {
   try {
-    const riderId = req.params["id"]!;
+    const riderId = req.params["id"] as string;
     const [user] = await db
       .update(usersTable)
       .set({ isRestricted: true, updatedAt: new Date() })
@@ -919,7 +919,7 @@ router.post("/riders/:id/restrict", async (req, res) => {
 
 router.post("/riders/:id/unrestrict", async (req, res) => {
   try {
-    const riderId = req.params["id"]!;
+    const riderId = req.params["id"] as string;
     const [user] = await db
       .update(usersTable)
       .set({ isRestricted: false, updatedAt: new Date() })
@@ -1003,7 +1003,7 @@ router.patch("/withdrawal-requests/:id/approve", async (req, res) => {
   try {
     const adminReq = req as AdminRequest;
     const { refNo, note } = req.body;
-    const txId = req.params["id"]!;
+    const txId = req.params["id"] as string;
     const [tx] = await db
       .select()
       .from(walletTransactionsTable)
@@ -1087,7 +1087,7 @@ router.patch("/withdrawal-requests/:id/reject", async (req, res) => {
   try {
     const adminReq = req as AdminRequest;
     const { reason } = req.body;
-    const txId = req.params["id"]!;
+    const txId = req.params["id"] as string;
     const [tx] = await db
       .select()
       .from(walletTransactionsTable)
@@ -1367,7 +1367,7 @@ router.get("/deposit-requests", async (req, res) => {
 router.patch("/deposit-requests/:id/approve", async (req, res) => {
   try {
     const { refNo, note } = req.body;
-    const txId = req.params["id"]!;
+    const txId = req.params["id"] as string;
 
     const [tx] = await db
       .select()
@@ -1513,7 +1513,7 @@ router.patch("/deposit-requests/:id/approve", async (req, res) => {
 router.patch("/deposit-requests/:id/reject", async (req, res) => {
   try {
     const { reason } = req.body;
-    const txId = req.params["id"]!;
+    const txId = req.params["id"] as string;
 
     /* Verify type first (cheap read) */
     const [tx] = await db
@@ -1853,7 +1853,7 @@ router.post("/riders/:id/credit", async (req, res) => {
     const [rider] = await db
       .select()
       .from(usersTable)
-      .where(eq(usersTable.id, req.params["id"]!))
+      .where(eq(usersTable.id, req.params["id"] as string))
       .limit(1);
     if (!rider) {
       sendNotFound(res, "Rider not found");
@@ -1955,7 +1955,7 @@ router.patch(
           commissionOverride: String(commissionPct),
           updatedAt: new Date(),
         })
-        .where(eq(usersTable.id, req.params["id"]!))
+        .where(eq(usersTable.id, req.params["id"] as string))
         .returning();
       if (!vendor) {
         sendNotFound(res, "Vendor not found");
@@ -1965,7 +1965,7 @@ router.patch(
         action: "vendor_commission_override",
         ip: getClientIp(req),
         adminId: (req as AdminRequest).adminId,
-        details: `Commission override ${commissionPct}% for vendor ${req.params["id"]}`,
+        details: `Commission override ${commissionPct}% for vendor ${req.params["id"] as string}`,
         result: "success",
       });
       sendSuccess(res, { commissionPct });
@@ -1979,7 +1979,7 @@ router.patch(
 /* ── POST /admin/riders/:id/override-suspension — override auto-suspension ── */
 router.post("/riders/:id/override-suspension", async (req, res) => {
   try {
-    const userId = req.params["id"]!;
+    const userId = req.params["id"] as string;
     const [user] = await db
       .select({
         id: usersTable.id,
@@ -2037,7 +2037,7 @@ router.post(
   requirePermission("vendors.edit"),
   async (req, res) => {
     try {
-      const userId = req.params["id"]!;
+      const userId = req.params["id"] as string;
       const [user] = await db
         .select({
           id: usersTable.id,

@@ -303,7 +303,7 @@ router.get("/orders/available-riders", async (req, res) => {
 router.get("/orders/:id", async (req, res) => {
   try {
     const vendorId = req.vendorId!;
-    const orderId = req.params["id"]!;
+    const orderId = req.params["id"] as string;
     const [row] = await db.select({
       order: ordersTable,
       riderName: usersTable.name,
@@ -361,7 +361,7 @@ router.patch("/orders/:id/status", async (req, res) => {
   const { status, note } = req.body as { status?: string; note?: string };
   const validStatuses = ["confirmed","preparing","ready","cancelled"];
   if (!status || !validStatuses.includes(status)) { sendValidationError(res, "Invalid status"); return; }
-  const [order] = await db.select().from(ordersTable).where(and(eq(ordersTable.id, req.params["id"]!), eq(ordersTable.vendorId, vendorId))).limit(1);
+  const [order] = await db.select().from(ordersTable).where(and(eq(ordersTable.id, req.params["id"] as string), eq(ordersTable.vendorId, vendorId))).limit(1);
   if (!order) { sendNotFound(res, "Order not found"); return; }
 
   /* ── Cancellation time window: vendor can only cancel within 5 minutes ── */
@@ -388,7 +388,7 @@ router.patch("/orders/:id/status", async (req, res) => {
     return;
   }
 
-  const orderId = req.params["id"]!;
+  const orderId = req.params["id"] as string;
   const custLang = await getUserLanguage(order.userId);
   const msgs: Record<string, { title: string; body: string }> = {
     confirmed: { title: t("notifOrderConfirmed", custLang) + " ✅", body: t("notifOrderConfirmedBody", custLang) },
@@ -608,7 +608,7 @@ router.patch("/promos/:id", async (req, res) => {
   const vendorId = (req as Request & { vendorId?: string }).vendorId;
   if (!vendorId) { sendForbidden(res, "Vendor auth required"); return; }
   const [existing] = await db.select().from(promoCodesTable)
-    .where(and(eq(promoCodesTable.id, req.params["id"]!), eq(promoCodesTable.vendorId, vendorId)))
+    .where(and(eq(promoCodesTable.id, req.params["id"] as string), eq(promoCodesTable.vendorId, vendorId)))
     .limit(1);
   if (!existing) { sendNotFound(res, "Promo not found"); return; }
   const { discountPct, discountFlat, minOrderAmount, maxDiscount, usageLimit, expiresAt, description, appliesTo } = req.body as Record<string, unknown>;
@@ -636,7 +636,7 @@ router.patch("/promos/:id/toggle", async (req, res) => {
   const vendorId = (req as Request & { vendorId?: string }).vendorId;
   if (!vendorId) { sendForbidden(res, "Vendor auth required"); return; }
   const [existing] = await db.select().from(promoCodesTable)
-    .where(and(eq(promoCodesTable.id, req.params["id"]!), eq(promoCodesTable.vendorId, vendorId)))
+    .where(and(eq(promoCodesTable.id, req.params["id"] as string), eq(promoCodesTable.vendorId, vendorId)))
     .limit(1);
   if (!existing) { sendNotFound(res, "Promo not found"); return; }
   const [promo] = await db.update(promoCodesTable)
@@ -656,7 +656,7 @@ router.delete("/promos/:id", async (req, res) => {
   const vendorId = (req as Request & { vendorId?: string }).vendorId;
   if (!vendorId) { sendForbidden(res, "Vendor auth required"); return; }
   const [existing] = await db.select().from(promoCodesTable)
-    .where(and(eq(promoCodesTable.id, req.params["id"]!), eq(promoCodesTable.vendorId, vendorId)))
+    .where(and(eq(promoCodesTable.id, req.params["id"] as string), eq(promoCodesTable.vendorId, vendorId)))
     .limit(1);
   if (!existing) { sendNotFound(res, "Promo not found"); return; }
   await db.delete(promoCodesTable).where(eq(promoCodesTable.id, existing.id));
@@ -802,7 +802,7 @@ router.patch("/products/bulk", async (req, res) => {
 router.get("/products/:id/stock-history", async (req, res) => {
   try {
     const vendorId = req.vendorId!;
-    const productId = req.params["id"]!;
+    const productId = req.params["id"] as string;
     const [product] = await db.select({ id: productsTable.id }).from(productsTable)
       .where(and(eq(productsTable.id, productId), eq(productsTable.vendorId, vendorId), isNull(productsTable.deletedAt)))
       .limit(1);
@@ -822,7 +822,7 @@ router.get("/products/:id/stock-history", async (req, res) => {
 router.patch("/products/:id", async (req, res) => {
   try {
     const vendorId = req.vendorId!;
-    const productId = req.params["id"]!;
+    const productId = req.params["id"] as string;
     const [existing] = await db.select({ id: productsTable.id }).from(productsTable)
       .where(and(eq(productsTable.id, productId), eq(productsTable.vendorId, vendorId), isNull(productsTable.deletedAt)))
       .limit(1);
@@ -855,7 +855,7 @@ router.patch("/products/:id", async (req, res) => {
 router.delete("/products/:id", async (req, res) => {
   try {
     const vendorId = req.vendorId!;
-    const productId = req.params["id"]!;
+    const productId = req.params["id"] as string;
     const [existing] = await db.select({ id: productsTable.id }).from(productsTable)
       .where(and(eq(productsTable.id, productId), eq(productsTable.vendorId, vendorId), isNull(productsTable.deletedAt)))
       .limit(1);
@@ -1114,7 +1114,7 @@ router.patch("/notifications/read-all", async (req, res) => {
 router.patch("/notifications/:id/read", async (req, res) => {
   try {
     const vendorId = req.vendorId!;
-    const notifId = req.params["id"]!;
+    const notifId = req.params["id"] as string;
     await db.update(notificationsTable).set({ isRead: true })
       .where(and(eq(notificationsTable.id, notifId), eq(notificationsTable.userId, vendorId)));
     sendSuccess(res, { success: true });
@@ -1186,7 +1186,7 @@ router.post("/delivery-access/request", async (req, res) => {
 router.get("/orders/:id/available-riders", async (req, res) => {
   try {
     const vendorId = req.vendorId!;
-    const orderId = req.params["id"]!;
+    const orderId = req.params["id"] as string;
     const [order] = await db.select({ id: ordersTable.id }).from(ordersTable)
       .where(and(eq(ordersTable.id, orderId), eq(ordersTable.vendorId, vendorId))).limit(1);
     if (!order) { sendNotFound(res, "Order not found"); return; }
@@ -1210,7 +1210,7 @@ router.get("/orders/:id/available-riders", async (req, res) => {
 router.post("/orders/:id/assign-rider", async (req, res) => {
   try {
     const vendorId = req.vendorId!;
-    const orderId = req.params["id"]!;
+    const orderId = req.params["id"] as string;
     const { riderId } = req.body as { riderId: string };
     if (!riderId) { sendValidationError(res, "riderId is required"); return; }
     const [order] = await db.select().from(ordersTable)
@@ -1236,7 +1236,7 @@ router.post("/orders/:id/assign-rider", async (req, res) => {
 router.post("/orders/:id/auto-assign", async (req, res) => {
   try {
     const vendorId = req.vendorId!;
-    const orderId = req.params["id"]!;
+    const orderId = req.params["id"] as string;
     const [order] = await db.select().from(ordersTable)
       .where(and(eq(ordersTable.id, orderId), eq(ordersTable.vendorId, vendorId))).limit(1);
     if (!order) { sendNotFound(res, "Order not found"); return; }

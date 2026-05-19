@@ -123,7 +123,7 @@ router.get("/:id", customerAuth, verifyOwnership("pharmacy_order"), async (req, 
   const [order] = await db
     .select()
     .from(pharmacyOrdersTable)
-    .where(eq(pharmacyOrdersTable.id, String(req.params["id"])))
+    .where(eq(pharmacyOrdersTable.id, String(req.params["id"] as string)))
     .limit(1);
   if (!order) {
     sendNotFound(res, "Pharmacy order not found");
@@ -140,7 +140,7 @@ router.get("/:id/track", customerAuth, verifyOwnership("pharmacy_order"), async 
   const [order] = await db
     .select({ id: pharmacyOrdersTable.id, userId: pharmacyOrdersTable.userId, riderId: pharmacyOrdersTable.riderId, status: pharmacyOrdersTable.status })
     .from(pharmacyOrdersTable)
-    .where(eq(pharmacyOrdersTable.id, String(req.params["id"])))
+    .where(eq(pharmacyOrdersTable.id, String(req.params["id"] as string)))
     .limit(1);
 
   if (!order) { sendNotFound(res, "Pharmacy order not found"); return; }
@@ -480,7 +480,7 @@ router.post("/", customerAuth, async (req, res) => {
 
 router.patch("/:id/cancel", customerAuth, verifyOwnership("pharmacy_order"), async (req, res) => {
   const userId = req.customerId!;
-  const orderId = String(req.params["id"]);
+  const orderId = String(req.params["id"] as string);
 
   const [order] = await db
     .select()
@@ -577,7 +577,7 @@ router.patch("/:id/status", riderAuth, async (req, res) => {
   const [existing] = await db
     .select()
     .from(pharmacyOrdersTable)
-    .where(eq(pharmacyOrdersTable.id, String(req.params["id"])))
+    .where(eq(pharmacyOrdersTable.id, String(req.params["id"] as string)))
     .limit(1);
   if (!existing) {
     sendNotFound(res, "Pharmacy order not found");
@@ -610,7 +610,7 @@ router.patch("/:id/status", riderAuth, async (req, res) => {
     const [order] = await db
       .update(pharmacyOrdersTable)
       .set({ status, riderId, updatedAt: new Date() })
-      .where(and(eq(pharmacyOrdersTable.id, String(req.params["id"])), sql`rider_id IS NULL`))
+      .where(and(eq(pharmacyOrdersTable.id, String(req.params["id"] as string)), sql`rider_id IS NULL`))
       .returning();
     if (!order) {
       sendError(res, "This order has already been accepted by another rider", 409);
@@ -623,7 +623,7 @@ router.patch("/:id/status", riderAuth, async (req, res) => {
   const [order] = await db
     .update(pharmacyOrdersTable)
     .set({ status, riderId, updatedAt: new Date() })
-    .where(eq(pharmacyOrdersTable.id, String(req.params["id"])))
+    .where(eq(pharmacyOrdersTable.id, String(req.params["id"] as string)))
     .returning();
   if (!order) {
     sendNotFound(res, "Pharmacy order not found");

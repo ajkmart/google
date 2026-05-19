@@ -137,7 +137,7 @@ router.post("/broadcasts/record", async (req, res) => {
 ───────────────────────────────────────────────────────── */
 router.patch("/broadcasts/:id/delivery-stats", async (req, res) => {
   try {
-  const { id } = req.params;
+  const { id } = req.params as Record<string, string>;
   const { deliveredCount, failedCount } = req.body as { deliveredCount?: number; failedCount?: number };
 
   if (deliveredCount === undefined && failedCount === undefined) {

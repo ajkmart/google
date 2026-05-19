@@ -145,7 +145,7 @@ router.get("/communication/conversations", async (req, res) => {
 
 router.get("/communication/conversations/:id/messages", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const page = parseInt(req.query.page as string || "1", 10);
     const limit = Math.min(parseInt(req.query.limit as string || "50", 10), 100);
     const offset = (page - 1) * limit;
@@ -295,7 +295,7 @@ router.get("/communication/flags", async (req, res) => {
 
 router.patch("/communication/flags/:id/resolve", async (req: any, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const adminId = req.adminPayload?.adminId || null;
     await db.update(communicationFlagsTable).set({
       resolvedAt: new Date(),
@@ -349,7 +349,7 @@ router.post("/communication/roles", async (req, res) => {
 
 router.put("/communication/roles/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const { name, description, permissions, rolePairRules, categoryRules, timeWindows, messageLimits } = req.body;
 
     await db.update(communicationRolesTable).set({
@@ -371,7 +371,7 @@ router.put("/communication/roles/:id", async (req, res) => {
 
 router.delete("/communication/roles/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     await db.delete(communicationRolesTable).where(eq(communicationRolesTable.id, id));
     res.json({ data: { status: "deleted" } });
   } catch (e) {
@@ -405,7 +405,7 @@ router.post("/communication/roles/ai-generate", async (req: any, res) => {
 
 router.post("/communication/users/:id/block", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     await db.update(usersTable).set({ commBlocked: true, updatedAt: new Date() }).where(eq(usersTable.id, id));
     res.json({ data: { status: "blocked" } });
   } catch (e) {
@@ -415,7 +415,7 @@ router.post("/communication/users/:id/block", async (req, res) => {
 
 router.post("/communication/users/:id/unblock", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     await db.update(usersTable).set({ commBlocked: false, updatedAt: new Date() }).where(eq(usersTable.id, id));
     res.json({ data: { status: "unblocked" } });
   } catch (e) {
@@ -485,7 +485,7 @@ router.get("/communication/ajk-ids", async (req, res) => {
 
 router.put("/communication/ajk-ids/:userId", async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { userId } = req.params as Record<string, string>;
     const { ajkId } = req.body;
     if (!ajkId || typeof ajkId !== "string") return res.status(400).json({ error: "ajkId is required" });
 
@@ -532,7 +532,7 @@ router.get("/communication/users/search", async (req, res) => {
 
 router.get("/communication/export/:type", async (req, res) => {
   try {
-    const { type } = req.params;
+    const { type } = req.params as Record<string, string>;
     let rows: any[] = [];
     let defaultHeaders: string[] = [];
 

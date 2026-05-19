@@ -63,7 +63,7 @@ router.post("/webhooks", async (req, res) => {
 
 router.patch("/webhooks/:id/toggle", async (req, res) => {
   try {
-    const id = req.params["id"]!;
+    const id = req.params["id"] as string;
     const [existing] = await db.select().from(webhookRegistrationsTable).where(eq(webhookRegistrationsTable.id, id)).limit(1);
     if (!existing) { sendNotFound(res, "Webhook not found"); return; }
 
@@ -80,7 +80,7 @@ router.patch("/webhooks/:id/toggle", async (req, res) => {
 router.post("/webhooks/:id/test", async (req, res, next) => {
   let webhook: typeof webhookRegistrationsTable.$inferSelect | undefined;
   try {
-    const id = req.params["id"]!;
+    const id = req.params["id"] as string;
     const [found] = await db.select().from(webhookRegistrationsTable).where(eq(webhookRegistrationsTable.id, id)).limit(1);
     webhook = found;
   } catch (err) { next(err); return; }
@@ -174,7 +174,7 @@ router.post("/webhooks/:id/test", async (req, res, next) => {
 
 router.delete("/webhooks/:id", async (req, res) => {
   try {
-    const id = req.params["id"]!;
+    const id = req.params["id"] as string;
     const [existing] = await db.select().from(webhookRegistrationsTable).where(eq(webhookRegistrationsTable.id, id)).limit(1);
     if (!existing) { sendNotFound(res, "Webhook not found"); return; }
 
@@ -190,7 +190,7 @@ router.delete("/webhooks/:id", async (req, res) => {
 
 router.get("/webhooks/:id/logs", async (req, res) => {
   try {
-    const id = req.params["id"]!;
+    const id = req.params["id"] as string;
     const logs = await db.select().from(webhookLogsTable)
       .where(eq(webhookLogsTable.webhookId, id))
       .orderBy(desc(webhookLogsTable.createdAt))

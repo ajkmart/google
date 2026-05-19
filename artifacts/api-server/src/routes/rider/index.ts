@@ -1068,7 +1068,7 @@ router.patch("/orders/:id/status", async (req, res) => {
   const riderId = req.riderId!;
   const { status, proofPhoto } = parsed.data;
 
-  const [order] = await db.select().from(ordersTable).where(and(eq(ordersTable.id, req.params["id"]!), eq(ordersTable.riderId, riderId))).limit(1);
+  const [order] = await db.select().from(ordersTable).where(and(eq(ordersTable.id, req.params["id"] as string), eq(ordersTable.riderId, riderId))).limit(1);
   if (!order) { sendNotFound(res, "Order not found or not yours"); return; }
 
   /* Proof photo is mandatory for delivery confirmation — prevents fraudulent delivery claims */
@@ -1082,7 +1082,7 @@ router.patch("/orders/:id/status", async (req, res) => {
 
     const [cancelled] = await db.update(ordersTable)
       .set({ riderId: null, status: "preparing", updatedAt: new Date() })
-      .where(and(eq(ordersTable.id, req.params["id"]!), eq(ordersTable.riderId, riderId)))
+      .where(and(eq(ordersTable.id, req.params["id"] as string), eq(ordersTable.riderId, riderId)))
       .returning();
     const riderChangeLang = await getUserLanguage(order.userId);
     await db.insert(notificationsTable).values({
@@ -1128,7 +1128,7 @@ router.patch("/orders/:id/status", async (req, res) => {
       const platformFee = platformFeeCents / 100;
       const riderShare  = riderShareCents / 100;
       const txResult = await db.transaction(async (tx) => {
-        const [row] = await tx.update(ordersTable).set(updateData).where(and(eq(ordersTable.id, req.params["id"]!), eq(ordersTable.riderId, riderId), eq(ordersTable.status, order.status))).returning();
+        const [row] = await tx.update(ordersTable).set(updateData).where(and(eq(ordersTable.id, req.params["id"] as string), eq(ordersTable.riderId, riderId), eq(ordersTable.status, order.status))).returning();
         if (!row) throw new Error("STATUS_CONFLICT");
         await tx.insert(walletTransactionsTable).values({
           id: generateId(), userId: riderId, type: "cash_collection",
@@ -1171,7 +1171,7 @@ router.patch("/orders/:id/status", async (req, res) => {
       const earnings = Math.round(orderTotal * 100 * riderKeepPct) / 100;
       const totalCredit = Math.round((earnings + bonusPerTrip) * 100) / 100;
       const txResult = await db.transaction(async (tx) => {
-        const [row] = await tx.update(ordersTable).set(updateData).where(and(eq(ordersTable.id, req.params["id"]!), eq(ordersTable.riderId, riderId), eq(ordersTable.status, order.status))).returning();
+        const [row] = await tx.update(ordersTable).set(updateData).where(and(eq(ordersTable.id, req.params["id"] as string), eq(ordersTable.riderId, riderId), eq(ordersTable.status, order.status))).returning();
         if (!row) throw new Error("STATUS_CONFLICT");
         await tx.update(usersTable).set({ walletBalance: sql`wallet_balance + ${totalCredit}`, updatedAt: new Date() }).where(eq(usersTable.id, riderId));
         await tx.insert(walletTransactionsTable).values({
@@ -1266,7 +1266,7 @@ router.patch("/orders/:id/status", async (req, res) => {
       }
     }
   } else {
-    const [row] = await db.update(ordersTable).set(updateData).where(and(eq(ordersTable.id, req.params["id"]!), eq(ordersTable.riderId, riderId), eq(ordersTable.status, order.status))).returning();
+    const [row] = await db.update(ordersTable).set(updateData).where(and(eq(ordersTable.id, req.params["id"] as string), eq(ordersTable.riderId, riderId), eq(ordersTable.status, order.status))).returning();
     if (!row) { sendNotFound(res, "Order not found or not yours"); return; }
     updated = row;
   }
@@ -1478,7 +1478,7 @@ router.post("/rides/:id/accept", rideAcceptLimiter, async (req, res) => {
 router.post("/rides/:id/verify-otp", otpLimiter, async (req, res) => {
   try {
   const riderId = req.riderId!;
-  const rideId  = req.params["id"]!;
+  const rideId  = req.params["id"] as string;
   const parsed = otpVerifySchema.safeParse(req.body ?? {});
   if (!parsed.success) { sendValidationError(res, parsed.error.issues[0]?.message || "OTP is required"); return; }
   const { otp } = parsed.data;
@@ -1556,7 +1556,7 @@ router.patch("/rides/:id/status", rideStatusLimiter, async (req, res) => {
   const riderId = req.riderId!;
   const { status, lat, lng } = parsed.data;
 
-  const [ride] = await db.select().from(ridesTable).where(and(eq(ridesTable.id, req.params["id"]!), eq(ridesTable.riderId, riderId))).limit(1);
+  const [ride] = await db.select().from(ridesTable).where(and(eq(ridesTable.id, req.params["id"] as string), eq(ridesTable.riderId, riderId))).limit(1);
   if (!ride) { sendNotFound(res, "Ride not found or not yours"); return; }
 
   /* ── State Machine: enforce valid transitions ── */
@@ -1615,7 +1615,7 @@ router.patch("/rides/:id/status", rideStatusLimiter, async (req, res) => {
       const riderShare  = riderShareCents / 100;
       let newRiderBalance = 0;
       updated = await db.transaction(async (tx) => {
-        const [statusRow] = await tx.update(ridesTable).set({ status, completedAt: new Date(), updatedAt: new Date() }).where(and(eq(ridesTable.id, req.params["id"]!), eq(ridesTable.riderId, riderId), eq(ridesTable.status, ride.status))).returning();
+        const [statusRow] = await tx.update(ridesTable).set({ status, completedAt: new Date(), updatedAt: new Date() }).where(and(eq(ridesTable.id, req.params["id"] as string), eq(ridesTable.riderId, riderId), eq(ridesTable.status, ride.status))).returning();
         if (!statusRow) throw new Error("Ride not found or status already changed");
         await tx.insert(walletTransactionsTable).values({
           id: generateId(), userId: riderId, type: "cash_collection",
@@ -1661,7 +1661,7 @@ router.patch("/rides/:id/status", rideStatusLimiter, async (req, res) => {
       const earnings = Math.round(fareAmt * 100 * riderKeepPct) / 100;
       const totalCredit = Math.round((earnings + bonusPerTrip) * 100) / 100;
       updated = await db.transaction(async (tx) => {
-        const [statusRow] = await tx.update(ridesTable).set({ status, completedAt: new Date(), updatedAt: new Date() }).where(and(eq(ridesTable.id, req.params["id"]!), eq(ridesTable.riderId, riderId), eq(ridesTable.status, ride.status))).returning();
+        const [statusRow] = await tx.update(ridesTable).set({ status, completedAt: new Date(), updatedAt: new Date() }).where(and(eq(ridesTable.id, req.params["id"] as string), eq(ridesTable.riderId, riderId), eq(ridesTable.status, ride.status))).returning();
         if (!statusRow) throw new Error("Ride not found or status already changed");
         await tx.update(usersTable).set({ walletBalance: sql`wallet_balance + ${totalCredit}`, updatedAt: new Date() }).where(eq(usersTable.id, riderId));
         await tx.insert(walletTransactionsTable).values({
@@ -1719,7 +1719,7 @@ router.patch("/rides/:id/status", rideStatusLimiter, async (req, res) => {
       status === "cancelled"  ? { cancelledAt: now } : {};
     const [row] = await db.update(ridesTable)
       .set({ status, updatedAt: now, ...timestampFields })
-      .where(and(eq(ridesTable.id, req.params["id"]!), eq(ridesTable.riderId, riderId), eq(ridesTable.status, ride.status)))
+      .where(and(eq(ridesTable.id, req.params["id"] as string), eq(ridesTable.riderId, riderId), eq(ridesTable.status, ride.status)))
       .returning();
     if (!row) { sendNotFound(res, "Ride not found, not yours, or status already changed"); return; }
     updated = row;
@@ -1757,7 +1757,7 @@ router.post("/rides/:id/counter", rideBidLimiter, async (req, res) => {
   if (!parsed.success) { sendValidationError(res, parsed.error.issues[0]?.message || "counterFare required"); return; }
   const riderId   = req.riderId!;
   const riderUser = req.riderUser!;
-  const rideId    = req.params["id"]!;
+  const rideId    = req.params["id"] as string;
   const { counterFare, note } = parsed.data;
 
   const [ride] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
@@ -1894,7 +1894,7 @@ router.post("/rides/:id/reject-offer", async (req, res) => {
   /* InDrive model: riders don't lock the ride anymore, so "rejection" is purely a local dismiss.
      If this rider had submitted a pending bid, we cancel it. */
   const riderId = req.riderId!;
-  const rideId  = req.params["id"]!;
+  const rideId  = req.params["id"] as string;
 
   /* Cancel any pending bid this rider submitted */
   await db.update(rideBidsTable)
@@ -2446,7 +2446,7 @@ router.patch("/notifications/read-all", async (req, res) => {
 router.patch("/notifications/:id/read", async (req, res) => {
   try {
     const riderId = req.riderId!;
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     if (!id || typeof id !== "string") {
       sendValidationError(res, "Invalid notification id"); return;
     }
@@ -3185,7 +3185,7 @@ async function handleIgnorePenalty(riderId: string): Promise<{ dailyIgnores: num
 router.post("/rides/:id/ignore", async (req, res) => {
   try {
   const riderId = req.riderId!;
-  const rideId = req.params["id"]!;
+  const rideId = req.params["id"] as string;
 
   const [ride] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
   if (!ride) { sendNotFound(res, "Ride not found"); return; }

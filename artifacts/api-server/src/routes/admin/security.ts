@@ -153,7 +153,7 @@ router.get("/security/token-audit", adminAuth, async (req, res) => {
        families: [{ familyId, startedAt, tokens: [...] }] }
 ══════════════════════════════════════════════════════════════════ */
 router.get("/security/token-timeline/:userId", adminAuth, async (req, res) => {
-  const { userId } = req.params;
+  const { userId } = req.params as Record<string, string>;
   if (!userId?.trim()) {
     sendError(res, "userId is required", 400);
     return;
@@ -267,7 +267,7 @@ router.get("/security/token-timeline/:userId", adminAuth, async (req, res) => {
    Requires admin auth.
 ══════════════════════════════════════════════════════════════════ */
 router.get("/security/token-export/:userId", adminAuth, async (req, res) => {
-  const { userId } = req.params;
+  const { userId } = req.params as Record<string, string>;
   if (!userId?.trim()) {
     sendError(res, "userId is required", 400);
     return;
@@ -378,7 +378,7 @@ router.get("/security/token-export/:userId", adminAuth, async (req, res) => {
    Requires admin auth.
 ══════════════════════════════════════════════════════════════════ */
 router.post("/security/revoke-family/:userId/:familyId", adminAuth, async (req, res) => {
-  const { userId, familyId } = req.params;
+  const { userId, familyId } = req.params as Record<string, string>;
   if (!userId?.trim() || !familyId?.trim()) {
     sendError(res, "userId and familyId are required", 400);
     return;
@@ -471,7 +471,7 @@ router.post("/security/revoke-family/:userId/:familyId", adminAuth, async (req, 
    Requires admin auth.
 ══════════════════════════════════════════════════════════════════ */
 router.post("/security/force-logout/:userId", adminAuth, async (req, res) => {
-  const { userId } = req.params;
+  const { userId } = req.params as Record<string, string>;
   if (!userId?.trim()) {
     sendError(res, "userId is required", 400);
     return;

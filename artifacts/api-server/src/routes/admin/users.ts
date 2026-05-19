@@ -56,14 +56,14 @@ router.patch("/users/:id", async (req, res) => {
   const [user] = await db
     .update(usersTable)
     .set({ ...(updates as typeof usersTable.$inferInsert), updatedAt: new Date() })
-    .where(eq(usersTable.id, req.params["id"]!))
+    .where(eq(usersTable.id, req.params["id"] as string))
     .returning();
 
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   /* Revoke sessions on role or status change so user re-authenticates with new role */
   if (role !== undefined || isActive === false) {
-    revokeAllUserSessions(req.params["id"]!).catch((e: Error) => {
-      logger.warn({ err: e.message, userId: req.params["id"] }, "[admin] session revocation failed after role/status change");
+    revokeAllUserSessions(req.params["id"] as string).catch((e: Error) => {
+      logger.warn({ err: e.message, userId: req.params["id"] as string }, "[admin] session revocation failed after role/status change");
     });
   }
   res.json({ ...stripUser(user), walletBalance: parseFloat(user.walletBalance ?? "0") });
@@ -104,10 +104,10 @@ router.get("/users/2fa-enabled", async (_req, res) => {
 /* ── Approve User ── */
 router.post("/users/:id/approve", async (req, res) => {
   const { note, skipDocCheck } = req.body;
-  const [target] = await db.select().from(usersTable).where(eq(usersTable.id, req.params["id"]!)).limit(1);
+  const [target] = await db.select().from(usersTable).where(eq(usersTable.id, req.params["id"] as string)).limit(1);
   if (!target) { res.status(404).json({ error: "User not found" }); return; }
 
-  if (target.role === "rider" && !skipDocCheck) {
+  if (target.roles === "rider" && !skipDocCheck) {
     const hasCnic = !!target.cnic;
     const hasLicense = !!target.drivingLicense;
     const missing: string[] = [];
@@ -121,7 +121,7 @@ router.post("/users/:id/approve", async (req, res) => {
 
   const [user] = await db.update(usersTable)
     .set({ approvalStatus: "approved", approvalNote: note || null, isActive: true, updatedAt: new Date() })
-    .where(eq(usersTable.id, req.params["id"]!))
+    .where(eq(usersTable.id, req.params["id"] as string))
     .returning();
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   addAuditEntry({ action: "user_approved", ip: "admin", details: `User approved: ${user.phone} — ${user.name || "unnamed"}`, result: "success" });
@@ -133,7 +133,7 @@ router.post("/users/:id/reject", async (req, res) => {
   const { note } = req.body;
   const [user] = await db.update(usersTable)
     .set({ approvalStatus: "rejected", approvalNote: note || "Rejected by admin", isActive: false, updatedAt: new Date() })
-    .where(eq(usersTable.id, req.params["id"]!))
+    .where(eq(usersTable.id, req.params["id"] as string))
     .returning();
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   addAuditEntry({ action: "user_rejected", ip: "admin", details: `User rejected: ${user.phone} — ${note || "no reason"}`, result: "success" });
@@ -148,7 +148,7 @@ router.post("/users/:id/wallet-topup", async (req, res) => {
     return;
   }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.params["id"]!));
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.params["id"] as string));
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
   const currentBalance = parseFloat(user.walletBalance ?? "0");
@@ -157,12 +157,12 @@ router.post("/users/:id/wallet-topup", async (req, res) => {
   const [updatedUser] = await db
     .update(usersTable)
     .set({ walletBalance: String(newBalance), updatedAt: new Date() })
-    .where(eq(usersTable.id, req.params["id"]!))
+    .where(eq(usersTable.id, req.params["id"] as string))
     .returning();
 
   await db.insert(walletTransactionsTable).values({
     id: generateId(),
-    userId: req.params["id"]!,
+    userId: req.params["id"] as string,
     type: "credit",
     amount: String(amount),
     description: description || `Admin top-up: Rs. ${amount}`,
@@ -170,7 +170,7 @@ router.post("/users/:id/wallet-topup", async (req, res) => {
   });
 
   await sendUserNotification(
-    req.params["id"]!,
+    req.params["id"] as string,
     "Wallet Topped Up! 💰",
     `Rs. ${amount} has been added to your AJKMart wallet.`,
     "system",
@@ -184,13 +184,13 @@ router.post("/users/:id/wallet-topup", async (req, res) => {
   });
 });
 router.delete("/users/:id", async (req, res) => {
-  await db.delete(usersTable).where(eq(usersTable.id, req.params["id"]!));
+  await db.delete(usersTable).where(eq(usersTable.id, req.params["id"] as string));
   res.json({ success: true });
 });
 
 /* ── User Activity (orders + rides summary) ── */
 router.get("/users/:id/activity", async (req, res) => {
-  const uid = req.params["id"]!;
+  const uid = req.params["id"] as string;
   const orders = await db.select().from(ordersTable).where(eq(ordersTable.userId, uid)).orderBy(desc(ordersTable.createdAt)).limit(10);
   const rides = await db.select().from(ridesTable).where(eq(ridesTable.userId, uid)).orderBy(desc(ridesTable.createdAt)).limit(10);
   const pharmacy = await db.select().from(pharmacyOrdersTable).where(eq(pharmacyOrdersTable.userId, uid)).orderBy(desc(pharmacyOrdersTable.createdAt)).limit(5);
@@ -207,7 +207,7 @@ router.get("/users/:id/activity", async (req, res) => {
 
 /* ── Overview with user enrichment (orders + user info) ── */
 router.patch("/users/:id/security", async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params as Record<string, string>;
   const body = req.body as Record<string, unknown>;
   const updates: Record<string, unknown> = { updatedAt: new Date() };
   if (body.isActive     !== undefined) updates.isActive     = body.isActive;
@@ -262,7 +262,7 @@ router.patch("/users/:id/security", async (req, res) => {
 
 /* ── PATCH /admin/users/:id/identity — Admin update user identity (username, email, name) ── */
 router.patch("/users/:id/identity", async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   const body = req.body as Record<string, unknown>;
   const updates: Record<string, unknown> = { updatedAt: new Date() };
 
@@ -336,13 +336,13 @@ router.patch("/users/:id/identity", async (req, res) => {
 });
 
 router.post("/users/:id/reset-otp", async (req, res) => {
-  await db.update(usersTable).set({ otpCode: null, otpExpiry: null, updatedAt: new Date() }).where(eq(usersTable.id, req.params["id"]!));
+  await db.update(usersTable).set({ otpCode: null, otpExpiry: null, updatedAt: new Date() }).where(eq(usersTable.id, req.params["id"] as string));
   res.json({ success: true, message: "OTP cleared — user must re-authenticate" });
 });
 
 /* ── Force-disable 2FA for a user (admin action) ── */
 router.post("/users/:id/2fa/disable", async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
@@ -364,7 +364,7 @@ router.patch("/users/:id/request-correction", async (req, res) => {
   const { field, note } = req.body as { field?: string; note?: string };
   const [user] = await db.update(usersTable)
     .set({ approvalStatus: "correction_needed", approvalNote: note || `Please re-upload: ${field || "document"}`, updatedAt: new Date() })
-    .where(eq(usersTable.id, req.params["id"]!))
+    .where(eq(usersTable.id, req.params["id"] as string))
     .returning();
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   addAuditEntry({ action: "user_correction_requested", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Correction requested for ${user.phone}: ${field}`, result: "success" });
@@ -382,7 +382,7 @@ router.patch("/users/:id/request-correction", async (req, res) => {
 
 /* ── PATCH /admin/users/:id/waive-debt — waive rider's cancellation debt ── */
 router.patch("/users/:id/waive-debt", async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   const [user] = await db.select({ id: usersTable.id, phone: usersTable.phone, cancellationDebt: usersTable.cancellationDebt })
     .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }

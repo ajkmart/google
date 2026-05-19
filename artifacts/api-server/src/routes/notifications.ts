@@ -81,10 +81,10 @@ router.patch("/read-all", customerAuth, async (req, res) => {
 router.patch("/:id/read", customerAuth, async (req, res) => {
   try {
     const userId = req.customerId!;
-    const [notif] = await db.select().from(notificationsTable).where(eq(notificationsTable.id, String(req.params["id"]))).limit(1);
+    const [notif] = await db.select().from(notificationsTable).where(eq(notificationsTable.id, String(req.params["id"] as string))).limit(1);
     if (!notif) { sendNotFound(res, "Not found", "نوٹیفکیشن نہیں ملی۔"); return; }
     if (notif.userId !== userId) { sendForbidden(res, "Access denied", "رسائی سے انکار۔"); return; }
-    await db.update(notificationsTable).set({ isRead: true }).where(eq(notificationsTable.id, String(req.params["id"])));
+    await db.update(notificationsTable).set({ isRead: true }).where(eq(notificationsTable.id, String(req.params["id"] as string)));
     sendSuccess(res, null);
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
@@ -95,10 +95,10 @@ router.patch("/:id/read", customerAuth, async (req, res) => {
 router.delete("/:id", customerAuth, async (req, res) => {
   try {
     const userId = req.customerId!;
-    const [notif] = await db.select().from(notificationsTable).where(eq(notificationsTable.id, String(req.params["id"]))).limit(1);
+    const [notif] = await db.select().from(notificationsTable).where(eq(notificationsTable.id, String(req.params["id"] as string))).limit(1);
     if (!notif) { sendNotFound(res, "Not found", "نوٹیفکیشن نہیں ملی۔"); return; }
     if (notif.userId !== userId) { sendForbidden(res, "Access denied", "رسائی سے انکار۔"); return; }
-    await db.delete(notificationsTable).where(eq(notificationsTable.id, String(req.params["id"])));
+    await db.delete(notificationsTable).where(eq(notificationsTable.id, String(req.params["id"] as string)));
     sendSuccess(res, null);
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');

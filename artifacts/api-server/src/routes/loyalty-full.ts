@@ -222,7 +222,7 @@ router.put("/campaigns/:id", adminAuth, async (req, res) => {
   }
 
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [existing] = await db
       .select()
       .from(loyaltyCampaignsTable)
@@ -260,7 +260,7 @@ router.put("/campaigns/:id", adminAuth, async (req, res) => {
 
 router.delete("/campaigns/:id", adminAuth, async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [existing] = await db
       .select()
       .from(loyaltyCampaignsTable)
@@ -335,7 +335,7 @@ router.put("/rewards/:id", adminAuth, async (req, res) => {
   }
 
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [existing] = await db
       .select()
       .from(loyaltyRewardsTable)
@@ -373,7 +373,7 @@ router.put("/rewards/:id", adminAuth, async (req, res) => {
 
 router.delete("/rewards/:id", adminAuth, async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [existing] = await db
       .select()
       .from(loyaltyRewardsTable)

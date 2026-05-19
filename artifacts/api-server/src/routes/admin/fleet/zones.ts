@@ -73,7 +73,7 @@ router.post("/", async (req, res) => {
 /* ── PUT /admin/service-zones/:id — update a zone ── */
 router.put("/:id", async (req, res) => {
   try {
-    const id = parseInt(req.params["id"]!, 10);
+    const id = parseInt(req.params["id"] as string, 10);
     if (isNaN(id)) { sendValidationError(res, "Invalid zone id"); return; }
 
     const {
@@ -125,7 +125,7 @@ router.put("/:id", async (req, res) => {
 /* ── DELETE /admin/service-zones/:id ── */
 router.delete("/:id", async (req, res) => {
   try {
-    const id = parseInt(req.params["id"]!, 10);
+    const id = parseInt(req.params["id"] as string, 10);
     if (isNaN(id)) { sendValidationError(res, "Invalid zone id"); return; }
 
     const [deleted] = await db

@@ -47,7 +47,7 @@ router.get("/roles", canRead, async (_req, res) => {
 });
 
 router.get("/roles/:id", canRead, async (req, res) => {
-  const role = await getRole(req.params["id"]!);
+  const role = await getRole(req.params["id"] as string);
   if (!role) return sendNotFound(res, "Role not found");
   sendSuccess(res, { role });
 });
@@ -87,7 +87,7 @@ router.patch("/roles/:id", requirePermission("system.roles.manage"), async (req,
   const aReq = req as AdminRequest;
   try {
     const body = updateRoleSchema.parse(req.body);
-    const role = await updateRole(req.params["id"]!, body);
+    const role = await updateRole(req.params["id"] as string, body);
     if (!role) return sendNotFound(res, "Role not found");
     addAuditEntry({
       action: "rbac_role_update",
@@ -105,7 +105,7 @@ router.patch("/roles/:id", requirePermission("system.roles.manage"), async (req,
 
 router.delete("/roles/:id", requirePermission("system.roles.manage"), async (req, res) => {
   const aReq = req as AdminRequest;
-  const result = await deleteRole(req.params["id"]!);
+  const result = await deleteRole(req.params["id"] as string);
   if (!result.deleted) {
     if (result.reason === "built_in") return sendError(res, "Built-in roles cannot be deleted", 400);
     return sendNotFound(res, "Role not found");
@@ -114,7 +114,7 @@ router.delete("/roles/:id", requirePermission("system.roles.manage"), async (req
     action: "rbac_role_delete",
     adminId: aReq.adminId,
     ip: aReq.adminIp || "unknown",
-    details: `roleId=${req.params["id"]}`,
+    details: `roleId=${req.params["id"] as string}`,
     result: "success",
   });
   sendSuccess(res, { success: true });
@@ -128,7 +128,7 @@ router.put("/roles/:id/permissions",
     const aReq = req as AdminRequest;
     try {
       const { permissions } = setPermsSchema.parse(req.body);
-      const role = await getRole(req.params["id"]!);
+      const role = await getRole(req.params["id"] as string);
       if (!role) return sendNotFound(res, "Role not found");
       const before = role.permissions;
       const after = await setRolePermissions(role.id, permissions);
@@ -159,15 +159,15 @@ router.put("/admins/:adminId/roles",
     const aReq = req as AdminRequest;
     try {
       const { roleIds } = setAdminRolesSchema.parse(req.body);
-      await setAdminRoles(req.params["adminId"]!, roleIds, aReq.adminId ?? null);
+      await setAdminRoles(req.params["adminId"] as string, roleIds, aReq.adminId ?? null);
       addAuditEntry({
         action: "rbac_admin_roles_set",
         adminId: aReq.adminId,
         ip: aReq.adminIp || "unknown",
-        details: `targetAdminId=${req.params["adminId"]} roles=[${roleIds.join(",")}]`,
+        details: `targetAdminId=${req.params["adminId"] as string} roles=[${roleIds.join(",")}]`,
         result: "success",
       });
-      const roles = await getAdminRoles(req.params["adminId"]!);
+      const roles = await getAdminRoles(req.params["adminId"] as string);
       sendSuccess(res, { roles });
     } catch (err) {
       if (err instanceof z.ZodError) return sendValidationError(res, err.message);
@@ -176,12 +176,12 @@ router.put("/admins/:adminId/roles",
   });
 
 router.get("/admins/:adminId/roles", canRead, async (req, res) => {
-  const roles = await getAdminRoles(req.params["adminId"]!);
+  const roles = await getAdminRoles(req.params["adminId"] as string);
   sendSuccess(res, { roles });
 });
 
 router.get("/admins/:adminId/effective-permissions", canRead, async (req, res) => {
-  const adminId = req.params["adminId"]!;
+  const adminId = req.params["adminId"] as string;
   const explicit = await getEffectivePermissionsForAdmin(adminId);
   // Super admins effectively have everything; surface that to the UI
   const resolved = await resolveAdminPermissions(adminId, null);
@@ -212,7 +212,7 @@ router.get("/me", async (req, res) => {
  */
 router.get("/verify/:permission", async (req, res) => {
   const aReq = req as AdminRequest;
-  const permission = req.params["permission"]!;
+  const permission = req.params["permission"] as string;
   if (!permission) return sendValidationError(res, "permission param is required");
   const perms: string[] = aReq.adminPermissions?.length
     ? aReq.adminPermissions

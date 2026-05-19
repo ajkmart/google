@@ -60,7 +60,7 @@ router.post("/", validateBody(addToWishlistSchema), async (req, res) => {
 router.delete("/:productId", async (req, res) => {
   try {
   const userId = req.customerId!;
-  const productId = req.params["productId"]!;
+  const productId = req.params["productId"] as string;
 
   const deleted = await db
     .delete(wishlistTable)
@@ -142,7 +142,7 @@ router.get("/", async (req, res) => {
 router.get("/check/:productId", async (req, res) => {
   try {
   const userId = req.customerId!;
-  const productId = req.params["productId"]!;
+  const productId = req.params["productId"] as string;
 
   const existing = await db
     .select({ id: wishlistTable.id })

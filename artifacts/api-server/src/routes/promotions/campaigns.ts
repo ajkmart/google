@@ -36,7 +36,7 @@ router.get("/campaigns", adminAuth, async (_req, res) => {
 
 router.get("/campaigns/:id", adminAuth, async (req, res) => {
   try {
-    const [campaign] = await db.select().from(campaignsTable).where(eq(campaignsTable.id, req.params["id"]!)).limit(1);
+    const [campaign] = await db.select().from(campaignsTable).where(eq(campaignsTable.id, req.params["id"] as string)).limit(1);
     if (!campaign) { sendNotFound(res, "Campaign not found"); return; }
 
     const offers = await db.select().from(offersTable).where(eq(offersTable.campaignId, campaign.id));
@@ -78,7 +78,7 @@ router.post("/campaigns", marketingAuth, async (req, res) => {
 
 router.patch("/campaigns/:id", marketingAuth, async (req, res) => {
   try {
-    const id = req.params["id"]!;
+    const id = req.params["id"] as string;
     const body = req.body as Record<string, unknown>;
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     const fields = ["name","description","theme","colorFrom","colorTo","bannerImage","priority","status"];
@@ -97,7 +97,7 @@ router.patch("/campaigns/:id", marketingAuth, async (req, res) => {
 
 router.delete("/campaigns/:id", marketingAuth, async (req, res) => {
   try {
-    await db.delete(campaignsTable).where(eq(campaignsTable.id, req.params["id"]!));
+    await db.delete(campaignsTable).where(eq(campaignsTable.id, req.params["id"] as string));
     sendSuccess(res, { success: true });
   } catch (err) {
     sendError(res, "Internal server error", 500);
@@ -108,7 +108,7 @@ router.delete("/campaigns/:id", marketingAuth, async (req, res) => {
 router.get("/vendor/campaigns/:id/performance", requireRole("vendor"), async (req, res) => {
   try {
     const vendorId = req.vendorId as string | undefined;
-    const campaignId = req.params["id"]!;
+    const campaignId = req.params["id"] as string;
 
     const vendorParticipations = await db.select({ vendorId: campaignParticipationsTable.vendorId })
       .from(campaignParticipationsTable)
@@ -188,7 +188,7 @@ router.get("/vendor/campaigns", requireRole("vendor"), async (req, res) => {
 router.post("/vendor/campaigns/:id/participate", requireRole("vendor"), async (req, res) => {
   try {
     const vendorId = req.vendorId as string;
-    const campaignId = req.params["id"]!;
+    const campaignId = req.params["id"] as string;
 
     const [campaign] = await db.select().from(campaignsTable).where(eq(campaignsTable.id, campaignId)).limit(1);
     if (!campaign) { sendNotFound(res, "Campaign not found"); return; }
@@ -216,7 +216,7 @@ router.post("/vendor/campaigns/:id/participate", requireRole("vendor"), async (r
 router.delete("/vendor/participations/:id", requireRole("vendor"), async (req, res) => {
   try {
     const vendorId = req.vendorId as string;
-    const participationId = req.params["id"]!;
+    const participationId = req.params["id"] as string;
     const rows = await db.select().from(campaignParticipationsTable)
       .where(eq(campaignParticipationsTable.id, participationId));
     const participation = rows.find(r => r.vendorId === vendorId);

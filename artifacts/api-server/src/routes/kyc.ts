@@ -677,7 +677,7 @@ router.get("/admin/:id", adminAuth, async (req, res) => {
     const [record] = await db
       .select()
       .from(kycVerificationsTable)
-      .where(eq(kycVerificationsTable.id, req.params["id"]!))
+      .where(eq(kycVerificationsTable.id, req.params["id"] as string))
       .limit(1);
 
     if (!record) {
@@ -753,7 +753,7 @@ router.patch("/admin/:id", adminAuth, validateBody(KycAdminReviewSchema), async 
         fullName: kycVerificationsTable.fullName,
       })
       .from(kycVerificationsTable)
-      .where(eq(kycVerificationsTable.id, req.params["id"]!))
+      .where(eq(kycVerificationsTable.id, req.params["id"] as string))
       .limit(1);
 
     if (!record) {

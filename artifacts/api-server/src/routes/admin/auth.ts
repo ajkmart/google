@@ -124,13 +124,13 @@ router.patch("/admin-accounts/:id", async (req, res) => {
     if (body.secret === await getAdminSecret()) { res.status(400).json({ error: "Cannot use the master secret" }); return; }
     updates.secret = hashAdminSecret(body.secret as string);
   }
-  const [account] = await db.update(adminAccountsTable).set(updates).where(eq(adminAccountsTable.id, req.params["id"]!)).returning();
+  const [account] = await db.update(adminAccountsTable).set(updates).where(eq(adminAccountsTable.id, req.params["id"] as string)).returning();
   if (!account) { res.status(404).json({ error: "Admin account not found" }); return; }
   res.json({ ...account, secret: "••••••", createdAt: account.createdAt.toISOString() });
 });
 
 router.delete("/admin-accounts/:id", async (req, res) => {
-  await db.delete(adminAccountsTable).where(eq(adminAccountsTable.id, req.params["id"]!));
+  await db.delete(adminAccountsTable).where(eq(adminAccountsTable.id, req.params["id"] as string));
   res.json({ success: true });
 });
 

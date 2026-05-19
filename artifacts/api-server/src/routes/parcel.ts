@@ -114,7 +114,7 @@ router.get("/:id", customerAuth, verifyOwnership("parcel_booking"), async (req, 
   const [booking] = await db
     .select()
     .from(parcelBookingsTable)
-    .where(eq(parcelBookingsTable.id, String(req.params["id"])))
+    .where(eq(parcelBookingsTable.id, String(req.params["id"] as string)))
     .limit(1);
   if (!booking) {
     sendNotFound(res, "Parcel booking not found");
@@ -340,7 +340,7 @@ router.post("/", customerAuth, async (req, res) => {
 
 router.patch("/:id/cancel", customerAuth, verifyOwnership("parcel_booking"), async (req, res) => {
   const userId = req.customerId!;
-  const bookingId = String(req.params["id"]);
+  const bookingId = String(req.params["id"] as string);
 
   const [booking] = await db
     .select()
@@ -448,7 +448,7 @@ router.patch("/:id/status", riderAuth, async (req, res) => {
   const [booking] = await db
     .select()
     .from(parcelBookingsTable)
-    .where(eq(parcelBookingsTable.id, String(req.params["id"])))
+    .where(eq(parcelBookingsTable.id, String(req.params["id"] as string)))
     .limit(1);
   if (!booking) { sendNotFound(res, "Parcel booking not found"); return; }
 
@@ -476,7 +476,7 @@ router.patch("/:id/status", riderAuth, async (req, res) => {
     const [updated] = await db
       .update(parcelBookingsTable)
       .set({ status, riderId, updatedAt: new Date() })
-      .where(and(eq(parcelBookingsTable.id, String(req.params["id"])), sql`rider_id IS NULL`))
+      .where(and(eq(parcelBookingsTable.id, String(req.params["id"] as string)), sql`rider_id IS NULL`))
       .returning();
     if (!updated) {
       sendError(res, "This parcel has already been accepted by another rider", 409);
@@ -487,7 +487,7 @@ router.patch("/:id/status", riderAuth, async (req, res) => {
     const [updated] = await db
       .update(parcelBookingsTable)
       .set({ status, riderId, updatedAt: new Date() })
-      .where(eq(parcelBookingsTable.id, String(req.params["id"])))
+      .where(eq(parcelBookingsTable.id, String(req.params["id"] as string)))
       .returning();
     if (!updated) {
       sendNotFound(res, "Parcel booking not found");
@@ -508,7 +508,7 @@ router.patch("/:id/status", riderAuth, async (req, res) => {
 ══════════════════════════════════════════════════════════════ */
 router.patch("/:id/location", riderAuth, gpsAntiSpoofMiddleware, async (req, res) => {
   const riderId = req.riderId!;
-  const bookingId = String(req.params["id"]);
+  const bookingId = String(req.params["id"] as string);
   const { latitude, longitude, accuracy } = req.body as {
     latitude: number; longitude: number; accuracy?: number;
   };

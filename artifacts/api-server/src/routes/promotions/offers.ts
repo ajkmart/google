@@ -46,7 +46,7 @@ router.get("/offers/pending", managerAuth, async (_req: Request, res) => {
 
 router.get("/offers/:id", adminAuth, async (req, res) => {
   try {
-    const [offer] = await db.select().from(offersTable).where(eq(offersTable.id, req.params["id"]!)).limit(1);
+    const [offer] = await db.select().from(offersTable).where(eq(offersTable.id, req.params["id"] as string)).limit(1);
     if (!offer) { sendNotFound(res, "Offer not found"); return; }
 
     const redemptions = await db.select().from(offerRedemptionsTable)
@@ -121,7 +121,7 @@ router.post("/offers", marketingAuth, async (req, res) => {
 
 router.patch("/offers/:id", marketingAuth, async (req, res) => {
   try {
-    const id   = req.params["id"]!;
+    const id   = req.params["id"] as string;
     const body = req.body as Record<string, unknown>;
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     const strFields = ["name","description","type","appliesTo","vendorId","createdBy","approvedBy"];
@@ -176,7 +176,7 @@ router.post("/offers/bulk", marketingAuth, async (req, res) => {
 
 router.post("/offers/:id/clone", marketingAuth, async (req, res) => {
   try {
-    const [original] = await db.select().from(offersTable).where(eq(offersTable.id, req.params["id"]!)).limit(1);
+    const [original] = await db.select().from(offersTable).where(eq(offersTable.id, req.params["id"] as string)).limit(1);
     if (!original) { sendNotFound(res, "Offer not found"); return; }
 
     const [cloned] = await db.insert(offersTable).values({
@@ -197,7 +197,7 @@ router.post("/offers/:id/clone", marketingAuth, async (req, res) => {
 
 router.delete("/offers/:id", marketingAuth, async (req, res) => {
   try {
-    await db.delete(offersTable).where(eq(offersTable.id, req.params["id"]!));
+    await db.delete(offersTable).where(eq(offersTable.id, req.params["id"] as string));
     sendSuccess(res, { success: true });
   } catch (err) {
     sendError(res, "Internal server error", 500);
@@ -215,7 +215,7 @@ router.get("/templates", adminAuth, async (_req, res) => {
 
 router.get("/templates/:id", adminAuth, async (req, res) => {
   try {
-    const [tpl] = await db.select().from(offerTemplatesTable).where(eq(offerTemplatesTable.id, req.params["id"]!)).limit(1);
+    const [tpl] = await db.select().from(offerTemplatesTable).where(eq(offerTemplatesTable.id, req.params["id"] as string)).limit(1);
     if (!tpl) { sendNotFound(res, "Template not found"); return; }
     sendSuccess(res, tpl);
   } catch (err) {
@@ -260,7 +260,7 @@ router.post("/templates", marketingAuth, async (req: Request, res) => {
 
 router.patch("/templates/:id", marketingAuth, async (req, res) => {
   try {
-    const id   = req.params["id"]!;
+    const id   = req.params["id"] as string;
     const body = req.body as Record<string, unknown>;
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     const strFields = ["name","description","type","appliesTo","code"];
@@ -290,7 +290,7 @@ router.patch("/templates/:id", marketingAuth, async (req, res) => {
 
 router.delete("/templates/:id", marketingAuth, async (req, res) => {
   try {
-    await db.delete(offerTemplatesTable).where(eq(offerTemplatesTable.id, req.params["id"]!));
+    await db.delete(offerTemplatesTable).where(eq(offerTemplatesTable.id, req.params["id"] as string));
     sendSuccess(res, { success: true });
   } catch (err) {
     sendError(res, "Internal server error", 500);
@@ -299,7 +299,7 @@ router.delete("/templates/:id", marketingAuth, async (req, res) => {
 
 router.post("/templates/:id/instantiate", marketingAuth, async (req: Request, res) => {
   try {
-    const [tpl] = await db.select().from(offerTemplatesTable).where(eq(offerTemplatesTable.id, req.params["id"]!)).limit(1);
+    const [tpl] = await db.select().from(offerTemplatesTable).where(eq(offerTemplatesTable.id, req.params["id"] as string)).limit(1);
     if (!tpl) { sendNotFound(res, "Template not found"); return; }
 
     const body = req.body as Record<string, unknown>;
@@ -498,7 +498,7 @@ router.patch("/vendor/participations/:id", adminAuth, async (req, res) => {
     if (!status) { sendValidationError(res, "status required"); return; }
     const [participation] = await db.update(campaignParticipationsTable)
       .set({ status, notes: notes || null })
-      .where(eq(campaignParticipationsTable.id, req.params["id"]!))
+      .where(eq(campaignParticipationsTable.id, req.params["id"] as string))
       .returning();
     if (!participation) { sendNotFound(res, "Participation not found"); return; }
     sendSuccess(res, participation);
@@ -526,12 +526,12 @@ router.delete("/vendor/participations/:id", requireRole("vendor"), async (req: R
     const vendorId = req.vendorId as string;
     if (!vendorId) { sendValidationError(res, "auth required"); return; }
     const [participation] = await db.select().from(campaignParticipationsTable)
-      .where(eq(campaignParticipationsTable.id, req.params["id"]!))
+      .where(eq(campaignParticipationsTable.id, req.params["id"] as string))
       .limit(1);
     if (!participation) { sendNotFound(res, "Participation not found"); return; }
     if (participation.vendorId !== vendorId) { sendError(res, "Not authorized", 403); return; }
     if (participation.status !== "pending") { sendError(res, "Only pending participations can be withdrawn", 400); return; }
-    await db.delete(campaignParticipationsTable).where(eq(campaignParticipationsTable.id, req.params["id"]!));
+    await db.delete(campaignParticipationsTable).where(eq(campaignParticipationsTable.id, req.params["id"] as string));
     sendSuccess(res, { message: "Participation withdrawn" });
   } catch (err) {
     sendError(res, "Internal server error", 500);

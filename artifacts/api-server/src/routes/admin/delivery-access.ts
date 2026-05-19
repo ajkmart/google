@@ -344,7 +344,7 @@ router.post("/delivery-access/whitelist/bulk", async (req, res) => {
 
 router.patch("/delivery-access/whitelist/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const { deliveryLabel, notes, validUntil, status } = req.body;
 
     const [existing] = await db
@@ -395,7 +395,7 @@ router.patch("/delivery-access/whitelist/:id", async (req, res) => {
 
 router.delete("/delivery-access/whitelist/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [existing] = await db
       .select()
       .from(deliveryWhitelistTable)
@@ -471,7 +471,7 @@ router.get("/delivery-access/requests", async (req, res) => {
 
 router.patch("/delivery-access/requests/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const { status, notes } = req.body;
 
     if (!status || !["approved", "rejected"].includes(status)) {

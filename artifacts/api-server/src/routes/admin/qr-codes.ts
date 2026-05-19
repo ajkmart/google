@@ -44,7 +44,7 @@ router.post("/", async (req, res) => {
 
 router.patch("/:id/activate", async (req, res) => {
   try {
-    const id = req.params["id"]!;
+    const id = req.params["id"] as string;
     const [existing] = await db.select().from(qrCodesTable).where(eq(qrCodesTable.id, id)).limit(1);
     if (!existing) { sendNotFound(res, "QR code not found"); return; }
 
@@ -58,7 +58,7 @@ router.patch("/:id/activate", async (req, res) => {
 
 router.patch("/:id/deactivate", async (req, res) => {
   try {
-    const id = req.params["id"]!;
+    const id = req.params["id"] as string;
     const [existing] = await db.select().from(qrCodesTable).where(eq(qrCodesTable.id, id)).limit(1);
     if (!existing) { sendNotFound(res, "QR code not found"); return; }
 

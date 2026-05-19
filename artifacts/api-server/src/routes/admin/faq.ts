@@ -60,7 +60,7 @@ router.post("/", async (req, res) => {
 
 router.patch("/:id", async (req, res) => {
   try {
-  const { id } = req.params;
+  const { id } = req.params as Record<string, string>;
   const { category, question, answer, sortOrder, isActive } = req.body as {
     category?: string; question?: string; answer?: string; sortOrder?: number; isActive?: boolean;
   };
@@ -86,7 +86,7 @@ router.patch("/:id", async (req, res) => {
 
 router.delete("/:id", async (req, res) => {
   try {
-  const { id } = req.params;
+  const { id } = req.params as Record<string, string>;
   try {
     const [deleted] = await db.delete(faqsTable).where(eq(faqsTable.id, id)).returning();
     if (!deleted) return sendNotFound(res, "FAQ not found");

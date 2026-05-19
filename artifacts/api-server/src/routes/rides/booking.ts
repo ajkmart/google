@@ -572,7 +572,7 @@ router.patch("/:id/cancel", customerAuth, cancelRideLimiter, requireRideState(["
   }
   const cancelReason = cancelParsed.data.reason ?? null;
 
-  await cleanupNotifiedRiders(String(req.params["id"]));
+  await cleanupNotifiedRiders(String(req.params["id"] as string));
   const s = await getCachedSettings();
   const cancelFee = parseFloat(s["ride_cancellation_fee"] ?? "30");
   const riderAssigned = ["accepted", "arrived", "in_transit"].includes(ride.status);
@@ -599,12 +599,12 @@ router.patch("/:id/cancel", customerAuth, cancelRideLimiter, requireRideState(["
   const cancelResult = await db.transaction(async (tx) => {
     const [upd] = await tx.update(ridesTable)
       .set({ status: "cancelled", updatedAt: new Date() })
-      .where(and(eq(ridesTable.id, String(req.params["id"])), eq(ridesTable.userId, userId)))
+      .where(and(eq(ridesTable.id, String(req.params["id"] as string)), eq(ridesTable.userId, userId)))
       .returning();
 
     await tx.update(rideBidsTable)
       .set({ status: "rejected", updatedAt: new Date() })
-      .where(and(eq(rideBidsTable.rideId, String(req.params["id"])), eq(rideBidsTable.status, "pending")));
+      .where(and(eq(rideBidsTable.rideId, String(req.params["id"] as string)), eq(rideBidsTable.status, "pending")));
 
     if (walletNetDebit > 0) {
       await tx.update(usersTable)
@@ -717,8 +717,8 @@ router.patch("/:id/cancel", customerAuth, cancelRideLimiter, requireRideState(["
 
 router.patch("/:id/bids/:bidId/reject", customerAuth, async (req, res) => {
   try {
-  const rideId = String(req.params["id"]);
-  const bidId  = String(req.params["bidId"]);
+  const rideId = String(req.params["id"] as string);
+  const bidId  = String(req.params["bidId"] as string);
   const userId = req.customerId!;
 
   const [ride] = await db.select().from(ridesTable)
@@ -759,7 +759,7 @@ router.patch("/:id/accept-bid", customerAuth, async (req, res) => {
 
   const userId = req.customerId!;
   const { bidId } = parsed.data;
-  const rideId = String(req.params["id"]);
+  const rideId = String(req.params["id"] as string);
 
   const [debtUserBid] = await db.select({ cancellationDebt: usersTable.cancellationDebt })
     .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
@@ -1039,7 +1039,7 @@ router.get("/payment-methods", async (_req, res) => {
 
 router.get("/pool/:groupId", customerAuth, async (req, res) => {
   try {
-  const groupId = String(req.params["groupId"]);
+  const groupId = String(req.params["groupId"] as string);
   const callerId = req.customerId!;
 
   const membership = await db.select({ id: ridesTable.id })

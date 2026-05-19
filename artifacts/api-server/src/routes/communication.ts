@@ -228,7 +228,7 @@ router.get("/me/ajk-id", async (req: any, res) => {
 
 router.get("/search/:ajkId", async (req: any, res) => {
   try {
-    const { ajkId } = req.params;
+    const { ajkId } = req.params as Record<string, string>;
     const [user] = await db
       .select({ id: usersTable.id, name: usersTable.name, roles: usersTable.roles, isOnline: usersTable.isOnline, ajkId: usersTable.ajkId })
       .from(usersTable)
@@ -316,7 +316,7 @@ router.post("/requests", async (req: any, res) => {
 
 router.patch("/requests/:id/accept", async (req: any, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [request] = await db.select().from(communicationRequestsTable).where(eq(communicationRequestsTable.id, id)).limit(1);
     if (!request) return res.status(404).json({ error: "Request not found" });
     if (request.receiverId !== req.user.userId) return res.status(403).json({ error: "Not authorized" });
@@ -352,7 +352,7 @@ router.patch("/requests/:id/accept", async (req: any, res) => {
 
 router.patch("/requests/:id/reject", async (req: any, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [request] = await db.select().from(communicationRequestsTable).where(eq(communicationRequestsTable.id, id)).limit(1);
     if (!request) return res.status(404).json({ error: "Request not found" });
     if (request.receiverId !== req.user.userId) return res.status(403).json({ error: "Not authorized" });
@@ -373,7 +373,7 @@ router.patch("/requests/:id/reject", async (req: any, res) => {
 
 router.patch("/requests/:id/cancel", async (req: any, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [request] = await db.select().from(communicationRequestsTable).where(eq(communicationRequestsTable.id, id)).limit(1);
     if (!request) return res.status(404).json({ error: "Request not found" });
     if (request.senderId !== req.user.userId) return res.status(403).json({ error: "Not authorized — only the sender can cancel" });
@@ -530,7 +530,7 @@ router.get("/conversations", async (req: any, res) => {
 
 router.get("/conversations/:id/messages", async (req: any, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const page = parseInt(req.query.page || "1", 10);
     const limit = Math.min(parseInt(req.query.limit || "50", 10), 100);
     const offset = (page - 1) * limit;
@@ -572,7 +572,7 @@ const sendMessageSchema = z.object({
 
 router.post("/conversations/:id/messages", async (req: any, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const parsed = sendMessageSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid message" });
 
@@ -682,7 +682,7 @@ router.post("/conversations/:id/messages", async (req: any, res) => {
 
 router.patch("/messages/:id/read", async (req: any, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [msg] = await db.select().from(chatMessagesTable).where(eq(chatMessagesTable.id, id)).limit(1);
     if (!msg) return res.status(404).json({ error: "Message not found" });
 
@@ -709,7 +709,7 @@ router.patch("/messages/:id/read", async (req: any, res) => {
 
 router.patch("/conversations/:id/read-all", async (req: any, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, id)).limit(1);
     if (!conv || (conv.participant1Id !== req.user.userId && conv.participant2Id !== req.user.userId)) {
       return res.status(403).json({ error: "Not authorized" });
@@ -927,7 +927,7 @@ router.post("/calls/initiate", async (req: any, res) => {
 
 router.get("/calls/:id/ice-config", async (req: any, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const userId = req.user.userId;
     const [call] = await db.select().from(callLogsTable).where(eq(callLogsTable.id, id)).limit(1);
     if (!call) return res.status(404).json({ error: "Call not found" });
@@ -943,7 +943,7 @@ router.get("/calls/:id/ice-config", async (req: any, res) => {
 
 router.post("/calls/:id/answer", async (req: any, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const userId = req.user.userId;
     const [call] = await db.select().from(callLogsTable).where(eq(callLogsTable.id, id)).limit(1);
     if (!call) return res.status(404).json({ error: "Call not found" });
@@ -966,7 +966,7 @@ router.post("/calls/:id/answer", async (req: any, res) => {
 
 router.post("/calls/:id/end", async (req: any, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const userId = req.user.userId;
     const { duration } = req.body;
 
@@ -996,7 +996,7 @@ router.post("/calls/:id/end", async (req: any, res) => {
 
 router.post("/calls/:id/reject", async (req: any, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const userId = req.user.userId;
     const [call] = await db.select().from(callLogsTable).where(eq(callLogsTable.id, id)).limit(1);
     if (!call) return res.status(404).json({ error: "Call not found" });

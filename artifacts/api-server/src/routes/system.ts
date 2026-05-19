@@ -972,7 +972,7 @@ router.post("/seed-demo", async (_req, res) => {
 
 /* POST /admin/system/undo/:id */
 router.post("/undo/:id", async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params as Record<string, string>;
   const [snapshot] = await db.select().from(systemSnapshotsTable).where(eq(systemSnapshotsTable.id, id));
 
   if (!snapshot) {
@@ -1014,7 +1014,7 @@ router.post("/undo/:id", async (req, res) => {
 
 /* DELETE /admin/system/snapshots/:id — dismiss (discard undo without restoring) */
 router.delete("/snapshots/:id", async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params as Record<string, string>;
   await db.delete(systemSnapshotsTable).where(eq(systemSnapshotsTable.id, id));
   res.json({ success: true, message: "Snapshot dismissed. The action is now permanent." });
 });
@@ -1099,7 +1099,7 @@ router.post("/demo-backups", async (req, res) => {
 
 /* POST /admin/system/demo-backups/:id/restore — restore from a demo backup */
 router.post("/demo-backups/:id/restore", async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params as Record<string, string>;
   const row = await db.select().from(demoBackupsTable).where(eq(demoBackupsTable.id, id)).limit(1);
   if (!row[0]) { sendNotFound(res, "Demo backup not found"); return; }
 
@@ -1128,7 +1128,7 @@ router.post("/demo-backups/:id/restore", async (req, res) => {
 
 /* DELETE /admin/system/demo-backups/:id — delete a demo backup */
 router.delete("/demo-backups/:id", async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params as Record<string, string>;
   await db.delete(demoBackupsTable).where(eq(demoBackupsTable.id, id));
   sendSuccess(res, { deleted: id });
 });

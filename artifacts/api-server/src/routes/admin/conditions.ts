@@ -350,7 +350,7 @@ router.get("/conditions", async (req, res) => {
 
 router.get("/conditions/user/:userId", async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { userId } = req.params as Record<string, string>;
     const conditions = await db
       .select()
       .from(accountConditionsTable)
@@ -425,7 +425,7 @@ router.patch("/conditions/:id", async (req, res) => {
     return res.status(400).json({ success: false, error: msg });
   }
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const { action, liftReason, liftedBy, appliedBy, reason, notes, expiresAt, isActive } = p.data;
 
     const [existing] = await db.select().from(accountConditionsTable).where(eq(accountConditionsTable.id, id)).limit(1);

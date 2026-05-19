@@ -144,7 +144,7 @@ router.get("/orders", wrapAsync(async (req, res) => {
 
 router.patch("/orders/:id/status", wrapAsync(async (req, res) => {
   const { status } = req.body;
-  const orderId = req.params["id"]!;
+  const orderId = req.params["id"] as string;
 
   if (!status || !(ORDER_VALID_STATUSES as readonly string[]).includes(status)) {
     sendValidationError(res, `Invalid order status "${status}". Valid statuses: ${ORDER_VALID_STATUSES.join(", ")}`);
@@ -289,7 +289,7 @@ router.patch("/orders/:id/status", wrapAsync(async (req, res) => {
 
 router.post("/orders/:id/refund", wrapAsync(async (req, res) => {
   const { amount, reason } = req.body;
-  const [order] = await db.select().from(ordersTable).where(and(eq(ordersTable.id, req.params["id"]!), isNull(ordersTable.deletedAt))).limit(1);
+  const [order] = await db.select().from(ordersTable).where(and(eq(ordersTable.id, req.params["id"] as string), isNull(ordersTable.deletedAt))).limit(1);
   if (!order) { sendNotFound(res, "Order not found"); return; }
 
   /* Only allow refunds for terminal orders */
@@ -403,7 +403,7 @@ router.patch("/pharmacy-orders/:id/status", wrapAsync(async (req, res) => {
   const [order] = await db
     .update(pharmacyOrdersTable)
     .set({ status, updatedAt: new Date() })
-    .where(eq(pharmacyOrdersTable.id, req.params["id"]!))
+    .where(eq(pharmacyOrdersTable.id, req.params["id"] as string))
     .returning();
   if (!order) { sendNotFound(res, "Not found"); return; }
 
@@ -488,7 +488,7 @@ router.patch("/parcel-bookings/:id/status", wrapAsync(async (req, res) => {
   const [booking] = await db
     .update(parcelBookingsTable)
     .set({ status, updatedAt: new Date() })
-    .where(eq(parcelBookingsTable.id, req.params["id"]!))
+    .where(eq(parcelBookingsTable.id, req.params["id"] as string))
     .returning();
   if (!booking) { sendNotFound(res, "Not found"); return; }
 
@@ -615,10 +615,10 @@ router.patch("/orders/:id/assign-rider", wrapAsync(async (req, res) => {
   }
   const [order] = await db.update(ordersTable)
     .set({ riderId: riderId || null, riderName, riderPhone, updatedAt: new Date() })
-    .where(and(eq(ordersTable.id, req.params["id"]!), isNull(ordersTable.deletedAt)))
+    .where(and(eq(ordersTable.id, req.params["id"] as string), isNull(ordersTable.deletedAt)))
     .returning();
   if (!order) { sendNotFound(res, "Order not found"); return; }
-  addAuditEntry({ action: "order_rider_assigned", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Rider ${riderName ?? riderId ?? "unassigned"} assigned to order ${req.params["id"]}`, result: "success" });
+  addAuditEntry({ action: "order_rider_assigned", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Rider ${riderName ?? riderId ?? "unassigned"} assigned to order ${req.params["id"] as string}`, result: "success" });
   sendSuccess(res, { success: true, order: { ...order, total: parseFloat(String(order.total)), riderName, riderPhone } });
 }));
 
@@ -640,12 +640,12 @@ async function saveJson<T>(key: string, data: T[]): Promise<void> {
 
 /* ── Return requests (DB-backed via platform_settings) ── */
 router.get("/orders/:id/returns", wrapAsync(async (req, res) => {
-  const orderId = req.params["id"]!;
+  const orderId = req.params["id"] as string;
   sendSuccess(res, await loadJson<ReturnRecord>(`return_log_${orderId}`));
 }));
 
 router.post("/orders/:id/return", wrapAsync(async (req, res) => {
-  const orderId = req.params["id"]!;
+  const orderId = req.params["id"] as string;
   const { reason, amount } = req.body;
   if (!reason) { sendValidationError(res, "reason is required"); return; }
   const entry: ReturnRecord = { id: generateId(), reason: String(reason), amount: parseFloat(String(amount)) || 0, status: "pending", createdAt: new Date().toISOString() };
@@ -668,12 +668,12 @@ router.patch("/orders/:id/returns/:returnId", wrapAsync(async (req, res) => {
 
 /* ── Dispute requests (DB-backed via platform_settings) ── */
 router.get("/orders/:id/disputes", wrapAsync(async (req, res) => {
-  const orderId = req.params["id"]!;
+  const orderId = req.params["id"] as string;
   sendSuccess(res, await loadJson<DisputeRecord>(`dispute_log_${orderId}`));
 }));
 
 router.post("/orders/:id/dispute", wrapAsync(async (req, res) => {
-  const orderId = req.params["id"]!;
+  const orderId = req.params["id"] as string;
   const { type, note } = req.body;
   if (!note) { sendValidationError(res, "note is required"); return; }
   const entry: DisputeRecord = { id: generateId(), type: String(type ?? "other"), note: String(note), status: "open", createdAt: new Date().toISOString() };
@@ -813,7 +813,7 @@ router.post("/vendors/invite", requirePermission("vendors.edit"), validateBody(v
 /* ── PATCH /admin/vendors/:id/tier — update vendor account tier ── */
 router.patch("/vendors/:id/tier", requirePermission("vendors.edit"), validateBody(vendorTierSchema), wrapAsync(async (req, res) => {
   const { tier } = req.body as z.infer<typeof vendorTierSchema>;
-  const vendorId = req.params["id"]!;
+  const vendorId = req.params["id"] as string;
   const [user] = await db
     .update(usersTable)
     .set({ accountLevel: String(tier), updatedAt: new Date() })

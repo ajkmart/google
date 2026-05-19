@@ -206,7 +206,7 @@ router.get("/trending", async (req, res) => {
 
 router.get("/similar/:productId", async (req, res) => {
   try {
-  const productId = req.params["productId"]!;
+  const productId = req.params["productId"] as string;
   const limit = Math.min(20, parseInt(String(req.query["limit"] || "8")));
 
   const [product] = await db

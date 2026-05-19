@@ -335,7 +335,7 @@ router.post("/vendor-plans", async (req, res) => {
    PUT /api/admin/launch/vendor-plans/:id
 ───────────────────────────────────────────────────────────── */
 router.put("/vendor-plans/:id", async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params as Record<string, string>;
   const body = req.body as VendorPlanBody;
   const { name, slug, description, features, commissionRate, monthlyFee, maxProducts, maxOrders, isDefault, isActive, sortOrder } = body;
   if (isDefault === true) {
@@ -377,7 +377,7 @@ router.put("/vendor-plans/:id", async (req, res) => {
    POST /api/admin/launch/vendor-plans/:id/set-default
 ───────────────────────────────────────────────────────────── */
 router.post("/vendor-plans/:id/set-default", async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params as Record<string, string>;
   const [exists] = await db.select({ id: vendorPlansTable.id }).from(vendorPlansTable).where(eq(vendorPlansTable.id, id!)).limit(1);
   if (!exists) {
     sendNotFound(res, "Plan not found");
@@ -407,7 +407,7 @@ router.post("/vendor-plans/:id/set-default", async (req, res) => {
    DELETE /api/admin/launch/vendor-plans/:id
 ───────────────────────────────────────────────────────────── */
 router.delete("/vendor-plans/:id", async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params as Record<string, string>;
   const [deleted] = await db.delete(vendorPlansTable).where(eq(vendorPlansTable.id, id!)).returning();
   if (!deleted) {
     sendNotFound(res, "Plan not found");
@@ -482,7 +482,7 @@ router.post("/role-presets", async (req, res) => {
 ───────────────────────────────────────────────────────────── */
 router.put("/role-presets/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const body = req.body as RolePresetBody;
     const [existing] = await db.select().from(adminRolePresetsTable).where(eq(adminRolePresetsTable.id, id!)).limit(1);
     if (!existing) { sendNotFound(res, "Role preset not found"); return; }
@@ -513,7 +513,7 @@ router.put("/role-presets/:id", async (req, res) => {
 ───────────────────────────────────────────────────────────── */
 router.delete("/role-presets/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [existing] = await db.select().from(adminRolePresetsTable).where(eq(adminRolePresetsTable.id, id!)).limit(1);
     if (!existing) { sendNotFound(res, "Role preset not found"); return; }
     if (existing.isBuiltIn) { sendError(res, "Built-in presets cannot be deleted", 403); return; }

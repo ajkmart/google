@@ -93,7 +93,7 @@ router.get("/", async (req, res) => {
 
 router.get("/:id/store", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
 
     const [vendor] = await db
       .select({

@@ -7,7 +7,7 @@ const router = Router();
 
 router.get("/:code", async (req, res) => {
   try {
-    const code = req.params["code"]!;
+    const code = req.params["code"] as string;
     const [link] = await db.select().from(deepLinksTable)
       .where(eq(deepLinksTable.shortCode, code))
       .limit(1);

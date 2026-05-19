@@ -70,7 +70,7 @@ router.post("/", async (req, res) => {
 /* PATCH /api/admin/whitelist/:id */
 router.patch("/:id", async (req, res) => {
   try {
-  const { id } = req.params;
+  const { id } = req.params as Record<string, string>;
   const { label, bypassCode, isActive, expiresAt } = req.body;
 
   const [existing] = await db.select({ id: whitelistUsersTable.id }).from(whitelistUsersTable).where(eq(whitelistUsersTable.id, id!)).limit(1);

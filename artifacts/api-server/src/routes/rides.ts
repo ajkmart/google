@@ -444,7 +444,7 @@ router.post("/estimate", async (req, res) => {
   } catch (e: unknown) {
     const status = e instanceof RideApiError ? e.httpStatus : 422;
     const code = e instanceof RideApiError ? e.code : "ESTIMATE_FAILED";
-    res.status(status).json({ error: e.message, code });
+    res.status(status).json({ error: e instanceof Error ? e.message : String(e), code });
   }
 });
 
@@ -514,7 +514,7 @@ router.post("/", customerAuth, async (req, res) => {
   } catch (e: unknown) {
     const status = e instanceof RideApiError ? e.httpStatus : 422;
     const code = e instanceof RideApiError ? e.code : "FARE_CALCULATION_FAILED";
-    res.status(status).json({ error: e.message, code }); return;
+    res.status(status).json({ error: e instanceof Error ? e.message : String(e), code }); return;
   }
 
   const bargainEnabled  = (s["ride_bargaining_enabled"] ?? "on") === "on";
@@ -640,7 +640,7 @@ router.post("/", customerAuth, async (req, res) => {
   } catch (e: unknown) {
     const status = e instanceof RideApiError ? e.httpStatus : 400;
     const code = e instanceof RideApiError ? e.code : "BOOKING_FAILED";
-    res.status(status).json({ error: e.message, code });
+    res.status(status).json({ error: e instanceof Error ? e.message : String(e), code });
   }
 });
 
@@ -654,7 +654,7 @@ router.patch("/:id/cancel", customerAuth, requireRideState(["searching", "bargai
   }
   const cancelReason = cancelParsed.data.reason ?? null;
 
-  await cleanupNotifiedRiders(String(req.params["id"]));
+  await cleanupNotifiedRiders(String(req.params["id"] as string));
   const s = await getPlatformSettings();
   const cancelFee = parseFloat(s["ride_cancellation_fee"] ?? "30");
   const riderAssigned = ["accepted", "arrived", "in_transit"].includes(ride.status);
@@ -682,12 +682,12 @@ router.patch("/:id/cancel", customerAuth, requireRideState(["searching", "bargai
   const cancelResult = await db.transaction(async (tx) => {
     const [upd] = await tx.update(ridesTable)
       .set({ status: "cancelled", updatedAt: new Date() })
-      .where(and(eq(ridesTable.id, String(req.params["id"])), eq(ridesTable.userId, userId)))
+      .where(and(eq(ridesTable.id, String(req.params["id"] as string)), eq(ridesTable.userId, userId)))
       .returning();
 
     await tx.update(rideBidsTable)
       .set({ status: "rejected", updatedAt: new Date() })
-      .where(and(eq(rideBidsTable.rideId, String(req.params["id"])), eq(rideBidsTable.status, "pending")));
+      .where(and(eq(rideBidsTable.rideId, String(req.params["id"] as string)), eq(rideBidsTable.status, "pending")));
 
     // Credit the fare refund FIRST so the balance includes it when we later
     // calculate how much of the cancellation fee the user can cover.
@@ -803,7 +803,7 @@ router.patch("/:id/accept-bid", customerAuth, async (req, res) => {
 
   const userId = req.customerId!;
   const { bidId } = parsed.data;
-  const rideId = String(req.params["id"]);
+  const rideId = String(req.params["id"] as string);
 
   // Block users who accumulated cancellation debt from accepting bids (mirrors the booking check)
   const [debtUserBid] = await db.select({ cancellationDebt: usersTable.cancellationDebt })
@@ -882,7 +882,7 @@ router.patch("/:id/accept-bid", customerAuth, async (req, res) => {
   } catch (e: unknown) {
     const status = e instanceof RideApiError ? e.httpStatus : 400;
     const code = e instanceof RideApiError ? e.code : "ACCEPT_BID_FAILED";
-    res.status(status).json({ error: e.message, code });
+    res.status(status).json({ error: e instanceof Error ? e.message : String(e), code });
     return;
   }
 
@@ -996,7 +996,7 @@ router.get("/payment-methods", async (_req, res) => {
 router.get("/:id", customerAuth, async (req, res) => {
   const callerId = req.customerId!;
 
-  const rideId = String(req.params["id"]);
+  const rideId = String(req.params["id"] as string);
   const [ride] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
   if (!ride) { res.status(404).json({ error: "Ride not found" }); return; }
 
@@ -1085,7 +1085,7 @@ router.get("/:id", customerAuth, async (req, res) => {
 router.get("/:id/track", customerAuth, async (req, res) => {
   const callerId = req.customerId!;
 
-  const rideId = String(req.params["id"]);
+  const rideId = String(req.params["id"] as string);
   const [ride] = await db.select({
     id: ridesTable.id, status: ridesTable.status, riderId: ridesTable.riderId,
     userId: ridesTable.userId, pickupLat: ridesTable.pickupLat, pickupLng: ridesTable.pickupLng,
@@ -1188,7 +1188,7 @@ router.post("/:id/event-log", riderAuth, loadRide(), requireRideOwner("riderId")
 
 router.get("/:id/event-logs", adminAuth, async (req, res) => {
   const logs = await db.select().from(rideEventLogsTable)
-    .where(eq(rideEventLogsTable.rideId, String(req.params["id"])))
+    .where(eq(rideEventLogsTable.rideId, String(req.params["id"] as string)))
     .orderBy(asc(rideEventLogsTable.createdAt));
 
   const formatted = logs.map(l => ({

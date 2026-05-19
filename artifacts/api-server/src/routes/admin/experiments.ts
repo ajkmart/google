@@ -105,7 +105,7 @@ function validateExperimentPayload(payload: any, partial = false): string[] {
 
 router.get("/experiments/:id", async (req, res) => {
   try {
-    const id = req.params["id"]!;
+    const id = req.params["id"] as string;
     const [experiment] = await db.select().from(abExperimentsTable).where(eq(abExperimentsTable.id, id)).limit(1);
     if (!experiment) { sendNotFound(res, "Experiment not found"); return; }
     sendSuccess(res, { experiment });
@@ -116,7 +116,7 @@ router.get("/experiments/:id", async (req, res) => {
 
 router.put("/experiments/:id", async (req, res) => {
   try {
-    const id = req.params["id"]!;
+    const id = req.params["id"] as string;
     const { name, description, variants, trafficPct } = req.body;
     const payload = { name, description, variants, trafficPct };
     const errors = validateExperimentPayload(payload, true);
@@ -141,7 +141,7 @@ router.put("/experiments/:id", async (req, res) => {
 
 router.patch("/experiments/:id/status", async (req, res) => {
   try {
-    const id = req.params["id"]!;
+    const id = req.params["id"] as string;
     const { status } = req.body;
     if (!["active", "paused", "completed", "draft"].includes(status)) {
       sendValidationError(res, "Invalid status"); return;
@@ -160,7 +160,7 @@ router.patch("/experiments/:id/status", async (req, res) => {
 
 router.get("/experiments/:id/results", async (req, res) => {
   try {
-    const id = req.params["id"]!;
+    const id = req.params["id"] as string;
     const [experiment] = await db.select().from(abExperimentsTable).where(eq(abExperimentsTable.id, id)).limit(1);
     if (!experiment) { sendNotFound(res, "Experiment not found"); return; }
 
@@ -182,7 +182,7 @@ router.get("/experiments/:id/results", async (req, res) => {
 
 router.post("/experiments/:id/convert", async (req, res) => {
   try {
-    const experimentId = req.params["id"]!;
+    const experimentId = req.params["id"] as string;
     const { userId } = req.body;
     if (!userId) { sendValidationError(res, "userId is required"); return; }
 
@@ -208,7 +208,7 @@ router.post("/experiments/:id/convert", async (req, res) => {
 
 router.delete("/experiments/:id", async (req, res) => {
   try {
-    const id = req.params["id"]!;
+    const id = req.params["id"] as string;
     const [existing] = await db.select().from(abExperimentsTable).where(eq(abExperimentsTable.id, id)).limit(1);
     if (!existing) { sendNotFound(res, "Experiment not found"); return; }
 

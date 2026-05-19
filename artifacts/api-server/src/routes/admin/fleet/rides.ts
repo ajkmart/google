@@ -169,12 +169,12 @@ router.patch("/rides/:id/status", async (req: Request, res: Response) => {
         adminIp: getClientIp(req),
         action: "ride_status_update",
         resourceType: "ride",
-        resource: req.params["id"]!,
+        resource: req.params["id"] as string,
         details: `Status changed to: ${status}`,
       },
       () =>
         FleetService.updateRideStatus({
-          rideId: req.params["id"]!,
+          rideId: req.params["id"] as string,
           status,
           riderName,
           riderPhone,
@@ -282,7 +282,7 @@ router.post("/ride-services", async (req: Request, res: Response) => {
 
 /* PATCH /admin/ride-services/:id — update any field */
 router.patch("/ride-services/:id", async (req: Request, res: Response) => {
-  const svcId = req.params["id"]!;
+  const svcId = req.params["id"] as string;
   try {
     const [existing] = await db
       .select()
@@ -335,7 +335,7 @@ router.patch("/ride-services/:id", async (req: Request, res: Response) => {
 
 /* DELETE /admin/ride-services/:id — only custom services */
 router.delete("/ride-services/:id", async (req: Request, res: Response) => {
-  const svcId = req.params["id"]!;
+  const svcId = req.params["id"] as string;
   try {
     const [existing] = await db
       .select()
@@ -450,7 +450,7 @@ router.patch("/locations/:id", async (req: Request, res: Response) => {
     const [updated] = await db
       .update(popularLocationsTable)
       .set(patch)
-      .where(eq(popularLocationsTable.id, req.params["id"]!))
+      .where(eq(popularLocationsTable.id, req.params["id"] as string))
       .returning();
     if (!updated) {
       sendNotFound(res, "Location not found");
@@ -471,7 +471,7 @@ router.delete("/locations/:id", async (req: Request, res: Response) => {
     const [existing] = await db
       .select({ id: popularLocationsTable.id })
       .from(popularLocationsTable)
-      .where(eq(popularLocationsTable.id, req.params["id"]!))
+      .where(eq(popularLocationsTable.id, req.params["id"] as string))
       .limit(1);
     if (!existing) {
       sendNotFound(res, "Location not found");
@@ -479,7 +479,7 @@ router.delete("/locations/:id", async (req: Request, res: Response) => {
     }
     await db
       .delete(popularLocationsTable)
-      .where(eq(popularLocationsTable.id, req.params["id"]!));
+      .where(eq(popularLocationsTable.id, req.params["id"] as string));
     sendSuccess(res);
   } catch (error: any) {
     sendError(res, error.message || "Failed to delete location", 500);
@@ -586,7 +586,7 @@ router.post("/school-routes", async (req: Request, res: Response) => {
 });
 
 router.patch("/school-routes/:id", async (req: Request, res: Response) => {
-  const routeId = req.params["id"]!;
+  const routeId = req.params["id"] as string;
   try {
     const {
       routeName,
@@ -646,7 +646,7 @@ router.patch("/school-routes/:id", async (req: Request, res: Response) => {
 });
 
 router.delete("/school-routes/:id", async (req: Request, res: Response) => {
-  const routeId = req.params["id"]!;
+  const routeId = req.params["id"] as string;
   try {
     /* Only delete if no active subscriptions */
     const [activeSub] = await db
@@ -911,7 +911,7 @@ router.patch("/riders/:id/online", async (req: Request, res: Response) => {
     const [rider] = await db
       .update(usersTable)
       .set({ isOnline, updatedAt: new Date() })
-      .where(eq(usersTable.id, req.params["id"]!))
+      .where(eq(usersTable.id, req.params["id"] as string))
       .returning();
     if (!rider) {
       sendNotFound(res, "Rider not found");
@@ -921,7 +921,7 @@ router.patch("/riders/:id/online", async (req: Request, res: Response) => {
       action: "rider_online_toggle",
       ip: getClientIp(req),
       adminId: (req as AdminReq).adminId,
-      details: `Rider ${req.params["id"]} set ${isOnline ? "online" : "offline"} by admin`,
+      details: `Rider ${req.params["id"] as string} set ${isOnline ? "online" : "offline"} by admin`,
       result: "success",
     });
     sendSuccess(res, { isOnline });
@@ -1272,7 +1272,7 @@ router.get("/fleet/dashboard-export", dashboardExportHandler);
 ══════════════════════════════════════════════════════════════════════════════ */
 
 router.post("/rides/:id/cancel", async (req: Request, res: Response) => {
-  const rideId = req.params["id"]!;
+  const rideId = req.params["id"] as string;
   const { reason } = req.body as { reason?: string };
   const adminReq = req as AdminReq;
 
@@ -1307,7 +1307,7 @@ router.post("/rides/:id/cancel", async (req: Request, res: Response) => {
 });
 
 router.post("/rides/:id/refund", async (req: Request, res: Response) => {
-  const rideId = req.params["id"]!;
+  const rideId = req.params["id"] as string;
   const { amount, reason } = req.body as { amount?: number; reason?: string };
   const adminReq = req as AdminReq;
 
@@ -1343,7 +1343,7 @@ router.post("/rides/:id/refund", async (req: Request, res: Response) => {
 });
 
 router.post("/rides/:id/reassign", async (req: Request, res: Response) => {
-  const rideId = req.params["id"]!;
+  const rideId = req.params["id"] as string;
   const { riderId, riderName, riderPhone } = req.body as {
     riderId?: string;
     riderName?: string;
@@ -1397,7 +1397,7 @@ router.post("/rides/:id/reassign", async (req: Request, res: Response) => {
 });
 
 router.get("/rides/:id/audit-trail", async (req: Request, res: Response) => {
-  const rideId = req.params["id"]!;
+  const rideId = req.params["id"] as string;
   try {
     const events = await db
       .select()
@@ -1421,7 +1421,7 @@ router.get("/rides/:id/audit-trail", async (req: Request, res: Response) => {
 
 router.get("/rides/:id/detail", async (req: Request, res: Response) => {
   try {
-    const rideId = req.params["id"]!;
+    const rideId = req.params["id"] as string;
     const [ride] = await db
       .select()
       .from(ridesTable)
@@ -1880,7 +1880,7 @@ router.get("/fleet-analytics", async (req: Request, res: Response) => {
    giving "current shift to now" semantics rather than calendar midnight. */
 router.get("/riders/:userId/route", async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
+    const { userId } = req.params as Record<string, string>;
     const dateParam = req.query["date"] as string | undefined;
     const sinceOnline = req.query["sinceOnline"] === "true";
 

@@ -59,7 +59,7 @@ router.post("/deep-links", async (req, res) => {
 
 router.delete("/deep-links/:id", async (req, res) => {
   try {
-    const id = req.params["id"]!;
+    const id = req.params["id"] as string;
     const [existing] = await db.select().from(deepLinksTable).where(eq(deepLinksTable.id, id)).limit(1);
     if (!existing) { sendNotFound(res, "Deep link not found"); return; }
 

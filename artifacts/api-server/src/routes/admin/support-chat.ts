@@ -33,7 +33,7 @@ router.get("/conversations", async (_req, res) => {
 
 router.get("/conversations/:userId", async (req, res) => {
   try {
-  const { userId } = req.params;
+  const { userId } = req.params as Record<string, string>;
   try {
     await db
       .update(supportMessagesTable)
@@ -74,7 +74,7 @@ router.get("/conversations/:userId", async (req, res) => {
 
 router.post("/conversations/:userId/reply", async (req, res) => {
   try {
-  const { userId } = req.params;
+  const { userId } = req.params as Record<string, string>;
   const { message } = req.body as { message?: string };
   if (!message || typeof message !== "string" || !message.trim()) {
     return sendError(res, "Message is required", 400);
@@ -114,7 +114,7 @@ router.post("/conversations/:userId/reply", async (req, res) => {
 
 router.patch("/conversations/:userId/resolve", async (req, res) => {
   try {
-  const { userId } = req.params;
+  const { userId } = req.params as Record<string, string>;
   const { resolved } = req.body as { resolved?: boolean };
   try {
     await db

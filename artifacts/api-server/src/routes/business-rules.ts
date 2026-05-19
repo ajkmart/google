@@ -124,7 +124,7 @@ router.put("/:id", async (req, res) => {
   }
 
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [existing] = await db
       .select()
       .from(conditionRulesTable)
@@ -168,7 +168,7 @@ router.put("/:id", async (req, res) => {
 
 router.delete("/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [existing] = await db
       .select()
       .from(conditionRulesTable)

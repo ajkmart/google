@@ -390,7 +390,7 @@ router.patch("/users/bulk-ban", requirePermission("users.ban"), async (req, res)
 router.patch("/users/:id", requirePermission("users.edit"), async (req, res) => {
   const adminReq = req as AdminRequest;
   const { role, isActive, walletBalance } = req.body;
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   try {
     if (role !== undefined) {
       const allowedRoles = ["customer", "rider", "vendor"];
@@ -519,7 +519,7 @@ router.get("/users/pending", requirePermission("users.view"), async (_req, res) 
 router.post("/users/:id/approve", requirePermission("users.approve"), async (req, res) => {
   const adminReq = req as AdminRequest;
   const { note, skipDocCheck } = req.body ?? {};
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   
   try {
   const [target] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
@@ -568,7 +568,7 @@ router.post("/users/:id/approve", requirePermission("users.approve"), async (req
 router.post("/users/:id/reject", requirePermission("users.approve"), async (req, res) => {
   const adminReq = req as AdminRequest;
   const { note } = req.body as { note?: string };
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
 
   try {
     await AuditService.executeWithAudit(
@@ -596,7 +596,7 @@ router.post("/users/:id/reject", requirePermission("users.approve"), async (req,
 router.post("/users/:id/wallet-topup", requirePermission("users.wallet"), async (req, res) => {
   const adminReq = req as AdminRequest;
   const { amount, description } = req.body;
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   
   if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
     sendValidationError(res, "Valid amount is required");
@@ -637,7 +637,7 @@ router.post("/users/:id/wallet-topup", requirePermission("users.wallet"), async 
 });
 router.delete("/users/:id", requirePermission("users.delete"), async (req, res) => {
   const adminReq = req as AdminRequest;
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
 
   try {
     await AuditService.executeWithAudit(
@@ -661,7 +661,7 @@ router.delete("/users/:id", requirePermission("users.delete"), async (req, res) 
 
 /* ── User Activity (orders + rides summary) ── */
 router.get("/users/:id/activity", requirePermission("users.view"), async (req, res) => {
-  const uid = req.params["id"]!;
+  const uid = req.params["id"] as string;
   try {
     const [orders, rides, pharmacy, parcels, txns] = await Promise.all([
       db.select().from(ordersTable).where(and(eq(ordersTable.userId, uid), isNull(ordersTable.deletedAt))).orderBy(desc(ordersTable.createdAt)).limit(10),
@@ -685,7 +685,7 @@ router.get("/users/:id/activity", requirePermission("users.view"), async (req, r
 
 /* ── Overview with user enrichment (orders + user info) ── */
 router.patch("/users/:id/security", requirePermission("users.ban"), async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params as Record<string, string>;
   const body = req.body as Record<string, unknown>;
   try {
     const updates: Record<string, unknown> = { updatedAt: new Date() };
@@ -797,7 +797,7 @@ router.patch("/users/:id/security", requirePermission("users.ban"), async (req, 
 
 /* ── PATCH /admin/users/:id/identity — Admin update user identity (username, email, name) ── */
 router.patch("/users/:id/identity", requirePermission("users.edit"), async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   const body = req.body as Record<string, unknown>;
   try {
   const updates: Record<string, unknown> = { updatedAt: new Date() };
@@ -880,7 +880,7 @@ router.patch("/users/:id/identity", requirePermission("users.edit"), async (req,
 
 /* ── GET /admin/users/:id/otp — view live OTP code for support troubleshooting ── */
 router.get("/users/:id/otp", requirePermission("users.view"), async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   try {
     const [user] = await db
       .select({
@@ -930,7 +930,7 @@ router.get("/users/:id/otp", requirePermission("users.view"), async (req, res) =
 
 /* ── PATCH /admin/users/:id/verify-contact — manually verify phone or email ── */
 router.patch("/users/:id/verify-contact", requirePermission("users.edit"), async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   const { type } = req.body as { type: "phone" | "email" };
 
   if (!type || !["phone", "email"].includes(type)) {
@@ -966,7 +966,7 @@ router.patch("/users/:id/verify-contact", requirePermission("users.edit"), async
 
 /* ── POST /admin/users/:id/force-password-reset — require password change on next login ── */
 router.post("/users/:id/force-password-reset", requirePermission("users.edit"), async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   try {
     const [user] = await db.select({ id: usersTable.id, phone: usersTable.phone, name: usersTable.name }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!user) { sendNotFound(res, "User not found"); return; }
@@ -1004,7 +1004,7 @@ router.post("/users/:id/force-password-reset", requirePermission("users.edit"), 
 });
 
 router.post("/users/:id/reset-otp", requirePermission("users.edit"), async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   const adminReq = req as AdminRequest;
   try {
   const [user] = await db.select({ id: usersTable.id, phone: usersTable.phone, name: usersTable.name, roles: usersTable.roles }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
@@ -1038,7 +1038,7 @@ router.post("/users/:id/reset-otp", requirePermission("users.edit"), async (req,
 
 /* ── POST /admin/users/:id/otp/bypass — set a timed OTP bypass ── */
 router.post("/users/:id/otp/bypass", requirePermission("users.edit"), async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   const minutes = Number(req.body?.minutes);
   if (!minutes || minutes <= 0 || minutes > 1440 || !Number.isInteger(minutes)) {
     sendValidationError(res, "minutes must be a positive integer between 1 and 1440");
@@ -1072,7 +1072,7 @@ router.post("/users/:id/otp/bypass", requirePermission("users.edit"), async (req
 
 /* ── DELETE /admin/users/:id/otp/bypass — cancel an active OTP bypass ── */
 router.delete("/users/:id/otp/bypass", requirePermission("users.edit"), async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   try {
     const [user] = await db.select({ id: usersTable.id, phone: usersTable.phone }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!user) { sendNotFound(res, "User not found"); return; }
@@ -1100,7 +1100,7 @@ router.delete("/users/:id/otp/bypass", requirePermission("users.edit"), async (r
 
 /* ── Force-disable 2FA for a user (admin action) ── */
 router.post("/users/:id/2fa/disable", requirePermission("users.edit"), async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   try {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!user) { sendNotFound(res, "User not found"); return; }
@@ -1123,7 +1123,7 @@ router.post("/users/:id/2fa/disable", requirePermission("users.edit"), async (re
 });
 
 router.post("/users/:id/reset-wallet-pin", requirePermission("users.edit"), async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   try {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!user) { sendNotFound(res, "User not found"); return; }
@@ -1149,7 +1149,7 @@ router.patch("/users/:id/request-correction", requirePermission("users.approve")
   try {
     const [user] = await db.update(usersTable)
       .set({ approvalStatus: "correction_needed", approvalNote: note || `Please re-upload: ${field || "document"}`, updatedAt: new Date() })
-      .where(eq(usersTable.id, req.params["id"]!))
+      .where(eq(usersTable.id, req.params["id"] as string))
       .returning();
     if (!user) { sendNotFound(res, "User not found"); return; }
     addAuditEntry({ action: "user_correction_requested", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Correction requested for ${user.phone}: ${field}`, result: "success" });
@@ -1174,7 +1174,7 @@ router.patch("/users/:id/request-correction", requirePermission("users.approve")
 
 /* ── PATCH /admin/users/:id/waive-debt — waive rider's cancellation debt ── */
 router.patch("/users/:id/waive-debt", requirePermission("users.edit"), async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   const adminReq = req as AdminRequest;
   try {
   const [user] = await db.select({ id: usersTable.id, phone: usersTable.phone, name: usersTable.name, roles: usersTable.roles, cancellationDebt: usersTable.cancellationDebt })
@@ -1220,7 +1220,7 @@ router.patch("/users/:id/waive-debt", requirePermission("users.edit"), async (re
 
 /* ── GET /admin/users/:id/sessions — list user's active sessions ── */
 router.get("/users/:id/sessions", requirePermission("users.view"), async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params as Record<string, string>;
   try {
     const sessions = await db
       .select()
@@ -1248,7 +1248,7 @@ router.get("/users/:id/sessions", requirePermission("users.view"), async (req, r
 
 /* ── DELETE /admin/users/:id/sessions/:sessionId — revoke one session ── */
 router.delete("/users/:id/sessions/:sessionId", requirePermission("users.edit"), async (req, res) => {
-  const { id, sessionId } = req.params;
+  const { id, sessionId } = req.params as Record<string, string>;
   const adminReq = req as AdminRequest;
 
   try {
@@ -1290,7 +1290,7 @@ router.delete("/users/:id/sessions/:sessionId", requirePermission("users.edit"),
 
 /* ── DELETE /admin/users/:id/sessions — revoke ALL sessions for user ── */
 router.delete("/users/:id/sessions", requirePermission("users.edit"), async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params as Record<string, string>;
   const adminReq = req as AdminRequest;
   try {
   const [affectedUser] = await db.select({ name: usersTable.name, phone: usersTable.phone, roles: usersTable.roles }).from(usersTable).where(eq(usersTable.id, id!)).limit(1);
@@ -1330,7 +1330,7 @@ router.delete("/users/:id/sessions", requirePermission("users.edit"), async (req
 
 /* ── POST /admin/users/:id/otp/reset — explicit alias for POST .../reset-otp ── */
 router.post("/users/:id/otp/reset", requirePermission("users.edit"), async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   const adminReq = req as AdminRequest;
   try {
   const [user] = await db.select({ id: usersTable.id, phone: usersTable.phone, name: usersTable.name, roles: usersTable.roles }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
@@ -1363,7 +1363,7 @@ router.post("/users/:id/otp/reset", requirePermission("users.edit"), async (req,
 
 /* ── POST /admin/users/:id/sessions/revoke — explicit alias; optional body.sessionId ── */
 router.post("/users/:id/sessions/revoke", requirePermission("users.edit"), async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params as Record<string, string>;
   const adminReq = req as AdminRequest;
   const sessionId: string | undefined = req.body?.sessionId;
 
@@ -1591,7 +1591,7 @@ router.post("/users/export", requirePermission("users.view"), async (req, res) =
 
 router.post("/users/:userId/recovery", requirePermission("users.edit"), async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { userId } = req.params as Record<string, string>;
     const adminReq = req as AdminRequest;
     const ip = getClientIp(req);
 

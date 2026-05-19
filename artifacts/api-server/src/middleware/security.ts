@@ -1068,7 +1068,7 @@ export function idorGuard(req: Request, res: Response, next: NextFunction): void
     return;
   }
 
-  const paramId = req.params["userId"] ?? req.params["id"];
+  const paramId = req.params["userId"] as string ?? req.params["id"] as string;
   if (paramId && paramId !== callerId) {
     logger.warn({ callerId, paramId }, "[security] IDOR attempt blocked");
     res.status(403).json({ error: "Access denied" });

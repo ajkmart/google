@@ -234,7 +234,7 @@ router.patch("/otp/channels", async (req, res) => {
 
 /* ─── POST /admin/users/:id/otp/generate ─────────────────────────────────── */
 router.post("/users/:id/otp/generate", async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   const adminReq = req as AdminRequest;
 
   try {
@@ -275,7 +275,7 @@ router.post("/users/:id/otp/generate", async (req, res) => {
 
 /* ─── POST /admin/users/:id/otp/bypass ────────────────────────────────────────*/
 router.post("/users/:id/otp/bypass", async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   const minutes = Number(req.body?.minutes || 0);
   const adminReq = req as AdminRequest;
 
@@ -361,7 +361,7 @@ router.post("/users/:id/otp/bypass", async (req, res) => {
 
 /* ─── DELETE /admin/users/:id/otp/bypass ──────────────────────────────────────*/
 router.delete("/users/:id/otp/bypass", async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
   const adminReq = req as AdminRequest;
 
   try {
@@ -514,7 +514,7 @@ router.post("/whitelist", async (req, res) => {
 
 /* ─── PATCH /admin/whitelist/:id ──────────────────────────────────────────────*/
 router.patch("/whitelist/:id", async (req, res) => {
-  const id = req.params["id"]!;
+  const id = req.params["id"] as string;
   const updates = (req.body ?? {}) as Partial<WhitelistUpdate> & { expiresAt?: string | Date | null };
   const adminReq = req as AdminRequest;
 
@@ -578,7 +578,7 @@ router.patch("/whitelist/:id", async (req, res) => {
 
 /* ─── DELETE /admin/whitelist/:id ─────────────────────────────────────────────*/
 router.delete("/whitelist/:id", async (req, res) => {
-  const id = req.params["id"]!;
+  const id = req.params["id"] as string;
   const adminReq = req as AdminRequest;
 
   try {
@@ -615,7 +615,7 @@ router.delete("/whitelist/:id", async (req, res) => {
 
 /* ─── GET /admin/otp/delivery-otp/:rideId ─────────────────────────────────── */
 router.get("/otp/delivery-otp/:rideId", async (req, res) => {
-  const rideId = req.params["rideId"]!;
+  const rideId = req.params["rideId"] as string;
 
   try {
     const ride = await db.query.ridesTable.findFirst({

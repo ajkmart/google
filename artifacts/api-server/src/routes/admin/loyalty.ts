@@ -106,7 +106,7 @@ const adjustLoyaltySchema = z.object({
 });
 
 router.post("/loyalty/users/:id/adjust", wrapAsync(async (req, res) => {
-  const userId = req.params["id"]!;
+  const userId = req.params["id"] as string;
 
   const parsed = adjustLoyaltySchema.safeParse(req.body);
   if (!parsed.success) {
@@ -313,7 +313,7 @@ router.post("/campaigns", wrapAsync(async (req, res) => {
 }));
 
 router.put("/campaigns/:id", wrapAsync(async (req, res) => {
-  const id = req.params["id"];
+  const id = req.params["id"] as string;
   const [existing] = await db.select().from(loyaltyCampaignsTable).where(eq(loyaltyCampaignsTable.id, id)).limit(1);
   if (!existing) {
     sendNotFound(res, "Campaign not found");
@@ -365,7 +365,7 @@ router.put("/campaigns/:id", wrapAsync(async (req, res) => {
 }));
 
 router.delete("/campaigns/:id", wrapAsync(async (req, res) => {
-  const id = req.params["id"];
+  const id = req.params["id"] as string;
   const [existing] = await db.select().from(loyaltyCampaignsTable).where(eq(loyaltyCampaignsTable.id, id)).limit(1);
   if (!existing) {
     sendNotFound(res, "Campaign not found");
@@ -425,7 +425,7 @@ router.post("/rewards", wrapAsync(async (req, res) => {
 }));
 
 router.put("/rewards/:id", wrapAsync(async (req, res) => {
-  const id = req.params["id"];
+  const id = req.params["id"] as string;
   const [existing] = await db.select().from(loyaltyRewardsTable).where(eq(loyaltyRewardsTable.id, id)).limit(1);
   if (!existing) {
     sendNotFound(res, "Reward not found");
@@ -471,7 +471,7 @@ router.put("/rewards/:id", wrapAsync(async (req, res) => {
 }));
 
 router.delete("/rewards/:id", wrapAsync(async (req, res) => {
-  const id = req.params["id"];
+  const id = req.params["id"] as string;
   const [existing] = await db.select().from(loyaltyRewardsTable).where(eq(loyaltyRewardsTable.id, id)).limit(1);
   if (!existing) {
     sendNotFound(res, "Reward not found");

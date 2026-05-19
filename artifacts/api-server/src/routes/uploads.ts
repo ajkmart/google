@@ -504,7 +504,7 @@ router.post(
 const REG_KEY_SAFE = /^reg_[\w.-]+$/;
 
 router.get("/reg/:key", async (req, res) => {
-  const { key } = req.params;
+  const { key } = req.params as Record<string, string>;
 
   if (!key || !REG_KEY_SAFE.test(key)) {
     sendNotFound(res);

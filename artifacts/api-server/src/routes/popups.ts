@@ -105,7 +105,7 @@ async function evaluateTargeting(
 router.get("/active", async (req, res) => {
   try {
   const user = getUserFromRequest(req);
-  const userRole = user ? (user.role || "customer") : "customer";
+  const userRole = user ? (user.roles || "customer") : "customer";
   const sessionId = req.query["sessionId"] as string | undefined;
   const now = new Date();
 

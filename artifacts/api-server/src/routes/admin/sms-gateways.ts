@@ -73,7 +73,7 @@ router.post("/", async (req, res) => {
 /* PATCH /api/admin/sms-gateways/:id — update gateway */
 router.patch("/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const { name, provider, priority, isActive, accountSid, authToken, fromNumber, msg91Key, senderId, apiKey, apiUrl } = req.body;
 
     const [existing] = await db.select({ id: smsGatewaysTable.id }).from(smsGatewaysTable).where(eq(smsGatewaysTable.id, id!)).limit(1);
@@ -102,7 +102,7 @@ router.patch("/:id", async (req, res) => {
 /* DELETE /api/admin/sms-gateways/:id — delete gateway */
 router.delete("/:id", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     if (id === "default-console") {
       sendError(res, "Cannot delete the default console gateway");
       return;
@@ -117,7 +117,7 @@ router.delete("/:id", async (req, res) => {
 /* PATCH /api/admin/sms-gateways/:id/toggle — quick toggle isActive */
 router.patch("/:id/toggle", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [gw] = await db.select().from(smsGatewaysTable).where(eq(smsGatewaysTable.id, id!)).limit(1);
     if (!gw) { sendNotFound(res, "Gateway"); return; }
     const [updated] = await db.update(smsGatewaysTable)

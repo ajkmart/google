@@ -198,12 +198,12 @@ router.patch("/products/:id/approve", async (req, res) => {
     const [prevProduct] = await db
       .select()
       .from(productsTable)
-      .where(eq(productsTable.id, req.params["id"]!))
+      .where(eq(productsTable.id, req.params["id"] as string))
       .limit(1);
     const [product] = await db
       .update(productsTable)
       .set({ approvalStatus: "approved", inStock: true, updatedAt: new Date() })
-      .where(eq(productsTable.id, req.params["id"]!))
+      .where(eq(productsTable.id, req.params["id"] as string))
       .returning();
     if (!product) {
       sendNotFound(res, "Product not found");
@@ -291,7 +291,7 @@ router.patch("/products/:id/reject", async (req, res) => {
         inStock: false,
         updatedAt: new Date(),
       })
-      .where(eq(productsTable.id, req.params["id"]!))
+      .where(eq(productsTable.id, req.params["id"] as string))
       .returning();
     if (!product) {
       sendNotFound(res, "Product not found");
@@ -336,7 +336,7 @@ router.patch("/products/:id/reject", async (req, res) => {
 /* ── GET /products/:id/stock-history ── Admin: paginated history with vendor/date filters ── */
 router.get("/products/:id/stock-history", async (req, res) => {
   try {
-    const productId = req.params["id"]!;
+    const productId = req.params["id"] as string;
     const vendorId = req.query["vendorId"] as string | undefined;
     const from = req.query["from"] as string | undefined;
     const to = req.query["to"] as string | undefined;
@@ -663,13 +663,13 @@ router.patch("/products/:id", async (req, res) => {
     const [prevProduct] = await db
       .select()
       .from(productsTable)
-      .where(eq(productsTable.id, req.params["id"]!))
+      .where(eq(productsTable.id, req.params["id"] as string))
       .limit(1);
 
     const [product] = await db
       .update(productsTable)
       .set(updates)
-      .where(eq(productsTable.id, req.params["id"]!))
+      .where(eq(productsTable.id, req.params["id"] as string))
       .returning();
     if (!product) {
       sendNotFound(res, "Product not found");
@@ -757,7 +757,7 @@ router.delete("/products/:id", async (req, res) => {
       .set({ deletedAt: new Date(), updatedAt: new Date() })
       .where(
         and(
-          eq(productsTable.id, req.params["id"]!),
+          eq(productsTable.id, req.params["id"] as string),
           isNull(productsTable.deletedAt),
         ),
       )
@@ -1051,7 +1051,7 @@ router.patch("/categories/:id", async (req, res) => {
     const [updated] = await db
       .update(categoriesTable)
       .set(updates)
-      .where(eq(categoriesTable.id, req.params["id"]!))
+      .where(eq(categoriesTable.id, req.params["id"] as string))
       .returning();
 
     if (!updated) {
@@ -1068,7 +1068,7 @@ router.patch("/categories/:id", async (req, res) => {
 
 router.delete("/categories/:id", async (req, res) => {
   try {
-    const id = req.params["id"]!;
+    const id = req.params["id"] as string;
 
     await db
       .update(categoriesTable)
@@ -1210,7 +1210,7 @@ const bannerUpdateHandler = async (
   req: import("express").Request,
   res: import("express").Response,
 ) => {
-  const bannerId = req.params["id"]!;
+  const bannerId = req.params["id"] as string;
   const body = req.body as Record<string, unknown>;
   const updates: Record<string, unknown> = { updatedAt: new Date() };
   const fields = [
@@ -1253,7 +1253,7 @@ router.put("/banners/:id", bannerUpdateHandler);
 
 router.delete("/banners/:id", async (req, res) => {
   try {
-    const bannerId = req.params["id"]!;
+    const bannerId = req.params["id"] as string;
     const [deleted] = await db
       .delete(bannersTable)
       .where(eq(bannersTable.id, bannerId))
@@ -1366,7 +1366,7 @@ router.patch("/flash-deals/:id", async (req, res) => {
     const [deal] = await db
       .update(flashDealsTable)
       .set(updates)
-      .where(eq(flashDealsTable.id, req.params["id"]!))
+      .where(eq(flashDealsTable.id, req.params["id"] as string))
       .returning();
     if (!deal) {
       sendNotFound(res, "Deal not found");
@@ -1383,7 +1383,7 @@ router.delete("/flash-deals/:id", async (req, res) => {
   try {
     await db
       .delete(flashDealsTable)
-      .where(eq(flashDealsTable.id, req.params["id"]!));
+      .where(eq(flashDealsTable.id, req.params["id"] as string));
     sendSuccess(res, { success: true });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
@@ -1495,7 +1495,7 @@ router.patch("/promo-codes/:id", async (req, res) => {
     const [code] = await db
       .update(promoCodesTable)
       .set(updates)
-      .where(eq(promoCodesTable.id, req.params["id"]!))
+      .where(eq(promoCodesTable.id, req.params["id"] as string))
       .returning();
     if (!code) {
       sendNotFound(res, "Promo code not found");
@@ -1512,7 +1512,7 @@ router.delete("/promo-codes/:id", async (req, res) => {
   try {
     await db
       .delete(promoCodesTable)
-      .where(eq(promoCodesTable.id, req.params["id"]!));
+      .where(eq(promoCodesTable.id, req.params["id"] as string));
     sendSuccess(res, { success: true });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');

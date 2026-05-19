@@ -82,7 +82,7 @@ async function moderateComment(comment: string): Promise<{ flagged: boolean; rea
 
 /* ── GET /reviews/product/:productId — public paginated reviews for a product ── */
 router.get("/product/:productId", async (req, res) => {
-  const productId = req.params["productId"]!;
+  const productId = req.params["productId"] as string;
   const page = Math.max(1, parseInt(String(req.query["page"] || "1")));
   const limit = Math.min(parseInt(String(req.query["limit"] || "10")), 50);
   const offset = (page - 1) * limit;
@@ -148,7 +148,7 @@ router.get("/product/:productId", async (req, res) => {
 
 /* ── GET /reviews/product/:productId/summary — rating distribution stats ── */
 router.get("/product/:productId/summary", async (req, res) => {
-  const productId = req.params["productId"]!;
+  const productId = req.params["productId"] as string;
 
   const rows = await db
     .select({
@@ -180,7 +180,7 @@ router.get("/product/:productId/summary", async (req, res) => {
 /* ── GET /reviews/can-review/:productId — check if user can review a product ── */
 router.get("/can-review/:productId", customerAuth, async (req, res) => {
   const userId = req.customerId!;
-  const productId = req.params["productId"]!;
+  const productId = req.params["productId"] as string;
 
   const [product] = await db
     .select({ id: productsTable.id })
@@ -615,7 +615,7 @@ router.get("/vendor/:vendorId", async (req, res) => {
     .from(reviewsTable)
     .leftJoin(usersTable, eq(reviewsTable.userId, usersTable.id))
     .where(and(
-      eq(reviewsTable.vendorId, req.params["vendorId"]!),
+      eq(reviewsTable.vendorId, req.params["vendorId"] as string),
       eq(reviewsTable.hidden, false),
       isNull(reviewsTable.deletedAt),
     ))
@@ -631,7 +631,7 @@ router.get("/vendor/:vendorId", async (req, res) => {
 /* ── POST /reviews/:id/vendor-reply — vendor reply ─────────────────────── */
 router.post("/:id/vendor-reply", vendorAuth, async (req, res) => {
   const vendorId = req.vendorId!;
-  const reviewId = String(req.params["id"]);
+  const reviewId = String(req.params["id"] as string);
   const { reply } = req.body;
 
   if (!reply || typeof reply !== "string" || reply.trim().length === 0) {
@@ -664,7 +664,7 @@ router.post("/:id/vendor-reply", vendorAuth, async (req, res) => {
 /* ── PUT /reviews/:id/vendor-reply — edit vendor reply ──────────────────── */
 router.put("/:id/vendor-reply", vendorAuth, async (req, res) => {
   const vendorId = req.vendorId!;
-  const reviewId = String(req.params["id"]);
+  const reviewId = String(req.params["id"] as string);
   const { reply } = req.body;
 
   if (!reply || typeof reply !== "string" || reply.trim().length === 0) {
@@ -697,7 +697,7 @@ router.put("/:id/vendor-reply", vendorAuth, async (req, res) => {
 /* ── DELETE /reviews/:id/vendor-reply — delete vendor reply ─────────────── */
 router.delete("/:id/vendor-reply", vendorAuth, async (req, res) => {
   const vendorId = req.vendorId!;
-  const reviewId = String(req.params["id"]);
+  const reviewId = String(req.params["id"] as string);
 
   const [review] = await db.select().from(reviewsTable)
     .where(and(eq(reviewsTable.id, reviewId), eq(reviewsTable.vendorId, vendorId)))

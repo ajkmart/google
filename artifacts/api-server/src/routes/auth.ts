@@ -485,7 +485,7 @@ router.post("/send-otp", verifyCaptcha, async (req, res) => {
 
     writeAuthAuditLog("otp_bypass_login", { ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone, reason: "otp_disabled" } });
 
-    const accessToken = signAccessToken(u.id, phone, u.role ?? "customer", u.roles ?? u.role ?? "customer", u.tokenVersion ?? 0);
+    const accessToken = signAccessToken(u.id, phone, u.roles ?? "customer", u.roles ?? u.roles ?? "customer", u.tokenVersion ?? 0);
     const { raw: refreshRaw, hash: refreshHash } = generateRefreshToken();
     const refreshExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
     await db.insert(refreshTokensTable).values({
@@ -500,7 +500,7 @@ router.post("/send-otp", verifyCaptcha, async (req, res) => {
       refreshToken: refreshRaw,
       user: {
         id: u.id, phone: u.phone, name: u.name, email: u.email,
-        username: u.username, role: u.role, roles: u.roles,
+        username: u.username, role: u.roles, roles: u.roles,
         avatar: u.avatar, walletBalance: parseFloat(u.walletBalance ?? "0"),
         isActive: u.isActive, cnic: u.cnic, city: u.city,
         totpEnabled: u.totpEnabled ?? false, createdAt: u.createdAt.toISOString(),
@@ -764,7 +764,7 @@ router.post("/verify-otp", verifyCaptcha, async (req, res) => {
     return;
   }
 
-  if (!isAuthMethodEnabled(settings, "auth_phone_otp_enabled", user.role ?? undefined)) {
+  if (!isAuthMethodEnabled(settings, "auth_phone_otp_enabled", user.roles ?? undefined)) {
     res.status(403).json({ error: "Phone OTP login is currently disabled for your account type." });
     return;
   }
@@ -900,11 +900,11 @@ router.post("/verify-otp", verifyCaptcha, async (req, res) => {
      approvalStatus is the source of truth; the setting only controls NEW user creation. ── */
   if (u.approvalStatus === "pending") {
     addAuditEntry({ action: "user_login_pending", ip, details: `Pending approval login for phone: ${phone}`, result: "pending" });
-    const token = signAccessToken(u.id, phone, u.role ?? "customer", u.roles ?? "customer", u.tokenVersion ?? 0);
+    const token = signAccessToken(u.id, phone, u.roles ?? "customer", u.roles ?? "customer", u.tokenVersion ?? 0);
     res.json({
       token, pendingApproval: true,
       message: "Aapka account admin approval ke liye bheja gaya hai. Approve hone par aap login kar sakenge.",
-      user: { id: u.id, phone: u.phone, name: u.name, role: u.role, roles: u.roles, approvalStatus: "pending" },
+      user: { id: u.id, phone: u.phone, name: u.name, role: u.roles, roles: u.roles, approvalStatus: "pending" },
     });
     return;
   }
@@ -914,20 +914,20 @@ router.post("/verify-otp", verifyCaptcha, async (req, res) => {
   }
 
   /* ── 2FA challenge ── */
-  if (u.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", u.role ?? undefined)) {
+  if (u.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", u.roles ?? undefined)) {
     const deviceFingerprint = req.body.deviceFingerprint ?? "";
     const trustedDays = parseInt(settings["auth_trusted_device_days"] ?? "30", 10);
     if (!isDeviceTrusted(u, deviceFingerprint, trustedDays)) {
-      const tempToken = sign2faChallengeToken(u.id, u.phone ?? "", u.role ?? "customer", u.roles ?? u.role ?? "customer", "phone_otp");
+      const tempToken = sign2faChallengeToken(u.id, u.phone ?? "", u.roles ?? "customer", u.roles ?? u.roles ?? "customer", "phone_otp");
       res.json({ requires2FA: true, tempToken, userId: u.id }); return;
     }
   }
 
-  addAuditEntry({ action: "user_login", ip, details: `Successful login for phone: ${phone} (role: ${u.role})`, result: "success" });
-  writeAuthAuditLog("login_success", { userId: u.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone, role: u.role } });
+  addAuditEntry({ action: "user_login", ip, details: `Successful login for phone: ${phone} (role: ${u.roles})`, result: "success" });
+  writeAuthAuditLog("login_success", { userId: u.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone, role: u.roles } });
 
   /* ── Issue short-lived access token + long-lived refresh token ── */
-  const accessToken  = signAccessToken(u.id, phone, u.role ?? "customer", u.roles ?? u.role ?? "customer", u.tokenVersion ?? 0);
+  const accessToken  = signAccessToken(u.id, phone, u.roles ?? "customer", u.roles ?? u.roles ?? "customer", u.tokenVersion ?? 0);
   const { raw: refreshRaw, hash: refreshHash } = generateRefreshToken();
   const refreshExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
 
@@ -955,7 +955,7 @@ router.post("/verify-otp", verifyCaptcha, async (req, res) => {
       name:          u.name,
       email:         u.email,
       username:      u.username,
-      role:          u.role,
+      role:          u.roles,
       roles:         u.roles,
       avatar:        u.avatar,
       walletBalance: parseFloat(u.walletBalance ?? "0"),
@@ -1012,7 +1012,7 @@ router.post("/vendor-register", async (req, res) => {
     return;
   }
 
-  const existingRoles = (user.roles || user.role || "").split(",").map((r: string) => r.trim()).filter(Boolean);
+  const existingRoles = (user.roles || user.roles || "").split(",").map((r: string) => r.trim()).filter(Boolean);
   if (existingRoles.includes("vendor")) {
     if (user.approvalStatus === "pending") {
       res.json({ success: true, status: "pending", message: "Your vendor application is already pending admin approval." });
@@ -1110,7 +1110,7 @@ router.post("/validate-token", async (req, res) => {
     }
 
     const expiresAt = payload.exp ? new Date(payload.exp * 1000).toISOString() : null;
-    res.json({ valid: true, expiresAt, userId: user.id, role: user.role });
+    res.json({ valid: true, expiresAt, userId: user.id, role: user.roles });
   } catch {
     res.status(401).json({ valid: false, error: "Token validation failed" });
   }
@@ -1165,7 +1165,7 @@ router.post("/refresh", async (req, res) => {
   }
 
   const settings = await getCachedSettings();
-  const userRole = user.role ?? "customer";
+  const userRole = user.roles ?? "customer";
 
   const methodToSettingsKey: Record<string, string> = {
     phone_otp: "auth_phone_otp_enabled",
@@ -1202,7 +1202,7 @@ router.post("/refresh", async (req, res) => {
   /* Rotate: revoke old token and issue a new one */
   await revokeRefreshToken(tokenHash);
 
-  const newAccessToken = signAccessToken(user.id, user.phone ?? "", user.role ?? "customer", user.roles ?? user.role ?? "customer", user.tokenVersion ?? 0);
+  const newAccessToken = signAccessToken(user.id, user.phone ?? "", user.roles ?? "customer", user.roles ?? user.roles ?? "customer", user.tokenVersion ?? 0);
   const { raw: newRefreshRaw, hash: newRefreshHash } = generateRefreshToken();
   const newRefreshExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
 
@@ -1328,7 +1328,7 @@ router.post("/send-email-otp", verifyCaptcha, async (req, res) => {
     return;
   }
 
-  if (!isAuthMethodEnabled(settings, "auth_email_otp_enabled", user.role ?? "customer")) {
+  if (!isAuthMethodEnabled(settings, "auth_email_otp_enabled", user.roles ?? "customer")) {
     res.status(403).json({ error: "Email OTP login is currently disabled for your account type." });
     return;
   }
@@ -1435,7 +1435,7 @@ router.post("/verify-email-otp", verifyCaptcha, async (req, res) => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, normalized)).limit(1);
   if (!user) { res.status(404).json({ error: "Is email se koi account nahi mila." }); return; }
 
-  if (!isAuthMethodEnabled(settings, "auth_email_otp_enabled", user.role ?? "customer")) {
+  if (!isAuthMethodEnabled(settings, "auth_email_otp_enabled", user.roles ?? "customer")) {
     res.status(403).json({ error: "Email OTP login is currently disabled for your account type." });
     return;
   }
@@ -1486,11 +1486,11 @@ router.post("/verify-email-otp", verifyCaptcha, async (req, res) => {
   addAuditEntry({ action: "email_login", ip, details: `Email OTP login for: ${normalized}`, result: "success" });
 
   /* ── 2FA challenge ── */
-  if (user.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", user.role ?? undefined)) {
+  if (user.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", user.roles ?? undefined)) {
     const deviceFingerprint = req.body.deviceFingerprint ?? "";
     const trustedDays = parseInt(settings["auth_trusted_device_days"] ?? "30", 10);
     if (!isDeviceTrusted(user, deviceFingerprint, trustedDays)) {
-      const tempToken = sign2faChallengeToken(user.id, user.phone ?? "", user.role ?? "customer", user.roles ?? "customer", "email_otp");
+      const tempToken = sign2faChallengeToken(user.id, user.phone ?? "", user.roles ?? "customer", user.roles ?? "customer", "email_otp");
       res.json({ requires2FA: true, tempToken, userId: user.id }); return;
     }
   }
@@ -1498,14 +1498,14 @@ router.post("/verify-email-otp", verifyCaptcha, async (req, res) => {
   const isPendingApproval = user.approvalStatus === "pending";
 
   /* Issue short-lived access token + refresh token (consistent with OTP flow) */
-  const accessToken = signAccessToken(user.id, user.phone ?? "", user.role ?? "customer", user.roles ?? "customer", user.tokenVersion ?? 0);
+  const accessToken = signAccessToken(user.id, user.phone ?? "", user.roles ?? "customer", user.roles ?? "customer", user.tokenVersion ?? 0);
   const expiresAt   = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
   if (isPendingApproval) {
     res.json({
       token: accessToken, expiresAt, pendingApproval: true,
       message: "Aapka account admin approval ke liye bheja gaya hai.",
-      user: { id: user.id, phone: user.phone, name: user.name, role: user.role, roles: user.roles, approvalStatus: "pending" },
+      user: { id: user.id, phone: user.phone, name: user.name, role: user.roles, roles: user.roles, approvalStatus: "pending" },
     });
     return;
   }
@@ -1523,7 +1523,7 @@ router.post("/verify-email-otp", verifyCaptcha, async (req, res) => {
     expiresAt,
     sessionDays:  REFRESH_TOKEN_TTL_DAYS,
     pendingApproval: false,
-    user: { id: user.id, phone: user.phone, name: user.name, email: user.email, username: user.username, role: user.role, roles: user.roles, avatar: user.avatar, walletBalance: parseFloat(user.walletBalance ?? "0"), emailVerified: true, phoneVerified: user.phoneVerified ?? false },
+    user: { id: user.id, phone: user.phone, name: user.name, email: user.email, username: user.username, role: user.roles, roles: user.roles, avatar: user.avatar, walletBalance: parseFloat(user.walletBalance ?? "0"), emailVerified: true, phoneVerified: user.phoneVerified ?? false },
   });
 });
 
@@ -1590,7 +1590,7 @@ async function handleUnifiedLogin(req: Request, res: any) {
     res.status(401).json({ error: "Invalid credentials" }); return;
   }
 
-  if (!isAuthMethodEnabled(settings, "auth_username_password_enabled", user.role ?? "customer")) {
+  if (!isAuthMethodEnabled(settings, "auth_username_password_enabled", user.roles ?? "customer")) {
     res.status(403).json({ error: "Password login is currently disabled for your account type." });
     return;
   }
@@ -1619,23 +1619,23 @@ async function handleUnifiedLogin(req: Request, res: any) {
   await db.update(usersTable).set({ lastLoginAt: new Date() }).where(eq(usersTable.id, user.id));
   addAuditEntry({ action: "unified_login", ip, details: `Login via ${idType}: ${lookupKey}`, result: "success" });
 
-  if (user.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", user.role ?? undefined)) {
+  if (user.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", user.roles ?? undefined)) {
     const deviceFingerprint = req.body.deviceFingerprint ?? "";
     const trustedDays = parseInt(settings["auth_trusted_device_days"] ?? "30", 10);
     if (!isDeviceTrusted(user, deviceFingerprint, trustedDays)) {
-      const tempToken = sign2faChallengeToken(user.id, user.phone ?? "", user.role ?? "customer", user.roles ?? "customer", "password");
+      const tempToken = sign2faChallengeToken(user.id, user.phone ?? "", user.roles ?? "customer", user.roles ?? "customer", "password");
       res.json({ requires2FA: true, tempToken, userId: user.id }); return;
     }
   }
 
-  const accessToken = signAccessToken(user.id, user.phone ?? "", user.role ?? "customer", user.roles ?? "customer", user.tokenVersion ?? 0);
+  const accessToken = signAccessToken(user.id, user.phone ?? "", user.roles ?? "customer", user.roles ?? "customer", user.tokenVersion ?? 0);
   const expiresAt   = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
   if (isPendingApproval) {
     res.json({
       token: accessToken, expiresAt, pendingApproval: true,
       message: "Aapka account admin approval ke liye bheja gaya hai.",
-      user: { id: user.id, phone: user.phone, name: user.name, role: user.role, roles: user.roles, approvalStatus: "pending" },
+      user: { id: user.id, phone: user.phone, name: user.name, role: user.roles, roles: user.roles, approvalStatus: "pending" },
     });
     return;
   }
@@ -1654,7 +1654,7 @@ async function handleUnifiedLogin(req: Request, res: any) {
     sessionDays:  REFRESH_TOKEN_TTL_DAYS,
     pendingApproval: false,
     identifierType: idType,
-    user: { id: user.id, phone: user.phone, name: user.name, email: user.email, username: user.username, role: user.role, roles: user.roles, avatar: user.avatar, walletBalance: parseFloat(user.walletBalance ?? "0"), emailVerified: user.emailVerified ?? false, phoneVerified: user.phoneVerified ?? false },
+    user: { id: user.id, phone: user.phone, name: user.name, email: user.email, username: user.username, role: user.roles, roles: user.roles, avatar: user.avatar, walletBalance: parseFloat(user.walletBalance ?? "0"), emailVerified: user.emailVerified ?? false, phoneVerified: user.phoneVerified ?? false },
   });
 }
 
@@ -2135,7 +2135,7 @@ router.post("/forgot-password", verifyCaptcha, async (req, res) => {
     return;
   }
 
-  const forgotRole = user.role ?? "customer";
+  const forgotRole = user.roles ?? "customer";
   if (phone && !isAuthMethodEnabled(settings, "auth_phone_otp_enabled", forgotRole)) {
     res.status(403).json({ error: "Phone-based password reset is currently disabled for your account type." });
     return;
@@ -2307,7 +2307,7 @@ router.post("/reset-password", verifyCaptcha, async (req, res) => {
     return;
   }
 
-  const userRole = user.role ?? "customer";
+  const userRole = user.roles ?? "customer";
 
   if (phone && !isAuthMethodEnabled(settings, "auth_phone_otp_enabled", userRole)) {
     res.status(403).json({ error: "Phone-based password reset is currently disabled for your account type." });
@@ -2593,7 +2593,7 @@ function parseUserAgent(ua?: string): { deviceName: string; browser: string; os:
 }
 
 async function issueTokensForUser(user: any, ip: string, method: string, userAgent?: string) {
-  const accessToken = signAccessToken(user.id, user.phone ?? "", user.role ?? "customer", user.roles ?? user.role ?? "customer", user.tokenVersion ?? 0);
+  const accessToken = signAccessToken(user.id, user.phone ?? "", user.roles ?? "customer", user.roles ?? user.roles ?? "customer", user.tokenVersion ?? 0);
   const { raw: refreshRaw, hash: refreshHash } = generateRefreshToken();
   const refreshExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
 
@@ -2636,7 +2636,7 @@ async function issueTokensForUser(user: any, ip: string, method: string, userAge
     sessionDays: REFRESH_TOKEN_TTL_DAYS,
     user: {
       id: user.id, phone: user.phone, name: user.name, email: user.email,
-      role: user.role, roles: user.roles, avatar: user.avatar,
+      role: user.roles, roles: user.roles, avatar: user.avatar,
       walletBalance: parseFloat(user.walletBalance ?? "0"),
       isActive: user.isActive, cnic: user.cnic, city: user.city,
       emailVerified: user.emailVerified ?? false, phoneVerified: user.phoneVerified ?? false,
@@ -2833,7 +2833,7 @@ router.get("/2fa/setup", async (req, res) => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, auth.userId)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-  if (!isAuthMethodEnabled(settings, "auth_2fa_enabled", user.role ?? undefined)) {
+  if (!isAuthMethodEnabled(settings, "auth_2fa_enabled", user.roles ?? undefined)) {
     res.status(403).json({ error: "Two-factor authentication is currently disabled" }); return;
   }
   if (user.totpEnabled) { res.status(409).json({ error: "2FA is already enabled" }); return; }
@@ -2868,7 +2868,7 @@ router.post("/2fa/verify-setup", async (req, res) => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, auth.userId)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-  if (!isAuthMethodEnabled(settings, "auth_2fa_enabled", user.role ?? undefined)) {
+  if (!isAuthMethodEnabled(settings, "auth_2fa_enabled", user.roles ?? undefined)) {
     res.status(403).json({ error: "Two-factor authentication is currently disabled" }); return;
   }
   if (user.totpEnabled) { res.status(409).json({ error: "2FA is already enabled" }); return; }
@@ -2918,7 +2918,7 @@ router.post("/2fa/verify", async (req, res) => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, challengePayload.userId)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-  if (!isAuthMethodEnabled(settings, "auth_2fa_enabled", user.role ?? undefined)) {
+  if (!isAuthMethodEnabled(settings, "auth_2fa_enabled", user.roles ?? undefined)) {
     res.status(403).json({ error: "Two-factor authentication has been disabled by admin." }); return;
   }
 
@@ -2952,7 +2952,7 @@ router.post("/2fa/disable", async (req, res) => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, auth.userId)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-  if (!isAuthMethodEnabled(settings, "auth_2fa_enabled", user.role ?? undefined)) {
+  if (!isAuthMethodEnabled(settings, "auth_2fa_enabled", user.roles ?? undefined)) {
     res.status(403).json({ error: "Two-factor authentication has been disabled by admin." }); return;
   }
 
@@ -2992,7 +2992,7 @@ router.post("/2fa/recovery", async (req, res) => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, challengePayload.userId)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-  if (!isAuthMethodEnabled(settings, "auth_2fa_enabled", user.role ?? undefined)) {
+  if (!isAuthMethodEnabled(settings, "auth_2fa_enabled", user.roles ?? undefined)) {
     res.status(403).json({ error: "Two-factor authentication has been disabled by admin." }); return;
   }
 
@@ -3042,7 +3042,7 @@ router.post("/2fa/trust-device", async (req, res) => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, auth.userId)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-  if (!isAuthMethodEnabled(settings, "auth_2fa_enabled", user.role ?? undefined)) {
+  if (!isAuthMethodEnabled(settings, "auth_2fa_enabled", user.roles ?? undefined)) {
     res.status(403).json({ error: "Two-factor authentication has been disabled by admin." }); return;
   }
 
@@ -3104,7 +3104,7 @@ router.post("/magic-link/send", async (req, res) => {
     res.json({ message: "If an account exists with this email, a magic link has been sent." }); return;
   }
 
-  const effectiveMagicRole = user.role ?? ((req.body?.role === "rider" || req.body?.role === "vendor") ? req.body.role : "customer");
+  const effectiveMagicRole = user.roles ?? ((req.body?.role === "rider" || req.body?.role === "vendor") ? req.body.role : "customer");
   if (!isAuthMethodEnabledStrict(settings, "auth_magic_link_enabled", "auth_magic_link", effectiveMagicRole)) {
     res.status(403).json({ error: "Magic link login is currently disabled for your account type." }); return;
   }
@@ -3173,15 +3173,15 @@ router.post("/magic-link/verify", async (req, res) => {
   if (user.isBanned) { res.status(403).json({ error: "Account suspended" }); return; }
   if (!user.isActive) { res.status(403).json({ error: "Account inactive" }); return; }
 
-  if (!isAuthMethodEnabledStrict(settings, "auth_magic_link_enabled", "auth_magic_link", user.role ?? "customer")) {
+  if (!isAuthMethodEnabledStrict(settings, "auth_magic_link_enabled", "auth_magic_link", user.roles ?? "customer")) {
     res.status(403).json({ error: "Magic link login is currently disabled for your account type." }); return;
   }
 
-  if (user.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", user.role ?? undefined)) {
+  if (user.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", user.roles ?? undefined)) {
     const trustedDays = parseInt(settings["auth_trusted_device_days"] ?? "30", 10);
     if (!isDeviceTrusted(user, deviceFingerprint ?? "", trustedDays)) {
       if (!totpCode) {
-        const tempToken = sign2faChallengeToken(user.id, user.phone ?? "", user.role ?? "customer", user.roles ?? "customer", "magic_link");
+        const tempToken = sign2faChallengeToken(user.id, user.phone ?? "", user.roles ?? "customer", user.roles ?? "customer", "magic_link");
         res.json({ requires2FA: true, tempToken, userId: user.id }); return;
       }
       const secret = decryptTotpSecret(user.totpSecret!);

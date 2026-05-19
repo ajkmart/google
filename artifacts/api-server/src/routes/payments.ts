@@ -211,7 +211,7 @@ router.get("/methods", async (req, res) => {
 router.get("/test-connection/:gateway", adminAuth, async (req, res) => {
   try {
   const s = await getCachedSettings();
-  const gw = req.params["gateway"];
+  const gw = req.params["gateway"] as string;
 
   if (gw === "jazzcash") {
     const jcType = s["jazzcash_type"] ?? "manual";

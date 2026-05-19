@@ -17,7 +17,7 @@ import {
   addAuditEntry, addSecurityEvent, getClientIp,
   signAdminJwt, verifyAdminJwt, invalidateSettingsCache, getCachedSettings,
   ADMIN_TOKEN_TTL_HRS, verifyTotpToken, verifyAdminSecret,
-  ensureDefaultRideServices, ensureDefaultLocations, formatSvc,
+  ensureDefaultRideServices, formatSvc,
   type AdminRequest,
 } from "../admin-shared.js";
 import { emitRideDispatchUpdate } from "../../lib/socketio.js";
@@ -46,7 +46,7 @@ router.patch("/rides/:id/status", async (req, res) => {
   const [ride] = await db
     .update(ridesTable)
     .set(updateData)
-    .where(eq(ridesTable.id, req.params["id"]!))
+    .where(eq(ridesTable.id, req.params["id"] as string))
     .returning();
   if (!ride) { res.status(404).json({ error: "Ride not found" }); return; }
 
@@ -127,7 +127,7 @@ router.post("/ride-services", async (req, res) => {
 
 /* PATCH /admin/ride-services/:id — update any field */
 router.patch("/ride-services/:id", async (req, res) => {
-  const svcId = req.params["id"]!;
+  const svcId = req.params["id"] as string;
   const [existing] = await db.select().from(rideServiceTypesTable).where(eq(rideServiceTypesTable.id, svcId)).limit(1);
   if (!existing) { res.status(404).json({ error: "Service not found" }); return; }
   const { name, nameUrdu, icon, description, color, isEnabled, baseFare, perKm, minFare, maxPassengers, allowBargaining, sortOrder } = req.body;
@@ -150,7 +150,7 @@ router.patch("/ride-services/:id", async (req, res) => {
 
 /* DELETE /admin/ride-services/:id — only custom services */
 router.delete("/ride-services/:id", async (req, res) => {
-  const svcId = req.params["id"]!;
+  const svcId = req.params["id"] as string;
   const [existing] = await db.select().from(rideServiceTypesTable).where(eq(rideServiceTypesTable.id, svcId)).limit(1);
   if (!existing) { res.status(404).json({ error: "Service not found" }); return; }
   if (!existing.isCustom) { res.status(400).json({ error: "Built-in services cannot be deleted. Disable them instead." }); return; }
@@ -235,16 +235,16 @@ router.patch("/locations/:id", async (req, res) => {
   if (icon      !== undefined) patch.icon      = icon;
   if (isActive  !== undefined) patch.isActive  = Boolean(isActive);
   if (sortOrder !== undefined) patch.sortOrder = Number(sortOrder);
-  const [updated] = await db.update(popularLocationsTable).set(patch).where(eq(popularLocationsTable.id, req.params["id"]!)).returning();
+  const [updated] = await db.update(popularLocationsTable).set(patch).where(eq(popularLocationsTable.id, req.params["id"] as string)).returning();
   if (!updated) { res.status(404).json({ error: "Location not found" }); return; }
   res.json({ ...updated, lat: parseFloat(String(updated.lat)), lng: parseFloat(String(updated.lng)) });
 });
 
 router.delete("/locations/:id", async (req, res) => {
   const [existing] = await db.select({ id: popularLocationsTable.id })
-    .from(popularLocationsTable).where(eq(popularLocationsTable.id, req.params["id"]!)).limit(1);
+    .from(popularLocationsTable).where(eq(popularLocationsTable.id, req.params["id"] as string)).limit(1);
   if (!existing) { res.status(404).json({ error: "Location not found" }); return; }
-  await db.delete(popularLocationsTable).where(eq(popularLocationsTable.id, req.params["id"]!));
+  await db.delete(popularLocationsTable).where(eq(popularLocationsTable.id, req.params["id"] as string));
   res.json({ success: true });
 });
 
@@ -301,7 +301,7 @@ router.post("/school-routes", async (req, res) => {
 });
 
 router.patch("/school-routes/:id", async (req, res) => {
-  const routeId = req.params["id"]!;
+  const routeId = req.params["id"] as string;
   const {
     routeName, schoolName, schoolNameUrdu, fromArea, fromAreaUrdu, toAddress,
     fromLat, fromLng, toLat, toLng, monthlyPrice, morningTime, afternoonTime,
@@ -332,7 +332,7 @@ router.patch("/school-routes/:id", async (req, res) => {
 });
 
 router.delete("/school-routes/:id", async (req, res) => {
-  const routeId = req.params["id"]!;
+  const routeId = req.params["id"] as string;
   /* Only delete if no active subscriptions */
   const [activeSub] = await db.select({ id: schoolSubscriptionsTable.id })
     .from(schoolSubscriptionsTable)
@@ -505,10 +505,10 @@ router.patch("/riders/:id/online", async (req, res) => {
   const { isOnline } = req.body as { isOnline: boolean };
   const [rider] = await db.update(usersTable)
     .set({ isOnline, updatedAt: new Date() } as any)
-    .where(eq(usersTable.id, req.params["id"]!))
+    .where(eq(usersTable.id, req.params["id"] as string))
     .returning();
   if (!rider) { res.status(404).json({ error: "Rider not found" }); return; }
-  addAuditEntry({ action: "rider_online_toggle", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Rider ${req.params["id"]} set ${isOnline ? "online" : "offline"} by admin`, result: "success" });
+  addAuditEntry({ action: "rider_online_toggle", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Rider ${req.params["id"] as string} set ${isOnline ? "online" : "offline"} by admin`, result: "success" });
   res.json({ success: true, isOnline });
 });
 
@@ -597,7 +597,7 @@ router.get("/dashboard-export", async (_req, res) => {
 ══════════════════════════════════════════════════════════════════════════════ */
 
 router.post("/rides/:id/cancel", async (req, res) => {
-  const rideId = req.params["id"]!;
+  const rideId = req.params["id"] as string;
   const { reason } = req.body as { reason?: string };
   const [ride] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
   if (!ride) { res.status(404).json({ error: "Ride not found" }); return; }
@@ -632,7 +632,7 @@ router.post("/rides/:id/cancel", async (req, res) => {
       }
     });
   } catch (txErr: unknown) {
-    addAuditEntry({ action: "ride_cancel", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Ride ${rideId} cancel failed — transaction error: ${txErr.message}`, result: "fail" });
+    addAuditEntry({ action: "ride_cancel", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Ride ${rideId} cancel failed — transaction error: ${txErr instanceof Error ? txErr.message : String(txErr)}`, result: "fail" });
     res.status(500).json({ error: "Cancellation failed: could not complete transaction" });
     return;
   }
@@ -653,7 +653,7 @@ router.post("/rides/:id/cancel", async (req, res) => {
 });
 
 router.post("/rides/:id/refund", async (req, res) => {
-  const rideId = req.params["id"]!;
+  const rideId = req.params["id"] as string;
   const { amount, reason } = req.body as { amount?: number; reason?: string };
   const [ride] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
   if (!ride) { res.status(404).json({ error: "Ride not found" }); return; }
@@ -671,7 +671,7 @@ router.post("/rides/:id/refund", async (req, res) => {
       });
     });
   } catch (txErr: unknown) {
-    addAuditEntry({ action: "ride_refund", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Ride ${rideId} refund failed — transaction error: ${txErr.message}`, result: "fail" });
+    addAuditEntry({ action: "ride_refund", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Ride ${rideId} refund failed — transaction error: ${txErr instanceof Error ? txErr.message : String(txErr)}`, result: "fail" });
     res.status(500).json({ error: "Refund failed: could not complete transaction" });
     return;
   }
@@ -683,7 +683,7 @@ router.post("/rides/:id/refund", async (req, res) => {
 });
 
 router.post("/rides/:id/reassign", async (req, res) => {
-  const rideId = req.params["id"]!;
+  const rideId = req.params["id"] as string;
   const { riderId, riderName, riderPhone } = req.body as { riderId?: string; riderName?: string; riderPhone?: string };
   const [ride] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
   if (!ride) { res.status(404).json({ error: "Ride not found" }); return; }
@@ -725,9 +725,9 @@ router.post("/rides/:id/reassign", async (req, res) => {
 });
 
 router.get("/rides/:id/audit-trail", async (req, res) => {
-  const rideId = req.params["id"]!;
+  const rideId = req.params["id"] as string;
   const shortId = rideId.slice(-6).toUpperCase();
-  const trail = auditLog.filter(e => e.details?.includes(rideId) || e.details?.includes(shortId)).map(e => ({
+  const trail = ([] as Array<{ action: string; details?: string; ip?: string; adminId?: string; result: string; timestamp: string }>).filter(e => e.details?.includes(rideId) || e.details?.includes(shortId)).map(e => ({
     action: e.action,
     details: e.details,
     ip: e.ip,
@@ -740,7 +740,7 @@ router.get("/rides/:id/audit-trail", async (req, res) => {
 });
 
 router.get("/rides/:id/detail", async (req, res) => {
-  const rideId = req.params["id"]!;
+  const rideId = req.params["id"] as string;
   const [ride] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
   if (!ride) { res.status(404).json({ error: "Ride not found" }); return; }
 
@@ -1023,7 +1023,7 @@ router.get("/fleet-analytics", async (req, res) => {
    it uses the rider's live_locations.lastSeen timestamp as the session start boundary,
    giving "current shift to now" semantics rather than calendar midnight. */
 router.get("/riders/:userId/route", async (req, res) => {
-  const { userId } = req.params;
+  const { userId } = req.params as Record<string, string>;
   const dateParam   = req.query["date"]        as string | undefined;
   const sinceOnline = req.query["sinceOnline"]  === "true";
 

@@ -650,7 +650,7 @@ const updateStatusSchema = z.object({
 
 router.patch("/:id", adminAuth, validateBody(updateStatusSchema), async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const { status: newStatus } = req.body;
 
     const [existing] = await db.select()
@@ -803,7 +803,7 @@ const updateCustomerReportSchema = z.object({
 
 router.patch("/customer-reports/:id", adminAuth, validateBody(updateCustomerReportSchema), async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const body = req.body;
 
     const updates: Record<string, unknown> = {};
@@ -858,7 +858,7 @@ const resolveSchema = z.object({
 
 router.post("/:id/resolve", adminAuth, validateBody(resolveSchema), async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const { method, resolutionNotes, rootCause } = req.body;
 
     const [existing] = await db.select().from(errorReportsTable)
@@ -926,7 +926,7 @@ router.post("/:id/resolve", adminAuth, validateBody(resolveSchema), async (req, 
 
 router.post("/:id/undo", adminAuth, async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
 
     const [backup] = await db.select().from(errorResolutionBackupsTable)
       .where(and(
@@ -980,7 +980,7 @@ router.post("/:id/undo", adminAuth, async (req, res) => {
 
 router.get("/:id/backup", adminAuth, async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [backup] = await db.select().from(errorResolutionBackupsTable)
       .where(and(
         eq(errorResolutionBackupsTable.errorReportId, id!),
@@ -1248,7 +1248,7 @@ router.post("/auto-resolve-run", adminAuth, async (_req, res) => {
 /* ── Gemini AI-powered error analysis (with rule-based fallback) ──────── */
 router.post("/:id/ai-analyze", adminAuth, async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [report] = await db.select().from(errorReportsTable)
       .where(eq(errorReportsTable.id, id!))
       .limit(1);
@@ -1534,7 +1534,7 @@ function buildSingleTaskPlan(report: typeof errorReportsTable.$inferSelect): { m
 
 router.post("/:id/generate-task", adminAuth, async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as Record<string, string>;
     const [report] = await db.select().from(errorReportsTable)
       .where(eq(errorReportsTable.id, id!))
       .limit(1);
