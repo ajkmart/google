@@ -789,6 +789,10 @@ export default function ErrorMonitor() {
       queryClient.invalidateQueries({ queryKey: ["error-count"] });
       setActiveTab("completed");
       setPage(1);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[error-monitor] handleFixAll failed:", err instanceof Error ? err.message : err);
+      toast({ title: "Bulk resolve failed", description: err instanceof Error ? err.message : "An unexpected error occurred.", variant: "destructive" });
     } finally {
       setFixingAll(false);
     }

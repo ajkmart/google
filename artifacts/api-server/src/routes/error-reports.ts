@@ -470,23 +470,24 @@ router.post("/bulk-resolve", adminAuth, async (req, res) => {
       .limit(200);
 
     const now = new Date();
-    for (const report of toResolve) {
-      const backupId = generateId();
-      await db.insert(errorResolutionBackupsTable).values({
-        id: backupId,
-        errorReportId: report.id,
-        previousStatus: report.status,
-        previousData: {
-          status: report.status,
-          resolvedAt: report.resolvedAt?.toISOString() || null,
-          acknowledgedAt: report.acknowledgedAt?.toISOString() || null,
-          resolutionMethod: report.resolutionMethod || null,
-          resolutionNotes: report.resolutionNotes || null,
-          rootCause: report.rootCause || null,
-        },
-        resolutionMethod: "manual",
-        expiresAt: new Date(Date.now() + BACKUP_TTL_MS),
-      });
+    if (toResolve.length > 0) {
+      await db.insert(errorResolutionBackupsTable).values(
+        toResolve.map(report => ({
+          id: generateId(),
+          errorReportId: report.id,
+          previousStatus: report.status,
+          previousData: {
+            status: report.status,
+            resolvedAt: report.resolvedAt?.toISOString() || null,
+            acknowledgedAt: report.acknowledgedAt?.toISOString() || null,
+            resolutionMethod: report.resolutionMethod || null,
+            resolutionNotes: report.resolutionNotes || null,
+            rootCause: report.rootCause || null,
+          },
+          resolutionMethod: "manual" as const,
+          expiresAt: new Date(Date.now() + BACKUP_TTL_MS),
+        }))
+      );
     }
 
     const resolveIds = toResolve.map(r => r.id);
@@ -1158,22 +1159,27 @@ export async function runAutoResolve() {
 
     let resolvedAlready: Set<string> = new Set();
     if (settings.duplicateDetection && candidates.length > 0) {
-      const resolvedErrors = await db.select({
-        errorMessage: errorReportsTable.errorMessage,
-      }).from(errorReportsTable)
-        .where(eq(errorReportsTable.status, "resolved"))
-        .limit(500);
-      resolvedAlready = new Set(resolvedErrors.map(r => r.errorMessage.toLowerCase().trim()));
+      const candidateHashes = candidates.flatMap(c => (c.errorHash ? [c.errorHash] : []));
+      if (candidateHashes.length > 0) {
+        const resolvedHashRows = await db.select({
+          errorHash: errorReportsTable.errorHash,
+        }).from(errorReportsTable)
+          .where(and(
+            eq(errorReportsTable.status, "resolved"),
+            inArray(errorReportsTable.errorHash, candidateHashes),
+          ));
+        resolvedAlready = new Set(resolvedHashRows.flatMap(r => (r.errorHash ? [r.errorHash] : [])));
+      }
     }
 
-    const logs: Array<{ errorReportId: string; reason: string; ruleMatched: string }> = [];
     const now = new Date();
+    const toResolve: Array<{ candidate: typeof candidates[0]; reason: string; ruleMatched: string }> = [];
 
     for (const candidate of candidates) {
       let reason = "";
       let ruleMatched = "";
 
-      if (settings.duplicateDetection && resolvedAlready.has(candidate.errorMessage.toLowerCase().trim())) {
+      if (settings.duplicateDetection && candidate.errorHash && resolvedAlready.has(candidate.errorHash)) {
         reason = `Duplicate of previously resolved error`;
         ruleMatched = "duplicate_detection";
       } else if (settings.severities.includes(candidate.severity)) {
@@ -1186,43 +1192,57 @@ export async function runAutoResolve() {
         continue;
       }
 
-      const backupId = generateId();
-      await db.insert(errorResolutionBackupsTable).values({
-        id: backupId,
-        errorReportId: candidate.id,
-        previousStatus: candidate.status,
-        previousData: {
-          status: candidate.status,
-          resolvedAt: candidate.resolvedAt?.toISOString() || null,
-          acknowledgedAt: candidate.acknowledgedAt?.toISOString() || null,
-          resolutionMethod: candidate.resolutionMethod || null,
-          resolutionNotes: candidate.resolutionNotes || null,
-          rootCause: candidate.rootCause || null,
-        },
-        resolutionMethod: "auto_resolved",
-        expiresAt: new Date(Date.now() + BACKUP_TTL_MS),
-      });
-
-      await db.update(errorReportsTable)
-        .set({
-          status: "resolved",
-          resolvedAt: now,
-          resolutionMethod: "auto_resolved",
-          resolutionNotes: reason,
-          updatedAt: now,
-        })
-        .where(eq(errorReportsTable.id, candidate.id));
-
-      const logId = generateId();
-      await db.insert(autoResolveLogTable).values({
-        id: logId,
-        errorReportId: candidate.id,
-        reason,
-        ruleMatched,
-      });
-
-      logs.push({ errorReportId: candidate.id, reason, ruleMatched });
+      toResolve.push({ candidate, reason, ruleMatched });
     }
+
+    if (toResolve.length > 0) {
+      await db.insert(errorResolutionBackupsTable).values(
+        toResolve.map(({ candidate }) => ({
+          id: generateId(),
+          errorReportId: candidate.id,
+          previousStatus: candidate.status,
+          previousData: {
+            status: candidate.status,
+            resolvedAt: candidate.resolvedAt?.toISOString() || null,
+            acknowledgedAt: candidate.acknowledgedAt?.toISOString() || null,
+            resolutionMethod: candidate.resolutionMethod || null,
+            resolutionNotes: candidate.resolutionNotes || null,
+            rootCause: candidate.rootCause || null,
+          },
+          resolutionMethod: "auto_resolved" as const,
+          expiresAt: new Date(Date.now() + BACKUP_TTL_MS),
+        }))
+      );
+
+      await Promise.all(
+        toResolve.map(({ candidate, reason }) =>
+          db.update(errorReportsTable)
+            .set({
+              status: "resolved",
+              resolvedAt: now,
+              resolutionMethod: "auto_resolved",
+              resolutionNotes: reason,
+              updatedAt: now,
+            })
+            .where(eq(errorReportsTable.id, candidate.id))
+        )
+      );
+
+      await db.insert(autoResolveLogTable).values(
+        toResolve.map(({ candidate, reason, ruleMatched }) => ({
+          id: generateId(),
+          errorReportId: candidate.id,
+          reason,
+          ruleMatched,
+        }))
+      );
+    }
+
+    const logs = toResolve.map(({ candidate, reason, ruleMatched }) => ({
+      errorReportId: candidate.id,
+      reason,
+      ruleMatched,
+    }));
 
     if (logs.length > 0) {
       logger.info({ count: logs.length }, "Auto-resolve pass completed");
@@ -1302,11 +1322,9 @@ Return this JSON structure:
         };
 
         if (parsed.rootCause) {
-          if (parsed.rootCause) {
-            await db.update(errorReportsTable)
-              .set({ rootCause: parsed.rootCause, updatedAt: new Date() })
-              .where(eq(errorReportsTable.id, id!));
-          }
+          await db.update(errorReportsTable)
+            .set({ rootCause: parsed.rootCause, updatedAt: new Date() })
+            .where(eq(errorReportsTable.id, id!));
           return sendSuccess(res, { ...parsed, fallback: false, errorId: id });
         }
       } catch (aiErr) {

@@ -55,12 +55,38 @@ function isDuplicate(hash: string): boolean {
   return false;
 }
 
+async function computeHmacSignature(body: string): Promise<string | null> {
+  const env = import.meta.env as Record<string, unknown>;
+  const secret = env.VITE_ERROR_REPORT_HMAC_SECRET;
+  if (typeof secret !== "string" || !secret.trim()) return null;
+  try {
+    const enc = new TextEncoder();
+    const key = await window.crypto.subtle.importKey(
+      "raw",
+      enc.encode(secret.trim()),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const sig = await window.crypto.subtle.sign("HMAC", key, enc.encode(body));
+    return Array.from(new Uint8Array(sig))
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join("");
+  } catch {
+    return null;
+  }
+}
+
 async function sendReport(report: Record<string, unknown>): Promise<void> {
   try {
+    const body = JSON.stringify(report);
+    const sig = await computeHmacSignature(body);
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (sig) headers["x-report-signature"] = sig;
     await fetch(`${getApiBase()}/error-reports`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(report),
+      headers,
+      body,
     });
   } catch (err) {
     console.error("[ErrorReporter] Failed to send error report:", err);
