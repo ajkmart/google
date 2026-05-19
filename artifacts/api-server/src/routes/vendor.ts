@@ -809,7 +809,7 @@ router.get("/products/:id/stock-history", async (req, res) => {
     if (!product) { sendNotFound(res, "Product not found"); return; }
     const history = await db.select().from(productStockHistoryTable)
       .where(eq(productStockHistoryTable.productId, productId))
-      .orderBy(desc(productStockHistoryTable.createdAt))
+      .orderBy(desc(productStockHistoryTable.changedAt))
       .limit(100);
     sendSuccess(res, { history });
   } catch (err) {

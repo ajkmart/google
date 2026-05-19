@@ -45,7 +45,7 @@ beforeAll(async () => {
   const { createCsrfCookie } = await import("../utils/admin-csrf.js");
   const { signUserJwt }      = await import("../middleware/security.js");
 
-  app = createServer();
+  app = await createServer() as any;
 
   // Mint a super-admin token: role "super" causes isSuper() → true and
   // bypasses all requirePermission() checks without a DB lookup.

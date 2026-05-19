@@ -1230,8 +1230,8 @@ router.post("/:id/rate", customerAuth, requireRideState(["completed"]), requireR
   const [rating] = await db.insert(rideRatingsTable).values({
     id: generateId(),
     rideId,
-    customerId: userId,
-    riderId: ride.riderId,
+    userId,
+    riderId: ride.riderId!,
     stars,
     comment: comment || null,
   }).returning();

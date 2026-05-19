@@ -76,10 +76,8 @@ const swaggerUiOptions: swaggerUi.SwaggerUiOptions = {
 
 const router = Router();
 
-router.use(
-  adminAuth,
-  ...swaggerUi.serve,
-  swaggerUi.setup(spec, swaggerUiOptions),
-);
+router.use(adminAuth);
+router.use(swaggerUi.serve as any);
+router.use(swaggerUi.setup(spec, swaggerUiOptions) as any);
 
 export default router;

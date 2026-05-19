@@ -1029,8 +1029,6 @@ router.post("/vendor-register", async (req, res) => {
 
   await db.update(usersTable).set({
     roles: newRoles.join(","),
-    storeName,
-    storeCategory: storeCategory || null,
     name: name || user.name,
     username: username ? String(username).toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20) : user.username || null,
     cnic: cnic || user.cnic || null,
@@ -2033,7 +2031,6 @@ router.post("/register", verifyCaptcha, async (req, res) => {
     name: name?.trim() || null,
     email: email ? email.toLowerCase().trim() : null,
     username: cleanUsername,
-    role: userRole,
     roles: userRole,
     passwordHash: hashPassword(password),
     otpCode: hashOtp(otp),
@@ -2044,20 +2041,9 @@ router.post("/register", verifyCaptcha, async (req, res) => {
     approvalStatus: needsApproval ? "pending" : "approved",
     cnic: cnicValue || null,
     nationalId: cnicValue || null,
-    vehicleType: vehicleType || null,
-    vehicleRegNo: vehicleRegNo || null,
-    vehiclePlate: vehiclePlate || vehicleRegNo || null,
-    drivingLicense: drivingLicense || null,
     address: address || null,
     city: city || null,
     emergencyContact: emergencyContact || null,
-    vehiclePhoto: vehiclePhoto || null,
-    documents: documents || null,
-    businessName: businessName || storeName || null,
-    storeName: storeName || businessName || null,
-    businessType: businessType || null,
-    storeAddress: storeAddress || null,
-    ntn: ntn || null,
   });
 
   const registerLang = await getUserLanguage(userId);
@@ -2453,7 +2439,6 @@ router.post("/email-register", verifyCaptcha, async (req, res) => {
     name: name?.trim() || null,
     email: normalizedEmail,
     username: cleanUsername,
-    role: userRole,
     roles: userRole,
     passwordHash: hashPassword(password),
     walletBalance: "0",

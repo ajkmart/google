@@ -99,7 +99,8 @@ router.post("/admin-accounts", async (req, res) => {
   if (body.secret === getAdminSecret()) { res.status(400).json({ error: "Cannot use the master secret" }); return; }
   try {
     const [account] = await db.insert(adminAccountsTable).values({
-      name:        body.name as string,
+      id:          generateId(),
+      name:        String(body.name),
       secret:      hashAdminSecret(body.secret as string),
       role:        (body.role as string) || "manager",
       permissions: (body.permissions as string) || "",

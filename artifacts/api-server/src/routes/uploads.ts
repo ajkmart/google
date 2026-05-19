@@ -326,7 +326,7 @@ router.post(
   "/proof",
   riderAuth,
   (req, res, next) => {
-    upload.single("file")(req, res, (err) => {
+    upload.single("file")(req as any, res as any, (err) => {
       if (err instanceof multer.MulterError) {
         if (err.code === "LIMIT_FILE_SIZE") {
           sendValidationError(res, "File too large");
@@ -408,7 +408,7 @@ router.post(
   "/register",
   registerUploadLimiter,
   (req, res, next) => {
-    upload.single("file")(req, res, (err) => {
+    upload.single("file")(req as any, res as any, (err) => {
       if (err instanceof multer.MulterError) {
         if (err.code === "LIMIT_FILE_SIZE") {
           sendValidationError(res, "File too large");
@@ -626,7 +626,7 @@ router.post(
   "/video",
   requireRole("vendor", { vendorApprovalCheck: true }),
   (req, res, next) => {
-    videoUpload.single("file")(req, res, (err) => {
+    videoUpload.single("file")(req as any, res as any, (err) => {
       if (err instanceof multer.MulterError) {
         if (err.code === "LIMIT_FILE_SIZE") {
           sendValidationError(res, "Video too large. Maximum 50MB allowed");
@@ -718,7 +718,7 @@ router.post(
   "/audio",
   requireRole("vendor", { vendorApprovalCheck: true }),
   (req, res, next) => {
-    audioUpload.single("file")(req, res, (err) => {
+    audioUpload.single("file")(req as any, res as any, (err) => {
       if (err instanceof multer.MulterError) {
         if (err.code === "LIMIT_FILE_SIZE") { sendValidationError(res, "Audio too large. Maximum 20MB allowed"); return; }
         sendValidationError(res, err.message);

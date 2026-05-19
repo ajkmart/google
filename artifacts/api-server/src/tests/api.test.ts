@@ -32,7 +32,7 @@ beforeAll(async () => {
   jwtSecret = process.env["JWT_SECRET"]!;
 
   const { createServer } = await import("../app.js");
-  app = createServer();
+  app = await createServer() as any;
 }, 30000);
 
 function makeAdminToken(overrides: Record<string, unknown> = {}): string {

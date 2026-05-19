@@ -27,7 +27,7 @@ beforeAll(async () => {
   process.env["ADMIN_JWT_SECRET"] ??= FALLBACK_ADMIN_SECRET;
 
   const { createServer } = await import("../app.js");
-  app = createServer();
+  app = await createServer() as any;
 }, 30000);
 
 afterEach(() => {

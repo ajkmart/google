@@ -2448,7 +2448,6 @@ router.post("/sos", async (req, res) => {
     phone:     riderUser.phone ?? null,
     latitude:  validCoords ? parsedLat! : null,
     longitude: validCoords ? parsedLng! : null,
-    sentAt:    now.toISOString(),
   });
 
   /* New lifecycle event — drives admin SOS alert panel and sidebar badge */

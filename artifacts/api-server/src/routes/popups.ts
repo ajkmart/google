@@ -122,7 +122,7 @@ router.get("/active", async (req, res) => {
   const eligible: typeof activeCampaigns = [];
 
   for (const campaign of activeCampaigns) {
-    const userObj = user ?? { userId: "guest", role: userRole };
+    const userObj = user ? { userId: user.userId, role: user.roles } : { userId: "guest", role: userRole };
 
     const passes = await evaluateTargeting(campaign, userObj);
     if (!passes) continue;

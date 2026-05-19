@@ -31,7 +31,7 @@ export interface AuditLogInput {
   affectedUserName?: string;
   affectedUserRole?: string;
   details?: string;
-  result: "success" | "fail" | "pending";
+  result: "success" | "fail" | "warn" | "pending";
 }
 
 export class AuditService {
@@ -40,7 +40,7 @@ export class AuditService {
    * from any route without calling `addAuditEntry` directly.
    */
   static log(input: AuditLogInput): void {
-    addAuditEntry(input);
+    addAuditEntry({ ...input, details: input.details ?? "" });
   }
 
   /**
