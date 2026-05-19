@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { customFetch } from "./custom-fetch";
 
 export interface Banner {

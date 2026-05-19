@@ -176,8 +176,8 @@ export default function Promos() {
                     <p className="text-xs text-gray-500 mt-0.5">
                       {promo.discountType === "percentage"
                         ? `${promo.discountValue}% off`
-                        : `${fc(promo.discountValue, currencySymbol)} off`}
-                      {promo.minOrder ? ` · Min order ${fc(promo.minOrder, currencySymbol)}` : ""}
+                        : `${fc(promo.discountValue)} off`}
+                      {promo.minOrder ? ` · Min order ${fc(promo.minOrder)}` : ""}
                       {promo.maxUses  ? ` · Max ${promo.maxUses} uses` : ""}
                     </p>
                     {promo.expiresAt && (

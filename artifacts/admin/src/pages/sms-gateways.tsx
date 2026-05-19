@@ -97,8 +97,8 @@ export default function SmsGateways() {
     catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
   }
 
-  async function handleToggle(id: string) {
-    try { await toggleGw.mutateAsync(id); }
+  async function handleToggle(id: string, currentActive: boolean) {
+    try { await toggleGw.mutateAsync({ id, active: !currentActive }); }
     catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
   }
 

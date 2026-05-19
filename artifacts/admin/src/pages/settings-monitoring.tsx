@@ -1,17 +1,9 @@
 import { Badge } from "@/components/ui/badge";
-import { renderSection, Setting, CatKey as OrigCatKey } from "./settings-render";
+import { renderSection, Setting, CatKey as OrigCatKey, SettingsSectionProps } from "./settings-render";
 import { Server, Clock, Wifi, MapPin, ImageUp, List, SlidersHorizontal } from "lucide-react";
 
 type CatKey = string;
 
-interface SettingsSectionProps {
-  settings: Setting[];
-  grouped: Record<string, Setting[]>;
-  localValues: Record<string, string>;
-  dirtyKeys: Set<string>;
-  handleChange: (k: string, v: string) => void;
-  handleToggle: (k: string, v: boolean) => void;
-}
 
 const MONITORING_CAT_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string; description: string }> = {
   system_limits: { label: "System Limits",       icon: Server,          color: "text-slate-600",   bg: "bg-slate-50",   description: "Log retention, cache TTL, body limit and upload size" },

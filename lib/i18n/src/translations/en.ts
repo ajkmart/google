@@ -1795,3 +1795,4 @@ export const en = {
     vendorReviewMsg: "Your vendor application is under review. We'll notify you once approved.",
   },
 
+};

@@ -209,4 +209,24 @@ export const api = {
   /* Settings */
   getSettings:    () => apiFetch("/settings"),
   updateSettings: (data: Record<string, unknown>) => apiFetch("/settings", { method: "PUT", body: JSON.stringify(data) }),
+
+  /* Stock History */
+  getProductStockHistory: (productId: string) => apiFetch(`/vendor/products/${productId}/stock-history`),
+
+  /* Logout callback */
+  registerLogoutCallback: (fn: () => void): (() => void) => {
+    let cb: (() => void) | null = fn;
+    const prevRef = (api as any).__logoutCb as (() => void) | null ?? null;
+    (api as any).__logoutCb = fn;
+    return () => { if ((api as any).__logoutCb === cb) (api as any).__logoutCb = prevRef; cb = null; };
+  },
 };
+
+/* ── Named token-storage export (used by vendor-auth.tsx / auth/useAuth.ts) ── */
+export function getTokenStorage() {
+  return {
+    get: () => localStorage.getItem(TOKEN_KEY) ?? "",
+    set: (token: string) => { try { localStorage.setItem(TOKEN_KEY, token); } catch {} },
+    remove: () => { try { localStorage.removeItem(TOKEN_KEY); } catch {} },
+  };
+}

@@ -15,6 +15,7 @@
     "@sentry/react": "^10.47.0",
     "@workspace/admin-timing-shared": "workspace:*",
     "@workspace/api-zod": "workspace:*",
+    "@workspace/auth-react": "workspace:*",
     "@workspace/logger": "workspace:*",
     "@workspace/ui": "workspace:*",
     "mapbox-gl": "^3.20.0",

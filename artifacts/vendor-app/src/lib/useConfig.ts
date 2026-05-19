@@ -165,6 +165,8 @@ export interface VendorAuthConfig {
   google: boolean;
   facebook: boolean;
   magicLink: boolean;
+  googleClientId?: string;
+  facebookAppId?: string;
 }
 
 export function getVendorAuthConfig(config: PlatformConfig): VendorAuthConfig {
@@ -177,6 +179,8 @@ export function getVendorAuthConfig(config: PlatformConfig): VendorAuthConfig {
     google: resolveVendorFlag(a.googleEnabled),
     facebook: resolveVendorFlag(a.facebookEnabled),
     magicLink: resolveVendorFlag(a.magicLinkEnabled),
+    googleClientId: a.googleClientId,
+    facebookAppId: a.facebookAppId,
   };
 }
 

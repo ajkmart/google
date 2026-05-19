@@ -104,6 +104,8 @@ export interface PlatformConfig {
     counterMaxMultiplier?: number;
     rickshawMinFare?: number;
     dabaMinFare?: number;
+    acceptTimeoutSec?: number;
+    broadcastTimeoutSec?: number;
   };
   finance: {
     gstEnabled: boolean;
@@ -134,6 +136,20 @@ export interface PlatformConfig {
     gpsInterval: number;
     sessionDays: number;
     riderTokenDays: number;
+  };
+  dispatch?: {
+    broadcastTimeoutSec?: number;
+    acceptTimeoutSec?: number;
+    maxRetries?: number;
+    autoAssign?: boolean;
+  };
+  branding?: {
+    primaryColor?: string;
+    logoUrl?: string;
+    faviconUrl?: string;
+    appName?: string;
+    mapCenterLat?: number;
+    mapCenterLng?: number;
   };
   auth?: {
     phoneOtp?: boolean;

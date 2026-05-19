@@ -963,3 +963,131 @@ export const useOverrideSuspension = (role: "riders" | "vendors") => {
     },
   });
 };
+
+/* ─────────────────────────────────────────────
+   Service Zones
+───────────────────────────────────────────── */
+export interface ServiceZone {
+  id: number; name: string; city?: string; lat: number; lng: number; radiusKm: number;
+  isActive: boolean; appliesToRides: boolean; appliesToOrders: boolean; appliesToParcel: boolean;
+  deliveryFeeOverride?: number | null; surgeMultiplier?: number | null; notes?: string;
+  createdAt?: string; updatedAt?: string;
+}
+export const useServiceZones = () => useQuery<ServiceZone[]>({ queryKey: ["admin-service-zones"], queryFn: () => fetcher("/service-zones") });
+export const useCreateServiceZone = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (d: Record<string, unknown>) => fetcher("/service-zones", { method: "POST", body: JSON.stringify(d) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-service-zones"] }) });
+};
+export const useUpdateServiceZone = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: ({ id, ...d }: Record<string, unknown> & { id: number | null }) => fetcher(`/service-zones/${id}`, { method: "PATCH", body: JSON.stringify(d) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-service-zones"] }) });
+};
+export const useDeleteServiceZone = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: number) => fetcher(`/service-zones/${id}`, { method: "DELETE" }), onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-service-zones"] }) });
+};
+
+/* ─────────────────────────────────────────────
+   Conditions
+───────────────────────────────────────────── */
+export interface Condition { id: string; name: string; type: string; value?: unknown; isActive?: boolean; createdAt?: string; }
+export const useConditions = () => useQuery({ queryKey: ["admin-conditions"], queryFn: () => fetcher("/conditions") });
+export const useApplyCondition = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (d: Record<string, unknown>) => fetcher("/conditions/apply", { method: "POST", body: JSON.stringify(d) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-conditions"] }) });
+};
+export const useUpdateCondition = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: ({ id, ...d }: Condition) => fetcher(`/conditions/${id}`, { method: "PATCH", body: JSON.stringify(d) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-conditions"] }) });
+};
+export const useDeleteCondition = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => fetcher(`/conditions/${id}`, { method: "DELETE" }), onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-conditions"] }) });
+};
+export const useBulkConditionAction = () =>
+  useMutation({ mutationFn: (d: { ids: string[]; action: string }) => fetcher("/conditions/bulk", { method: "POST", body: JSON.stringify(d) }) });
+export const useUserConditions = (userId: string) =>
+  useQuery({ queryKey: ["admin-user-conditions", userId], queryFn: () => fetcher(`/users/${userId}/conditions`), enabled: !!userId });
+
+/* ─────────────────────────────────────────────
+   Condition Rules
+───────────────────────────────────────────── */
+export interface ConditionRule { id: string; name: string; conditionId?: string; ruleType: string; value?: unknown; isDefault?: boolean; }
+export const useConditionRules = () => useQuery({ queryKey: ["admin-condition-rules"], queryFn: () => fetcher("/condition-rules") });
+export const useCreateConditionRule = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (d: Partial<ConditionRule>) => fetcher("/condition-rules", { method: "POST", body: JSON.stringify(d) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-condition-rules"] }) });
+};
+export const useUpdateConditionRule = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: ({ id, ...d }: Partial<ConditionRule> & { id: string }) => fetcher(`/condition-rules/${id}`, { method: "PATCH", body: JSON.stringify(d) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-condition-rules"] }) });
+};
+export const useDeleteConditionRule = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => fetcher(`/condition-rules/${id}`, { method: "DELETE" }), onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-condition-rules"] }) });
+};
+export const useSeedDefaultRules = () =>
+  useMutation({ mutationFn: () => fetcher("/condition-rules/seed", { method: "POST" }) });
+export const useConditionSettings = () =>
+  useQuery({ queryKey: ["admin-condition-settings"], queryFn: () => fetcher("/condition-settings") });
+export const useUpdateConditionSettings = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (d: Record<string, unknown>) => fetcher("/condition-settings", { method: "PUT", body: JSON.stringify(d) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-condition-settings"] }) });
+};
+
+/* ─────────────────────────────────────────────
+   Revenue Analytics
+───────────────────────────────────────────── */
+export const useRevenueAnalytics = (params?: Record<string, string>) =>
+  useQuery({ queryKey: ["admin-revenue-analytics", params], queryFn: () => fetcher(`/analytics/revenue${params ? "?" + new URLSearchParams(params) : ""}`) });
+
+/* ─────────────────────────────────────────────
+   OTP Whitelist
+───────────────────────────────────────────── */
+export interface OtpWhitelistEntry { id: string; phone: string; note?: string; expiresAt?: string | null; createdAt?: string; }
+export const useOtpWhitelist = () => useQuery({ queryKey: ["admin-otp-whitelist"], queryFn: () => fetcher("/otp-whitelist") });
+export const useAddOtpWhitelist = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (d: Partial<OtpWhitelistEntry>) => fetcher("/otp-whitelist", { method: "POST", body: JSON.stringify(d) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-otp-whitelist"] }) });
+};
+export const useUpdateOtpWhitelist = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: ({ id, ...d }: Partial<OtpWhitelistEntry> & { id: string }) => fetcher(`/otp-whitelist/${id}`, { method: "PATCH", body: JSON.stringify(d) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-otp-whitelist"] }) });
+};
+export const useDeleteOtpWhitelist = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => fetcher(`/otp-whitelist/${id}`, { method: "DELETE" }), onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-otp-whitelist"] }) });
+};
+
+/* ─────────────────────────────────────────────
+   Health Dashboard
+───────────────────────────────────────────── */
+export const useHealthDashboard = () => useQuery({ queryKey: ["admin-health-dashboard"], queryFn: () => fetcher("/health/dashboard"), refetchInterval: 30_000 });
+export const useUnlockAdminIpLockout = () =>
+  useMutation({ mutationFn: (ip: string) => fetcher("/admin/unlock-ip", { method: "POST", body: JSON.stringify({ ip }) }) });
+export const useDiagnostics = () => useQuery({ queryKey: ["admin-diagnostics"], queryFn: () => fetcher("/diagnostics") });
+
+/* ─────────────────────────────────────────────
+   Orders Stats & Export
+───────────────────────────────────────────── */
+export const useOrdersStats = (params?: Record<string, string>) =>
+  useQuery({ queryKey: ["admin-orders-stats", params], queryFn: () => fetcher(`/orders/stats${params ? "?" + new URLSearchParams(params) : ""}`) });
+export async function fetchOrdersExport(params?: Record<string, string>): Promise<Blob> {
+  const token = localStorage.getItem("admin_token") ?? sessionStorage.getItem("admin_token") ?? "";
+  const qs = params ? "?" + new URLSearchParams(params) : "";
+  const res = await fetch(`/api/orders/export${qs}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error("Export failed");
+  return res.blob();
+}
+
+/* ─────────────────────────────────────────────
+   Delivery Access Requests
+───────────────────────────────────────────── */
+export interface DeliveryAccessRequest { id: string; riderId: string; riderName?: string; status: string; reason?: string; createdAt?: string; }
+export const useDeliveryAccessRequests = () => useQuery({ queryKey: ["admin-delivery-access-requests"], queryFn: () => fetcher("/delivery-access-requests") });
+export const useResolveDeliveryRequest = () => {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: ({ id, action }: { id: string; action: "approve" | "reject" }) => fetcher(`/delivery-access-requests/${id}/${action}`, { method: "POST" }), onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-delivery-access-requests"] }) });
+};
+export const useDeliveryAccessAudit = () =>
+  useQuery({ queryKey: ["admin-delivery-access-audit"], queryFn: () => fetcher("/delivery-access-requests/audit") });

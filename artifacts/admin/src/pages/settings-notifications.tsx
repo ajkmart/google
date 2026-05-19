@@ -1,17 +1,8 @@
 import { Badge } from "@/components/ui/badge";
-import { renderSection, Setting, CatKey as OrigCatKey } from "./settings-render";
+import { renderSection, Setting, CatKey as OrigCatKey, SettingsSectionProps } from "./settings-render";
 import { Bell, MessageSquare } from "lucide-react";
 
 type CatKey = string;
-
-interface SettingsSectionProps {
-  settings: Setting[];
-  grouped: Record<string, Setting[]>;
-  localValues: Record<string, string>;
-  dirtyKeys: Set<string>;
-  handleChange: (k: string, v: string) => void;
-  handleToggle: (k: string, v: boolean) => void;
-}
 
 const NOTIF_CAT_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string; description: string }> = {
   notifications: { label: "Notifications",     icon: Bell,          color: "text-yellow-600", bg: "bg-yellow-50", description: "Email templates, push notification text, fraud alert thresholds" },

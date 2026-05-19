@@ -14,7 +14,21 @@ export interface Setting { key: string; value: string; label: string; category: 
 export type CatKey = 
   "general" | "features" | "rides" | "orders" | "delivery" |
   "customer" | "rider" | "vendor" | "finance" | "payment" |
-  "content" | "integrations" | "security" | "system";
+  "content" | "integrations" | "security" | "system" |
+  "localization" | "regional" | "onboarding" | "van" | "dispatch" |
+  "weather" | "pagination" | "uploads" | "geo" | "network" |
+  "cache" | "system_limits" | "branding" | "compliance" | "ratelimit" |
+  "moderation" | "jwt" | "notifications" | "sms" | "email" |
+  "gdpr" | "terms" | "colors" | "app_store" | "pricing" | "monitoring";
+
+export interface SettingsSectionProps {
+  settings: Setting[];
+  grouped: Record<string, Setting[]>;
+  localValues: Record<string, string>;
+  dirtyKeys: Set<string>;
+  handleChange: (k: string, v: string) => void;
+  handleToggle: (k: string, v: boolean) => void;
+}
 
 export const TOGGLE_KEYS = new Set([
   "feature_mart","feature_food","feature_rides","feature_pharmacy",

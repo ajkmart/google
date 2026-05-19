@@ -310,3 +310,40 @@ export const api = {
   getSettings:    () => apiFetch("/settings"),
   updateSettings: (data: Record<string, unknown>) => apiFetch("/settings", { method: "PUT", body: JSON.stringify(data) }),
 };
+
+/* ── Order & Ride type stubs (used by HomeRequestList, OrderRequestCard, RideRequestCard) ── */
+export interface Order {
+  id: string; vendorId: string; vendorName?: string; vendorAddress?: string;
+  vendorLat?: number; vendorLng?: number;
+  customerName?: string; customerAddress?: string; customerLat?: number; customerLng?: number;
+  customerPhone?: string;
+  items?: Array<{ name: string; qty: number; price: number }>;
+  total: number; deliveryFee?: number; status: string;
+  createdAt: string; paymentMethod?: string; distance?: number;
+}
+export interface Ride {
+  id: string; customerId?: string; customerName?: string; customerPhone?: string;
+  pickupAddress: string; dropAddress: string;
+  pickupLat: number; pickupLng: number; dropLat: number; dropLng: number;
+  fare: number; distance?: number; vehicleType?: string;
+  status: string; createdAt: string;
+  dispatchedRiderId?: string;
+  counterFare?: number | null; counterNote?: string | null;
+}
+
+/* ── Named token-storage export (used by rider-auth.tsx) ── */
+export function getTokenStorage() {
+  return {
+    get: () => sessionGet(),
+    set: (token: string) => sessionSet(token),
+    remove: () => sessionRemove(),
+    getRefresh: () => localGet(),
+    setRefresh: (token: string) => localSet(token),
+    removeRefresh: () => localRemove(),
+  };
+}
+export function getRiderTokenStorage() { return getTokenStorage(); }
+
+/* A promise that resolves once the token storage layer is ready.
+   For web-based storage this is synchronous; the promise resolves immediately. */
+export const tokenStoreReady: Promise<void> = Promise.resolve();
