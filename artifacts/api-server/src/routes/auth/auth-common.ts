@@ -219,9 +219,9 @@ export async function doRefresh(refreshToken: string, ip: string, req: Request, 
   try {
     const { detectAndInvalidateFamily, TokenFamilyBreachError } = await import("../../services/auth/tokenRotation.js");
     rt = await detectAndInvalidateFamily(tokenHash);
-  } catch (err: any) {
-    if (err?.name === "TokenFamilyBreachError") {
-      writeAuthAuditLog("token_family_breach", { userId: err.userId, ip, userAgent: req.headers["user-agent"] ?? undefined });
+  } catch (err: unknown) {
+    if ((err as { name?: string })?.name === "TokenFamilyBreachError") {
+      writeAuthAuditLog("token_family_breach", { userId: (err as { userId?: string }).userId, ip, userAgent: req.headers["user-agent"] ?? undefined });
       sendUnauthorized(res, "Security breach detected. All sessions revoked. Please log in again.");
       return;
     }
@@ -253,7 +253,7 @@ export async function doRefresh(refreshToken: string, ip: string, req: Request, 
   }
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, rt.userId)).limit(1);
-  if (!user || user.isBanned || !user.isActive) {
+  if (!user || user.isBanned || (!user.isActive && user.approvalStatus !== "pending")) {
     await revokeRefreshToken(tokenHash, "USER_UNAVAILABLE");
     sendUnauthorized(res, "Account not available. Please log in again.");
     return;

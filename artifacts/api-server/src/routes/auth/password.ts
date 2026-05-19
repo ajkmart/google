@@ -238,7 +238,7 @@ router.post("/forgot-password", verifyCaptcha, sharedValidateBody(forgotPassword
   }
 
   if (user.isBanned) { sendForbidden(res, "Account suspended."); return; }
-  if (!user.isActive) { sendForbidden(res, "Account inactive."); return; }
+  if (!user.isActive && user.approvalStatus !== "pending") { sendForbidden(res, "Account inactive."); return; }
 
   const maxAttempts = parseInt(settings["security_login_max_attempts"] ?? "5", 10);
   const lockoutMinutes = parseInt(settings["security_lockout_minutes"] ?? "30", 10);

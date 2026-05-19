@@ -252,7 +252,7 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
     sendForbidden(res, "Account inactive. Contact support."); return;
   }
 
-  const updates: Record<string, any> = { updatedAt: new Date() };
+  const updates: Record<string, unknown> = { updatedAt: new Date() };
 
   if (name && name.trim().length > 1) {
     updates.name = name.trim();

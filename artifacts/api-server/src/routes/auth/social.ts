@@ -302,15 +302,15 @@ router.post("/link-google", sharedValidateBody(LinkGoogleSchema), async (req, re
       return;
     }
 
-    const updates: Record<string, any> = { googleId, updatedAt: new Date() };
+    const updates: Record<string, unknown> = { googleId, updatedAt: new Date() };
     if (email) updates["email"] = email;
 
     await db.update(usersTable).set(updates).where(eq(usersTable.id, auth.userId));
 
     AuditService.log({ action: "google_account_linked", ip, details: `Google account linked: ${email ?? googleId}`, result: "success" });
     sendSuccess(res, undefined, "Google account linked successfully");
-  } catch (err: any) {
-    sendErrorWithData(res, "Invalid Google token", { detail: err.message }, 400);
+  } catch (err: unknown) {
+    sendErrorWithData(res, "Invalid Google token", { detail: err instanceof Error ? err.message : String(err) }, 400);
   }
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
@@ -356,15 +356,15 @@ router.post("/link-facebook", sharedValidateBody(LinkFacebookSchema), async (req
       return;
     }
 
-    const updates: Record<string, any> = { facebookId, updatedAt: new Date() };
+    const updates: Record<string, unknown> = { facebookId, updatedAt: new Date() };
     if (fbPayload.email) updates["email"] = fbPayload.email;
 
     await db.update(usersTable).set(updates).where(eq(usersTable.id, auth.userId));
 
     AuditService.log({ action: "facebook_account_linked", ip, details: `Facebook account linked: ${facebookId}`, result: "success" });
     sendSuccess(res, undefined, "Facebook account linked successfully");
-  } catch (err: any) {
-    sendErrorWithData(res, "Failed to link Facebook account", { detail: err.message }, 400);
+  } catch (err: unknown) {
+    sendErrorWithData(res, "Failed to link Facebook account", { detail: err instanceof Error ? err.message : String(err) }, 400);
   }
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
@@ -444,7 +444,7 @@ router.post("/firebase-verify", sharedValidateBody(FirebaseVerifySchema), async 
     user.firebaseUid = decoded.uid;
   }
 
-  if (!user.isActive || user.isBanned) {
+  if (user.isBanned || (!user.isActive && user.approvalStatus !== "pending")) {
     sendErrorWithData(res, "Account suspended", { reason: user.banReason ?? "Contact support" }, 403);
     return;
   }

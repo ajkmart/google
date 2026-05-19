@@ -65,7 +65,7 @@ router.post("/validate-token", sharedValidateBody(ValidateTokenSchema), async (r
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, payload.userId)).limit(1);
     if (!user)         { sendUnauthorized(res, "User not found"); return; }
     if (user.isBanned) { sendForbidden(res, "Account suspended"); return; }
-    if (!user.isActive){ sendForbidden(res, "Account inactive"); return; }
+    if (!user.isActive && user.approvalStatus !== "pending") { sendForbidden(res, "Account inactive"); return; }
 
     if ((payload.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
       sendUnauthorized(res, "Token revoked"); return;

@@ -86,7 +86,7 @@ const magicLinkRateMap = new Map<string, { count: number; windowStart: number }>
   }
 
   if (user.isBanned) { sendForbidden(res, "Account suspended"); return; }
-  if (!user.isActive) { sendForbidden(res, "Account inactive"); return; }
+  if (!user.isActive && user.approvalStatus !== "pending") { sendForbidden(res, "Account inactive"); return; }
 
   const rawToken = crypto.randomBytes(32).toString("hex");
   const tokenHash = hashPassword(rawToken);
@@ -154,7 +154,7 @@ router.post("/magic-link/verify", sharedValidateBody(MagicLinkVerifySchema), asy
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, matchedRow.userId)).limit(1);
   if (!user) { sendNotFound(res, "User not found"); return; }
   if (user.isBanned) { sendForbidden(res, "Account suspended"); return; }
-  if (!user.isActive) { sendForbidden(res, "Account inactive"); return; }
+  if (!user.isActive && user.approvalStatus !== "pending") { sendForbidden(res, "Account inactive"); return; }
 
   if (!isAuthMethodEnabledStrict(settings, "auth_magic_link_enabled", "auth_magic_link", user.roles ?? "customer")) {
     sendErrorWithData(res, "Magic link login is currently disabled for your account type.", { code: "AUTH_METHOD_DISABLED" }, 400); return;
