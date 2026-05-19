@@ -287,7 +287,7 @@ export function parseUserAgent(ua?: string): { deviceName: string; browser: stri
   return { deviceName, browser, os };
 }
 
-export async function issueTokensForUser(user: any, ip: string, method: string, userAgent?: string, req?: Request, res?: Response) {
+export async function issueTokensForUser(user: typeof usersTable.$inferSelect, ip: string, method: string, userAgent?: string, req?: Request, res?: Response) {
   if (user.tokenVersion == null) {
     throw new Error(`[issueTokensForUser] tokenVersion is null for user ${user.id} — DB row may be corrupted`);
   }
