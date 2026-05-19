@@ -153,6 +153,7 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
 ══════════════════════════════════════════════════════════ */
 /* ── Build combined fallback list: hardcoded AJK + admin-managed popular locations ── */
 async function getFallbackPredictions(input: string) {
+  try {
   const query = input.toLowerCase();
 
   /* Admin-managed popular locations from DB */
@@ -168,7 +169,7 @@ async function getFallbackPredictions(input: string) {
       lat:         parseFloat(String(l.lat)),
       lng:         parseFloat(String(l.lng)),
     }));
-  } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] DB unavailable — use hardcoded only`); }
+  } catch (err) { logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[maps/fallback] DB unavailable — using hardcoded AJK locations"); }
 
   /* Merge: DB locations first (admin-curated), then hardcoded as backup */
   const dbIds = new Set(dbLocs.map(l => l.description.toLowerCase()));
@@ -179,6 +180,12 @@ async function getFallbackPredictions(input: string) {
   return combined.filter(l =>
     l.description.toLowerCase().includes(query) || l.mainText.toLowerCase().includes(query)
   );
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[maps/fallback] getFallbackPredictions unexpected error — returning hardcoded only");
+    if (!input) return AJK_FALLBACK;
+    const q = input.toLowerCase();
+    return AJK_FALLBACK.filter(l => l.description.toLowerCase().includes(q) || l.mainText.toLowerCase().includes(q));
+  }
 }
 
 router.get("/autocomplete", async (req, res, next) => {

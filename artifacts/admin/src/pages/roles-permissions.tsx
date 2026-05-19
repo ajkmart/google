@@ -554,7 +554,7 @@ export default function RolesPermissionsPage() {
           const r = await fetchAdmin(`/system/rbac/admins/${a.id}/roles`);
           const rs: RbacRole[] = r?.data?.roles ?? r?.roles ?? [];
           map[a.id] = rs.map(x => x.id);
-        } catch { map[a.id] = []; }
+        } catch (err: unknown) { console.debug("[roles-permissions] admin role fetch failed for", a.id, ":", err instanceof Error ? err.message : String(err)); map[a.id] = []; }
       }));
       setAdminRoleMap(map);
     } catch (err) {

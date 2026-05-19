@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type NextFunction } from "express";
 import { db } from "@workspace/db";
 import {
   usersTable,
@@ -298,7 +298,8 @@ async function reseedProducts(): Promise<{ mart: number; food: number }> {
 ═══════════════════════════════════════════════════════════════════════════ */
 
 /* GET /admin/system/stats */
-router.get("/stats", async (_req, res) => {
+router.get("/stats", async (_req, res, next: NextFunction) => {
+  try {
   const [users]         = await db.select({ c: count() }).from(usersTable);
   const [orders]        = await db.select({ c: count() }).from(ordersTable);
   const [rides]         = await db.select({ c: count() }).from(ridesTable);
@@ -341,10 +342,11 @@ router.get("/stats", async (_req, res) => {
     },
     generatedAt: new Date().toISOString(),
   });
+  } catch (err) { next(err); }
 });
 
 /* GET /admin/system/snapshots — list active (non-expired) snapshots */
-router.get("/snapshots", async (_req, res) => {
+router.get("/snapshots", async (_req, res, next: NextFunction) => {
   try {
   const rows = await db.select({
     id:        systemSnapshotsTable.id,
@@ -361,10 +363,7 @@ router.get("/snapshots", async (_req, res) => {
       expiresAt: r.expiresAt.toISOString(),
     })),
   });
-  } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
+  } catch (err) { next(err); }
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -372,7 +371,7 @@ router.get("/snapshots", async (_req, res) => {
 ═══════════════════════════════════════════════════════════════════════════ */
 
 /* POST /admin/system/reset-demo */
-router.post("/reset-demo", async (_req, res) => {
+router.post("/reset-demo", async (_req, res, next: NextFunction) => {
   try {
   const snap = await snapshotBefore("Reset Demo Content", "reset-demo", [
     "orders", "rides", "pharmacy_orders", "parcel_bookings",
@@ -399,14 +398,11 @@ router.post("/reset-demo", async (_req, res) => {
     walletReset: `All wallets reset to Rs. ${DEMO_WALLET_BALANCE}`,
     ...snap,
   });
-  } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
+  } catch (err) { next(err); }
 });
 
 /* POST /admin/system/reset-transactional */
-router.post("/reset-transactional", async (_req, res) => {
+router.post("/reset-transactional", async (_req, res, next: NextFunction) => {
   try {
   const snap = await snapshotBefore("Clear Transactional Data", "reset-transactional", [
     "orders", "rides", "pharmacy_orders", "parcel_bookings",
@@ -428,14 +424,11 @@ router.post("/reset-transactional", async (_req, res) => {
     message: "All transactional data cleared. Users, products and settings preserved.",
     ...snap,
   });
-  } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
+  } catch (err) { next(err); }
 });
 
 /* POST /admin/system/reset-products */
-router.post("/reset-products", async (_req, res) => {
+router.post("/reset-products", async (_req, res, next: NextFunction) => {
   try {
   const snap = await snapshotBefore("Reseed Products", "reset-products", ["products"]);
   const { mart, food } = await reseedProducts();
@@ -445,14 +438,11 @@ router.post("/reset-products", async (_req, res) => {
     seeded: { mart, food },
     ...snap,
   });
-  } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
+  } catch (err) { next(err); }
 });
 
 /* POST /admin/system/reset-all */
-router.post("/reset-all", async (_req, res) => {
+router.post("/reset-all", async (_req, res, next: NextFunction) => {
   try {
   const snap = await snapshotBefore("Full Database Reset", "reset-all", [
     "users", "orders", "rides", "pharmacy_orders", "parcel_bookings",
@@ -482,14 +472,11 @@ router.post("/reset-all", async (_req, res) => {
     reseeded: { mart_products: mart, food_products: food },
     ...snap,
   });
-  } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
+  } catch (err) { next(err); }
 });
 
 /* POST /admin/system/reset-settings */
-router.post("/reset-settings", async (_req, res) => {
+router.post("/reset-settings", async (_req, res, next: NextFunction) => {
   try {
   const snap = await snapshotBefore("Reset Platform Settings", "reset-settings", ["platform_settings"]);
   await db.delete(platformSettingsTable);
@@ -499,10 +486,7 @@ router.post("/reset-settings", async (_req, res) => {
     message: "All platform settings deleted. Settings will be reseeded to defaults on next admin panel visit.",
     ...snap,
   });
-  } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
+  } catch (err) { next(err); }
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -517,7 +501,7 @@ const REMOVABLE_TABLES = [
   "live_locations", "users",
 ];
 
-router.post("/remove-all", async (_req, res) => {
+router.post("/remove-all", async (_req, res, next: NextFunction) => {
   try {
     const snap = await snapshotBefore("Remove All Data", "remove-all", REMOVABLE_TABLES);
 
@@ -639,7 +623,7 @@ const DEMO_PROMO_CODES = [
 function daysAgo(n: number) { return new Date(Date.now() - n * 86400000); }
 function hoursAgo(n: number) { return new Date(Date.now() - n * 3600000); }
 
-router.post("/seed-demo", async (_req, res) => {
+router.post("/seed-demo", async (_req, res, next: NextFunction) => {
   const snap = await snapshotBefore("Load Demo Data", "seed-demo", REMOVABLE_TABLES);
 
   const counts: Record<string, number> = {};
@@ -987,13 +971,7 @@ router.post("/seed-demo", async (_req, res) => {
       counts,
       ...snap,
     });
-  } catch (e: unknown) {
-    res.status(500).json({
-      success: false,
-      error: `Seed failed: ${(e as Error).message}`,
-      ...snap,
-    });
-  }
+  } catch (e: unknown) { next(e as Error); }
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1001,7 +979,7 @@ router.post("/seed-demo", async (_req, res) => {
 ═══════════════════════════════════════════════════════════════════════════ */
 
 /* POST /admin/system/undo/:id */
-router.post("/undo/:id", async (req, res) => {
+router.post("/undo/:id", async (req, res, next: NextFunction) => {
   const { id } = req.params as Record<string, string>;
   const [snapshot] = await db.select().from(systemSnapshotsTable).where(eq(systemSnapshotsTable.id, id));
 
@@ -1019,8 +997,8 @@ router.post("/undo/:id", async (req, res) => {
   try {
     tables = JSON.parse(snapshot.tablesJson);
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), code: "SNAPSHOT_PARSE_FAILED", timestamp: new Date().toISOString() }, "[system] Snapshot JSON parse failed — data may be corrupted");
-    res.status(500).json({ error: "Snapshot data is corrupted." });
+    logger.warn({ err: err instanceof Error ? err.message : String(err), code: "SNAPSHOT_PARSE_FAILED" }, "[system] Snapshot JSON parse failed — data may be corrupted");
+    next(new Error("Snapshot data is corrupted."));
     return;
   }
 
@@ -1043,7 +1021,7 @@ router.post("/undo/:id", async (req, res) => {
 });
 
 /* DELETE /admin/system/snapshots/:id — dismiss (discard undo without restoring) */
-router.delete("/snapshots/:id", async (req, res) => {
+router.delete("/snapshots/:id", async (req, res, next: NextFunction) => {
   const { id } = req.params as Record<string, string>;
   await db.delete(systemSnapshotsTable).where(eq(systemSnapshotsTable.id, id));
   res.json({ success: true, message: "Snapshot dismissed. The action is now permanent." });
@@ -1059,7 +1037,7 @@ router.delete("/snapshots/:id", async (req, res) => {
 ───────────────────────────────────────────────────────────────────────────── */
 
 /* GET /admin/system/demo-backups — list all saved demo backups */
-router.get("/demo-backups", async (_req, res) => {
+router.get("/demo-backups", async (_req, res, next: NextFunction) => {
   try {
   const rows = await db.select({
     id: demoBackupsTable.id,
@@ -1069,14 +1047,11 @@ router.get("/demo-backups", async (_req, res) => {
     createdAt: demoBackupsTable.createdAt,
   }).from(demoBackupsTable).orderBy(demoBackupsTable.createdAt);
   sendSuccess(res, rows);
-  } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
+  } catch (err) { next(err); }
 });
 
 /* POST /admin/system/demo-backups — create a new demo backup */
-router.post("/demo-backups", async (req, res) => {
+router.post("/demo-backups", async (req, res, next: NextFunction) => {
   try {
   const label = (req.body?.label as string | undefined)?.trim() || `Demo Backup ${new Date().toLocaleDateString("ur-PK")}`;
 
@@ -1131,14 +1106,11 @@ router.post("/demo-backups", async (req, res) => {
   await db.insert(demoBackupsTable).values({ id, label, tablesJson, rowsTotal, sizeKb });
 
   sendSuccess(res, { id, label, rowsTotal, sizeKb, createdAt: new Date().toISOString() });
-  } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
+  } catch (err) { next(err); }
 });
 
 /* POST /admin/system/demo-backups/:id/restore — restore from a demo backup */
-router.post("/demo-backups/:id/restore", async (req, res) => {
+router.post("/demo-backups/:id/restore", async (req, res, next: NextFunction) => {
   try {
   const { id } = req.params as Record<string, string>;
   const row = await db.select().from(demoBackupsTable).where(eq(demoBackupsTable.id, id)).limit(1);
@@ -1165,26 +1137,20 @@ router.post("/demo-backups/:id/restore", async (req, res) => {
     errors: errors.length > 0 ? errors : undefined,
     ...snap,
   });
-  } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
+  } catch (err) { next(err); }
 });
 
 /* DELETE /admin/system/demo-backups/:id — delete a demo backup */
-router.delete("/demo-backups/:id", async (req, res) => {
+router.delete("/demo-backups/:id", async (req, res, next: NextFunction) => {
   try {
   const { id } = req.params as Record<string, string>;
   await db.delete(demoBackupsTable).where(eq(demoBackupsTable.id, id));
   sendSuccess(res, { deleted: id });
-  } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
+  } catch (err) { next(err); }
 });
 
 /* GET /admin/system/backup — full database export as JSON file */
-router.get("/backup", async (_req, res) => {
+router.get("/backup", async (_req, res, next: NextFunction) => {
   try {
   const [
     users, orders, rides, pharmacy, parcel, products,
@@ -1240,14 +1206,11 @@ router.get("/backup", async (_req, res) => {
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
   res.json(backup);
-  } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
+  } catch (err) { next(err); }
 });
 
 /* POST /admin/system/restore */
-router.post("/restore", async (req, res) => {
+router.post("/restore", async (req, res, next: NextFunction) => {
   try {
   const body = req.body as { tables?: Record<string, unknown[]> };
   if (!body?.tables) {
@@ -1267,10 +1230,7 @@ router.post("/restore", async (req, res) => {
     errors: errors.length > 0 ? errors : undefined,
     ...snap,
   });
-  } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
+  } catch (err) { next(err); }
 });
 
 export default router;

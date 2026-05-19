@@ -355,9 +355,12 @@ export async function broadcastRide(rideId: string) {
 }
 
 export async function cleanupNotifiedRiders(rideId: string) {
-  await db.delete(rideNotifiedRidersTable)
-    .where(eq(rideNotifiedRidersTable.rideId, rideId))
-    .catch((e: Error) => logger.warn({ rideId, err: e.message }, "[rides] cleanupNotifiedRiders failed"));
+  try {
+    await db.delete(rideNotifiedRidersTable)
+      .where(eq(rideNotifiedRidersTable.rideId, rideId));
+  } catch (e: unknown) {
+    logger.warn({ rideId, err: e instanceof Error ? e.message : String(e) }, "[rides] cleanupNotifiedRiders failed");
+  }
 }
 
 export class RideApiError extends Error {

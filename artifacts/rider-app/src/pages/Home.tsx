@@ -593,7 +593,7 @@ export default function Home() {
     onSuccess: (_: unknown, id: string) => {
       /* Accepted items should NOT be added to the dismissed set (dismissed = rejected by rider).
          Remove the id from dismissed persistence if it was there, and prune cache directly. */
-      removeDismissed(id).catch(() => { /* non-critical */ });
+      removeDismissed(id).catch((err: unknown) => { console.debug("[Home] removeDismissed order accept failed:", err); });
       setDismissed((prev) => { const next = new Set([...prev]); next.delete(id); return next; });
       qc.setQueryData(["rider-requests"], (old: { orders?: { id: string }[]; rides?: { id: string }[] } | undefined) => {
         if (!old) return old;
@@ -641,7 +641,7 @@ export default function Home() {
     onSuccess: (_: unknown, id: string) => {
       /* Accepted items should NOT be added to the dismissed set (dismissed = rejected by rider).
          Remove the id from dismissed persistence if it was there, and prune cache directly. */
-      removeDismissed(id).catch(() => { /* non-critical */ });
+      removeDismissed(id).catch((err: unknown) => { console.debug("[Home] removeDismissed ride accept failed:", err); });
       setDismissed((prev) => { const next = new Set([...prev]); next.delete(id); return next; });
       qc.setQueryData(["rider-requests"], (old: { orders?: { id: string }[]; rides?: { id: string }[] } | undefined) => {
         if (!old) return old;

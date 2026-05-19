@@ -36,6 +36,7 @@ import { emitVanLocation, emitVanTripUpdate } from "../lib/socketio.js";
    Helper: get van settings from platform_settings
 ═══════════════════════════════════════════════════════════════ */
 async function getVanSettings() {
+  try {
   const s = await getCachedSettings();
   return {
     minAdvanceHours: parseInt(s["van_min_advance_hours"] ?? "2"),
@@ -61,6 +62,10 @@ async function getVanSettings() {
       }
     })(),
   };
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[van] getVanSettings failed");
+    throw err;
+  }
 }
 
 function isInPeakHours(timeStr: string, peakHoursSpec: string): boolean {
