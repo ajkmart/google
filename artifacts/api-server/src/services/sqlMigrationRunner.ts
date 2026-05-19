@@ -70,20 +70,38 @@ export async function runSqlMigrations() {
         if (rows.length) continue;
         const sql = fs.readFileSync(path.join(drizzleDir, file), "utf8");
         // Drizzle files use --> statement-breakpoint comments as separators.
-        // Strip them and run the file as a single transaction-compatible block.
-        const cleaned = sql.replace(/--> statement-breakpoint/g, "");
-        try {
-          await pool.query(cleaned);
-        } catch (err: any) {
-          // PG error codes: 42P07 = duplicate_table, 42710 = duplicate_object,
-          // 42701 = duplicate_column, 42P16 = invalid_table_definition (idx already exists)
-          const alreadyExists = ["42P07", "42710", "42701", "42P16", "42P11"].includes(err.code);
-          if (alreadyExists) {
-            logger.warn({ file, code: err.code, msg: err.message }, "[migrations:drizzle] Skipping — objects already exist (marking as applied)");
-          } else {
-            logger.error({ file, err }, "[migrations:drizzle] FAILED applying migration");
-            throw err;
+        // Split on them so each DDL statement runs individually — this lets us
+        // handle per-statement errors (e.g. already-exists, unsupported syntax).
+        const statements = sql
+          .split(/--> statement-breakpoint/)
+          .map(s => s.trim())
+          .filter(s => s.length > 0);
+        let hadFatal = false;
+        for (const stmt of statements) {
+          // Rewrite "CREATE TYPE IF NOT EXISTS" → plain "CREATE TYPE" because
+          // PostgreSQL doesn't support IF NOT EXISTS on TYPE in all versions.
+          // We catch the duplicate_object error (42710) below instead.
+          const normalised = stmt.replace(
+            /CREATE TYPE IF NOT EXISTS/gi,
+            "CREATE TYPE"
+          );
+          try {
+            await pool.query(normalised);
+          } catch (err: any) {
+            // PG error codes: 42P07 = duplicate_table, 42710 = duplicate_object,
+            // 42701 = duplicate_column, 42P16 = invalid_table_definition (idx already exists)
+            const alreadyExists = ["42P07", "42710", "42701", "42P16", "42P11"].includes(err.code);
+            if (alreadyExists) {
+              logger.warn({ file, code: err.code, msg: err.message }, "[migrations:drizzle] Skipping statement — objects already exist");
+            } else {
+              logger.error({ file, stmt: normalised.slice(0, 120), err }, "[migrations:drizzle] FAILED applying statement");
+              hadFatal = true;
+              break;
+            }
           }
+        }
+        if (hadFatal) {
+          throw new Error(`Migration ${file} had a fatal statement error — see logs above`);
         }
         await pool.query(
           "INSERT INTO _drizzle_migrations (filename) VALUES ($1)",
