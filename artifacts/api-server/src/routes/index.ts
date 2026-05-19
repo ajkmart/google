@@ -1,9 +1,22 @@
 import { Router, type IRouter } from "express";
+import type { Request, Response, NextFunction } from "express";
+
+import { adminAuth } from "./admin-shared.js";
+import { userApiLimiter, publicLimiter } from "../middleware/rate-limit.js";
+import { verifyTokenFamily, checkSessionRevocation } from "../middleware/auth.js";
+
+// ── Infrastructure / health ────────────────────────────────────────────────
 import healthRouter from "./health.js";
+
+// ── Auth ───────────────────────────────────────────────────────────────────
 import authRouter from "./auth/index.js";
+import adminAuthV2Router from "./admin-auth-v2.js";
+
+// ── Customer-facing routers ────────────────────────────────────────────────
 import usersRouter from "./users.js";
 import productsRouter from "./products.js";
 import ordersRouter from "./orders.js";
+import cartRouter from "./cart.js";
 import walletRouter from "./wallet.js";
 import ridesRouter from "./rides/index.js";
 import locationsRouter from "./locations.js";
@@ -13,57 +26,66 @@ import parcelRouter from "./parcel.js";
 import notificationsRouter from "./notifications.js";
 import addressesRouter from "./addresses.js";
 import settingsRouter from "./settings.js";
-import seedRouter from "./seed.js";
-import adminRouter from "./admin.js";
-import adminAuthV2Router from "./admin-auth-v2.js";
-import platformConfigRouter from "./platform-config.js";
-import riderRouter from "./rider/index.js";
-import vendorRouter from "./vendor.js";
 import paymentsRouter from "./payments.js";
 import reviewsRouter from "./reviews.js";
-import systemRouter from "./system.js";
-import mapsRouter, { adminMapsRouter } from "./maps.js";
-import schoolRouter, { adminSchoolRouter } from "./school.js";
-import uploadsRouter from "./uploads.js";
 import sosRouter from "./sos.js";
-import recommendationsRouter from "./recommendations.js";
 import bannersRouter from "./banners.js";
 import variantsRouter from "./variants.js";
 import pushRouter from "./push.js";
 import kycRouter from "./kyc.js";
 import wishlistRouter from "./wishlist.js";
+import referralsRouter from "./referrals.js";
+import loyaltyRouter from "./loyalty.js";
+import loyaltyFullRouter from "./loyalty-full.js";
+
+// ── Rider routers ──────────────────────────────────────────────────────────
+// rider/index.ts is the single canonical rider router — rider.ts (root-level)
+// was a superseded copy and has been removed.  All active rider logic lives in
+// rider/index.ts which also exports clearSpoofHits() used by auth sub-routes.
+import riderRouter from "./rider/index.js";
+
+// ── Vendor routers ─────────────────────────────────────────────────────────
+import vendorRouter from "./vendor.js";
+import publicVendorsRouter from "./public-vendors.js";
+
+// ── Shared / public surface ────────────────────────────────────────────────
+import mapsRouter, { adminMapsRouter } from "./maps.js";
+import schoolRouter, { adminSchoolRouter } from "./school.js";
+import uploadsRouter from "./uploads.js";
+import recommendationsRouter from "./recommendations.js";
+import deepLinksPublicRouter from "./deep-links-public.js";
+import platformConfigRouter from "./platform-config.js";
+import statsRouter from "./stats.js";
+import metricsRouter from "./metrics.js";
+import docsRouter from "./docs.js";
+
+// ── Admin routers ──────────────────────────────────────────────────────────
+import adminRouter from "./admin.js";
+import systemRouter from "./system.js";
+import sentryWebhookRouter from "./sentry-webhook.js";
+import legalRouter from "./legal.js";
+import errorReportsRouter from "./error-reports.js";
+
+// ── Feature / domain routers ───────────────────────────────────────────────
 import vanRouter from "./van.js";
 import webhooksRouter from "./webhooks.js";
 import deliveryEligibilityRouter from "./delivery-eligibility.js";
 import popupsRouter from "./popups.js";
 import promotionsRouter from "./promotions/index.js";
 import supportChatRouter from "./support-chat.js";
-import publicVendorsRouter from "./public-vendors.js";
-import statsRouter from "./stats.js";
-import metricsRouter from "./metrics.js";
-import errorReportsRouter from "./error-reports.js";
 import communicationRouter from "./communication.js";
 import weatherConfigRouter from "./weather-config.js";
-import deepLinksPublicRouter from "./deep-links-public.js";
-import legalRouter from "./legal.js";
-import docsRouter from "./docs.js";
-import sentryWebhookRouter from "./sentry-webhook.js";
-import cartRouter from "./cart.js";
-import referralsRouter from "./referrals.js";
-import loyaltyRouter from "./loyalty.js";
 import experimentsRouter from "./experiments.js";
 import whatsappDeliveryRouter from "./whatsapp-delivery.js";
 import businessRulesRouter from "./business-rules.js";
-import loyaltyFullRouter from "./loyalty-full.js";
-import { adminAuth } from "./admin-shared.js";
-import { userApiLimiter, publicLimiter } from "../middleware/rate-limit.js";
-import { verifyTokenFamily, checkSessionRevocation } from "../middleware/auth.js";
-import type { Request, Response, NextFunction } from "express";
+
+// ── Dev-only ───────────────────────────────────────────────────────────────
+import seedRouter from "./seed.js";
 
 /**
- * Wraps publicLimiter so it only fires on GET / HEAD requests.
- * POST/PUT/PATCH/DELETE child routes (e.g. POST /recommendations/track)
- * are not subject to the read-scraping limit.
+ * publicGetLimiter — rate-limits only GET / HEAD requests.
+ * POST / PATCH / DELETE routes (e.g. POST /recommendations/track) are excluded
+ * so mutation endpoints are not subject to the read-scraping limit.
  */
 function publicGetLimiter(req: Request, res: Response, next: NextFunction): void {
   if (req.method !== "GET" && req.method !== "HEAD") { next(); return; }
@@ -72,119 +94,191 @@ function publicGetLimiter(req: Request, res: Response, next: NextFunction): void
 
 const router: IRouter = Router();
 
+// ── 1. Infrastructure ──────────────────────────────────────────────────────
 router.use("/health", healthRouter);
 
+// ── 2. Auth ────────────────────────────────────────────────────────────────
 /**
- * Legacy customer-facing /api/auth router (OTP, login, refresh, 2FA, social
- * sign-in for AJKMart users). The admin SSoT lives entirely under
- * /api/admin/auth/* (admin-auth-v2). Set ADMIN_LEGACY_AUTH_DISABLED=1 to
- * fully unmount this router once all clients have migrated. Defaults to
- * mounted to keep the customer (ajkmart) app functional.
+ * Legacy customer /api/auth router — OTP, login, refresh, 2FA, social sign-in
+ * for AJKMart users.  The admin SSoT lives entirely under /api/admin/auth/*
+ * (admin-auth-v2).  Set ADMIN_LEGACY_AUTH_DISABLED=1 to unmount this once all
+ * clients have migrated.  Defaults to mounted to keep the mobile app working.
  */
 if (process.env["ADMIN_LEGACY_AUTH_DISABLED"] !== "1") {
   router.use("/auth", authRouter);
 }
-router.use("/users", checkSessionRevocation, verifyTokenFamily, usersRouter);
-router.use("/products", publicGetLimiter, productsRouter);
-router.use("/orders", checkSessionRevocation, verifyTokenFamily, userApiLimiter, ordersRouter);
-router.use("/cart", checkSessionRevocation, verifyTokenFamily, userApiLimiter, cartRouter);
-router.use("/wallet", checkSessionRevocation, verifyTokenFamily, userApiLimiter, walletRouter);
-router.use("/rides", checkSessionRevocation, verifyTokenFamily, userApiLimiter, ridesRouter);
-router.use("/locations", locationsRouter);
-router.use("/categories", publicGetLimiter, categoriesRouter);
-router.use("/pharmacy-orders", checkSessionRevocation, verifyTokenFamily, userApiLimiter, pharmacyRouter);
-router.use("/parcel-bookings", checkSessionRevocation, verifyTokenFamily, userApiLimiter, parcelRouter);
-router.use("/notifications", checkSessionRevocation, verifyTokenFamily, userApiLimiter, notificationsRouter);
-router.use("/addresses", checkSessionRevocation, verifyTokenFamily, userApiLimiter, addressesRouter);
-router.use("/settings", settingsRouter);
-if (process.env["NODE_ENV"] !== "production") {
-  router.use("/seed", seedRouter);
-}
-router.use("/admin/system", adminAuth, systemRouter);
-// Sentry webhook is public (HMAC-verified) — must be mounted BEFORE adminRouter
-// so it is NOT intercepted by adminAuth. The route is POST /admin/sentry-webhook.
-router.use(sentryWebhookRouter);
-// admin-auth-v2 owns the entire /api/admin/auth/* surface. Mount it BEFORE
-// the resource adminRouter so its public endpoints (forgot-password,
-// reset-password, login) are not shadowed by adminRouter's blanket
-// `adminAuth` middleware. The more-specific prefix wins in Express.
-router.use("/admin/auth", adminAuthV2Router);
-router.use("/admin", adminRouter);
-router.use("/platform-config", platformConfigRouter);
-router.use("/riders", riderRouter);
-router.use("/payments", paymentsRouter);
-router.use("/reviews", userApiLimiter, reviewsRouter);
-router.use("/maps", mapsRouter);
-/* /api/admin/maps/{test|usage|cache/clear} — dedicated admin maps router
-   so admin clients using the /api/admin prefix reach the right handlers.
-   These endpoints match the task's required contract exactly. */
-router.use("/admin/maps", adminMapsRouter);
-router.use("/school", schoolRouter);
-router.use("/uploads", uploadsRouter);
-router.use("/sos", checkSessionRevocation, verifyTokenFamily, userApiLimiter, sosRouter);
-router.use("/recommendations", publicGetLimiter, userApiLimiter, recommendationsRouter);
-router.use("/banners", publicGetLimiter, bannersRouter);
-router.use("/variants", variantsRouter);
-router.use("/push", checkSessionRevocation, verifyTokenFamily, userApiLimiter, pushRouter);
-router.use("/kyc", checkSessionRevocation, verifyTokenFamily, userApiLimiter, kycRouter);
-router.use("/wishlist", checkSessionRevocation, verifyTokenFamily, userApiLimiter, wishlistRouter);
-router.use("/van", vanRouter);
-router.use("/webhooks", webhooksRouter);
-router.use("/delivery/eligibility", deliveryEligibilityRouter);
-router.use("/popups", popupsRouter);
-router.use("/promotions", publicGetLimiter, promotionsRouter);
-router.use("/admin/promotions", adminAuth, promotionsRouter);
-router.use("/support-chat", supportChatRouter);
-/* Public vendor browsing — GET/HEAD only. Authenticated management routes
-   in vendorRouter are guarded by mounting publicVendorsRouter only for read
-   methods so it cannot shadow authenticated vendor management GET routes. */
-router.use("/vendors", publicGetLimiter, (req, res, next): void => {
-  if (req.method === "GET" || req.method === "HEAD") { publicVendorsRouter(req, res, next); return; }
-  next();
-});
-router.use("/vendors", vendorRouter);
-router.use("/stats", statsRouter);
-router.use("/metrics", metricsRouter);
-router.use("/error-reports", errorReportsRouter);
-router.use("/admin/error-reports", errorReportsRouter);
-router.use("/communication", communicationRouter);
-router.use("/weather-config", weatherConfigRouter);
-router.use("/dl", publicGetLimiter, deepLinksPublicRouter);
 
 /**
- * Legal / consent surface used by the admin "Consent & Terms Versions"
- * page. Mounted under both `/api/legal` (the contract documented in the
- * page header) and `/api/admin/legal` (the path the admin fetcher
- * actually targets, since `fetchAdmin` always prepends `/api/admin`).
- * Both mounts require admin auth — consent records are GDPR-sensitive
- * and the POST publishes new policy versions.
+ * Admin auth (v2) must be mounted BEFORE the resource adminRouter so its
+ * public sub-endpoints (forgot-password, reset-password, login) are not
+ * shadowed by adminRouter's blanket adminAuth middleware.
+ */
+router.use("/admin/auth", adminAuthV2Router);
+
+// ── 3. Admin surface ───────────────────────────────────────────────────────
+/**
+ * Sentry webhook is public (HMAC-verified) — must come BEFORE adminRouter so
+ * it is never blocked by adminAuth.  Owns POST /api/admin/sentry-webhook.
+ */
+router.use(sentryWebhookRouter);
+
+/**
+ * /api/admin/system/* — legacy monolith system router.  Mounted with an
+ * explicit /admin/system prefix so it is reachable alongside the newer
+ * adminRouter sub-router tree (which owns /api/admin/*).
+ */
+router.use("/admin/system", adminAuth, systemRouter);
+
+/**
+ * Primary admin barrel router — mounts all /api/admin/* resource sub-routers
+ * (orders, rides, finance, content, RBAC, …) behind a single adminAuth guard.
+ */
+router.use("/admin", adminRouter);
+
+/**
+ * /api/admin/maps — dedicated admin maps router so admin clients using the
+ * /api/admin prefix reach the map-test / usage / cache-clear handlers without
+ * being caught by the public /api/maps router below.
+ */
+router.use("/admin/maps", adminMapsRouter);
+
+/**
+ * /api/admin/school — paginated subscriptions + cancel (admin-only).
+ */
+router.use("/admin/school", adminSchoolRouter);
+
+/**
+ * /api/whatsapp — WhatsApp delivery analytics and retry (admin-only writes).
+ */
+router.use("/whatsapp", adminAuth, whatsappDeliveryRouter);
+
+/**
+ * /api/business-rules — dynamic platform business-rules engine (admin-only writes).
+ */
+router.use("/business-rules", adminAuth, businessRulesRouter);
+
+/**
+ * Legal / consent surface — GDPR terms versions and consent log.
+ *
+ * Dual mount:
+ *   /api/legal           → for external tooling / API contracts (adminAuth required)
+ *   /api/admin/legal     → used by the admin panel (fetchAdmin prepends /api/admin)
+ *
+ * Both mounts enforce adminAuth because the consent log is GDPR-sensitive and
+ * POST publishes new policy versions.  No public or customer-facing endpoint
+ * lives in this router.
  */
 router.use("/legal", adminAuth, legalRouter);
 router.use("/admin/legal", adminAuth, legalRouter);
 
-router.use("/docs", docsRouter);
+// ── 4. Rider surface ───────────────────────────────────────────────────────
+router.use("/riders", riderRouter);
 
-router.use("/referrals", userApiLimiter, referralsRouter);
-/*
- * Two routers are intentionally mounted under /loyalty — there is NO route overlap.
- * loyaltyRouter (below) owns POST /loyalty/redeem and GET /loyalty/balance.
- *   It is auth-gated by userApiLimiter and handles customer-facing loyalty actions.
- * loyaltyFullRouter (further below) owns GET /loyalty/settings, /loyalty/leaderboard,
- *   and /loyalty/stats plus all admin CRUD for campaigns and rewards.
- * Express resolves requests sequentially; the first router to match a path wins,
- * so the split works correctly without any handler collisions.
+// ── 5. Vendor surface ──────────────────────────────────────────────────────
+/**
+ * Vendor browsing dual mount:
+ *   /api/vendors (GET/HEAD only) → publicVendorsRouter  — public store listing
+ *   /api/vendors (all methods)   → vendorRouter          — authenticated management
+ *
+ * The method gate prevents publicVendorsRouter from shadowing authenticated
+ * vendorRouter GET routes (e.g. GET /vendors/me, GET /vendors/orders).
+ * Express walks middleware in order so the public router short-circuits on
+ * GET/HEAD and falls through to vendorRouter for mutating methods.
  */
-/* loyalty/redeem lives at POST /api/loyalty/redeem — separate from /users */
-router.use("/loyalty", userApiLimiter, loyaltyRouter);
-/* loyalty-full provides comprehensive loyalty features — points, tiers, rewards */
+router.use("/vendors", publicGetLimiter, (req: Request, res: Response, next: NextFunction): void => {
+  if (req.method === "GET" || req.method === "HEAD") { publicVendorsRouter(req, res, next); return; }
+  next();
+});
+router.use("/vendors", vendorRouter);
+
+// ── 6. Customer-facing authenticated routes ────────────────────────────────
+router.use("/users",           checkSessionRevocation, verifyTokenFamily, usersRouter);
+router.use("/orders",          checkSessionRevocation, verifyTokenFamily, userApiLimiter, ordersRouter);
+router.use("/cart",            checkSessionRevocation, verifyTokenFamily, userApiLimiter, cartRouter);
+router.use("/wallet",          checkSessionRevocation, verifyTokenFamily, userApiLimiter, walletRouter);
+router.use("/rides",           checkSessionRevocation, verifyTokenFamily, userApiLimiter, ridesRouter);
+router.use("/pharmacy-orders", checkSessionRevocation, verifyTokenFamily, userApiLimiter, pharmacyRouter);
+router.use("/parcel-bookings", checkSessionRevocation, verifyTokenFamily, userApiLimiter, parcelRouter);
+router.use("/notifications",   checkSessionRevocation, verifyTokenFamily, userApiLimiter, notificationsRouter);
+router.use("/addresses",       checkSessionRevocation, verifyTokenFamily, userApiLimiter, addressesRouter);
+router.use("/sos",             checkSessionRevocation, verifyTokenFamily, userApiLimiter, sosRouter);
+router.use("/push",            checkSessionRevocation, verifyTokenFamily, userApiLimiter, pushRouter);
+router.use("/kyc",             checkSessionRevocation, verifyTokenFamily, userApiLimiter, kycRouter);
+router.use("/wishlist",        checkSessionRevocation, verifyTokenFamily, userApiLimiter, wishlistRouter);
+router.use("/referrals",       userApiLimiter, referralsRouter);
+
+// ── 7. Public / lightly-gated customer routes ─────────────────────────────
+router.use("/products",       publicGetLimiter, productsRouter);
+router.use("/categories",     publicGetLimiter, categoriesRouter);
+router.use("/banners",        publicGetLimiter, bannersRouter);
+router.use("/recommendations",publicGetLimiter, userApiLimiter, recommendationsRouter);
+router.use("/locations",      locationsRouter);
+router.use("/settings",       settingsRouter);
+router.use("/payments",       paymentsRouter);
+router.use("/reviews",        userApiLimiter, reviewsRouter);
+router.use("/maps",           mapsRouter);
+router.use("/school",         schoolRouter);
+router.use("/uploads",        uploadsRouter);
+router.use("/variants",       variantsRouter);
+router.use("/platform-config",platformConfigRouter);
+router.use("/dl",             publicGetLimiter, deepLinksPublicRouter);
+
+// ── 8. Feature domains ─────────────────────────────────────────────────────
+router.use("/van",                vanRouter);
+router.use("/webhooks",           webhooksRouter);
+router.use("/delivery/eligibility", deliveryEligibilityRouter);
+router.use("/popups",             popupsRouter);
+router.use("/support-chat",       supportChatRouter);
+router.use("/communication",      communicationRouter);
+router.use("/weather-config",     weatherConfigRouter);
+router.use("/experiments",        experimentsRouter);
+
+/**
+ * Promotions dual mount:
+ *   /api/promotions        → public browsing (GET /promotions/public, apply promo codes,
+ *                            vendor campaign participation).  publicGetLimiter guards reads.
+ *   /api/admin/promotions  → full admin management behind adminAuth.
+ *
+ * Every write endpoint inside promotionsRouter (campaigns, offers, templates)
+ * carries its own adminAuth / marketingAuth guard so mutations remain protected
+ * even when reached via the public /api/promotions prefix.
+ */
+router.use("/promotions",       publicGetLimiter, promotionsRouter);
+router.use("/admin/promotions", adminAuth,         promotionsRouter);
+
+/**
+ * Error reports dual mount:
+ *   /api/error-reports        → public ingestion endpoint (POST /) used by vendor,
+ *                               rider, and customer frontends to report JS errors.
+ *   /api/admin/error-reports  → admin management surface (GET list, PATCH status,
+ *                               POST scan/resolve) used by the admin panel via
+ *                               fetchAdmin (which prepends /api/admin).
+ *
+ * The router enforces adminAuth internally on every admin-only handler so the
+ * dual mount does not expose management endpoints to unauthenticated callers.
+ */
+router.use("/error-reports",       errorReportsRouter);
+router.use("/admin/error-reports", errorReportsRouter);
+
+// ── 9. Stats / metrics / docs ──────────────────────────────────────────────
+router.use("/stats",   statsRouter);
+router.use("/metrics", metricsRouter);
+router.use("/docs",    docsRouter);
+
+// ── 10. Loyalty (two complementary routers — no path overlap) ─────────────
+/**
+ * loyaltyRouter owns POST /loyalty/redeem and GET /loyalty/balance.
+ * loyaltyFullRouter owns /loyalty/settings, /loyalty/leaderboard, /loyalty/stats
+ * and all admin CRUD for campaigns and rewards.
+ * Express resolves sequentially; the first router to match wins, so there are
+ * no handler collisions between the two.
+ */
+router.use("/loyalty",      userApiLimiter, loyaltyRouter);
 router.use("/loyalty-full", userApiLimiter, loyaltyFullRouter);
-/* experiments — A/B testing and feature experimentation (auth required for mutations) */
-router.use("/experiments", experimentsRouter);
-/* whatsapp-delivery — WhatsApp delivery analytics and retry (admin-only) */
-router.use("/whatsapp", adminAuth, whatsappDeliveryRouter);
-/* business-rules — Dynamic platform business rules engine (admin-only write) */
-router.use("/business-rules", adminAuth, businessRulesRouter);
-/* admin/school/subscriptions — paginated list + cancel */
-router.use("/admin/school", adminSchoolRouter);
+
+// ── 11. Dev / seed (non-production only) ──────────────────────────────────
+if (process.env["NODE_ENV"] !== "production") {
+  router.use("/seed", seedRouter);
+}
 
 export default router;
