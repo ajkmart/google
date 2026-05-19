@@ -44,6 +44,7 @@ export async function handleLoginVerifyOtp(req: Request, res: Response): Promise
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, payload.userId)).limit(1);
     if (!user)        { sendNotFound(res, "User not found"); return; }
     if (user.isBanned){ sendForbidden(res, "Account suspended. Contact support."); return; }
+    if (!user.isActive && user.approvalStatus !== "pending") { sendForbidden(res, "Account inactive. Contact support."); return; }
 
     const lockoutEnabled = (settings["security_lockout_enabled"] ?? "on") === "on";
     const maxAttempts    = parseInt(settings["security_login_max_attempts"] ?? "5",  10);

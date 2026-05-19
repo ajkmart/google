@@ -233,7 +233,8 @@ router.post("/check-available", sharedValidateBody(CheckAvailableSchema), async 
   const result: Record<string, { available: boolean; message: string }> = {};
 
   if (phone) {
-    const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, phone)).limit(1);
+    const canonPhone = canonicalizePhone(phone);
+    const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, canonPhone)).limit(1);
     result.phone = existing
       ? { available: false, message: "Is number se pehle se ek account bana hua hai" }
       : { available: true,  message: "Available" };

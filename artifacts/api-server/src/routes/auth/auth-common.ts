@@ -180,7 +180,7 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 
-export async function handleRefreshToken(req: Request, res: any) {
+export async function handleRefreshToken(req: Request, res: Response) {
   /* Deterministically select the HttpOnly refresh cookie based on the app
      context signalled by the client via the X-App header (sent by vendor and
      rider builds). Falls back to body token for legacy/non-cookie clients.
@@ -211,7 +211,7 @@ export async function handleRefreshToken(req: Request, res: any) {
   return doRefresh(cookieToken, ip, req, res);
 }
 
-export async function doRefresh(refreshToken: string, ip: string, req: Request, res: any) {
+export async function doRefresh(refreshToken: string, ip: string, req: Request, res: Response) {
   const tokenHash = hashRefreshToken(refreshToken);
 
   /* ── Token family replay detection ── */
@@ -317,7 +317,7 @@ export async function doRefresh(refreshToken: string, ip: string, req: Request, 
   });
 }
 
-export async function handleUnifiedLogin(req: Request, res: any) {
+export async function handleUnifiedLogin(req: Request, res: Response) {
   const identifier = ((req.body.identifier || req.body.username) ?? "").trim();
   const password: string = req.body.password;
   if (!identifier) { sendError(res, "Identifier and password required", 400); return; }
@@ -412,16 +412,68 @@ export async function handleUnifiedLogin(req: Request, res: any) {
     await db.update(usersTable)
       .set({ otpCode: hashOtp(loginOtp), otpExpiry: loginOtpExpiry, otpUsed: false, updatedAt: new Date() })
       .where(eq(usersTable.id, user.id));
-    if (process.env.NODE_ENV !== 'production') {
+
+    /* ── Deliver OTP via the same waterfall used by POST /auth/send-otp ── */
+    const otpLang    = await getUserLanguage(user.id);
+    const userPhone  = decryptPii(user.encryptedPhone, user.phone);
+    const userEmail  = decryptPii(user.encryptedEmail, user.email);
+    const whatsappOn = settings["integration_whatsapp"] === "on";
+    const smsReady      = isSMSProviderConfigured(settings);
+    const smsConsole    = isSMSConsoleActive(settings);
+    const whatsappReady = isWhatsAppProviderConfigured(settings);
+    const emailReady    = isEmailProviderConfigured(settings) && !!userEmail;
+    const anyProvider   = smsReady || smsConsole || whatsappReady || emailReady;
+
+    /* If no provider is configured, respect otp_require_when_no_provider */
+    if (!anyProvider) {
+      const strictMode = settings["otp_require_when_no_provider"] === "on";
+      if (strictMode) {
+        logger.error({ userId: user.id }, "[AUTH:OTP] No provider configured & strict mode ON — blocking password login OTP");
+        sendErrorWithData(res, "OTP delivery is not configured. Please contact support.", { noProviderConfigured: true }, 503);
+        return;
+      }
+      logger.warn({ userId: user.id }, "[AUTH:OTP] No delivery provider — auto-bypassing password login OTP");
+    }
+
+    let deliveryChannel = "none";
+    let deliverySuccess = false;
+
+    if (anyProvider && userPhone) {
+      if (whatsappOn && whatsappReady) {
+        const r = await sendWhatsAppOTP(userPhone, loginOtp, settings, otpLang);
+        if (r.sent) { deliveryChannel = "whatsapp"; deliverySuccess = true; }
+        else logger.warn({ err: r.error }, "[AUTH:OTP] WhatsApp OTP failed, trying next channel");
+      }
+      if (!deliverySuccess && (smsReady || smsConsole)) {
+        const r = await sendOtpSMS(userPhone, loginOtp, settings, otpLang);
+        if (r.sent) { deliveryChannel = (r as { provider?: string }).provider ?? "sms"; deliverySuccess = true; }
+        else logger.warn({ err: (r as { error?: unknown }).error }, "[AUTH:OTP] SMS OTP failed, trying email");
+      }
+    }
+    if (!deliverySuccess && emailReady && userEmail) {
+      const r = await sendPasswordResetEmail(userEmail, loginOtp, user.name ?? undefined, otpLang);
+      if (r.sent) { deliveryChannel = "email"; deliverySuccess = true; }
+      else logger.warn({ err: r.reason }, "[AUTH:OTP] Email OTP failed");
+    }
+
+    if (process.env.NODE_ENV !== "production") {
       logger.info(`\n[AUTH:OTP] ====== LOGIN OTP ======`);
       logger.info(`[AUTH:OTP] User: ${lookupKey}`);
       logger.info(`[AUTH:OTP] OTP Code: ${loginOtp}`);
       logger.info(`[AUTH:OTP] Expires: ${loginOtpExpiry.toISOString()}`);
+      logger.info(`[AUTH:OTP] Delivered: ${deliverySuccess} via ${deliveryChannel}`);
       logger.info(`[AUTH:OTP] =======================\n`);
     }
-    writeAuthAuditLog("otp_sent", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { method: "password_login", channel: "console" } });
+
+    if (!deliverySuccess && anyProvider && process.env.NODE_ENV === "production") {
+      logger.error({ userId: user.id }, "[AUTH:OTP] All delivery channels failed for password login OTP");
+      sendErrorWithData(res, "Could not deliver OTP. Please try again or contact support.", { code: "OTP_DELIVERY_FAILED" }, 502);
+      return;
+    }
+
+    writeAuthAuditLog("otp_sent", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { method: "password_login", channel: deliverySuccess ? deliveryChannel : "console" } });
     const tempToken = sign2faChallengeToken(user.id, user.phone ?? user.email ?? "", user.roles ?? "customer", user.roles ?? "customer", "password_otp");
-    sendSuccess(res, { requiresOtp: true, tempToken, userId: user.id, message: "OTP sent — check server console" });
+    sendSuccess(res, { requiresOtp: true, tempToken, userId: user.id });
     return;
   }
 

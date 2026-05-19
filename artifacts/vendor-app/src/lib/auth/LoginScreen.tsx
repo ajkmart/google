@@ -72,6 +72,19 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     setIsProcessing(true);
     try {
       const profile = await api.getMe();
+      /* Role guard — reject non-vendor accounts before touching local auth state */
+      const rawRoles = (profile as unknown as { roles?: unknown; role?: unknown }).roles;
+      const profileRoles: string[] = Array.isArray(rawRoles)
+        ? (rawRoles as string[])
+        : typeof (profile as unknown as { role?: string }).role === "string"
+          ? [(profile as unknown as { role: string }).role]
+          : [];
+      if (!profileRoles.includes("vendor")) {
+        api.clearTokens();
+        setLoginError("Access denied. This app is for vendors only.");
+        setIsProcessing(false);
+        return;
+      }
       login(token, profile, res.refreshToken);
       onSuccess?.(token, profile);
       navigate("/");

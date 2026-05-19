@@ -83,6 +83,15 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       return;
     }
 
+    /* Role guard — reject non-rider accounts before touching local auth state */
+    const profileRoles = normalizeRoles(profile);
+    if (!profileRoles.includes("rider")) {
+      api.clearTokens();
+      setLoginError(T("accessDenied") as string || "Access denied. This app is for riders only.");
+      setIsProcessing(false);
+      return;
+    }
+
     login(accessToken, profile, api.getRefreshToken?.() ?? undefined);
     if (!biometricEnabled) {
       /* Offer biometric enrollment on first successful login */
