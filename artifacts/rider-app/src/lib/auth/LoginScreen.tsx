@@ -36,7 +36,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const { config } = usePlatformConfig();
   const auth = useRiderAuthConfig();
   const { language } = useLanguage();
-  const T = (k: TranslationKey) => tDual(k, language);
+  const T = useCallback((k: TranslationKey) => tDual(k, language), [language]);
 
   const [overlay, setOverlay] = useState<"pending" | "rejected" | "biometric" | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);

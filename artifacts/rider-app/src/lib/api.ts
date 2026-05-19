@@ -333,7 +333,7 @@ export const csrfStoreReady: Promise<void> = (async () => {
     try {
       const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
       if (match) _inMemoryCsrfToken = decodeURIComponent(match[1]);
-    } catch { /* document.cookie unavailable — ok */ }
+    } catch (e) { log.debug("[api] document.cookie unavailable:", e); }
   }
 })();
 

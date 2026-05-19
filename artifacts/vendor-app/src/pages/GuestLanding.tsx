@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[guest]");
 import { useLocation } from "wouter";
 import type { Language } from "@workspace/i18n";
 import { isRTL } from "@workspace/i18n";
@@ -11,7 +13,7 @@ function readLang(): Language {
   try {
     const v = localStorage.getItem(LS_KEY);
     if (v === "en" || v === "ur" || v === "roman") return v;
-  } catch {}
+  } catch (e) { log.debug("[guest] localStorage unavailable:", e); }
   return "en";
 }
 
@@ -20,7 +22,7 @@ function saveLang(lang: Language) {
     localStorage.setItem(LS_KEY, lang);
     const dir = isRTL(lang) ? "rtl" : "ltr";
     document.documentElement.setAttribute("dir", dir);
-  } catch {}
+  } catch (e) { log.debug("[guest] localStorage unavailable:", e); }
 }
 
 function cycleLang(current: Language): Language {

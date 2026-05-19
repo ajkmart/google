@@ -6,6 +6,8 @@
  * (pages/Login.tsx) clean so all auth logic lives in lib/auth/.
  */
 import { LoginScreen as SDKLoginScreen } from "@workspace/auth-react";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[vendor-login]");
 import type { AuthUser as SDKAuthUser } from "@workspace/auth-react";
 import { useAuth } from "./useAuth";
 import { useAppStatus } from "./useAppStatus";
@@ -32,7 +34,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const { config } = usePlatformConfig();
   const vendorAuth = getVendorAuthConfig(config);
   const { language } = useLanguage();
-  const T = (k: TranslationKey) => tDual(k, language);
+  const T = useCallback((k: TranslationKey) => tDual(k, language), [language]);
 
   const [overlay, setOverlay] = useState<"pending" | "rejected" | "biometric" | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
@@ -49,7 +51,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       try {
         const { isBiometricEnabled } = await import("../biometric");
         setBiometricEnabled(await isBiometricEnabled());
-      } catch { /* biometric not available on this platform */ }
+      } catch (e) { log.debug("[login] biometric not available:", e); }
     };
     check();
   }, []);

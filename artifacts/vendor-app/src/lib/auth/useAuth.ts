@@ -8,6 +8,8 @@
  * loading state, network guard, Sentry capture.
  */
 import { api, getTokenStorage } from "../api";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[vendor-useAuth]");
 import { canonicalizePhone } from "@workspace/auth-utils";
 import { useAuth as useAuthContext } from "../vendor-auth";
 import { useState, useCallback } from "react";
@@ -34,7 +36,7 @@ async function captureException(err: unknown) {
       const Sentry = await import("@sentry/react");
       Sentry.captureException(err);
     }
-  } catch { /* Sentry not installed */ }
+  } catch (e) { log.debug("[useAuth] Sentry capture failed:", e); }
 }
 
 export function useAuth() {

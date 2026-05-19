@@ -147,18 +147,23 @@ function checkEnv(): void {
     const pad = (s: string) => `║  ${s.padEnd(63)}║`;
     const lines = [
       `╔${hr}╗`,
-      pad("\x1b[33m[DEV MODE]\x1b[0m AJKMart API — running without vault"),
+      pad("[DEV MODE] AJKMart API — running without vault"),
       `╠${hr}╣`,
-      pad("Vault is locked. Placeholder values substituted for:"),
-      ...substituted.map((k) => pad(`  • ${k}`)),
-      pad(""),
-      pad("Features limited: no real DB, no SMS/email, no push notifications."),
+      ...(substituted.length > 0
+        ? [
+            pad("Vault is locked. Placeholder values substituted for:"),
+            ...substituted.map((k) => pad(`  • ${k}`)),
+            pad(""),
+            pad("Features limited: no real DB, no SMS/email, no push notifications."),
+          ]
+        : [pad("All secrets present — vault not required for this session.")]),
       pad(""),
       pad("To unlock: pnpm --filter @workspace/scripts run decrypt-env"),
       pad("           (or use the Setup workflow in Replit)"),
       `╚${hr}╝`,
     ];
-    logger.warn("\n" + lines.join("\n") + "\n");
+    const logFn = substituted.length > 0 ? logger.warn.bind(logger) : logger.info.bind(logger);
+    logFn("\n" + lines.join("\n") + "\n");
     return;
   }
 

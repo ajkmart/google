@@ -290,9 +290,9 @@ function validateCORS(): string[] {
       'Set ALLOWED_ORIGINS to a comma-separated list of your production URLs for tighter CORS control.'
     );
   } else {
-    logger.warn(
+    logger.info(
       { allowedOrigins: fallback },
-      '[SECURITY:CORS] ALLOWED_ORIGINS not set — falling back to localhost-only whitelist for development. Set ALLOWED_ORIGINS before deploying to production.'
+      '[SECURITY:CORS] ALLOWED_ORIGINS not set — using localhost-only whitelist for development. Set ALLOWED_ORIGINS before deploying to production.'
     );
   }
   return fallback;
