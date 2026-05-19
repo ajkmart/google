@@ -62,7 +62,9 @@ router.patch("/users/:id", async (req, res) => {
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   /* Revoke sessions on role or status change so user re-authenticates with new role */
   if (role !== undefined || isActive === false) {
-    revokeAllUserSessions(req.params["id"]!).catch(() => {});
+    revokeAllUserSessions(req.params["id"]!).catch((e: Error) => {
+      logger.warn({ err: e.message, userId: req.params["id"] }, "[admin] session revocation failed after role/status change");
+    });
   }
   res.json({ ...stripUser(user), walletBalance: parseFloat(user.walletBalance ?? "0") });
 });
@@ -248,7 +250,9 @@ router.patch("/users/:id/security", async (req, res) => {
 
   /* Revoke all sessions if ban, deactivation, or role change occurred */
   if (body.isBanned || body.isActive === false || body.roles !== undefined || body.role !== undefined) {
-    revokeAllUserSessions(id!).catch(() => {});
+    revokeAllUserSessions(id!).catch((e: Error) => {
+      logger.warn({ err: e.message, userId: id }, "[admin] session revocation failed after user update");
+    });
   }
   if (body.isBanned && body.notify) {
     await sendUserNotification(id!, "Account Suspended ⚠️", String(body.banReason || "Your account has been suspended. Contact support."), "warning", "warning-outline");
@@ -324,7 +328,9 @@ router.patch("/users/:id/identity", async (req, res) => {
   const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, userId)).returning();
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-  revokeAllUserSessions(userId).catch(() => {});
+  revokeAllUserSessions(userId).catch((e: Error) => {
+    logger.warn({ err: e.message, userId }, "[admin] session revocation failed after identity update");
+  });
 
   res.json({ ...stripUser(user), walletBalance: parseFloat(String(user.walletBalance)) });
 });
@@ -368,7 +374,9 @@ router.patch("/users/:id/request-correction", async (req, res) => {
     title: t("notifDocumentCorrection", docLang),
     body: note || t("notifDocumentCorrectionBody", docLang).replace("{field}", field || "document"),
     type: "system", icon: "document-outline",
-  }).catch(() => {});
+  }).catch((e: Error) => {
+    logger.warn({ err: e.message, userId: user.id }, "[admin] document correction notification insert failed");
+  });
   res.json({ success: true, user: stripUser(user) });
 });
 
@@ -388,7 +396,9 @@ router.patch("/users/:id/waive-debt", async (req, res) => {
     title: t("notifDebtWaived", debtLang),
     body: t("notifDebtWaivedBody", debtLang).replace("{amount}", debt.toFixed(0)),
     type: "system", icon: "checkmark-circle-outline",
-  }).catch(() => {});
+  }).catch((e: Error) => {
+    logger.warn({ err: e.message, userId }, "[admin] debt waived notification insert failed");
+  });
   res.json({ success: true, waived: debt });
 });
 
@@ -399,11 +409,19 @@ router.patch("/users/bulk-ban", async (req, res) => {
   const updates = action === "ban"
     ? { isBanned: true, isActive: false, banReason: reason || "Banned by admin", updatedAt: new Date() }
     : { isBanned: false, isActive: true, banReason: null as unknown, updatedAt: new Date() };
+  let affected = 0;
+  const failed: string[] = [];
   for (const id of ids) {
-    await db.update(usersTable).set(updates).where(eq(usersTable.id, id)).catch(() => {});
+    try {
+      await db.update(usersTable).set(updates).where(eq(usersTable.id, id));
+      affected++;
+    } catch (e: unknown) {
+      logger.error({ err: (e as Error).message, userId: id, action }, "[admin] bulk-ban DB update failed — user state unchanged");
+      failed.push(id);
+    }
   }
-  addAuditEntry({ action: `bulk_${action}`, ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Bulk ${action}: ${ids.length} users`, result: "success" });
-  res.json({ success: true, affected: ids.length, action });
+  addAuditEntry({ action: `bulk_${action}`, ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Bulk ${action}: ${affected} succeeded, ${failed.length} failed`, result: failed.length === 0 ? "success" : "partial" });
+  res.json({ success: failed.length === 0, affected, action, ...(failed.length > 0 && { failed, error: `${failed.length} user(s) could not be updated` }) });
 });
 
 /* ── PATCH /admin/orders/:id/assign-rider — manually assign a rider to an order ── */

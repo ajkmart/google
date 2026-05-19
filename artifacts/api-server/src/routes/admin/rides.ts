@@ -85,7 +85,9 @@ router.patch("/rides/:id/status", async (req, res) => {
     await db.transaction(async (tx) => {
       await tx.update(usersTable).set({ walletBalance: sql`wallet_balance + ${refundAmt}`, updatedAt: new Date() }).where(eq(usersTable.id, ride.userId));
       await tx.insert(walletTransactionsTable).values({ id: generateId(), userId: ride.userId, type: "credit", amount: refundAmt.toFixed(2), description: `Refund — Ride #${ride.id.slice(-6).toUpperCase()} cancelled by admin` });
-    }).catch(() => {});
+    }).catch((e: Error) => {
+      logger.error({ err: e.message, rideId: ride.id, userId: ride.userId, refundAmt }, "[admin] wallet refund transaction failed on ride cancellation — manual refund required");
+    });
     await sendUserNotification(ride.userId, "Ride Refund 💰", `Rs. ${refundAmt.toFixed(0)} aapki wallet mein refund ho gaya.`, "ride", "wallet-outline");
   }
 

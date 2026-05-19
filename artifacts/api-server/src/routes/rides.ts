@@ -175,13 +175,13 @@ async function broadcastRide(rideId: string) {
         title: `${t(titleKey, riderLang)} 🚗`,
         body: bodyStr,
         type: "ride", icon: "car-outline", link: `/ride/${rideId}`,
-      }).catch(() => {});
+      }).catch((e: Error) => { logger.warn({ err: e.message, riderId: r.userId, rideId }, "[broadcast] rider notification insert failed"); });
 
       await db.insert(rideNotifiedRidersTable).values({
         id: generateId(),
         rideId,
         riderId: r.userId,
-      }).catch(() => {});
+      }).catch((e: Error) => { logger.warn({ err: e.message, riderId: r.userId, rideId }, "[broadcast] rideNotifiedRiders insert failed"); });
 
       emitRiderNewRequest(r.userId, {
         type: "ride",
@@ -194,7 +194,7 @@ async function broadcastRide(rideId: string) {
         body: `${ride.pickupAddress} → ${ride.dropAddress} · Rs. ${fareStr}`,
         tag: `ride-request-${rideId}`,
         data: { rideId },
-      }).catch(() => {});
+      }).catch((e: Error) => { logger.warn({ err: e.message, riderId: r.userId, rideId }, "[broadcast] push notification failed"); });
 
       notifiedCount++;
     }
@@ -206,7 +206,7 @@ async function broadcastRide(rideId: string) {
         title: "No riders available",
         body: "No riders are currently available in your area. We'll keep searching — you'll be notified as soon as a rider accepts.",
         type: "ride", icon: "car-outline", link: `/ride/${rideId}`,
-      }).catch(() => {});
+      }).catch((e: Error) => { logger.warn({ err: e.message, rideId }, "[broadcast] no-riders-available notification insert failed"); });
       emitRideDispatchUpdate({
         rideId,
         action: "NO_RIDERS_AVAILABLE",
@@ -227,7 +227,7 @@ async function broadcastRide(rideId: string) {
 async function cleanupNotifiedRiders(rideId: string) {
   await db.delete(rideNotifiedRidersTable)
     .where(eq(rideNotifiedRidersTable.rideId, rideId))
-    .catch(() => {});
+    .catch((e: Error) => { logger.warn({ err: e.message, rideId }, "[dispatch] cleanupNotifiedRiders failed"); });
 }
 
 class RideApiError extends Error {
@@ -624,7 +624,7 @@ router.post("/", customerAuth, async (req, res) => {
       title: bookTitle,
       body: bookBody,
       type: "ride", icon: ({ bike: "bicycle-outline", car: "car-outline", rickshaw: "car-outline", daba: "bus-outline", school_shift: "bus-outline" } as Record<string, string>)[type] ?? "car-outline", link: `/ride`,
-    }).catch(() => {});
+    }).catch((e: Error) => { logger.warn({ err: e.message, userId }, "[rides] booking confirmation notification insert failed"); });
 
     if (rideRecord) {
       broadcastRide(rideRecord.id);
@@ -761,14 +761,14 @@ router.patch("/:id/cancel", customerAuth, requireRideState(["searching", "bargai
         ? t("notifRideRefundWithFeeBody", cancelLang).replace("{refund}", refundAmt.toFixed(0)).replace("{fee}", String(actualCancelFee))
         : t("notifRideRefundBody", cancelLang).replace("{refund}", refundAmt.toFixed(0)),
       type: "ride", icon: "wallet-outline",
-    }).catch(() => {});
+    }).catch((e: Error) => { logger.warn({ err: e.message, userId, rideId: ride.id }, "[rides] cancel refund notification insert failed"); });
   } else if (ride.status === "bargaining" || ride.bargainStatus === "customer_offered") {
     await db.insert(notificationsTable).values({
       id: generateId(), userId,
       title: t("notifRideOfferSent", cancelLang),
       body: t("notifRideCancelledBody", cancelLang),
       type: "ride", icon: "close-circle-outline",
-    }).catch(() => {});
+    }).catch((e: Error) => { logger.warn({ err: e.message, userId, rideId: ride.id }, "[rides] cancel bargaining notification insert failed"); });
   } else {
     await db.insert(notificationsTable).values({
       id: generateId(), userId,
@@ -779,7 +779,7 @@ router.patch("/:id/cancel", customerAuth, requireRideState(["searching", "bargai
             : t("notifRideCancelledFeeBody" as TranslationKey, cancelLang).replace("{fee}", String(cancelFee)))
         : t("notifRideCancelledBody", cancelLang),
       type: "ride", icon: "close-circle-outline",
-    }).catch(() => {});
+    }).catch((e: Error) => { logger.warn({ err: e.message, userId, rideId: ride.id }, "[rides] cancel notification insert failed"); });
   }
 
   if (cancelReason) {
@@ -891,7 +891,9 @@ router.patch("/:id/accept-bid", customerAuth, async (req, res) => {
 
   /* Generate OTP for trip start and persist it */
   const otp = generateOtp();
-  await db.update(ridesTable).set({ tripOtp: otp, updatedAt: new Date() }).where(eq(ridesTable.id, rideUpdate!.id)).catch(() => {});
+  await db.update(ridesTable).set({ tripOtp: otp, updatedAt: new Date() }).where(eq(ridesTable.id, rideUpdate!.id)).catch((e: Error) => {
+    logger.error({ err: e.message, rideId: rideUpdate!.id }, "[rides] trip OTP DB persist failed — OTP emitted via WS but verify-otp will fail until DB is updated");
+  });
   emitRideOtp(rideUpdate!.userId, rideUpdate!.id, otp);
 
   const bidLang = await getUserLanguage(bid.riderId);
@@ -900,13 +902,13 @@ router.patch("/:id/accept-bid", customerAuth, async (req, res) => {
     title: t("notifRideAccepted", bidLang) + " 🎉",
     body: t("notifRideAcceptedBody", bidLang).replace("{fare}", agreedFare.toFixed(0)),
     type: "ride", icon: "checkmark-circle-outline",
-  }).catch(() => {});
+  }).catch((e: Error) => { logger.warn({ err: e.message, riderId: bid.riderId, rideId: rideUpdate!.id }, "[rides] bid accepted notification insert failed"); });
   sendPushToUser(bid.riderId, {
     title: "Offer Accepted! 🎉",
     body: `Your offer of Rs. ${agreedFare.toFixed(0)} was accepted. Head to the pickup point now.`,
     tag: `offer-accepted-${rideUpdate!.id}`,
     data: { rideId: rideUpdate!.id },
-  }).catch(() => {});
+  }).catch((e: Error) => { logger.warn({ err: e.message, riderId: bid.riderId, rideId: rideUpdate!.id }, "[rides] bid-accepted push notification failed"); });
 
   emitRideDispatchUpdate({ rideId: rideUpdate!.id, action: "accepted", status: "accepted" });
   res.json({ ...formatRide(rideUpdate!), agreedFare, tripOtp: otp });
@@ -1240,7 +1242,7 @@ router.post("/:id/rate", customerAuth, requireRideState(["completed"]), requireR
     title: `${stars} ${t("rating", ratingLang)} ⭐`,
     body: comment ? `${stars} ${t("rating", ratingLang)}: "${comment}"` : `${t("rateRider", ratingLang)}: ${stars} ⭐`,
     type: "ride", icon: "star-outline",
-  }).catch(() => {});
+  }).catch((e: Error) => { logger.warn({ err: e.message, riderId: ride.riderId, rideId: ride.id }, "[rides] rating notification insert failed"); });
 
   res.json({ success: true, rating });
 });
@@ -1339,13 +1341,13 @@ async function runDispatchCycle() {
     if (pendingRides.length === 0) {
       await db.delete(rideNotifiedRidersTable)
         .where(sql`ride_id NOT IN (SELECT id FROM rides WHERE status IN ('searching', 'bargaining') AND rider_id IS NULL)`)
-        .catch(() => {});
+        .catch((e: Error) => { logger.warn({ err: e.message }, "[dispatch] stale notified-riders cleanup (early-return) failed"); });
       return;
     }
 
     await db.delete(rideNotifiedRidersTable)
       .where(sql`ride_id NOT IN (SELECT id FROM rides WHERE status IN ('searching', 'bargaining') AND rider_id IS NULL)`)
-      .catch(() => {});
+      .catch((e: Error) => { logger.warn({ err: e.message }, "[dispatch] stale notified-riders cleanup failed"); });
 
     const DISPATCH_ROUND_INTERVAL_SEC = 45;
     const MAX_DISPATCH_ROUNDS = 3;
@@ -1395,7 +1397,7 @@ async function runDispatchCycle() {
             body: t("noRequests", expLang),
             type: "ride",
             icon: "close-circle-outline",
-          }).catch(() => {});
+          }).catch((e: Error) => { logger.warn({ err: e.message, rideId: ride.id, userId: ride.userId }, "[dispatch] ride-expired notification insert failed"); });
 
           await cleanupNotifiedRiders(ride.id);
           continue;
@@ -1443,7 +1445,7 @@ async function runDispatchCycle() {
             title: t("noRequests", noRiderLang),
             body: t("searching_driver", noRiderLang),
             type: "ride", icon: "close-circle-outline",
-          }).catch(() => {});
+          }).catch((e: Error) => { logger.warn({ err: e.message, rideId: ride.id, userId: ride.userId }, "[dispatch] no-riders notification insert failed"); });
           await cleanupNotifiedRiders(ride.id);
           continue;
         }

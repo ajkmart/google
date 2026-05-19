@@ -115,7 +115,9 @@ router.patch("/vendors/:id/status", async (req, res) => {
   const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, req.params["id"]!)).returning();
   if (!user) { res.status(404).json({ error: "Vendor not found" }); return; }
   if (isBanned || isActive === false) {
-    revokeAllUserSessions(req.params["id"]!).catch(() => {});
+    revokeAllUserSessions(req.params["id"]!).catch((e: Error) => {
+      logger.warn({ err: e.message, userId: req.params["id"] }, "[admin] session revocation failed after vendor ban/deactivation");
+    });
     if (isBanned) {
       await sendUserNotification(req.params["id"]!, "Store Account Suspended ⚠️", banReason || "Your vendor account has been suspended. Contact support.", "warning", "warning-outline");
     }
@@ -219,7 +221,9 @@ router.patch("/riders/:id/status", async (req, res) => {
   const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, req.params["id"]!)).returning();
   if (!user) { res.status(404).json({ error: "Rider not found" }); return; }
   if (isBanned || isActive === false) {
-    revokeAllUserSessions(req.params["id"]!).catch(() => {});
+    revokeAllUserSessions(req.params["id"]!).catch((e: Error) => {
+      logger.warn({ err: e.message, userId: req.params["id"] }, "[admin] session revocation failed after rider ban/deactivation");
+    });
     if (isBanned) {
       await sendUserNotification(req.params["id"]!, "Rider Account Suspended ⚠️", banReason || "Your rider account has been suspended. Contact support.", "warning", "warning-outline");
     }
@@ -372,7 +376,7 @@ router.patch("/withdrawal-requests/:id/approve", async (req, res) => {
     title: t("notifWithdrawalApproved" as TranslationKey, wdLang),
     body: t("notifWithdrawalApprovedBody" as TranslationKey, wdLang).replace("{amount}", amt.toFixed(0)).replace("{ref}", wdRef).replace("{note}", wdNote),
     type: "wallet", icon: "checkmark-circle-outline",
-  }).catch(() => {});
+  }).catch((e: Error) => { logger.warn({ err: e.message, txId, userId: tx.userId }, "[admin] withdrawal-approved notification insert failed"); });
   res.json({ success: true, txId, status: "paid", refNo: refNo || "manual" });
 });
 
@@ -402,7 +406,7 @@ router.patch("/withdrawal-requests/:id/reject", async (req, res) => {
     title: t("notifWithdrawalRejected" as TranslationKey, wdRejLang),
     body: t("notifWithdrawalRejectedBody" as TranslationKey, wdRejLang).replace("{amount}", amt.toFixed(0)).replace("{reason}", rejReason),
     type: "wallet", icon: "close-circle-outline",
-  }).catch(() => {});
+  }).catch((e: Error) => { logger.warn({ err: e.message, txId, userId: tx.userId }, "[admin] withdrawal-rejected notification insert failed"); });
   res.json({ success: true, txId, status: "rejected", reason: rejReason, refunded: amt });
 });
 
@@ -422,7 +426,7 @@ router.patch("/withdrawal-requests/batch-approve", async (req, res) => {
       title: t("notifWithdrawalApproved" as TranslationKey, batchAppLang),
       body: t("notifWithdrawalApprovedBody" as TranslationKey, batchAppLang).replace("{amount}", parseFloat(String(tx.amount)).toFixed(0)).replace("{ref}", ` Ref: ${refNo}`).replace("{note}", ""),
       type: "wallet", icon: "checkmark-circle-outline",
-    }).catch(() => {});
+    }).catch((e: Error) => { logger.warn({ err: e.message, txId, userId: tx.userId }, "[admin] batch-approve notification insert failed"); });
     results.push(txId);
   }
   res.json({ success: true, approved: results });
@@ -450,7 +454,7 @@ router.patch("/withdrawal-requests/batch-reject", async (req, res) => {
       title: t("notifWithdrawalRejected" as TranslationKey, batchRejLang),
       body: t("notifWithdrawalRejectedBody" as TranslationKey, batchRejLang).replace("{amount}", amt.toFixed(0)).replace("{reason}", rejReason),
       type: "wallet", icon: "close-circle-outline",
-    }).catch(() => {});
+    }).catch((e: Error) => { logger.warn({ err: e.message, txId, userId: tx.userId }, "[admin] batch-reject notification insert failed"); });
     results.push(txId);
   }
   res.json({ success: true, rejected: results });
@@ -750,7 +754,7 @@ router.post("/riders/:id/override-suspension", async (req, res) => {
     body: "An admin has reviewed and overridden your account suspension. You are now active again.",
     type: "system",
     icon: "shield-checkmark-outline",
-  }).catch(() => {});
+  }).catch((e: Error) => { logger.warn({ err: e.message, userId }, "[admin] rider suspension-override notification insert failed"); });
 
   res.json({ success: true, user: stripUser(updated as any) });
 });
@@ -776,7 +780,7 @@ router.post("/vendors/:id/override-suspension", async (req, res) => {
     body: "An admin has reviewed and overridden your store suspension. You are now active again.",
     type: "system",
     icon: "shield-checkmark-outline",
-  }).catch(() => {});
+  }).catch((e: Error) => { logger.warn({ err: e.message, userId }, "[admin] vendor suspension-override notification insert failed"); });
 
   res.json({ success: true, user: stripUser(updated as any) });
 });
