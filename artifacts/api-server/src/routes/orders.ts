@@ -579,8 +579,8 @@ router.post("/", customerAuth, validateBody(orderCreateSchema, { status: 422 }),
     /* ── delivery eligibility ── */
     if (customerLat && customerLng) {
       try {
-        const elig = await checkDeliveryEligibility(customerId, getClientIp(req));
-        if (!elig.allowed) { sendForbidden(res, elig.reason || "Delivery not available in your area"); return; }
+        const elig = await checkDeliveryEligibility(customerId, vendorId ?? null, orderType);
+        if (!elig.eligible) { sendForbidden(res, elig.reason || "Delivery not available in your area"); return; }
       } catch { /* non-critical — proceed if eligibility service unavailable */ }
     }
 

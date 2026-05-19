@@ -9,7 +9,7 @@ import {
   platformSettingsTable,
   vendorProfilesTable,
 } from "@workspace/db/schema";
-import { eq, and, or, desc, ilike, count, sql } from "drizzle-orm";
+import { eq, and, or, desc, ilike, count, sql, type SQL } from "drizzle-orm";
 import {
   type AdminRequest,
   getCachedSettings,

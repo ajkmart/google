@@ -7,7 +7,7 @@ import {
   ordersTable, pharmacyOrdersTable, parcelBookingsTable, ridesTable, rideBidsTable,
   platformSettingsTable,
 } from "@workspace/db/schema";
-import { eq, desc, count, sum, and, gte, lte, sql, or, ilike, asc, isNull, isNotNull, avg, ne, inArray } from "drizzle-orm";
+import { eq, desc, count, sum, and, gte, lte, sql, or, ilike, asc, isNull, isNotNull, avg, ne, inArray, type SQL } from "drizzle-orm";
 import {
   stripUser, generateId, getUserLanguage, t,
   sendUserNotification, logger,
@@ -743,7 +743,7 @@ function buildOrderFilters(query: Record<string, string | undefined>) {
 
   if (status && status !== "all") {
     if (status === "active") {
-      conditions.push(or(...ACTIVE_STATUSES.map(s => eq(ordersTable.status, s))));
+      conditions.push(or(...ACTIVE_STATUSES.map(s => eq(ordersTable.status, s))) as SQL<unknown>);
     } else {
       conditions.push(eq(ordersTable.status, status));
     }

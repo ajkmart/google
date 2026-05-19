@@ -3782,8 +3782,8 @@ router.post("/admin-accounts/:id/send-reset-link", adminAuth, async (req: AdminR
 
     const issued = await issueAdminPasswordResetToken({
       adminId: target.id,
-      requestedBy: req.adminId ?? "super-admin",
-      requesterIp: req.adminIp ?? null,
+      requestedBy: "super_admin" as const,
+      requesterIp: req.adminIp ?? undefined,
       requesterUserAgent: req.headers["user-agent"] ?? null,
     });
     const resetUrl = buildAdminResetUrlLocal(issued.rawToken);
@@ -3802,7 +3802,7 @@ router.post("/admin-accounts/:id/send-reset-link", adminAuth, async (req: AdminR
       adminId: req.adminId,
       ip: req.adminIp ?? "unknown",
       details: `Reset link issued for admin: ${id} email=${target.email} sent=${sendResult.sent}`,
-      result: sendResult.sent ? "success" : "failure",
+      result: sendResult.sent ? "success" : "fail",
     });
 
     const isDev = process.env.NODE_ENV !== "production";

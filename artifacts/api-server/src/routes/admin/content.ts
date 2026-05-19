@@ -33,6 +33,7 @@ import {
   isNotNull,
   avg,
   ne,
+  type SQL,
 } from "drizzle-orm";
 import { sendPushToUsers } from "../../lib/webpush.js";
 import {

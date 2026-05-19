@@ -154,7 +154,7 @@ router.get("/transactions-enriched", async (req, res) => {
     const page = buildCursorPage({
       data: rows,
       limit,
-      getCursorValue: (t) => t.createdAt.toISOString(),
+      getCursorValue: (t: (typeof rows)[0]) => t.createdAt.toISOString(),
     });
 
     const users = await db
