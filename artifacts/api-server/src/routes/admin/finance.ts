@@ -7,6 +7,7 @@ import {
   ordersTable, ridesTable, productsTable, riderPenaltiesTable, rideRatingsTable, reviewsTable,
 } from "@workspace/db/schema";
 import { eq, desc, count, sum, and, gte, lte, sql, or, ilike, asc, isNull, isNotNull, avg, ne } from "drizzle-orm";
+import { requirePermission } from "../../middleware/require-permission.js";
 import {
   stripUser, generateId, getUserLanguage, t,
   getPlatformSettings, adminAuth, getAdminSecret,
@@ -22,50 +23,111 @@ import {
 
 
 const router = Router();
-router.get("/transactions", async (_req, res) => {
-  const transactions = await db
-    .select()
-    .from(walletTransactionsTable)
-    .orderBy(desc(walletTransactionsTable.createdAt))
-    .limit(200);
+router.get("/transactions", requirePermission("finance.transactions.view"), async (req, res) => {
+  const rawLimit = parseInt(String(req.query["limit"] ?? "50"), 10);
+  const pageLimit = Math.min(Math.max(1, Number.isFinite(rawLimit) ? rawLimit : 50), 200);
+  const rawPage = parseInt(String(req.query["page"] ?? "1"), 10);
+  const page = Math.max(1, Number.isFinite(rawPage) ? rawPage : 1);
+  const offset = (page - 1) * pageLimit;
+  const search = String(req.query["search"] ?? "").trim();
+  const typeFilter = req.query["type"] as string | undefined;
 
-  const totalCredit = transactions.filter(t => t.type === "credit").reduce((s, t) => s + parseFloat(t.amount), 0);
-  const totalDebit = transactions.filter(t => t.type === "debit").reduce((s, t) => s + parseFloat(t.amount), 0);
+  const whereClause = and(
+    typeFilter ? eq(walletTransactionsTable.type, typeFilter) : undefined,
+    search ? or(
+      ilike(walletTransactionsTable.description, `%${search}%`),
+      ilike(walletTransactionsTable.reference, `%${search}%`),
+    ) : undefined,
+  );
+
+  const [rows, [countRow]] = await Promise.all([
+    db.select().from(walletTransactionsTable)
+      .where(whereClause)
+      .orderBy(desc(walletTransactionsTable.createdAt))
+      .limit(pageLimit)
+      .offset(offset),
+    db.select({ count: count() }).from(walletTransactionsTable).where(whereClause),
+  ]);
+
+  const totalCount = Number(countRow?.count ?? 0);
+  const totalCredit = rows.filter(t => t.type === "credit").reduce((s, t) => s + parseFloat(t.amount), 0);
+  const totalDebit = rows.filter(t => t.type === "debit").reduce((s, t) => s + parseFloat(t.amount), 0);
 
   res.json({
-    transactions: transactions.map(t => ({
+    transactions: rows.map(t => ({
       ...t,
       amount: parseFloat(t.amount),
       createdAt: t.createdAt.toISOString(),
     })),
-    total: transactions.length,
+    total: totalCount,
+    page,
+    pageSize: pageLimit,
+    totalPages: Math.ceil(totalCount / pageLimit),
     totalCredit,
     totalDebit,
   });
 });
 
-/* ── Platform Settings ── */
-router.get("/transactions-enriched", async (_req, res) => {
-  const transactions = await db.select().from(walletTransactionsTable).orderBy(desc(walletTransactionsTable.createdAt)).limit(300);
-  const users = await db.select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone }).from(usersTable);
+/* ── Transactions Enriched (server-side paginated) ── */
+router.get("/transactions-enriched", requirePermission("finance.transactions.view"), async (req, res) => {
+  const rawLimit = parseInt(String(req.query["limit"] ?? "50"), 10);
+  const pageLimit = Math.min(Math.max(1, Number.isFinite(rawLimit) ? rawLimit : 50), 200);
+  const rawPage = parseInt(String(req.query["page"] ?? "1"), 10);
+  const page = Math.max(1, Number.isFinite(rawPage) ? rawPage : 1);
+  const offset = (page - 1) * pageLimit;
+  const search = String(req.query["search"] ?? "").trim();
+  const typeFilter = req.query["type"] as string | undefined;
+
+  const whereClause = and(
+    typeFilter ? eq(walletTransactionsTable.type, typeFilter) : undefined,
+    search ? or(
+      ilike(walletTransactionsTable.description, `%${search}%`),
+      ilike(walletTransactionsTable.reference, `%${search}%`),
+    ) : undefined,
+  );
+
+  const [rows, [countRow]] = await Promise.all([
+    db.select().from(walletTransactionsTable)
+      .where(whereClause)
+      .orderBy(desc(walletTransactionsTable.createdAt))
+      .limit(pageLimit)
+      .offset(offset),
+    db.select({ count: count() }).from(walletTransactionsTable).where(whereClause),
+  ]);
+
+  const userIds = [...new Set(rows.map(t => t.userId))];
+  const users = userIds.length > 0
+    ? await db.select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone })
+        .from(usersTable)
+        .where(sql`${usersTable.id} = ANY(${sql.raw(`ARRAY[${userIds.map(id => `'${id}'`).join(",")}]`)})`)
+    : [];
   const userMap = Object.fromEntries(users.map(u => [u.id, u]));
 
-  const enriched = transactions.map(t => ({
+  const enriched = rows.map(t => ({
     ...t,
     amount: parseFloat(t.amount),
     createdAt: t.createdAt.toISOString(),
-    userName: userMap[t.userId]?.name || null,
-    userPhone: userMap[t.userId]?.phone || null,
+    userName: userMap[t.userId]?.name ?? null,
+    userPhone: userMap[t.userId]?.phone ?? null,
   }));
 
+  const totalCount = Number(countRow?.count ?? 0);
   const totalCredit = enriched.filter(t => t.type === "credit").reduce((s, t) => s + t.amount, 0);
   const totalDebit = enriched.filter(t => t.type === "debit").reduce((s, t) => s + t.amount, 0);
 
-  res.json({ transactions: enriched, total: transactions.length, totalCredit, totalDebit });
+  res.json({
+    transactions: enriched,
+    total: totalCount,
+    page,
+    pageSize: pageLimit,
+    totalPages: Math.ceil(totalCount / pageLimit),
+    totalCredit,
+    totalDebit,
+  });
 });
 
-/* ── Delete User ── */
-router.get("/vendors", async (_req, res) => {
+/* ── Vendor Management ── */
+router.get("/vendors", requirePermission("vendors.view"), async (_req, res) => {
   const vendors = await db.select().from(usersTable).where(
     or(ilike(usersTable.roles, "%vendor%"), eq(usersTable.roles, "vendor"))
   ).orderBy(desc(usersTable.createdAt));
@@ -107,7 +169,7 @@ router.get("/vendors", async (_req, res) => {
   });
 });
 
-router.patch("/vendors/:id/status", async (req, res) => {
+router.patch("/vendors/:id/status", requirePermission("vendors.edit"), async (req, res) => {
   const { isActive, isBanned, banReason, securityNote } = req.body;
   const updates: Partial<typeof usersTable.$inferInsert> = { updatedAt: new Date() };
   if (isActive    !== undefined) updates.isActive    = isActive;
@@ -124,10 +186,10 @@ router.patch("/vendors/:id/status", async (req, res) => {
       await sendUserNotification(req.params["id"] as string, "Store Account Suspended ⚠️", banReason || "Your vendor account has been suspended. Contact support.", "warning", "warning-outline");
     }
   }
-  res.json({ ...user, walletBalance: parseFloat(String(user.walletBalance ?? "0")) });
+  res.json({ ...stripUser(user), walletBalance: parseFloat(String(user.walletBalance ?? "0")) });
 });
 
-router.post("/vendors/:id/payout", async (req, res) => {
+router.post("/vendors/:id/payout", requirePermission("finance.payouts.release"), async (req, res) => {
   const { amount, description } = req.body;
   if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
     res.status(400).json({ error: "Valid amount required" }); return;
@@ -158,7 +220,7 @@ router.post("/vendors/:id/payout", async (req, res) => {
   res.json({ success: true, amount: amt, newBalance: newBal, vendor: { ...stripUser(updated), walletBalance: newBal } });
 });
 
-router.post("/vendors/:id/credit", async (req, res) => {
+router.post("/vendors/:id/credit", requirePermission("finance.payouts.release"), async (req, res) => {
   const { amount, description } = req.body;
   if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
     res.status(400).json({ error: "Valid amount required" }); return;
@@ -185,7 +247,7 @@ router.post("/vendors/:id/credit", async (req, res) => {
 /* ══════════════════════════════════════
    RIDER MANAGEMENT
 ══════════════════════════════════════ */
-router.get("/riders", async (_req, res) => {
+router.get("/riders", requirePermission("fleet.rides.view"), async (_req, res) => {
   const riders = await db.select().from(usersTable).where(
     or(ilike(usersTable.roles, "%rider%"), eq(usersTable.roles, "rider"))
   ).orderBy(desc(usersTable.createdAt));
@@ -229,7 +291,7 @@ router.get("/riders", async (_req, res) => {
   });
 });
 
-router.patch("/riders/:id/status", async (req, res) => {
+router.patch("/riders/:id/status", requirePermission("vendors.edit"), async (req, res) => {
   const { isActive, isBanned, banReason } = req.body;
   const updates: Partial<typeof usersTable.$inferInsert> = { updatedAt: new Date() };
   if (isActive  !== undefined) updates.isActive  = isActive;
@@ -245,10 +307,10 @@ router.patch("/riders/:id/status", async (req, res) => {
       await sendUserNotification(req.params["id"] as string, "Rider Account Suspended ⚠️", banReason || "Your rider account has been suspended. Contact support.", "warning", "warning-outline");
     }
   }
-  res.json({ ...user, walletBalance: parseFloat(String(user.walletBalance ?? "0")) });
+  res.json({ ...stripUser(user), walletBalance: parseFloat(String(user.walletBalance ?? "0")) });
 });
 
-router.post("/riders/:id/payout", async (req, res) => {
+router.post("/riders/:id/payout", requirePermission("finance.payouts.release"), async (req, res) => {
   const { amount, description } = req.body;
   if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
     res.status(400).json({ error: "Valid amount required" }); return;
@@ -275,10 +337,10 @@ router.post("/riders/:id/payout", async (req, res) => {
     description: description || `Rider payout: Rs. ${amt}`, reference: "rider_payout",
   });
   await sendUserNotification(rider.id, "Earnings Paid Out 💵", `Rs. ${amt} has been paid out to your account.`, "system", "cash-outline");
-  res.json({ success: true, amount: amt, newBalance: newBal, rider: { ...updated, walletBalance: newBal } });
+  res.json({ success: true, amount: amt, newBalance: newBal, rider: { ...stripUser(updated), walletBalance: newBal } });
 });
 
-router.post("/riders/:id/bonus", async (req, res) => {
+router.post("/riders/:id/bonus", requirePermission("finance.payouts.release"), async (req, res) => {
   const { amount, description } = req.body;
   if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
     res.status(400).json({ error: "Valid amount required" }); return;
@@ -311,10 +373,10 @@ router.post("/riders/:id/bonus", async (req, res) => {
     throw err;
   }
   await sendUserNotification(riderId, "Bonus Received! 🎉", `Rs. ${amt} bonus has been added to your wallet.`, "system", "gift-outline");
-  res.json({ success: true, amount: amt, newBalance: newBal, rider: { ...updated, walletBalance: newBal } });
+  res.json({ success: true, amount: amt, newBalance: newBal, rider: { ...stripUser(updated!), walletBalance: newBal } });
 });
 
-router.get("/riders/:id/penalties", async (req, res) => {
+router.get("/riders/:id/penalties", requirePermission("finance.payouts.release"), async (req, res) => {
   const riderId = req.params["id"] as string;
   const penalties = await db.select().from(riderPenaltiesTable)
     .where(eq(riderPenaltiesTable.riderId, riderId))
@@ -323,7 +385,7 @@ router.get("/riders/:id/penalties", async (req, res) => {
   res.json({ penalties: penalties.map(p => ({ ...p, amount: parseFloat(String(p.amount)) })) });
 });
 
-router.get("/riders/:id/ratings", async (req, res) => {
+router.get("/riders/:id/ratings", requirePermission("fleet.rides.view"), async (req, res) => {
   const riderId = req.params["id"] as string;
   const ratings = await db.select().from(rideRatingsTable)
     .where(eq(rideRatingsTable.riderId, riderId))
@@ -332,7 +394,7 @@ router.get("/riders/:id/ratings", async (req, res) => {
   res.json({ ratings });
 });
 
-router.post("/riders/:id/restrict", async (req, res) => {
+router.post("/riders/:id/restrict", requirePermission("vendors.edit"), async (req, res) => {
   const riderId = req.params["id"] as string;
   const [user] = await db.update(usersTable)
     .set({ isRestricted: true, updatedAt: new Date() })
@@ -343,7 +405,7 @@ router.post("/riders/:id/restrict", async (req, res) => {
   res.json({ success: true, isRestricted: true });
 });
 
-router.post("/riders/:id/unrestrict", async (req, res) => {
+router.post("/riders/:id/unrestrict", requirePermission("vendors.edit"), async (req, res) => {
   const riderId = req.params["id"] as string;
   const [user] = await db.update(usersTable)
     .set({ isRestricted: false, updatedAt: new Date() })
@@ -355,26 +417,45 @@ router.post("/riders/:id/unrestrict", async (req, res) => {
 });
 
 /* ── GET /admin/withdrawal-requests ─────────── */
-router.get("/withdrawal-requests", async (req, res) => {
+router.get("/withdrawal-requests", requirePermission("finance.withdrawals.view"), async (req, res) => {
   const statusFilter = req.query["status"] as string | undefined;
-  const txns = await db.select().from(walletTransactionsTable)
-    .where(eq(walletTransactionsTable.type, "withdrawal"))
-    .orderBy(desc(walletTransactionsTable.createdAt))
-    .limit(300);
-  const enriched = await Promise.all(txns.map(async t => {
-    const [user] = await db.select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone, role: usersTable.roles })
-      .from(usersTable).where(eq(usersTable.id, t.userId)).limit(1);
+  const rawLimit = parseInt(String(req.query["limit"] ?? "50"), 10);
+  const pageLimit = Math.min(Math.max(1, Number.isFinite(rawLimit) ? rawLimit : 50), 200);
+  const rawPage = parseInt(String(req.query["page"] ?? "1"), 10);
+  const page = Math.max(1, Number.isFinite(rawPage) ? rawPage : 1);
+  const offset = (page - 1) * pageLimit;
+
+  const [txns, [countRow]] = await Promise.all([
+    db.select().from(walletTransactionsTable)
+      .where(eq(walletTransactionsTable.type, "withdrawal"))
+      .orderBy(desc(walletTransactionsTable.createdAt))
+      .limit(pageLimit)
+      .offset(offset),
+    db.select({ count: count() }).from(walletTransactionsTable)
+      .where(eq(walletTransactionsTable.type, "withdrawal")),
+  ]);
+
+  const userIds = [...new Set(txns.map(t => t.userId))];
+  const users = userIds.length > 0
+    ? await db.select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone, role: usersTable.roles })
+        .from(usersTable)
+        .where(sql`${usersTable.id} = ANY(${sql.raw(`ARRAY[${userIds.map(id => `'${id}'`).join(",")}]`)})`)
+    : [];
+  const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+
+  const enriched = txns.map(t => {
     const ref = t.reference ?? "pending";
     const status = ref === "pending" ? "pending" : ref.startsWith("paid:") ? "paid" : ref.startsWith("rejected:") ? "rejected" : ref;
     const refNo = ref.startsWith("paid:") ? ref.slice(5) : ref.startsWith("rejected:") ? ref.slice(9) : "";
-    return { ...t, amount: parseFloat(String(t.amount)), user: user || null, status, refNo };
-  }));
+    return { ...t, amount: parseFloat(String(t.amount)), user: userMap[t.userId] ?? null, status, refNo };
+  });
+
   const filtered = statusFilter ? enriched.filter(w => w.status === statusFilter) : enriched;
-  res.json({ withdrawals: filtered });
+  res.json({ withdrawals: filtered, total: Number(countRow?.count ?? 0), page, pageSize: pageLimit });
 });
 
 /* ── PATCH /admin/withdrawal-requests/:id/approve ─── */
-router.patch("/withdrawal-requests/:id/approve", async (req, res) => {
+router.patch("/withdrawal-requests/:id/approve", requirePermission("finance.withdrawals.view"), async (req, res) => {
   const { refNo, note } = req.body;
   const txId = req.params["id"] as string;
   const [tx] = await db.select().from(walletTransactionsTable).where(eq(walletTransactionsTable.id, txId)).limit(1);
@@ -398,7 +479,7 @@ router.patch("/withdrawal-requests/:id/approve", async (req, res) => {
 });
 
 /* ── PATCH /admin/withdrawal-requests/:id/reject ─── */
-router.patch("/withdrawal-requests/:id/reject", async (req, res) => {
+router.patch("/withdrawal-requests/:id/reject", requirePermission("finance.withdrawals.view"), async (req, res) => {
   const { reason } = req.body;
   const txId = req.params["id"] as string;
   const [tx] = await db.select().from(walletTransactionsTable).where(eq(walletTransactionsTable.id, txId)).limit(1);
@@ -428,77 +509,140 @@ router.patch("/withdrawal-requests/:id/reject", async (req, res) => {
 });
 
 /* ── PATCH /admin/withdrawal-requests/batch-approve ─── */
-router.patch("/withdrawal-requests/batch-approve", async (req, res) => {
+router.patch("/withdrawal-requests/batch-approve", requirePermission("finance.withdrawals.view"), async (req, res) => {
   const { ids } = req.body as { ids: string[] };
   if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids required" }); return; }
-  const results: unknown[] = [];
+
+  const preChecked: { tx: typeof walletTransactionsTable.$inferSelect; refNo: string }[] = [];
   for (const txId of ids) {
     const [tx] = await db.select().from(walletTransactionsTable).where(eq(walletTransactionsTable.id, txId)).limit(1);
     if (!tx || (tx.reference && tx.reference !== "pending")) continue;
-    const refNo = `BATCH-${Date.now()}`;
-    await db.update(walletTransactionsTable).set({ reference: refNo }).where(eq(walletTransactionsTable.id, txId));
+    preChecked.push({ tx, refNo: `BATCH-${Date.now()}` });
+  }
+
+  if (preChecked.length === 0) {
+    res.json({ success: true, approved: [] }); return;
+  }
+
+  try {
+    await db.transaction(async (trx) => {
+      for (const { tx, refNo } of preChecked) {
+        const [marked] = await trx.update(walletTransactionsTable)
+          .set({ reference: refNo })
+          .where(and(eq(walletTransactionsTable.id, tx.id), eq(walletTransactionsTable.reference, "pending")))
+          .returning({ id: walletTransactionsTable.id });
+        if (!marked) throw new Error(`Withdrawal ${tx.id} was already processed (race condition)`);
+      }
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(409).json({ error: msg }); return;
+  }
+
+  for (const { tx, refNo } of preChecked) {
     const batchAppLang = await getUserLanguage(tx.userId);
     await db.insert(notificationsTable).values({
       id: generateId(), userId: tx.userId,
       title: t("notifWithdrawalApproved" as TranslationKey, batchAppLang),
       body: t("notifWithdrawalApprovedBody" as TranslationKey, batchAppLang).replace("{amount}", parseFloat(String(tx.amount)).toFixed(0)).replace("{ref}", ` Ref: ${refNo}`).replace("{note}", ""),
       type: "wallet", icon: "checkmark-circle-outline",
-    }).catch((e: Error) => { logger.warn({ err: e.message, txId, userId: tx.userId }, "[admin] batch-approve notification insert failed"); });
-    results.push(txId);
+    }).catch((e: Error) => { logger.warn({ err: e.message, txId: tx.id, userId: tx.userId }, "[admin] batch-approve notification insert failed"); });
   }
-  res.json({ success: true, approved: results });
+  res.json({ success: true, approved: preChecked.map(p => p.tx.id) });
 });
 
 /* ── PATCH /admin/withdrawal-requests/batch-reject ─── */
-router.patch("/withdrawal-requests/batch-reject", async (req, res) => {
+router.patch("/withdrawal-requests/batch-reject", requirePermission("finance.withdrawals.view"), async (req, res) => {
   const { ids, reason } = req.body as { ids: string[]; reason: string };
   if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids required" }); return; }
   const rejReason = (reason || "Admin batch rejected").trim();
-  const results: unknown[] = [];
+
+  const preChecked: { tx: typeof walletTransactionsTable.$inferSelect; amt: number }[] = [];
   for (const txId of ids) {
     const [tx] = await db.select().from(walletTransactionsTable).where(eq(walletTransactionsTable.id, txId)).limit(1);
     if (!tx || (tx.reference && tx.reference !== "pending")) continue;
-    await db.update(walletTransactionsTable).set({ reference: `rejected:${rejReason}` }).where(eq(walletTransactionsTable.id, txId));
-    const amt = parseFloat(String(tx.amount));
-    await db.update(usersTable).set({ walletBalance: sql`wallet_balance + ${amt}`, updatedAt: new Date() }).where(eq(usersTable.id, tx.userId));
-    await db.insert(walletTransactionsTable).values({
-      id: generateId(), userId: tx.userId, type: "credit", amount: amt.toFixed(2),
-      description: `Withdrawal Refunded — ${rejReason}`, reference: `refund:${txId}`, paymentMethod: null,
+    preChecked.push({ tx, amt: parseFloat(String(tx.amount)) });
+  }
+
+  if (preChecked.length === 0) {
+    res.json({ success: true, rejected: [] }); return;
+  }
+
+  try {
+    await db.transaction(async (trx) => {
+      for (const { tx, amt } of preChecked) {
+        const [marked] = await trx.update(walletTransactionsTable)
+          .set({ reference: `rejected:${rejReason}` })
+          .where(and(eq(walletTransactionsTable.id, tx.id), eq(walletTransactionsTable.reference, "pending")))
+          .returning({ id: walletTransactionsTable.id });
+        if (!marked) throw new Error(`Withdrawal ${tx.id} was already processed (race condition)`);
+        await trx.update(usersTable)
+          .set({ walletBalance: sql`wallet_balance + ${amt}`, updatedAt: new Date() })
+          .where(eq(usersTable.id, tx.userId));
+        await trx.insert(walletTransactionsTable).values({
+          id: generateId(), userId: tx.userId, type: "credit", amount: amt.toFixed(2),
+          description: `Withdrawal Refunded — ${rejReason}`, reference: `refund:${tx.id}`, paymentMethod: null,
+        });
+      }
     });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(409).json({ error: msg }); return;
+  }
+
+  for (const { tx, amt } of preChecked) {
     const batchRejLang = await getUserLanguage(tx.userId);
     await db.insert(notificationsTable).values({
       id: generateId(), userId: tx.userId,
       title: t("notifWithdrawalRejected" as TranslationKey, batchRejLang),
       body: t("notifWithdrawalRejectedBody" as TranslationKey, batchRejLang).replace("{amount}", amt.toFixed(0)).replace("{reason}", rejReason),
       type: "wallet", icon: "close-circle-outline",
-    }).catch((e: Error) => { logger.warn({ err: e.message, txId, userId: tx.userId }, "[admin] batch-reject notification insert failed"); });
-    results.push(txId);
+    }).catch((e: Error) => { logger.warn({ err: e.message, txId: tx.id, userId: tx.userId }, "[admin] batch-reject notification insert failed"); });
   }
-  res.json({ success: true, rejected: results });
+  res.json({ success: true, rejected: preChecked.map(p => p.tx.id) });
 });
 
 /* ── GET /admin/deposit-requests — List all rider deposit requests ─── */
-router.get("/deposit-requests", async (req, res) => {
+router.get("/deposit-requests", requirePermission("finance.deposits.review"), async (req, res) => {
   const statusFilter = req.query["status"] as string | undefined;
-  const txns = await db.select().from(walletTransactionsTable)
-    .where(eq(walletTransactionsTable.type, "deposit"))
-    .orderBy(desc(walletTransactionsTable.createdAt))
-    .limit(200);
-  const enriched = await Promise.all(txns.map(async t => {
-    const [user] = await db.select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone, role: usersTable.roles })
-      .from(usersTable).where(eq(usersTable.id, t.userId)).limit(1);
+  const rawLimit = parseInt(String(req.query["limit"] ?? "50"), 10);
+  const pageLimit = Math.min(Math.max(1, Number.isFinite(rawLimit) ? rawLimit : 50), 200);
+  const rawPage = parseInt(String(req.query["page"] ?? "1"), 10);
+  const page = Math.max(1, Number.isFinite(rawPage) ? rawPage : 1);
+  const offset = (page - 1) * pageLimit;
+
+  const [txns, [countRow]] = await Promise.all([
+    db.select().from(walletTransactionsTable)
+      .where(eq(walletTransactionsTable.type, "deposit"))
+      .orderBy(desc(walletTransactionsTable.createdAt))
+      .limit(pageLimit)
+      .offset(offset),
+    db.select({ count: count() }).from(walletTransactionsTable)
+      .where(eq(walletTransactionsTable.type, "deposit")),
+  ]);
+
+  const userIds = [...new Set(txns.map(t => t.userId))];
+  const users = userIds.length > 0
+    ? await db.select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone, role: usersTable.roles })
+        .from(usersTable)
+        .where(sql`${usersTable.id} = ANY(${sql.raw(`ARRAY[${userIds.map(id => `'${id}'`).join(",")}]`)})`)
+    : [];
+  const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+
+  const enriched = txns.map(t => {
     const ref = t.reference ?? "pending";
     const isPending = ref === "pending" || ref.startsWith("pending:");
     const status = isPending ? "pending" : ref.startsWith("approved:") ? "approved" : ref.startsWith("rejected:") ? "rejected" : ref;
     const refNo = ref.startsWith("approved:") || ref.startsWith("rejected:") ? ref.split(":").slice(1).join(":") : "";
-    return { ...t, amount: parseFloat(String(t.amount)), user: user || null, status, refNo };
-  }));
+    return { ...t, amount: parseFloat(String(t.amount)), user: userMap[t.userId] ?? null, status, refNo };
+  });
+
   const filtered = statusFilter ? enriched.filter(d => d.status === statusFilter) : enriched;
-  res.json({ deposits: filtered });
+  res.json({ deposits: filtered, total: Number(countRow?.count ?? 0), page, pageSize: pageLimit });
 });
 
 /* ── PATCH /admin/deposit-requests/:id/approve — Approve a rider deposit (credits wallet, atomic) ─── */
-router.patch("/deposit-requests/:id/approve", async (req, res) => {
+router.patch("/deposit-requests/:id/approve", requirePermission("finance.deposits.review"), async (req, res) => {
   const { refNo, note } = req.body;
   const txId = req.params["id"] as string;
 
@@ -561,7 +705,7 @@ router.patch("/deposit-requests/:id/approve", async (req, res) => {
 });
 
 /* ── PATCH /admin/deposit-requests/:id/reject — Reject a rider deposit (atomic state transition) ─── */
-router.patch("/deposit-requests/:id/reject", async (req, res) => {
+router.patch("/deposit-requests/:id/reject", requirePermission("finance.deposits.review"), async (req, res) => {
   const { reason } = req.body;
   const txId = req.params["id"] as string;
 
@@ -595,7 +739,7 @@ router.patch("/deposit-requests/:id/reject", async (req, res) => {
 });
 
 /* ── POST /admin/deposit-requests/bulk-approve — Bulk approve customer pending deposits (all-or-nothing atomic) ─── */
-router.post("/deposit-requests/bulk-approve", async (req, res) => {
+router.post("/deposit-requests/bulk-approve", requirePermission("finance.deposits.review"), async (req, res) => {
   const { ids, refNo } = req.body as { ids: string[]; refNo?: string };
   if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids array is required" }); return; }
   const uniqueIds = [...new Set(ids)];
@@ -654,7 +798,7 @@ router.post("/deposit-requests/bulk-approve", async (req, res) => {
 });
 
 /* ── POST /admin/deposit-requests/bulk-reject — Bulk reject customer pending deposits (all-or-nothing atomic) ─── */
-router.post("/deposit-requests/bulk-reject", async (req, res) => {
+router.post("/deposit-requests/bulk-reject", requirePermission("finance.deposits.review"), async (req, res) => {
   const { ids, reason } = req.body as { ids: string[]; reason: string };
   if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids array is required" }); return; }
   if (!reason?.trim()) { res.status(400).json({ error: "reason is required" }); return; }
@@ -708,8 +852,8 @@ router.post("/deposit-requests/bulk-reject", async (req, res) => {
   res.json({ success: true, rejected: preChecked.length });
 });
 
-/* ── GET /admin/all-notifications ─────────── */
-router.post("/riders/:id/credit", async (req, res) => {
+/* ── POST /admin/riders/:id/credit ─────────── */
+router.post("/riders/:id/credit", requirePermission("finance.payouts.release"), async (req, res) => {
   const { amount, description, type } = req.body;
   if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
     res.status(400).json({ error: "Valid amount required" }); return;
@@ -736,7 +880,7 @@ router.post("/riders/:id/credit", async (req, res) => {
   );
   res.json({ success: true, amount: amt, newBalance: parseFloat(updated?.walletBalance ?? "0") });
 });
-router.patch("/vendors/:id/commission", async (req, res) => {
+router.patch("/vendors/:id/commission", requirePermission("finance.payouts.release"), async (req, res) => {
   const { commissionPct } = req.body as { commissionPct: number };
   if (commissionPct === undefined || isNaN(Number(commissionPct))) {
     res.status(400).json({ error: "commissionPct required" }); return;
@@ -750,8 +894,8 @@ router.patch("/vendors/:id/commission", async (req, res) => {
   res.json({ success: true, commissionPct });
 });
 
-/* ── PATCH /admin/riders/:id/online — toggle rider online/offline ── */
-router.post("/riders/:id/override-suspension", async (req, res) => {
+/* ── POST /admin/riders/:id/override-suspension ── */
+router.post("/riders/:id/override-suspension", requirePermission("vendors.edit"), async (req, res) => {
   const userId = req.params["id"] as string;
   const [user] = await db.select({ id: usersTable.id, autoSuspendedAt: usersTable.autoSuspendedAt })
     .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
@@ -777,7 +921,7 @@ router.post("/riders/:id/override-suspension", async (req, res) => {
 });
 
 /* ── POST /admin/vendors/:id/override-suspension — override auto-suspension ─ */
-router.post("/vendors/:id/override-suspension", async (req, res) => {
+router.post("/vendors/:id/override-suspension", requirePermission("vendors.edit"), async (req, res) => {
   const userId = req.params["id"] as string;
   const [user] = await db.select({ id: usersTable.id, autoSuspendedAt: usersTable.autoSuspendedAt })
     .from(usersTable).where(eq(usersTable.id, userId)).limit(1);

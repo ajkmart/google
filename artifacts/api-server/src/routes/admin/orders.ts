@@ -39,7 +39,7 @@ function wrapAsync(fn: (req: Request, res: Response) => Promise<void>): RequestH
   return (req, res, next) => void fn(req, res).catch(next);
 }
 
-router.post("/orders", async (req, res) => {
+router.post("/orders", requirePermission("orders.create"), async (req, res) => {
   const { userId, vendorId, type, items, total, deliveryAddress, paymentMethod, status } = req.body;
   if (!userId || typeof userId !== "string" || !userId.trim()) {
     sendValidationError(res, "userId is required");
@@ -82,7 +82,7 @@ router.post("/orders", async (req, res) => {
   }
 });
 
-router.get("/orders", wrapAsync(async (req, res) => {
+router.get("/orders", requirePermission("orders.view"), wrapAsync(async (req, res) => {
   const { status, type } = req.query;
   const settings = await getCachedSettings();
   const isDemoMode = (settings["platform_mode"] ?? "demo") === "demo";
@@ -145,7 +145,7 @@ router.get("/orders", wrapAsync(async (req, res) => {
   });
 }));
 
-router.patch("/orders/:id/status", wrapAsync(async (req, res) => {
+router.patch("/orders/:id/status", requirePermission("orders.edit"), wrapAsync(async (req, res) => {
   const { status } = req.body;
   const orderId = req.params["id"] as string;
 
@@ -290,7 +290,7 @@ router.patch("/orders/:id/status", wrapAsync(async (req, res) => {
   sendSuccess(res, { ...order, total: parseFloat(String(order.total)) });
 }));
 
-router.post("/orders/:id/refund", wrapAsync(async (req, res) => {
+router.post("/orders/:id/refund", requirePermission("orders.edit"), wrapAsync(async (req, res) => {
   const { amount, reason } = req.body;
   const [order] = await db.select().from(ordersTable).where(and(eq(ordersTable.id, req.params["id"] as string), isNull(ordersTable.deletedAt))).limit(1);
   if (!order) { sendNotFound(res, "Order not found"); return; }
@@ -383,7 +383,7 @@ router.post("/orders/:id/refund", wrapAsync(async (req, res) => {
 
   sendSuccess(res, { success: true, refundedAmount: refundAmt, orderId: order.id });
 }));
-router.get("/pharmacy-orders", wrapAsync(async (_req, res) => {
+router.get("/pharmacy-orders", requirePermission("orders.view"), wrapAsync(async (_req, res) => {
   const orders = await db
     .select()
     .from(pharmacyOrdersTable)
@@ -400,7 +400,7 @@ router.get("/pharmacy-orders", wrapAsync(async (_req, res) => {
   });
 }));
 
-router.patch("/pharmacy-orders/:id/status", wrapAsync(async (req, res) => {
+router.patch("/pharmacy-orders/:id/status", requirePermission("orders.edit"), wrapAsync(async (req, res) => {
   const { status } = req.body;
   if (!status || !(PHARMACY_ORDER_VALID_STATUSES as readonly string[]).includes(status)) {
     sendValidationError(res, `Invalid pharmacy order status "${status}". Valid statuses: ${PHARMACY_ORDER_VALID_STATUSES.join(", ")}`);
@@ -493,7 +493,7 @@ router.patch("/pharmacy-orders/:id/status", wrapAsync(async (req, res) => {
 }));
 
 /* ── Parcel Bookings ── */
-router.get("/parcel-bookings", wrapAsync(async (_req, res) => {
+router.get("/parcel-bookings", requirePermission("orders.view"), wrapAsync(async (_req, res) => {
   const bookings = await db
     .select()
     .from(parcelBookingsTable)
@@ -510,7 +510,7 @@ router.get("/parcel-bookings", wrapAsync(async (_req, res) => {
   });
 }));
 
-router.patch("/parcel-bookings/:id/status", wrapAsync(async (req, res) => {
+router.patch("/parcel-bookings/:id/status", requirePermission("orders.edit"), wrapAsync(async (req, res) => {
   const { status } = req.body;
   if (!status || !(PARCEL_VALID_STATUSES as readonly string[]).includes(status)) {
     sendValidationError(res, `Invalid parcel status "${status}". Valid statuses: ${PARCEL_VALID_STATUSES.join(", ")}`);
