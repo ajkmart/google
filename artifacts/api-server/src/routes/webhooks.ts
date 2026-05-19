@@ -258,14 +258,14 @@ async function processDeliveryStatus(status: any, value: any): Promise<void> {
   /* Upsert the log row — create if first event, update on subsequent. */
   const rowId = `wml_${generateId()}`;
   await pool.query(
-    `INSERT INTO whatsapp_message_log
-       (id, wa_message_id, recipient_phone, status, error_code, error_message, raw_payload, sent_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-     ON CONFLICT (wa_message_id) DO UPDATE SET
+    `INSERT INTO whatsapp_delivery_logs
+       (id, provider_message_id, phone, status, error_code, error_message, message, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+     ON CONFLICT (provider_message_id) DO UPDATE SET
        status        = EXCLUDED.status,
-       error_code    = COALESCE(EXCLUDED.error_code, whatsapp_message_log.error_code),
-       error_message = COALESCE(EXCLUDED.error_message, whatsapp_message_log.error_message),
-       raw_payload   = EXCLUDED.raw_payload,
+       error_code    = COALESCE(EXCLUDED.error_code, whatsapp_delivery_logs.error_code),
+       error_message = COALESCE(EXCLUDED.error_message, whatsapp_delivery_logs.error_message),
+       message       = EXCLUDED.message,
        updated_at    = NOW()`,
     [rowId, waMessageId, recipient, statusVal, errorCode, errorMsg, JSON.stringify({ status, value })],
   );
@@ -281,7 +281,7 @@ async function processDeliveryStatus(status: any, value: any): Promise<void> {
 async function triggerFallback(phone: string, waMessageId: string, pool: Pool): Promise<void> {
   /* Check if a fallback has already been attempted for this message. */
   const { rows } = await pool.query(
-    `SELECT fallback_sent FROM whatsapp_message_log WHERE wa_message_id = $1`,
+    `SELECT fallback_sent FROM whatsapp_delivery_logs WHERE provider_message_id = $1`,
     [waMessageId],
   );
   const row = rows[0];
@@ -360,9 +360,9 @@ async function triggerFallback(phone: string, waMessageId: string, pool: Pool): 
   /* Only persist fallback_sent=true when a channel actually dispatched. */
   if (channel) {
     await pool.query(
-      `UPDATE whatsapp_message_log
+      `UPDATE whatsapp_delivery_logs
        SET fallback_sent = TRUE, fallback_channel = $1, updated_at = NOW()
-       WHERE wa_message_id = $2`,
+       WHERE provider_message_id = $2`,
       [channel, waMessageId],
     );
   }
