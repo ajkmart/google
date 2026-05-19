@@ -1,4 +1,4 @@
-import React, { Component, type ReactNode, useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useVersionCheck } from "@/hooks/useVersionCheck";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -9,6 +9,8 @@ import { usePlatformConfig } from "./lib/useConfig";
 import { useLanguage } from "./lib/useLanguage";
 import { registerPush, consumePendingNotificationTap, type PushErrorHandler } from "./lib/push";
 import { markOrderSeen, wasOrderSeenRecently } from "./lib/notificationSound";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { Toaster } from "./components/ui/toaster";
 
 import { Capacitor } from "@capacitor/core";
 import { initSentry, setSentryUser } from "./lib/sentry";
@@ -39,37 +41,6 @@ import Reviews from "./pages/Reviews";
 import Promos from "./pages/Promos";
 import Campaigns from "./pages/Campaigns";
 import Chat from "./pages/Chat";
-
-class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-xl">
-            <div className="text-5xl mb-4">⚠️</div>
-            <h2 className="text-xl font-extrabold text-gray-800 mb-2">Kuch galat ho gaya / Something went wrong</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              {this.state.error?.message || "An unexpected error occurred."}
-            </p>
-            <button
-              onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload(); }}
-              className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-sm">
-              Dobara koshish karein / Retry
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 10000, refetchOnWindowFocus: true } },
@@ -466,6 +437,7 @@ export default function App() {
         <VersionCheckInit />
         <AuthProvider>
           <ThemeProvider theme={vendorTheme}>
+          <Toaster />
           <WouterRouter base={(() => {
               /* Use BASE_URL exactly as Vite computed it from vite.config's
                  `base` option:

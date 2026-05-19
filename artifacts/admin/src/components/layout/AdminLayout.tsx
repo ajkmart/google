@@ -45,6 +45,7 @@ import {
   writeFavorites,
 } from "@/lib/navConfig";
 import { StockNotificationBell } from "@/components/StockNotificationBell";
+import { AdminNotificationBell } from "@/components/AdminNotificationBell";
 
 // NAV_GROUPS, NAV_DESCRIPTIONS, BOTTOM_NAV and navItems are imported from
 // `@/lib/navConfig` so the command palette, breadcrumbs and any future
@@ -944,6 +945,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 </div>
               </Link>
             )}
+
+            {/* Activity notification bell — orders, KYC, SOS */}
+            <AdminNotificationBell />
 
             {/* Stock notification bell */}
             <StockNotificationBell />

@@ -266,7 +266,7 @@ export async function apiGet(endpoint: string) {
 /**
  * Post helper
  */
-export async function apiPost(endpoint: string, data: any) {
+export async function apiPost(endpoint: string, data: Record<string, unknown>) {
   return fetcher(endpoint, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -276,7 +276,7 @@ export async function apiPost(endpoint: string, data: any) {
 /**
  * Put helper
  */
-export async function apiPut(endpoint: string, data: any) {
+export async function apiPut(endpoint: string, data: Record<string, unknown>) {
   return fetcher(endpoint, {
     method: 'PUT',
     body: JSON.stringify(data),
@@ -286,7 +286,7 @@ export async function apiPut(endpoint: string, data: any) {
 /**
  * Patch helper
  */
-export async function apiPatch(endpoint: string, data: any) {
+export async function apiPatch(endpoint: string, data: Record<string, unknown>) {
   return fetcher(endpoint, {
     method: 'PATCH',
     body: JSON.stringify(data),

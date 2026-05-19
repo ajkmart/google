@@ -33,6 +33,7 @@ import {
 } from "../lib/validation/schemas.js";
 import { sendPushToUser } from "../lib/webpush.js";
 import { sendSms } from "../services/sms.js";
+import { emitKycSubmitted } from "../lib/socketio.js";
 
 
 const UPLOADS_DIR = path.resolve(process.cwd(), "uploads/kyc");
@@ -389,6 +390,7 @@ router.post(
           message:
             "KYC submitted successfully. Our team will review within 24 hours.",
         });
+        emitKycSubmitted({ userId, submittedAt: new Date().toISOString() });
       } catch (err: any) {
         if (err?.statusCode === 400) {
           res.status(400).json({ error: err.message });
@@ -592,6 +594,7 @@ router.post("/submit-base64", customerAuth, validateBody(KycSubmitBase64Schema),
         message:
           "KYC submitted successfully. Our team will review within 24 hours.",
       });
+      emitKycSubmitted({ userId, submittedAt: new Date().toISOString() });
     } catch (err: any) {
       if (err?.statusCode === 400) {
         res.status(400).json({ error: err.message });

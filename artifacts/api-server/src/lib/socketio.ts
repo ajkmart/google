@@ -709,6 +709,12 @@ export interface SosAlertPayload {
   [key: string]: unknown;
 }
 
+/** Emit a KYC submission event to all admin-fleet sessions */
+export function emitKycSubmitted(payload: { userId: string; submittedAt: string }) {
+  if (!_io) return;
+  _io.to("admin-fleet").emit("kyc:submitted", payload);
+}
+
 /** Emit a new SOS alert to all admin-fleet sessions */
 export function emitSosNew(payload: SosAlertPayload) {
   if (!_io) return;

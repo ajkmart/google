@@ -18,7 +18,6 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
-    console.error("[ErrorBoundary] caught:", error, info.componentStack); // eslint-disable-line no-console
     log.error("caught:", error, info);
     reportError({
       errorType: "frontend_crash",

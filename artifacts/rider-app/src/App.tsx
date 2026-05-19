@@ -1,5 +1,6 @@
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { Toaster } from "./components/ui/toaster";
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[App]");
 import { RiderAuthConfigProvider } from "./lib/AuthConfigContext";
@@ -591,6 +592,7 @@ function App() {
                 <WouterRouter base={getRouterBase()}>
                   <AppRoutes />
                 </WouterRouter>
+                <Toaster />
                 <PwaInstallBanner />
               </SocketProvider>
               </ThemeProvider>
