@@ -89,6 +89,7 @@ outputType = "webview"
 [agent]
 stack = "BEST_EFFORT_FALLBACK"
 expertMode = true
+integrations = ["javascript_gemini_ai_integrations:2.0.0"]
 
 [postMerge]
 path = "scripts/post-merge.sh"
@@ -118,3 +119,4 @@ NODE_ENV = "development"
 JWT_ISSUER = "ajkmart"
 VITE_API_PROXY_TARGET = "http://127.0.0.1:5000"
 ADMIN_SEED_PASSWORD = "SuperAdmin@2024!"
+PORT = "5000"
