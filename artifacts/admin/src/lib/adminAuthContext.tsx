@@ -334,10 +334,10 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
         // If MFA is required, throw a special error that includes the tempToken
         if (data.requiresMfa) {
-          const mfaError: any = new Error(data.message || 'MFA required');
-          mfaError.requiresMfa = true;
-          mfaError.tempToken = data.tempToken;
-          throw mfaError;
+          throw Object.assign(
+            new Error(data.message || 'MFA required'),
+            { requiresMfa: true as const, tempToken: data.tempToken as string | undefined },
+          );
         }
 
         // Login successful
