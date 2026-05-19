@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { renderSection, CatKey, SettingsSectionProps } from "./settings-render";
+import { renderSection, CatKey, SettingsSectionProps, TEXT_KEYS } from "./settings-render";
 import {
   Globe, Zap, Languages,
 } from "lucide-react";
@@ -13,7 +13,7 @@ const GENERAL_CAT_CONFIG: Record<string, { label: string; icon: React.ElementTyp
 
 const GENERAL_CATS: CatKey[] = ["general", "regional", "localization", "features"];
 
-function getInputType(key: string) { return key.includes("_url") || isNaN(Number("0")) ? "text" : "number"; }
+function getInputType(key: string) { return TEXT_KEYS.has(key) ? "text" : "number"; }
 function getInputSuffix(key: string) {
   if (key.includes("_pct") || key.includes("pct")) return "%";
   if (key.includes("_km") || key === "rider_acceptance_km") return "KM";

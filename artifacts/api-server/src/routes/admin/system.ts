@@ -213,13 +213,22 @@ router.put("/platform-settings", async (req, res) => {
     const err = validateSettingValue(key, String(value));
     if (err) { sendError(res, err, 422); return; }
   }
-  for (const { key, value } of settings) {
+  if (settings.length > 0) {
     await db
       .insert(platformSettingsTable)
-      .values({ key, value: String(value), label: key, category: "custom", updatedAt: new Date() })
+      .values(settings.map(({ key, value }) => ({
+        key,
+        value: String(value),
+        label: key,
+        category: "custom",
+        updatedAt: new Date(),
+      })))
       .onConflictDoUpdate({
         target: platformSettingsTable.key,
-        set:    { value: String(value), updatedAt: new Date() },
+        set: {
+          value: sql`excluded.value`,
+          updatedAt: sql`excluded.updated_at`,
+        },
       });
   }
   /* Bust both caches so new values apply immediately to all call sites */
@@ -278,16 +287,16 @@ router.post("/platform-settings/restore", async (req, res) => {
   }
   if (errors.length > 0) { sendError(res, `Validation failed: ${errors.slice(0, 3).join("; ")}`, 422); return; }
 
-  let updated = 0;
-  let skipped = 0;
-  for (const { key, value } of settings) {
-    const result = await db
-      .update(platformSettingsTable)
-      .set({ value: String(value), updatedAt: new Date() })
-      .where(eq(platformSettingsTable.key, key))
-      .returning({ key: platformSettingsTable.key });
-    if (result.length > 0) { updated++; } else { skipped++; }
-  }
+  const results = await Promise.all(
+    settings.map(({ key, value }) =>
+      db.update(platformSettingsTable)
+        .set({ value: String(value), updatedAt: new Date() })
+        .where(eq(platformSettingsTable.key, key))
+        .returning({ key: platformSettingsTable.key })
+    )
+  );
+  const updated = results.filter(r => r.length > 0).length;
+  const skipped = results.filter(r => r.length === 0).length;
   invalidateSettingsCache();
   invalidatePlatformSettingsCache();
   addAuditEntry({ action: "settings_restore", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Restored ${updated} settings (${skipped} unrecognised keys skipped)`, result: "success" });

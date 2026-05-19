@@ -205,8 +205,8 @@ export default function SettingsPage() {
       setLocalValues(vals);
       setSavedValues(vals);
       setDirtyKeys(new Set());
-    } catch (e: any) {
-      toast({ title: "Failed to load settings", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Failed to load settings", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
     }
     setLoading(false);
   }, [toast]);
@@ -254,8 +254,8 @@ export default function SettingsPage() {
       setDirtyKeys(new Set());
       toast({ title: "Settings saved ✅", description: `${changed.length} change(s) applied instantly.` });
       queryClient.invalidateQueries({ queryKey: ["platform-settings"] });
-    } catch (e: any) {
-      toast({ title: "Save failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Save failed", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
     }
     setSaving(false);
     setPendingDiff([]);
@@ -283,8 +283,8 @@ export default function SettingsPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       toast({ title: "Backup download started", description: `${data.count ?? data.settings?.length ?? 0} settings exported — check your Downloads folder.` });
-    } catch (e: any) {
-      toast({ title: "Backup failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Backup failed", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
     }
     setBackingUp(false);
   };
@@ -302,16 +302,20 @@ export default function SettingsPage() {
     setRestoring(true);
     try {
       const text = await file.text();
-      let parsed: any;
+      let parsed: unknown;
       try { parsed = JSON.parse(text); } catch { throw new Error("Invalid JSON file."); }
-      const settingsArr = parsed?.settings ?? parsed;
+      const parsedObj = parsed as Record<string, unknown> | null;
+      const settingsArr = Array.isArray(parsedObj?.settings) ? parsedObj.settings : (Array.isArray(parsed) ? parsed : null);
       if (!Array.isArray(settingsArr)) throw new Error("Backup file must contain a settings array.");
-      const payload = settingsArr.map((s: any) => ({ key: String(s.key ?? ""), value: String(s.value ?? "") }));
+      const payload = (settingsArr as unknown[]).map((s) => {
+        const entry = s as Record<string, unknown>;
+        return { key: String(entry.key ?? ""), value: String(entry.value ?? "") };
+      });
       const result = await adminFetch("/platform-settings/restore", { method: "POST", body: JSON.stringify({ settings: payload }) });
       await loadSettings();
       toast({ title: "Settings restored ✅", description: `${result.restored ?? payload.length} settings applied${result.skipped ? `, ${result.skipped} skipped` : ""}.` });
-    } catch (e: any) {
-      toast({ title: "Restore failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Restore failed", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
     }
     setRestoring(false);
   };
@@ -361,8 +365,8 @@ export default function SettingsPage() {
     customer_signup_bonus:    "payment",
   }), []);
 
-  /* The 5 sections that always render even with zero DB settings. */
-  const ALWAYS_VISIBLE = useMemo(() => new Set<CatKey>(["payment", "integrations", "security", "system", "weather"]), []);
+  /* The 7 sections that always render even with zero DB settings. */
+  const ALWAYS_VISIBLE = useMemo(() => new Set<CatKey>(["payment", "integrations", "security", "system", "weather", "compliance", "branding"]), []);
 
   const childHasContent = useCallback((cat: CatKey) => {
     return ALWAYS_VISIBLE.has(cat) || (grouped[cat]?.length ?? 0) > 0;
