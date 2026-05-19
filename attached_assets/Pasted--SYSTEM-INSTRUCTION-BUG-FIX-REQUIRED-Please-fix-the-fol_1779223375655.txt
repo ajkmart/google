@@ -1,0 +1,34 @@
+### SYSTEM INSTRUCTION & BUG FIX REQUIRED
+
+Please fix the following 3 UI/UX issues and implement the database/language filter cleaning across the entire project. Follow the specific technical guidelines provided for each issue.
+
+---
+
+### ISSUE 1: Filter Menu Search Input Losing Focus
+- **Symptom:** In the admin panel, when typing in the filter menu search box, the input loses focus after every single character typed. The user has to click back into the input field to type the next letter, making it highly unfriendly.
+- **Root Cause:** The component or the page is re-rendering on every `onChange` event, which destroys and recreates the DOM element, losing the input focus.
+- **Fix Required:**
+  1. Check the state management for this search input. Ensure you are not generating dynamic `key` attributes on the input or its parent during re-renders.
+  2. If using React/Vue, ensure the state is kept local or use a `ref` or proper controlled component architecture so focus is maintained.
+  3. Alternatively, implement a debounced input or prevent the entire sidebar/filter list from resetting the DOM structure of the input field itself on keypress.
+
+---
+
+### ISSUE 2: Sidebar Navigation Scroll Resets to Top on Module Click
+- **Symptom:** In the sidebar navigation menu, when a user scrolls down to click a lower module (like "Security" or other deep modules), the sidebar scrollbar automatically jumps back to the very top ($y = 0$). The user has to scroll down again to see where they are, which feels highly unprofessional.
+- **Root Cause:** A complete page reload or a component unmount/remount is resetting the scroll position of the sidebar container element (`overflow-y: scroll`).
+- **Fix Required:**
+  1. **Option A (SPA/AJAX):** If this is a Single Page Application, ensure the sidebar component does not unmount or re-initialize its scroll state when routes change.
+  2. **Option B (Session/Local Storage):** Before navigating or on scroll change, save the current scroll position (`scrollTop`) of the sidebar container to `sessionStorage`. On component load/mount, read that value and restore the scroll position (`sidebar.scrollTop = savedPosition`).
+  3. Ensure active menu items are automatically scrolled into view using `.scrollIntoView({ block: 'nearest' })` upon initialization.
+
+---
+
+### ISSUE 3: Global Language Names Cleaning & Strict Implementation
+We need to clean up and restrict the language system across the **entire project** (Database, Frontend Dropdowns, Filters, Forms, and Translation Files).
+
+#### A. Rename & Restrict Core Languages
+Locate where languages are defined (Enums, Database Constants, Config files, or Frontend Arrays) and strictly enforce **only** these 3 clean options. Remove any hybrid/mixed options (like "English + Urdu"):
+1. Change `"Urdu Only"` to exactly `"Urdu"`
+2. Change `"English Only"` to exactly `"English"`
+3. Change `"Roman Only"` to exactly `"Roman"`
