@@ -94,7 +94,9 @@ export default function Earnings() {
     const parsed = parseFloat(goalInput);
     if (goalInput.trim() === "") {
       goalMutation.mutate(null);
-    } else if (!isNaN(parsed) && parsed > 0) {
+    } else if (isNaN(parsed) || parsed <= 0) {
+      setGoalError("Please enter a valid goal amount greater than zero.");
+    } else {
       goalMutation.mutate(parsed);
     }
   };

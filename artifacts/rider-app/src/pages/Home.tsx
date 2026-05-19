@@ -371,17 +371,21 @@ export default function Home() {
 
   const batteryRef = useRef<number | undefined>(undefined);
   useEffect(() => {
-    if (typeof navigator !== "undefined" && "getBattery" in navigator) {
-      (navigator as unknown as { getBattery: () => Promise<{ level: number; addEventListener: (e: string, cb: () => void) => void }> })
-        .getBattery()
-        .then((batt) => {
-          batteryRef.current = Math.round(batt.level * 100);
-          batt.addEventListener("levelchange", () => {
-            batteryRef.current = Math.round(batt.level * 100);
-          });
-        })
-        .catch((err) => { console.warn('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
-    }
+    if (typeof navigator === "undefined" || !("getBattery" in navigator)) return;
+    type BattMgr = { level: number; addEventListener: (e: string, cb: () => void) => void; removeEventListener: (e: string, cb: () => void) => void };
+    let mounted = true;
+    let batt: BattMgr | undefined;
+    const onLevelChange = () => { if (batt) batteryRef.current = Math.round(batt.level * 100); };
+    (navigator as unknown as { getBattery: () => Promise<BattMgr> })
+      .getBattery()
+      .then((b) => {
+        if (!mounted) return;
+        batt = b;
+        batteryRef.current = Math.round(b.level * 100);
+        b.addEventListener("levelchange", onLevelChange);
+      })
+      .catch((err) => { console.warn('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
+    return () => { mounted = false; batt?.removeEventListener("levelchange", onLevelChange); };
   }, []);
 
   /* Socket event listeners — invalidate queries on new or changed requests */

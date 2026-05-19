@@ -216,11 +216,15 @@ export default function Active() {
   useEffect(() => {
     type BatteryManager = { level: number; addEventListener: (ev: string, cb: () => void) => void; removeEventListener: (ev: string, cb: () => void) => void };
     let batt: BatteryManager | undefined;
+    let mounted = true;
     const onLevelChange = () => { if (batt) batteryRef.current = batt.level; };
     (navigator as unknown as { getBattery?: () => Promise<BatteryManager> }).getBattery?.()
-      .then((b) => { batt = b; batteryRef.current = b.level; b.addEventListener("levelchange", onLevelChange); })
+      .then((b) => {
+        if (!mounted) return;
+        batt = b; batteryRef.current = b.level; b.addEventListener("levelchange", onLevelChange);
+      })
       .catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
-    return () => { batt?.removeEventListener("levelchange", onLevelChange); };
+    return () => { mounted = false; batt?.removeEventListener("levelchange", onLevelChange); };
   }, []);
 
   useEffect(() => {

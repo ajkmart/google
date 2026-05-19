@@ -372,7 +372,7 @@ export default function Wallet() {
   const handlePullRefresh = useCallback(async () => {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["rider-wallet"] }),
-      qc.invalidateQueries({ queryKey: ["rider-withdrawals"] }),
+      qc.invalidateQueries({ queryKey: ["rider-cod"] }),
     ]);
   }, [qc]);
 

@@ -292,7 +292,8 @@ function AppRoutes() {
     const onNotificationTap = (data: Record<string, string>) => {
       const type = data.type ?? "";
       if (type === "ai_chat") { navigate("/chat?tab=ai"); return; }
-      if (data.rideId || data.orderId) {
+      if (type === "wallet") { navigate("/wallet"); return; }
+      if (data.rideId || data.orderId || type === "ride_request" || type === "order_request" || type === "new_order") {
         navigate("/active");
       }
     };

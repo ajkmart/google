@@ -1937,7 +1937,7 @@ router.get("/history", async (req, res) => {
     /* Cancelled rides have no earnings — the rider was never paid. Returning a
        non-zero earnings value for cancelled rides caused totalEarnings on the
        frontend to be inflated by fare×keepPct for every cancelled ride. */
-    ...rides.map(r => ({ kind: "ride" as const, id: r.id, status: r.status, amount: safeNum(r.fare), earnings: r.status === "cancelled" ? 0 : Math.round(safeNum(r.fare) * 100 * riderKeepPct) / 100, address: r.dropAddress, type: r.type, createdAt: r.createdAt, updatedAt: r.updatedAt })),
+    ...rides.map(r => ({ kind: "ride" as const, id: r.id, status: r.status, amount: safeNum(r.fare), earnings: r.status === "cancelled" ? 0 : Math.round(safeNum(r.fare) * 100 * riderKeepPct) / 100, address: r.dropAddress, type: r.type, createdAt: r.createdAt, updatedAt: r.updatedAt, origin: r.pickupAddress, destination: r.dropAddress, fare: safeNum(r.fare), distance: r.distance, duration: r.duration })),
   ].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
   const hasMore = sorted.length > limitParam;
