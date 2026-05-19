@@ -76,11 +76,11 @@ router.patch("/:id", async (req, res) => {
   const [existing] = await db.select({ id: whitelistUsersTable.id }).from(whitelistUsersTable).where(eq(whitelistUsersTable.id, id!)).limit(1);
   if (!existing) { sendNotFound(res, "Whitelist entry"); return; }
 
-  const updates: Record<string, any> = { updatedAt: new Date() };
-  if (label      !== undefined) updates["label"]      = label;
-  if (bypassCode !== undefined) updates["bypassCode"] = bypassCode;
-  if (isActive   !== undefined) updates["isActive"]   = isActive;
-  if (expiresAt  !== undefined) updates["expiresAt"]  = expiresAt ? new Date(expiresAt) : null;
+  const updates: Partial<typeof whitelistUsersTable.$inferInsert> = { updatedAt: new Date() };
+  if (label      !== undefined) updates.label      = label;
+  if (bypassCode !== undefined) updates.bypassCode = bypassCode;
+  if (isActive   !== undefined) updates.isActive   = isActive;
+  if (expiresAt  !== undefined) updates.expiresAt  = expiresAt ? new Date(expiresAt) : null;
 
   const [updated] = await db.update(whitelistUsersTable).set(updates).where(eq(whitelistUsersTable.id, id!)).returning();
   sendSuccess(res, { entry: updated });

@@ -579,7 +579,7 @@ const ACTIVE_STATUSES = ["pending", "confirmed", "preparing", "ready", "picked_u
 
 function buildOrderFilters(query: Record<string, string | undefined>) {
   const { status, type, search, dateFrom, dateTo } = query;
-  const conditions: any[] = [];
+  const conditions: SQL<unknown>[] = [];
 
   if (status && status !== "all") {
     if (status === "active") {

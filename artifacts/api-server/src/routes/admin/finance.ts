@@ -109,7 +109,7 @@ router.get("/vendors", async (_req, res) => {
 
 router.patch("/vendors/:id/status", async (req, res) => {
   const { isActive, isBanned, banReason, securityNote } = req.body;
-  const updates: Record<string, any> = { updatedAt: new Date() };
+  const updates: Partial<typeof usersTable.$inferInsert> = { updatedAt: new Date() };
   if (isActive    !== undefined) updates.isActive    = isActive;
   if (isBanned    !== undefined) updates.isBanned    = isBanned;
   if (banReason   !== undefined) updates.banReason   = banReason || null;
@@ -132,21 +132,30 @@ router.post("/vendors/:id/payout", async (req, res) => {
   if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
     res.status(400).json({ error: "Valid amount required" }); return;
   }
-  const [vendor] = await db.select().from(usersTable).where(eq(usersTable.id, req.params["id"] as string)).limit(1);
+  const vendorId = req.params["id"] as string;
+  const [vendor] = await db.select().from(usersTable).where(eq(usersTable.id, vendorId)).limit(1);
   if (!vendor) { res.status(404).json({ error: "Vendor not found" }); return; }
   const amt = Number(amount);
   const currentBal = parseFloat(vendor.walletBalance ?? "0");
   if (currentBal < amt) {
     res.status(400).json({ error: `Insufficient wallet balance (Rs. ${currentBal.toFixed(0)})` }); return;
   }
-  const newBal = currentBal - amt;
-  const [updated] = await db.update(usersTable).set({ walletBalance: String(newBal), updatedAt: new Date() }).where(eq(usersTable.id, vendor.id)).returning();
+  /* Atomic deduction: WHERE wallet_balance >= amt prevents race condition where two concurrent
+     payout requests both read the same balance and double-deduct. */
+  const [updated] = await db.update(usersTable)
+    .set({ walletBalance: sql`wallet_balance - ${amt}`, updatedAt: new Date() })
+    .where(and(eq(usersTable.id, vendorId), sql`CAST(wallet_balance AS NUMERIC) >= ${amt}`))
+    .returning();
+  if (!updated) {
+    res.status(400).json({ error: "Payout failed: insufficient balance at time of processing (possible concurrent request)." }); return;
+  }
+  const newBal = parseFloat(updated.walletBalance ?? "0");
   await db.insert(walletTransactionsTable).values({
-    id: generateId(), userId: vendor.id, type: "debit", amount: String(amt),
+    id: generateId(), userId: vendorId, type: "debit", amount: String(amt),
     description: description || `Admin payout processed: Rs. ${amt}`, reference: "admin_payout",
   });
-  await sendUserNotification(vendor.id, "Payout Processed 💰", `Rs. ${amt} has been paid out from your vendor wallet.`, "system", "cash-outline");
-  res.json({ success: true, amount: amt, newBalance: newBal, vendor: { ...stripUser(updated!), walletBalance: newBal } });
+  await sendUserNotification(vendorId, "Payout Processed 💰", `Rs. ${amt} has been paid out from your vendor wallet.`, "system", "cash-outline");
+  res.json({ success: true, amount: amt, newBalance: newBal, vendor: { ...stripUser(updated), walletBalance: newBal } });
 });
 
 router.post("/vendors/:id/credit", async (req, res) => {
@@ -154,17 +163,23 @@ router.post("/vendors/:id/credit", async (req, res) => {
   if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
     res.status(400).json({ error: "Valid amount required" }); return;
   }
-  const [vendor] = await db.select().from(usersTable).where(eq(usersTable.id, req.params["id"] as string)).limit(1);
+  const vendorId = req.params["id"] as string;
+  const [vendor] = await db.select().from(usersTable).where(eq(usersTable.id, vendorId)).limit(1);
   if (!vendor) { res.status(404).json({ error: "Vendor not found" }); return; }
   const amt = Number(amount);
-  const newBal = parseFloat(vendor.walletBalance ?? "0") + amt;
-  const [updated] = await db.update(usersTable).set({ walletBalance: String(newBal), updatedAt: new Date() }).where(eq(usersTable.id, vendor.id)).returning();
+  /* Atomic credit: sql`wallet_balance + ${amt}` avoids read-modify-write race condition */
+  const [updated] = await db.update(usersTable)
+    .set({ walletBalance: sql`wallet_balance + ${amt}`, updatedAt: new Date() })
+    .where(eq(usersTable.id, vendorId))
+    .returning();
+  if (!updated) { res.status(404).json({ error: "Vendor not found" }); return; }
+  const newBal = parseFloat(updated.walletBalance ?? "0");
   await db.insert(walletTransactionsTable).values({
-    id: generateId(), userId: vendor.id, type: "credit", amount: String(amt),
+    id: generateId(), userId: vendorId, type: "credit", amount: String(amt),
     description: description || `Admin credit: Rs. ${amt}`, reference: "admin_credit",
   });
-  await sendUserNotification(vendor.id, "Wallet Credited 💰", `Rs. ${amt} has been credited to your vendor wallet.`, "system", "wallet-outline");
-  res.json({ success: true, amount: amt, newBalance: newBal, vendor: { ...stripUser(updated!), walletBalance: newBal } });
+  await sendUserNotification(vendorId, "Wallet Credited 💰", `Rs. ${amt} has been credited to your vendor wallet.`, "system", "wallet-outline");
+  res.json({ success: true, amount: amt, newBalance: newBal, vendor: { ...stripUser(updated), walletBalance: newBal } });
 });
 
 /* ══════════════════════════════════════
@@ -216,7 +231,7 @@ router.get("/riders", async (_req, res) => {
 
 router.patch("/riders/:id/status", async (req, res) => {
   const { isActive, isBanned, banReason } = req.body;
-  const updates: Record<string, any> = { updatedAt: new Date() };
+  const updates: Partial<typeof usersTable.$inferInsert> = { updatedAt: new Date() };
   if (isActive  !== undefined) updates.isActive  = isActive;
   if (isBanned  !== undefined) updates.isBanned  = isBanned;
   if (banReason !== undefined) updates.banReason = banReason || null;

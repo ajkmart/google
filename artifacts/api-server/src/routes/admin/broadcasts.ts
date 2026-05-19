@@ -82,8 +82,8 @@ router.get("/broadcasts", async (req, res) => {
     }));
 
     sendSuccess(res, { broadcasts, total: total ?? broadcasts.length, page, limit });
-  } catch (err: any) {
-    sendError(res, err?.message ?? "Failed to fetch broadcasts", 500);
+  } catch (err: unknown) {
+    sendError(res, err instanceof Error ? err.message : "Failed to fetch broadcasts", 500);
   }
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
@@ -122,8 +122,8 @@ router.post("/broadcasts/record", async (req, res) => {
       result: "success",
     });
     sendSuccess(res, { id });
-  } catch (err: any) {
-    sendError(res, err?.message ?? "Failed to record broadcast", 500);
+  } catch (err: unknown) {
+    sendError(res, err instanceof Error ? err.message : "Failed to record broadcast", 500);
   }
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
@@ -164,8 +164,8 @@ router.patch("/broadcasts/:id/delivery-stats", async (req, res) => {
     });
 
     sendSuccess(res, { success: true });
-  } catch (err: any) {
-    sendError(res, err?.message ?? "Failed to update delivery stats", 500);
+  } catch (err: unknown) {
+    sendError(res, err instanceof Error ? err.message : "Failed to update delivery stats", 500);
   }
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');

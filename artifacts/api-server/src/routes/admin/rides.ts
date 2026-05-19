@@ -701,7 +701,7 @@ router.post("/rides/:id/reassign", async (req, res) => {
   const oldRiderId = ride.riderId;
   const resolvedName = riderName || riderUser.name;
   const resolvedPhone = riderPhone || riderUser.phone;
-  const updateData: Record<string, any> = {
+  const updateData: Partial<typeof ridesTable.$inferInsert> = {
     riderId,
     riderName: resolvedName,
     riderPhone: resolvedPhone,

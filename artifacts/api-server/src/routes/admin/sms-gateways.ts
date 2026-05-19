@@ -79,18 +79,18 @@ router.patch("/:id", async (req, res) => {
     const [existing] = await db.select({ id: smsGatewaysTable.id }).from(smsGatewaysTable).where(eq(smsGatewaysTable.id, id!)).limit(1);
     if (!existing) { sendNotFound(res, "Gateway"); return; }
 
-    const updates: Record<string, any> = { updatedAt: new Date() };
-    if (name        !== undefined) updates["name"]       = name;
-    if (provider    !== undefined) updates["provider"]   = provider;
-    if (priority    !== undefined) updates["priority"]   = priority;
-    if (isActive    !== undefined) updates["isActive"]   = isActive;
-    if (accountSid  !== undefined) updates["accountSid"] = accountSid || null;
-    if (authToken   !== undefined) updates["authToken"]  = authToken || null;
-    if (fromNumber  !== undefined) updates["fromNumber"] = fromNumber || null;
-    if (msg91Key    !== undefined) updates["msg91Key"]   = msg91Key || null;
-    if (senderId    !== undefined) updates["senderId"]   = senderId || null;
-    if (apiKey      !== undefined) updates["apiKey"]     = apiKey || null;
-    if (apiUrl      !== undefined) updates["apiUrl"]     = apiUrl || null;
+    const updates: Partial<typeof smsGatewaysTable.$inferInsert> = { updatedAt: new Date() };
+    if (name        !== undefined) updates.name       = name;
+    if (provider    !== undefined) updates.provider   = provider;
+    if (priority    !== undefined) updates.priority   = priority;
+    if (isActive    !== undefined) updates.isActive   = isActive;
+    if (accountSid  !== undefined) updates.accountSid = accountSid || null;
+    if (authToken   !== undefined) updates.authToken  = authToken || null;
+    if (fromNumber  !== undefined) updates.fromNumber = fromNumber || null;
+    if (msg91Key    !== undefined) updates.msg91Key   = msg91Key || null;
+    if (senderId    !== undefined) updates.senderId   = senderId || null;
+    if (apiKey      !== undefined) updates.apiKey     = apiKey || null;
+    if (apiUrl      !== undefined) updates.apiUrl     = apiUrl || null;
 
     const [updated] = await db.update(smsGatewaysTable).set(updates).where(eq(smsGatewaysTable.id, id!)).returning();
     sendSuccess(res, { gateway: updated });

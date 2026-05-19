@@ -359,7 +359,7 @@ router.patch(
         return;
       }
 
-      const updates: Record<string, any> = { updatedAt: new Date() };
+      const updates: Partial<typeof usersTable.$inferInsert> = { updatedAt: new Date() };
       if (isActive !== undefined) updates.isActive = isActive;
       if (isBanned !== undefined) updates.isBanned = isBanned;
       if (banReason !== undefined) updates.banReason = banReason || null;
@@ -631,7 +631,7 @@ router.get("/riders", async (_req, res) => {
 router.patch("/riders/:id/status", async (req, res) => {
   try {
     const { isActive, isBanned, banReason } = req.body;
-    const updates: Record<string, any> = { updatedAt: new Date() };
+    const updates: Partial<typeof usersTable.$inferInsert> = { updatedAt: new Date() };
     if (isActive !== undefined) updates.isActive = isActive;
     if (isBanned !== undefined) updates.isBanned = isBanned;
     if (banReason !== undefined) updates.banReason = banReason || null;

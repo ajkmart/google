@@ -960,7 +960,7 @@ router.post("/broadcast", async (req, res) => {
 router.get("/categories/tree", async (req, res) => {
   try {
     const type = req.query["type"] as string;
-    const conditions: any[] = [];
+    const conditions: SQL<unknown>[] = [];
     if (type) conditions.push(eq(categoriesTable.type, type));
 
     const allCats = await db
@@ -994,7 +994,7 @@ router.get("/categories/tree", async (req, res) => {
 router.get("/categories", async (req, res) => {
   try {
     const type = req.query["type"] as string | undefined;
-    const conditions: any[] = [];
+    const conditions: SQL<unknown>[] = [];
     if (type) conditions.push(eq(categoriesTable.type, type));
     const categories = await db
       .select()
@@ -1040,7 +1040,7 @@ router.patch("/categories/:id", async (req, res) => {
   try {
     const { name, icon, type, parentId, sortOrder, isActive } = req.body;
 
-    const updates: Record<string, any> = { updatedAt: new Date() };
+    const updates: Partial<typeof categoriesTable.$inferInsert> = { updatedAt: new Date() };
     if (name !== undefined) updates.name = name;
     if (icon !== undefined) updates.icon = icon;
     if (type !== undefined) updates.type = type;
@@ -1347,9 +1347,9 @@ router.post("/flash-deals", async (req, res) => {
 router.patch("/flash-deals/:id", async (req, res) => {
   try {
     const body = req.body as Record<string, unknown>;
-    const updates: Record<string, any> = {};
-    if (body.title !== undefined) updates.title = body.title;
-    if (body.badge !== undefined) updates.badge = body.badge;
+    const updates: Partial<typeof flashDealsTable.$inferInsert> = {};
+    if (body.title !== undefined) updates.title = body.title as string;
+    if (body.badge !== undefined) updates.badge = body.badge as string;
     if (body.discountPct !== undefined)
       updates.discountPct = body.discountPct ? String(body.discountPct) : null;
     if (body.discountFlat !== undefined)
@@ -1362,7 +1362,7 @@ router.patch("/flash-deals/:id", async (req, res) => {
       updates.endTime = new Date(body.endTime as string);
     if (body.dealStock !== undefined)
       updates.dealStock = body.dealStock ? Number(body.dealStock) : null;
-    if (body.isActive !== undefined) updates.isActive = body.isActive;
+    if (body.isActive !== undefined) updates.isActive = body.isActive as boolean;
     const [deal] = await db
       .update(flashDealsTable)
       .set(updates)
@@ -1470,10 +1470,10 @@ router.post("/promo-codes", async (req, res) => {
 router.patch("/promo-codes/:id", async (req, res) => {
   try {
     const body = req.body as Record<string, unknown>;
-    const updates: Record<string, any> = {};
+    const updates: Partial<typeof promoCodesTable.$inferInsert> = {};
     if (body.code !== undefined)
       updates.code = String(body.code).toUpperCase().trim();
-    if (body.description !== undefined) updates.description = body.description;
+    if (body.description !== undefined) updates.description = body.description as string;
     if (body.discountPct !== undefined)
       updates.discountPct = body.discountPct ? String(body.discountPct) : null;
     if (body.discountFlat !== undefined)
@@ -1486,12 +1486,12 @@ router.patch("/promo-codes/:id", async (req, res) => {
       updates.maxDiscount = body.maxDiscount ? String(body.maxDiscount) : null;
     if (body.usageLimit !== undefined)
       updates.usageLimit = body.usageLimit ? Number(body.usageLimit) : null;
-    if (body.appliesTo !== undefined) updates.appliesTo = body.appliesTo;
+    if (body.appliesTo !== undefined) updates.appliesTo = body.appliesTo as string;
     if (body.expiresAt !== undefined)
       updates.expiresAt = body.expiresAt
         ? new Date(body.expiresAt as string)
         : null;
-    if (body.isActive !== undefined) updates.isActive = body.isActive;
+    if (body.isActive !== undefined) updates.isActive = body.isActive as boolean;
     const [code] = await db
       .update(promoCodesTable)
       .set(updates)
@@ -1559,8 +1559,8 @@ router.get("/stock-notifications", adminAuth, async (req, res) => {
         isOutOfStock: r.newStock !== null && r.newStock <= 0,
       }));
       sendSuccess(res, { notifications, total: notifications.length });
-    } catch (err: any) {
-      logger.error({ err: err.message }, "[stock-notifications] fetch failed");
+    } catch (err: unknown) {
+      logger.error({ err: err instanceof Error ? err.message : String(err) }, "[stock-notifications] fetch failed");
       sendError(res, "Failed to fetch stock notifications", 500);
     }
   } catch (err) {
@@ -1599,8 +1599,8 @@ router.post("/uploads/admin", async (req, res) => {
     const key = `admin_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
     const url = await storageUpload(buffer, key, mimeType);
     sendSuccess(res, { url });
-  } catch (e: any) {
-    sendError(res, e.message || "Upload failed", 500);
+  } catch (e: unknown) {
+    sendError(res, e instanceof Error ? e.message : "Upload failed", 500);
   }
 });
 

@@ -470,8 +470,8 @@ router.post("/role-presets", async (req, res) => {
       result: "success",
     });
     sendSuccess(res, { ...preset, permissions: body.permissions ?? [] }, undefined, 201);
-  } catch (e: any) {
-    if (e?.code === "23505") { sendError(res, "A preset with that slug already exists", 409); return; }
+  } catch (e: unknown) {
+    if ((e as { code?: string })?.code === "23505") { sendError(res, "A preset with that slug already exists", 409); return; }
     sendError(res, "Failed to create role preset", 500);
   }
 });
@@ -487,12 +487,12 @@ router.put("/role-presets/:id", async (req, res) => {
     const [existing] = await db.select().from(adminRolePresetsTable).where(eq(adminRolePresetsTable.id, id!)).limit(1);
     if (!existing) { sendNotFound(res, "Role preset not found"); return; }
     if (existing.isBuiltIn) { sendError(res, "Built-in presets cannot be modified", 403); return; }
-    const updates: Record<string, any> = {};
-    if (body.name        !== undefined) updates["name"]           = body.name;
-    if (body.slug        !== undefined) updates["slug"]           = body.slug;
-    if (body.description !== undefined) updates["description"]    = body.description;
-    if (body.permissions !== undefined) updates["permissionsJson"] = JSON.stringify(body.permissions);
-    if (body.role        !== undefined) updates["role"]           = body.role;
+    const updates: Partial<typeof adminRolePresetsTable.$inferInsert> = {};
+    if (body.name        !== undefined) updates.name           = body.name;
+    if (body.slug        !== undefined) updates.slug           = body.slug;
+    if (body.description !== undefined) updates.description    = body.description;
+    if (body.permissions !== undefined) updates.permissionsJson = JSON.stringify(body.permissions);
+    if (body.role        !== undefined) updates.role           = body.role;
     const [updated] = await db.update(adminRolePresetsTable).set(updates).where(eq(adminRolePresetsTable.id, id!)).returning();
     addAuditEntry({
       action: "role_preset_update",

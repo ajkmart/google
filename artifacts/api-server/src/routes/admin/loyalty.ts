@@ -237,8 +237,8 @@ function validateCampaignInput(payload: any): string[] {
   try {
     parseDateString(payload.startDate, "startDate");
     parseDateString(payload.endDate, "endDate");
-  } catch (err: any) {
-    errors.push(err.message);
+  } catch (err: unknown) {
+    errors.push(err instanceof Error ? err.message : String(err));
   }
   if (payload.minOrderAmount !== undefined && payload.minOrderAmount !== null && isNaN(Number(payload.minOrderAmount))) {
     errors.push("minOrderAmount must be a valid number");

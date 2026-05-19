@@ -79,8 +79,8 @@ router.get("/otp/status", async (_req, res) => {
   try {
     const status = await UserService.getOtpStatus();
     sendSuccess(res, status);
-  } catch (error: any) {
-    sendValidationError(res, error.message || String(error));
+  } catch (error: unknown) {
+    sendValidationError(res, error instanceof Error ? error.message : String(error));
   }
 });
 
@@ -137,8 +137,8 @@ router.post("/otp/disable", async (req, res) => {
     }
 
     sendSuccess(res, result);
-  } catch (error: any) {
-    const errMsg = error.message || String(error);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
     sendValidationError(res, errMsg);
   }
 });
@@ -168,8 +168,8 @@ router.delete("/otp/disable", async (req, res) => {
     });
 
     sendSuccess(res, result);
-  } catch (error: any) {
-    const errMsg = error.message || String(error);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
     sendValidationError(res, errMsg);
   }
 });
@@ -186,8 +186,8 @@ router.get("/otp/audit", async (req, res) => {
       page: page ? parseInt(page, 10) : undefined,
     });
     sendSuccess(res, result);
-  } catch (error: any) {
-    const errMsg = error.message || String(error);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
     if (errMsg.includes("Invalid")) {
       res.status(400).json({ error: "Failed to fetch OTP audit log", details: errMsg });
     } else {
@@ -201,8 +201,8 @@ router.get("/otp/channels", async (_req, res) => {
   try {
     const result = await UserService.getOtpChannels();
     sendSuccess(res, result);
-  } catch (error: any) {
-    sendValidationError(res, error.message || String(error));
+  } catch (error: unknown) {
+    sendValidationError(res, error instanceof Error ? error.message : String(error));
   }
 });
 
@@ -226,8 +226,8 @@ router.patch("/otp/channels", async (req, res) => {
     );
 
     sendSuccess(res, result);
-  } catch (error: any) {
-    const errMsg = error.message || String(error);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
     sendValidationError(res, errMsg);
   }
 });
@@ -259,8 +259,8 @@ router.post("/users/:id/otp/generate", async (req, res) => {
     });
 
     sendSuccess(res, { otp: result.otp, expiresAt: result.expiresAt });
-  } catch (error: any) {
-    const errMsg = error.message || String(error);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
     if (errMsg.includes("not found")) {
       sendNotFound(res, "User not found");
     } else {
@@ -430,8 +430,8 @@ router.get("/whitelist", async (_req, res) => {
     });
 
     sendSuccess(res, { entries });
-  } catch (error: any) {
-    const errMsg = error.message || String(error);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
     sendValidationError(res, errMsg);
   }
 });
@@ -607,8 +607,8 @@ router.delete("/whitelist/:id", async (req, res) => {
     );
 
     sendSuccess(res, { message: "Whitelist entry deleted" });
-  } catch (error: any) {
-    const errMsg = error.message || String(error);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
     sendValidationError(res, errMsg);
   }
 });

@@ -149,29 +149,32 @@ router.post("/users/:id/wallet-topup", async (req, res) => {
     return;
   }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.params["id"] as string));
+  const userId = req.params["id"] as string;
+  const [user] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-  const currentBalance = parseFloat(user.walletBalance ?? "0");
-  const newBalance = currentBalance + Number(amount);
-
+  const amt = Number(amount);
+  /* Atomic credit: sql`wallet_balance + ${amt}` avoids read-modify-write race condition */
   const [updatedUser] = await db
     .update(usersTable)
-    .set({ walletBalance: String(newBalance), updatedAt: new Date() })
-    .where(eq(usersTable.id, req.params["id"] as string))
+    .set({ walletBalance: sql`wallet_balance + ${amt}`, updatedAt: new Date() })
+    .where(eq(usersTable.id, userId))
     .returning();
+
+  if (!updatedUser) { res.status(404).json({ error: "User not found" }); return; }
+  const newBalance = parseFloat(updatedUser.walletBalance ?? "0");
 
   await db.insert(walletTransactionsTable).values({
     id: generateId(),
-    userId: req.params["id"] as string,
+    userId,
     type: "credit",
-    amount: String(amount),
-    description: description || `Admin top-up: Rs. ${amount}`,
+    amount: String(amt),
+    description: description || `Admin top-up: Rs. ${amt}`,
     reference: "admin_topup",
   });
 
   await sendUserNotification(
-    req.params["id"] as string,
+    userId,
     "Wallet Topped Up! 💰",
     `Rs. ${amount} has been added to your AJKMart wallet.`,
     "system",
@@ -181,7 +184,7 @@ router.post("/users/:id/wallet-topup", async (req, res) => {
   res.json({
     success: true,
     newBalance,
-    user: { ...stripUser(updatedUser!), walletBalance: newBalance },
+    user: { ...stripUser(updatedUser), walletBalance: newBalance },
   });
 });
 router.delete("/users/:id", async (req, res) => {
