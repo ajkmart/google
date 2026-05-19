@@ -44,8 +44,8 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   confirmed:        ["preparing", "cancelled"],
   preparing:        ["out_for_delivery", "cancelled"],
   out_for_delivery: ["delivered", "cancelled"],
-  delivered:        ["delivered"],
-  cancelled:        ["cancelled"],
+  delivered:        [],
+  cancelled:        [],
 };
 
 const ALL_STATUSES = Object.keys(ALLOWED_TRANSITIONS);

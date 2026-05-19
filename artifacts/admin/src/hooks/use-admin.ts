@@ -337,7 +337,6 @@ export const useUpdateOrder = () => {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
       queryClient.invalidateQueries({ queryKey: ["admin-orders-enriched"] });
       queryClient.invalidateQueries({ queryKey: ["admin-orders-stats"] });
       queryClient.invalidateQueries({ queryKey: ["admin-stats"] });

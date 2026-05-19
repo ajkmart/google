@@ -578,7 +578,7 @@ router.get("/parcel-enriched", wrapAsync(async (_req, res) => {
 router.get("/orders-enriched", wrapAsync(async (req, res) => {
   const q = req.query as Record<string, string | undefined>;
   const page      = Math.max(1, parseInt(q["page"]  ?? "1",  10) || 1);
-  const pageLimit = Math.min(200, Math.max(1, parseInt(q["limit"] ?? "50", 10) || 50));
+  const pageLimit = Math.min(2000, Math.max(1, parseInt(q["limit"] ?? "2000", 10) || 2000));
   const sortBy    = q["sortBy"] ?? "date";
   const sortDir   = (q["sortDir"] ?? "desc") === "asc" ? "asc" : "desc";
   const search    = q["search"]?.trim().toLowerCase() ?? "";
@@ -700,7 +700,9 @@ function buildOrderFilters(query: Record<string, string | undefined>) {
     conditions.push(gte(ordersTable.createdAt, new Date(dateFrom)));
   }
   if (dateTo) {
-    conditions.push(lte(ordersTable.createdAt, new Date(dateTo)));
+    const dateToEnd = new Date(dateTo);
+    dateToEnd.setHours(23, 59, 59, 999);
+    conditions.push(lte(ordersTable.createdAt, dateToEnd));
   }
 
   return conditions.length > 0 ? and(...conditions) : undefined;
@@ -802,24 +804,24 @@ router.get("/orders-stats", async (_req, res) => {
   try {
     const result = await db.execute(sql`
       SELECT
-        COUNT(*) FILTER (WHERE status NOT IN ('cancelled', 'refunded'))  AS total,
-        COUNT(*) FILTER (WHERE status = 'pending')                        AS pending,
-        COUNT(*) FILTER (WHERE status = 'processing')                     AS processing,
-        COUNT(*) FILTER (WHERE status = 'delivered')                      AS delivered,
-        COUNT(*) FILTER (WHERE status = 'cancelled')                      AS cancelled,
-        COUNT(*) FILTER (WHERE status = 'refunded')                       AS refunded,
-        COALESCE(SUM(CAST(total AS NUMERIC)) FILTER (WHERE status = 'delivered'), 0) AS revenue
+        COUNT(*) FILTER (WHERE status NOT IN ('cancelled', 'refunded'))                                             AS total,
+        COUNT(*) FILTER (WHERE status = 'pending')                                                                  AS pending,
+        COUNT(*) FILTER (WHERE status IN ('confirmed', 'preparing', 'out_for_delivery'))                            AS active,
+        COUNT(*) FILTER (WHERE status = 'delivered')                                                                AS delivered,
+        COUNT(*) FILTER (WHERE status = 'cancelled')                                                                AS cancelled,
+        COUNT(*) FILTER (WHERE status = 'refunded')                                                                 AS refunded,
+        COALESCE(SUM(CAST(total AS NUMERIC)) FILTER (WHERE status = 'delivered'), 0)                               AS revenue
       FROM orders
       WHERE deleted_at IS NULL
     `);
     const stats = (result.rows?.[0] ?? {}) as Record<string, unknown>;
     sendSuccess(res, {
-      total:      Number(stats["total"]      ?? 0),
-      pending:    Number(stats["pending"]    ?? 0),
-      processing: Number(stats["processing"] ?? 0),
-      delivered:  Number(stats["delivered"]  ?? 0),
-      cancelled:  Number(stats["cancelled"]  ?? 0),
-      refunded:   Number(stats["refunded"]   ?? 0),
+      total:      Number(stats["total"]     ?? 0),
+      pending:    Number(stats["pending"]   ?? 0),
+      active:     Number(stats["active"]    ?? 0),
+      delivered:  Number(stats["delivered"] ?? 0),
+      cancelled:  Number(stats["cancelled"] ?? 0),
+      refunded:   Number(stats["refunded"]  ?? 0),
       revenue:    parseFloat(String(stats["revenue"] ?? "0")),
     });
   } catch (e) {
