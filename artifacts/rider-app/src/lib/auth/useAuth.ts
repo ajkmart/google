@@ -8,6 +8,8 @@
  * loading state, network guard, Sentry capture.
  */
 import { api } from "../api";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[useAuth]");
 import { useAuth as useAuthContext } from "../rider-auth";
 import { useState, useCallback } from "react";
 
@@ -33,7 +35,7 @@ async function captureException(err: unknown) {
       const Sentry = await import("@sentry/react");
       Sentry.captureException(err);
     }
-  } catch { /* Sentry not installed */ }
+  } catch (e) { log.debug("[useAuth] Sentry capture failed (not available):", e); }
 }
 
 export function useAuth() {

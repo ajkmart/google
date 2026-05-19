@@ -29,34 +29,34 @@ let _memRefreshToken = "";
 const _tokenStorage = {
   getAccessToken(): string {
     if (_memAccessToken) return _memAccessToken;
-    try { _memAccessToken = sessionStorage.getItem(TOKEN_KEY) ?? ""; } catch { }
+    try { _memAccessToken = sessionStorage.getItem(TOKEN_KEY) ?? ""; } catch { /* sessionStorage unavailable */ }
     return _memAccessToken;
   },
   setAccessToken(v: string): void {
     _memAccessToken = v;
-    try { sessionStorage.setItem(TOKEN_KEY, v); } catch { }
+    try { sessionStorage.setItem(TOKEN_KEY, v); } catch { /* sessionStorage unavailable */ }
   },
   removeAccessToken(): void {
     _memAccessToken = "";
-    try { sessionStorage.removeItem(TOKEN_KEY); } catch { }
+    try { sessionStorage.removeItem(TOKEN_KEY); } catch { /* sessionStorage unavailable */ }
   },
   getRefreshToken(): string {
     if (_memRefreshToken) return _memRefreshToken;
-    try { _memRefreshToken = sessionStorage.getItem(REFRESH_KEY) ?? ""; } catch { }
+    try { _memRefreshToken = sessionStorage.getItem(REFRESH_KEY) ?? ""; } catch { /* sessionStorage unavailable */ }
     return _memRefreshToken;
   },
   setRefreshToken(v: string): void {
     _memRefreshToken = v;
-    try { sessionStorage.setItem(REFRESH_KEY, v); } catch { }
+    try { sessionStorage.setItem(REFRESH_KEY, v); } catch { /* sessionStorage unavailable */ }
   },
   removeRefreshToken(): void {
     _memRefreshToken = "";
-    try { sessionStorage.removeItem(REFRESH_KEY); } catch { }
+    try { sessionStorage.removeItem(REFRESH_KEY); } catch { /* sessionStorage unavailable */ }
   },
   clear(): void {
     _memAccessToken = "";
     _memRefreshToken = "";
-    try { sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(REFRESH_KEY); } catch { }
+    try { sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(REFRESH_KEY); } catch { /* sessionStorage unavailable */ }
   },
 };
 
@@ -144,7 +144,7 @@ async function authPost(path: string, body?: unknown): Promise<unknown> {
 
   /* Parse the JSON response body regardless of status */
   let parsed: { data?: unknown; error?: string; message?: string; pendingApproval?: boolean; rejected?: boolean; approvalNote?: string } = {};
-  try { parsed = await res.json() as typeof parsed; } catch { /* non-JSON body */ }
+  try { parsed = await res.json() as typeof parsed; } catch { /* non-JSON body — ok */ }
 
   if (!res.ok) {
     const status = res.status;

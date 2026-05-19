@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react";
 import { api } from "./api";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[rider-auth]");
 
 export interface AuthUser {
   id: string; phone: string; name?: string; email?: string;
@@ -95,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const refreshTok = api.getRefreshToken();
     if (refreshTok) {
       api.logout(refreshTok).catch((err: Error) => {
-        console.warn("[auth] Server logout failed (token already expired or network):", err.message);
+        log.warn("[auth] Server logout failed (token already expired or network):", err.message);
       });
     } else {
       api.clearTokens();

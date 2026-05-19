@@ -511,7 +511,7 @@ function AdminMaintenanceGuard() {
         }
       })
       .catch((err: unknown) => {
-        console.warn("[AdminMaintenanceGuard] Platform config fetch failed:", err instanceof Error ? err.message : String(err));
+        log.warn("[AdminMaintenanceGuard] Platform config fetch failed:", err instanceof Error ? err.message : String(err));
       });
   }, [state.accessToken]);
 

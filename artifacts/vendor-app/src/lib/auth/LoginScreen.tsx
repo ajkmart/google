@@ -49,7 +49,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       try {
         const { isBiometricEnabled } = await import("../biometric");
         setBiometricEnabled(await isBiometricEnabled());
-      } catch { }
+      } catch { /* biometric not available on this platform */ }
     };
     check();
   }, []);

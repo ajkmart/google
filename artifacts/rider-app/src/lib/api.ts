@@ -246,7 +246,7 @@ const _resiClient = createResilientFetcher({
        storeCsrfToken is a hoisted function declaration — safe to call here. */
     const csrfInBody = (json as Record<string, unknown>).csrfToken;
     if (typeof csrfInBody === "string" && csrfInBody) {
-      storeCsrfToken(csrfInBody).catch(() => {});
+      storeCsrfToken(csrfInBody).catch((err: unknown) => { log.debug("[api] CSRF token store failed:", err); });
     }
   },
 });
@@ -321,7 +321,7 @@ let _inMemoryCsrfToken = "";
 export async function storeCsrfToken(token: string): Promise<void> {
   if (!token) return;
   _inMemoryCsrfToken = token;
-  await preferencesSet(CSRF_KEY, token).catch(() => {});
+  await preferencesSet(CSRF_KEY, token).catch((err: unknown) => { log.debug("[api] CSRF prefs store failed:", err); });
 }
 
 /* Load persisted CSRF token from Preferences into memory (called from tokenStoreReady). */
@@ -333,7 +333,7 @@ export const csrfStoreReady: Promise<void> = (async () => {
     try {
       const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
       if (match) _inMemoryCsrfToken = decodeURIComponent(match[1]);
-    } catch { /* ignore */ }
+    } catch { /* document.cookie unavailable — ok */ }
   }
 })();
 

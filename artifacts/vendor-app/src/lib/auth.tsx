@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { api } from "./api";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[vendor-auth]");
 
 export interface StoreHours { [day: string]: { open: string; close: string; closed?: boolean } }
 
@@ -69,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     const refreshTok = api.getRefreshToken();
-    if (refreshTok) api.logout(refreshTok).catch(() => {});
+    if (refreshTok) api.logout(refreshTok).catch((err: unknown) => { log.debug("[vendor-auth] Server logout failed (token expired/network):", err); });
     else api.clearTokens();
     setToken(null);
     setUser(null);
@@ -80,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u = await api.getMe();
       setUser(u);
     } catch (e) {
-      console.warn("[vendor-auth] refreshUser failed (non-critical):", (e as Error)?.message ?? e);
+      log.warn("[vendor-auth] refreshUser failed (non-critical):", (e as Error)?.message ?? e);
     }
   };
 

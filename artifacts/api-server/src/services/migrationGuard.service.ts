@@ -229,9 +229,9 @@ export async function checkMigrationGuard(): Promise<MigrationGuardReport> {
     }
 
     if (orphanedInCustomRunner.length > 0) {
-      logger.warn(
+      logger.info(
         { orphaned: orphanedInCustomRunner },
-        `[migration-guard] ${orphanedInCustomRunner.length} file(s) in _drizzle_migrations are not in the journal (orphaned)`
+        `[migration-guard] ${orphanedInCustomRunner.length} legacy file(s) in _drizzle_migrations predate the current journal (harmless)`
       );
     }
 

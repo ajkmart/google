@@ -6,6 +6,8 @@
  * (pages/Login.tsx) clean so all auth logic lives in lib/auth/.
  */
 import { LoginScreen as SDKLoginScreen } from "@workspace/auth-react";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[login]");
 import type { AuthUser as SDKAuthUser } from "@workspace/auth-react";
 import { useAuth } from "./useAuth";
 import { useAppStatus } from "./useAppStatus";
@@ -53,7 +55,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       try {
         const { isBiometricEnabled } = await import("../biometric");
         setBiometricEnabled(await isBiometricEnabled());
-      } catch { /* biometric not available */ }
+      } catch (e) { log.debug("[login] biometric check failed (not available):", e); }
     };
     check();
   }, []);
