@@ -60,7 +60,7 @@ export function useTokenRefresh({
 
   // refreshTokenRef lets scheduleNextRefresh call refreshToken without listing
   // it as a dependency (avoiding the circular useCallback dependency cycle).
-  const refreshTokenRef = useRef<() => Promise<void>>();
+  const refreshTokenRef = useRef<(() => Promise<void>) | undefined>(undefined);
 
   const scheduleNextRefresh = useCallback(
     (token: string) => {
