@@ -67,7 +67,7 @@ router.get("/whatsapp/delivery-log", adminAuth, async (req, res) => {
     }
     if (phone) {
       params.push(`%${phone}%`);
-      conditions.push(`recipient_phone ILIKE $${params.length}`);
+      conditions.push(`phone ILIKE $${params.length}`);
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -75,15 +75,29 @@ router.get("/whatsapp/delivery-log", adminAuth, async (req, res) => {
     params.push(limit);
     params.push(offset);
     const { rows } = await pool.query(
-      `SELECT * FROM whatsapp_message_log ${where}
-       ORDER BY sent_at DESC
+      `SELECT
+         id,
+         phone          AS recipient_phone,
+         message,
+         status,
+         provider_message_id AS wa_message_id,
+         error_message,
+         NULL::text     AS error_code,
+         NULL::boolean  AS fallback_sent,
+         NULL::text     AS fallback_channel,
+         NULL::text     AS context_type,
+         NULL::text     AS context_id,
+         created_at     AS sent_at,
+         updated_at
+       FROM whatsapp_delivery_logs ${where}
+       ORDER BY created_at DESC
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params,
     );
 
     const countParams = params.slice(0, params.length - 2);
     const { rows: countRows } = await pool.query(
-      `SELECT COUNT(*) FROM whatsapp_message_log ${where}`,
+      `SELECT COUNT(*) FROM whatsapp_delivery_logs ${where}`,
       countParams,
     );
 

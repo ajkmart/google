@@ -40,7 +40,7 @@ router.get("/status", async (_req, res) => {
   try {
     const result = await pool.query(`
       SELECT status, COUNT(*) as count
-      FROM whatsapp_message_log
+      FROM whatsapp_delivery_logs
       GROUP BY status
       ORDER BY count DESC
     `);
@@ -66,10 +66,10 @@ router.get("/messages", async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT * FROM whatsapp_message_log ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+      `SELECT * FROM whatsapp_delivery_logs ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
       [limit, offset],
     );
-    const countResult = await pool.query(`SELECT COUNT(*) as count FROM whatsapp_message_log`);
+    const countResult = await pool.query(`SELECT COUNT(*) as count FROM whatsapp_delivery_logs`);
     sendSuccess(res, {
       messages: result.rows,
       total: parseInt(String(countResult.rows[0]?.count ?? "0")),
@@ -128,14 +128,14 @@ router.get("/delivery-log", async (req, res) => {
       filterValues.push(status);
     }
     if (phone) {
-      conditions.push(`recipient_phone ILIKE $${idx++}`);
+      conditions.push(`phone ILIKE $${idx++}`);
       filterValues.push(`%${phone}%`);
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const countResult = await pool.query(
-      `SELECT COUNT(*) as count FROM whatsapp_message_log ${where}`,
+      `SELECT COUNT(*) as count FROM whatsapp_delivery_logs ${where}`,
       filterValues,
     );
 
@@ -144,7 +144,7 @@ router.get("/delivery-log", async (req, res) => {
     const offsetPlaceholder = `$${idx + 1}`;
 
     const result = await pool.query(
-      `SELECT * FROM whatsapp_message_log ${where} ORDER BY created_at DESC LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder}`,
+      `SELECT * FROM whatsapp_delivery_logs ${where} ORDER BY created_at DESC LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder}`,
       selectValues,
     );
 
@@ -176,7 +176,7 @@ router.get("/delivery-log/stats", async (_req, res) => {
         COUNT(*)::int                                        AS count,
         COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours')::int AS last24h,
         COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')::int  AS last7d
-      FROM whatsapp_message_log
+      FROM whatsapp_delivery_logs
       GROUP BY status
       ORDER BY count DESC
     `);
@@ -208,7 +208,7 @@ router.post("/delivery-log/retry", async (req, res) => {
 
   try {
     const existing = await pool.query(
-      `SELECT * FROM whatsapp_message_log WHERE id = $1 LIMIT 1`,
+      `SELECT * FROM whatsapp_delivery_logs WHERE id = $1 LIMIT 1`,
       [messageId],
     );
 
@@ -224,7 +224,7 @@ router.post("/delivery-log/retry", async (req, res) => {
     }
 
     await pool.query(
-      `UPDATE whatsapp_message_log SET status = 'pending', retry_count = COALESCE(retry_count, 0) + 1, updated_at = NOW() WHERE id = $1`,
+      `UPDATE whatsapp_delivery_logs SET status = 'pending', retries = COALESCE(retries, 0) + 1, updated_at = NOW() WHERE id = $1`,
       [messageId],
     );
 
