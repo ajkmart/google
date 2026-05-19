@@ -113,7 +113,7 @@ export function useAuth() {
            NOT a token payload — tokens are written directly to storage on success. */
         api.storeTokens(api.getToken(), storedRefreshToken);
         const status = await api.refreshToken();
-        if (!status) throw new Error(`Biometric login failed — refresh failed`);
+        if (status !== "refreshed") throw new Error(`Biometric login failed — refresh status: ${String(status)}`);
         const token = api.getToken();
         if (!token) throw new Error("Biometric login failed — no token in storage after refresh");
         return { success: true, data: { token, refreshToken: api.getRefreshToken() ?? storedRefreshToken } };
@@ -128,10 +128,10 @@ export function useAuth() {
     return wrap(async () => {
       try {
         /* Route through api.refreshToken() — mutex-guarded, single refresh path.
-           Returns truthy on success; read updated tokens from storage. */
+           Returns status string — read updated tokens from storage on success. */
         api.storeTokens(api.getToken(), storedRefresh);
         const status = await api.refreshToken();
-        if (!status) throw new Error(`Token refresh failed`);
+        if (status !== "refreshed") throw new Error(`Token refresh failed — status: ${String(status)}`);
         const token = api.getToken();
         if (!token) throw new Error("Refresh failed — no token in storage after refresh");
         return { success: true, data: { token, refreshToken: api.getRefreshToken() } };

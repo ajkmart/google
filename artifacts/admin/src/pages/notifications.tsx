@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PageHeader } from "@/components/shared";
 import { Bell, RefreshCw, Filter } from "lucide-react";
 import { useAllNotifications } from "@/hooks/use-admin";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 function fd(d: string | Date) {
   return new Date(d).toLocaleString("en-PK", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -36,17 +38,20 @@ export default function Notifications() {
   const notifications: any[] = nData?.notifications || [];
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Notifications page crashed. Please reload.</div>}>
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{T("systemNotifications")}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">All platform notifications across users, riders, and vendors</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} className="self-start sm:self-auto">
-          <RefreshCw className="w-4 h-4 mr-2" /> {T("refresh")}
-        </Button>
-      </div>
+      <PageHeader
+        icon={Bell}
+        title={T("systemNotifications")}
+        subtitle="All platform notifications across users, riders, and vendors"
+        iconBgClass="bg-blue-100"
+        iconColorClass="text-blue-600"
+        actions={
+          <Button variant="outline" size="sm" onClick={() => refetch()} className="self-start sm:self-auto">
+            <RefreshCw className="w-4 h-4 mr-2" /> {T("refresh")}
+          </Button>
+        }
+      />
 
       {/* Role Filter */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -86,9 +91,9 @@ export default function Notifications() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-bold text-gray-800 leading-snug">{n.title}</p>
-                    {n.user && (
-                      <Badge className={`text-[9px] font-bold ${roleColor(n.user.role || "")}`} variant="outline">
-                        {n.user.role}
+                    {n.user?.roles?.[0] && (
+                      <Badge className={`text-[9px] font-bold ${roleColor(n.user.roles[0])}`} variant="outline">
+                        {n.user.roles[0]}
                       </Badge>
                     )}
                     {!n.isRead && <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"/>}
@@ -105,5 +110,6 @@ export default function Notifications() {
         </Card>
       )}
     </div>
+    </ErrorBoundary>
   );
 }

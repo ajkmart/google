@@ -1,12 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useMutation, type QueryClient } from "@tanstack/react-query";
-import { api, apiFetch } from "../lib/api";
-
-async function uploadVideo(file: File): Promise<{ url: string }> {
-  const formData = new FormData();
-  formData.append("file", file);
-  return apiFetch("/uploads/video", { method: "POST", body: formData });
-}
+import { api } from "../lib/api";
 import { errMsg } from "../lib/ui";
 
 // ── Blank form template exported so Products.tsx & any future form can reset to it ──
@@ -173,7 +167,7 @@ export function useProductForm({
     }
     setVideoUploading(true);
     try {
-      const result = await uploadVideo(file);
+      const result = await api.uploadVideo(file);
       f("videoUrl", result.url);
       showToast("✅ Video uploaded!");
     } catch (e: unknown) {

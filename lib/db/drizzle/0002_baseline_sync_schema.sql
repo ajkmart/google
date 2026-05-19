@@ -1,13 +1,13 @@
-CREATE TYPE IF NOT EXISTS "public"."language_mode" AS ENUM('en', 'ur', 'roman', 'en_roman', 'en_ur');--> statement-breakpoint
-CREATE TYPE IF NOT EXISTS "public"."condition_mode" AS ENUM('default', 'ai_recommended', 'custom');--> statement-breakpoint
-CREATE TYPE IF NOT EXISTS "public"."condition_severity" AS ENUM('warning', 'restriction_normal', 'restriction_strict', 'suspension', 'ban');--> statement-breakpoint
-CREATE TYPE IF NOT EXISTS "public"."condition_type" AS ENUM('warning_l1', 'warning_l2', 'warning_l3', 'restriction_service_block', 'restriction_wallet_freeze', 'restriction_promo_block', 'restriction_order_cap', 'restriction_review_block', 'restriction_cash_only', 'restriction_new_order_block', 'restriction_rate_limit', 'restriction_pending_review_gate', 'restriction_device_restriction', 'suspension_temporary', 'suspension_extended', 'suspension_pending_review', 'ban_soft', 'ban_hard', 'ban_fraud');--> statement-breakpoint
-CREATE TYPE IF NOT EXISTS "public"."error_severity" AS ENUM('critical', 'medium', 'minor');--> statement-breakpoint
-CREATE TYPE IF NOT EXISTS "public"."error_status" AS ENUM('new', 'acknowledged', 'in_progress', 'resolved');--> statement-breakpoint
-CREATE TYPE IF NOT EXISTS "public"."error_type" AS ENUM('frontend_crash', 'api_error', 'db_error', 'route_error', 'ui_error', 'unhandled_exception');--> statement-breakpoint
-CREATE TYPE IF NOT EXISTS "public"."resolution_method" AS ENUM('manual', 'auto_resolved', 'task_created');--> statement-breakpoint
-CREATE TYPE IF NOT EXISTS "public"."error_source_app" AS ENUM('customer', 'rider', 'vendor', 'admin', 'api');--> statement-breakpoint
-CREATE TYPE IF NOT EXISTS "public"."customer_report_status" AS ENUM('new', 'reviewed', 'closed');--> statement-breakpoint
+CREATE TYPE "public"."language_mode" AS ENUM('en', 'ur', 'roman', 'en_roman', 'en_ur');--> statement-breakpoint
+CREATE TYPE "public"."condition_mode" AS ENUM('default', 'ai_recommended', 'custom');--> statement-breakpoint
+CREATE TYPE "public"."condition_severity" AS ENUM('warning', 'restriction_normal', 'restriction_strict', 'suspension', 'ban');--> statement-breakpoint
+CREATE TYPE "public"."condition_type" AS ENUM('warning_l1', 'warning_l2', 'warning_l3', 'restriction_service_block', 'restriction_wallet_freeze', 'restriction_promo_block', 'restriction_order_cap', 'restriction_review_block', 'restriction_cash_only', 'restriction_new_order_block', 'restriction_rate_limit', 'restriction_pending_review_gate', 'restriction_device_restriction', 'suspension_temporary', 'suspension_extended', 'suspension_pending_review', 'ban_soft', 'ban_hard', 'ban_fraud');--> statement-breakpoint
+CREATE TYPE "public"."error_severity" AS ENUM('critical', 'medium', 'minor');--> statement-breakpoint
+CREATE TYPE "public"."error_status" AS ENUM('new', 'acknowledged', 'in_progress', 'resolved');--> statement-breakpoint
+CREATE TYPE "public"."error_type" AS ENUM('frontend_crash', 'api_error', 'db_error', 'route_error', 'ui_error', 'unhandled_exception');--> statement-breakpoint
+CREATE TYPE "public"."resolution_method" AS ENUM('manual', 'auto_resolved', 'task_created');--> statement-breakpoint
+CREATE TYPE "public"."error_source_app" AS ENUM('customer', 'rider', 'vendor', 'admin', 'api');--> statement-breakpoint
+CREATE TYPE "public"."customer_report_status" AS ENUM('new', 'reviewed', 'closed');--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "users" (
 	"id" text PRIMARY KEY NOT NULL,
 	"phone" text,

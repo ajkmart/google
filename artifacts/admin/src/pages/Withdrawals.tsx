@@ -1,15 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { PageHeader, StatCardSkeleton } from "@/components/shared";
 import {
   BanknoteIcon, CheckCircle, XCircle, RefreshCw, ChevronDown, ChevronUp, Clock, Filter, CheckSquare,
+  Wallet, AlertTriangle, PartyPopper, Inbox, Landmark, Download, ArrowUpDown, ArrowUp, ArrowDown,
 } from "lucide-react";
 import { useWithdrawalRequests, useApproveWithdrawal, useRejectWithdrawal, useBatchApproveWithdrawals, useBatchRejectWithdrawals } from "@/hooks/use-admin";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useErrorHandler } from "@/hooks/useErrorHandler";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { formatCurrency } from "@/lib/format";
+import { SensitiveActionDialog } from "@/components/SensitiveActionDialog";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { LastUpdated } from "@/components/ui/LastUpdated";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const fc = formatCurrency;
 const fd = (d: string | Date) =>
@@ -17,27 +25,54 @@ const fd = (d: string | Date) =>
 
 type StatusFilter = "all" | "pending" | "paid" | "rejected";
 
+interface WithdrawalUser {
+  roles?: string[];
+  phone?: string;
+  name?: string;
+}
+
+interface Withdrawal {
+  id: string;
+  amount: string | number;
+  description: string;
+  status: "pending" | "paid" | "rejected";
+  paymentMethod?: string | null;
+  createdAt: string | Date;
+  user?: WithdrawalUser;
+  adminNote?: string;
+  refNo?: string;
+}
+
+interface BatchResult {
+  approved?: string[];
+  rejected?: string[];
+}
+
 function parseDesc(desc: string) {
   const parts = desc.replace("Withdrawal — ", "").split(" · ");
   return { bank: parts[0] || "—", account: parts[1] || "—", title: parts[2] || "—", note: parts[3] || "" };
 }
 
-function methodIcon(method: string | null) {
+function methodLabel(method: string | null) {
+  if (!method) return "Bank";
+  const m = method.toLowerCase();
+  if (m.includes("jazzcash"))  return "JazzCash";
+  if (m.includes("easypaisa")) return "EasyPaisa";
+  if (m.includes("bank") || m.includes("hbl") || m.includes("mcb") || m.includes("ubl") || m.includes("meezan") || m.includes("alfalah") || m.includes("nbp") || m.includes("allied")) return "Bank";
+  if (m.includes("wallet"))    return "Wallet";
+  return "Card";
+}
+
+function methodIcon(method: string | null | undefined): string {
   if (!method) return "🏦";
   const m = method.toLowerCase();
-  if (m.includes("jazzcash"))  return "🔴";
-  if (m.includes("easypaisa")) return "🟢";
+  if (m.includes("jazzcash"))  return "📱";
+  if (m.includes("easypaisa")) return "📲";
+  if (m.includes("wallet"))    return "👛";
   if (m.includes("bank") || m.includes("hbl") || m.includes("mcb") || m.includes("ubl") || m.includes("meezan") || m.includes("alfalah") || m.includes("nbp") || m.includes("allied")) return "🏦";
-  if (m.includes("wallet"))    return "💰";
   return "💳";
 }
 
-function StatusBadge({ status }: { status: string }) {
-  if (status === "pending")  return <Badge className="bg-amber-100 text-amber-700 border-0 text-xs font-bold">⏳ Pending</Badge>;
-  if (status === "paid")     return <Badge className="bg-green-100 text-green-700 border-0 text-xs font-bold">✅ Paid</Badge>;
-  if (status === "rejected") return <Badge className="bg-red-100 text-red-700 border-0 text-xs font-bold">❌ Rejected</Badge>;
-  return <Badge className="bg-gray-100 text-gray-600 border-0 text-xs">{status}</Badge>;
-}
 
 function roleColor(role: string) {
   if (role === "vendor") return "bg-orange-100 text-orange-700";
@@ -45,40 +80,44 @@ function roleColor(role: string) {
   return "bg-blue-100 text-blue-700";
 }
 
-function ApproveModal({ w, onClose }: { w: any; onClose: () => void }) {
+function ApproveModal({ w, onClose }: { w: Withdrawal; onClose: () => void }) {
   const [refNo, setRefNo] = useState("");
   const [note, setNote]   = useState("");
   const { toast } = useToast();
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const approve = useApproveWithdrawal();
+  const { onError: onApproveError } = useErrorHandler({ title: "Error" });
   const parsed = parseDesc(w.description || "");
 
   const handleApprove = () => {
     if (!refNo.trim()) { toast({ title: "Reference number required", variant: "destructive" }); return; }
     approve.mutate({ id: w.id, refNo: refNo.trim(), note: note.trim() || undefined }, {
-      onSuccess: () => { toast({ title: "✅ Withdrawal Approved", description: `${fc(w.amount)} marked as paid — Ref: ${refNo}` }); onClose(); },
-      onError:   (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+      onSuccess: () => { toast({ title: "Withdrawal approved", description: `${fc(Number(w.amount))} marked as paid — Ref: ${refNo}` }); onClose(); },
+      onError: (e: any) => {
+        onApproveError(e);
+        toast({ title: "Error", description: e.message, variant: "destructive" });
+      },
     });
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent className="p-0 max-w-md overflow-hidden rounded-2xl border-0 shadow-2xl">
         <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-5">
-          <h2 className="text-lg font-extrabold text-white">✅ Approve Withdrawal</h2>
+          <DialogTitle className="text-lg font-extrabold text-white">Approve Withdrawal</DialogTitle>
           <p className="text-green-200 text-sm mt-0.5">Mark as paid and enter proof of transfer</p>
         </div>
         <div className="p-5 space-y-4">
           <div className="bg-green-50 rounded-xl p-4 space-y-2">
             <div className="flex justify-between text-sm"><span className="text-gray-500">Rider / Vendor</span><span className="font-bold">{w.user?.name}</span></div>
             <div className="flex justify-between text-sm"><span className="text-gray-500">Phone</span><span className="font-bold">{w.user?.phone}</span></div>
-            <div className="flex justify-between text-sm"><span className="text-gray-500">{methodIcon(w.paymentMethod)} Method</span><span className="font-bold">{parsed.bank}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-gray-500 flex items-center gap-1"><Landmark className="w-3.5 h-3.5" aria-hidden="true" /> {methodLabel(w.paymentMethod ?? null)}</span><span className="font-bold">{parsed.bank}</span></div>
             <div className="flex justify-between text-sm"><span className="text-gray-500">Account</span><span className="font-bold">{parsed.account}</span></div>
             <div className="flex justify-between text-sm"><span className="text-gray-500">Account Name</span><span className="font-bold">{parsed.title}</span></div>
             <div className="flex justify-between items-center pt-1 border-t border-green-200">
               <span className="text-gray-600 font-semibold">Amount to Transfer</span>
-              <span className="text-xl font-extrabold text-green-600">{fc(w.amount)}</span>
+              <span className="text-xl font-extrabold text-green-600">{fc(Number(w.amount))}</span>
             </div>
           </div>
 
@@ -96,42 +135,46 @@ function ApproveModal({ w, onClose }: { w: any; onClose: () => void }) {
           </div>
 
           <div className="flex gap-3 pt-1">
-            <Button variant="outline" className="flex-1" onClick={onClose}>{T("cancel")}</Button>
+            <Button autoFocus variant="outline" className="flex-1" onClick={onClose}>{T("cancel")}</Button>
             <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold"
               onClick={handleApprove} disabled={approve.isPending}>
-              {approve.isPending ? T("processing") : "✅ Confirm Payment"}
+              {approve.isPending ? T("processing") : "Confirm Payment"}
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
-function RejectModal({ w, onClose }: { w: any; onClose: () => void }) {
+function RejectModal({ w, onClose }: { w: Withdrawal; onClose: () => void }) {
   const [reason, setReason] = useState("");
   const { toast } = useToast();
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const reject = useRejectWithdrawal();
+  const { onError: onRejectError } = useErrorHandler({ title: "Error" });
   const parsed = parseDesc(w.description || "");
 
   const handleReject = () => {
     if (!reason.trim()) { toast({ title: "Reason required", variant: "destructive" }); return; }
     reject.mutate({ id: w.id, reason: reason.trim() }, {
       onSuccess: (data: any) => {
-        toast({ title: "Withdrawal Rejected", description: `${fc(data.refunded)} wapas rider wallet mein aa gaya.` });
+        toast({ title: "Withdrawal rejected", description: `${fc(data.refunded)} refunded to the rider's wallet.` });
         onClose();
       },
-      onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+      onError: (e: any) => {
+        onRejectError(e);
+        toast({ title: "Error", description: e.message, variant: "destructive" });
+      },
     });
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent className="p-0 max-w-md overflow-hidden rounded-2xl border-0 shadow-2xl">
         <div className="bg-gradient-to-r from-red-600 to-rose-600 p-5">
-          <h2 className="text-lg font-extrabold text-white">❌ Reject Withdrawal</h2>
+          <DialogTitle className="text-lg font-extrabold text-white">Reject Withdrawal</DialogTitle>
           <p className="text-red-200 text-sm mt-0.5">Amount will be automatically refunded to rider's wallet</p>
         </div>
         <div className="p-5 space-y-4">
@@ -140,11 +183,12 @@ function RejectModal({ w, onClose }: { w: any; onClose: () => void }) {
             <div className="flex justify-between text-sm"><span className="text-gray-500">Method</span><span className="font-bold">{parsed.bank}</span></div>
             <div className="flex justify-between items-center pt-1 border-t border-red-200">
               <span className="text-gray-600 font-semibold">Amount (will be refunded)</span>
-              <span className="text-xl font-extrabold text-red-600">{fc(w.amount)}</span>
+              <span className="text-xl font-extrabold text-red-600">{fc(Number(w.amount))}</span>
             </div>
           </div>
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-            <p className="text-xs text-amber-700 font-semibold">⚠️ {fc(w.amount)} automatically rider ke wallet mein wapas aa jayega aur unhe notification milegi.</p>
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+            <p className="text-xs text-amber-700 font-semibold">{fc(Number(w.amount))} will be refunded to the rider's wallet automatically and they will be notified.</p>
           </div>
 
           <div>
@@ -155,16 +199,26 @@ function RejectModal({ w, onClose }: { w: any; onClose: () => void }) {
           </div>
 
           <div className="flex gap-3 pt-1">
-            <Button variant="outline" className="flex-1" onClick={onClose}>{T("cancel")}</Button>
+            <Button autoFocus variant="outline" className="flex-1" onClick={onClose}>{T("cancel")}</Button>
             <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold"
               onClick={handleReject} disabled={reject.isPending}>
-              {reject.isPending ? T("processing") : "❌ Reject & Refund"}
+              {reject.isPending ? T("processing") : "Reject & Refund"}
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
+}
+
+function exportWithdrawalsCSV(rows: Withdrawal[]) {
+  const header = "ID,User,Phone,Role,Method,Amount,Status,Date";
+  const lines = rows.map(w =>
+    [w.id, w.user?.name ?? "", w.user?.phone ?? "", w.user?.roles?.[0] ?? "", methodLabel(w.paymentMethod ?? null), Number(w.amount).toFixed(2), w.status, new Date(w.createdAt).toISOString().slice(0, 10)].join(",")
+  );
+  const blob = new Blob([[header, ...lines].join("\n")], { type: "text/csv" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `withdrawals-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 0);
 }
 
 export default function Withdrawals() {
@@ -172,6 +226,7 @@ export default function Withdrawals() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [approveTarget, setApproveTarget] = useState<any | null>(null);
   const [rejectTarget,  setRejectTarget]  = useState<any | null>(null);
+  const [sensitiveApproveTarget, setSensitiveApproveTarget] = useState<any | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchRejectReason, setBatchRejectReason] = useState("");
 
@@ -181,14 +236,41 @@ export default function Withdrawals() {
   const batchApprove = useBatchApproveWithdrawals();
   const batchReject  = useBatchRejectWithdrawals();
   const { toast } = useToast();
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  useEffect(() => { if (data) setLastRefreshed(new Date()); }, [data]);
 
-  const withdrawals: any[] = data?.withdrawals || [];
+  const withdrawals: Withdrawal[] = data?.withdrawals || [];
 
-  const filtered = statusFilter === "all" ? withdrawals : withdrawals.filter(w => w.status === statusFilter);
+  type WdSortKey = "amount" | "createdAt" | "status";
+  const [wdSortKey, setWdSortKey] = useState<WdSortKey>("createdAt");
+  const [wdSortDir, setWdSortDir] = useState<"asc" | "desc">("desc");
+
+  const handleWdSort = (key: WdSortKey) => {
+    if (wdSortKey === key) setWdSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setWdSortKey(key); setWdSortDir("asc"); }
+  };
+
+  function WdSortIcon({ col }: { col: WdSortKey }) {
+    if (wdSortKey !== col) return <ArrowUpDown className="w-3 h-3 opacity-40 inline ml-0.5" />;
+    return wdSortDir === "asc" ? <ArrowUp className="w-3 h-3 text-primary inline ml-0.5" /> : <ArrowDown className="w-3 h-3 text-primary inline ml-0.5" />;
+  }
+
+  const wdStatusOrder: Record<string, number> = { pending: 0, paid: 1, rejected: 2 };
+
+  const rawFiltered = statusFilter === "all" ? withdrawals : withdrawals.filter(w => w.status === statusFilter);
+  const filtered = useMemo(() => {
+    return [...rawFiltered].sort((a, b) => {
+      const dir = wdSortDir === "asc" ? 1 : -1;
+      if (wdSortKey === "amount") return dir * (Number(a.amount) - Number(b.amount));
+      if (wdSortKey === "status") return dir * ((wdStatusOrder[a.status] ?? 9) - (wdStatusOrder[b.status] ?? 9));
+      return dir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawFiltered, wdSortKey, wdSortDir]);
   const pendingFiltered = filtered.filter(w => w.status === "pending");
 
   const pendingCount   = withdrawals.filter(w => w.status === "pending").length;
-  const pendingAmt     = withdrawals.filter(w => w.status === "pending").reduce((s: number, w: any) => s + Number(w.amount), 0);
+  const pendingAmt     = withdrawals.filter(w => w.status === "pending").reduce((s: number, w: Withdrawal) => s + Number(w.amount), 0);
   const paidCount      = withdrawals.filter(w => w.status === "paid").length;
   const rejectedCount  = withdrawals.filter(w => w.status === "rejected").length;
 
@@ -198,20 +280,20 @@ export default function Withdrawals() {
     return next;
   });
   const toggleAll = () => {
-    const pendingIds = pendingFiltered.map((w: any) => w.id);
+    const pendingIds = pendingFiltered.map((w: Withdrawal) => w.id);
     setSelected(prev => prev.size === pendingIds.length ? new Set() : new Set(pendingIds));
   };
   const handleBatchApprove = () => {
     if (selected.size === 0) return;
     batchApprove.mutate([...selected], {
-      onSuccess: (r: any) => { toast({ title: `✅ Batch Approved ${r.approved?.length || selected.size} withdrawals` }); setSelected(new Set()); },
+      onSuccess: (r: BatchResult) => { toast({ title: `Batch approved ${r.approved?.length || selected.size} withdrawals` }); setSelected(new Set()); },
       onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
     });
   };
   const handleBatchReject = () => {
     if (selected.size === 0) return;
     batchReject.mutate({ ids: [...selected], reason: batchRejectReason || "Batch rejected by admin" }, {
-      onSuccess: (r: any) => { toast({ title: `❌ Batch Rejected ${r.rejected?.length || selected.size} withdrawals` }); setSelected(new Set()); setBatchRejectReason(""); },
+      onSuccess: (r: BatchResult) => { toast({ title: `Batch rejected ${r.rejected?.length || selected.size} withdrawals` }); setSelected(new Set()); setBatchRejectReason(""); },
       onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
     });
   };
@@ -224,33 +306,64 @@ export default function Withdrawals() {
   ];
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Withdrawals page crashed. Please reload.</div>}>
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Withdrawal Requests</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Approve or reject rider & vendor withdrawal requests</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} className="self-start sm:self-auto">
-          <RefreshCw className="w-4 h-4 mr-2"/> {T("refresh")}
-        </Button>
-      </div>
+      <PageHeader
+        icon={BanknoteIcon}
+        title="Withdrawal Requests"
+        subtitle="Approve or reject rider & vendor withdrawal requests"
+        iconBgClass="bg-purple-100"
+        iconColorClass="text-purple-600"
+        actions={
+          <div className="flex items-center gap-2">
+            <LastUpdated dataUpdatedAt={lastRefreshed?.getTime() ?? 0} />
+            <Button variant="outline" size="sm" onClick={() => exportWithdrawalsCSV(filtered)} className="h-9 rounded-xl gap-2">
+              <Download className="w-4 h-4" /> CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => refetch()} className="h-9 rounded-xl gap-2">
+              <RefreshCw className="w-4 h-4"/> {T("refresh")}
+            </Button>
+          </div>
+        }
+      />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: "Pending Requests", value: String(pendingCount),      icon: "⏳", color: "text-amber-600", bg: "bg-amber-50" },
-          { label: "Pending Amount",   value: fc(pendingAmt),            icon: "💰", color: "text-red-600",   bg: "bg-red-50"   },
-          { label: "Paid Today",       value: String(paidCount),         icon: "✅", color: "text-green-600", bg: "bg-green-50" },
-          { label: "Rejected",         value: String(rejectedCount),     icon: "❌", color: "text-gray-600",  bg: "bg-gray-50"  },
-        ].map(c => (
-          <Card key={c.label} className={`border-0 shadow-sm ${c.bg}`}>
-            <CardContent className="p-4">
-              <span className="text-2xl">{c.icon}</span>
-              <p className={`text-lg font-extrabold ${c.color} mt-1`}>{c.value}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{c.label}</p>
-            </CardContent>
-          </Card>
+        {isLoading ? (
+          [1,2,3,4].map(i => <StatCardSkeleton key={i} />)
+        ) : (
+          [
+            { label: "Pending Requests", value: String(pendingCount),      Icon: Clock,       color: "text-amber-600", bg: "bg-amber-50" },
+            { label: "Pending Amount",   value: fc(pendingAmt),            Icon: Wallet,      color: "text-red-600",   bg: "bg-red-50"   },
+            { label: "Paid Today",       value: String(paidCount),         Icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" },
+            { label: "Rejected",         value: String(rejectedCount),     Icon: XCircle,     color: "text-gray-600",  bg: "bg-gray-50"  },
+          ].map(c => (
+            <Card key={c.label} className={`border-0 shadow-sm ${c.bg}`}>
+              <CardContent className="p-4">
+                <c.Icon className={`w-6 h-6 ${c.color}`} />
+                <p className={`text-lg font-extrabold ${c.color} mt-1`}>{c.value}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{c.label}</p>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* Sort Controls */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-xs text-muted-foreground font-medium mr-1">Sort:</span>
+        {([
+          { key: "createdAt" as const, label: "Date" },
+          { key: "amount" as const,    label: "Amount" },
+          { key: "status" as const,    label: "Status" },
+        ] as const).map(opt => (
+          <button
+            key={opt.key}
+            onClick={() => handleWdSort(opt.key)}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${wdSortKey === opt.key ? "bg-primary text-primary-foreground border-primary" : "bg-muted/30 border-border/50 text-muted-foreground hover:border-primary/40"}`}
+          >
+            {opt.label}<WdSortIcon col={opt.key} />
+          </button>
         ))}
       </div>
 
@@ -268,7 +381,7 @@ export default function Withdrawals() {
       {/* Pending banner for manual processing */}
       {pendingCount > 0 && statusFilter !== "paid" && statusFilter !== "rejected" && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
-          <span className="text-xl flex-shrink-0">⚠️</span>
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-bold text-amber-800">Manual Transfer Required</p>
             <p className="text-xs text-amber-700 mt-0.5">{pendingCount} request{pendingCount > 1 ? "s" : ""} pending. Amounts already deducted from wallets. Transfer manually and click Approve with reference number.</p>
@@ -306,14 +419,16 @@ export default function Withdrawals() {
       ) : filtered.length === 0 ? (
         <Card className="border-0 shadow-sm">
           <CardContent className="p-12 text-center">
-            <p className="text-4xl mb-3">{statusFilter === "pending" ? "🎉" : "📋"}</p>
+            {statusFilter === "pending"
+              ? <PartyPopper className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
+              : <Inbox className="w-10 h-10 text-gray-400 mx-auto mb-3" />}
             <p className="font-bold text-gray-700">{statusFilter === "pending" ? "No pending requests!" : `No ${statusFilter} requests`}</p>
             <p className="text-sm text-gray-400 mt-1">{statusFilter === "pending" ? "All withdrawal requests have been processed." : "Nothing to show."}</p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
-          {filtered.map((w: any) => {
+          {filtered.map((w: Withdrawal) => {
             const parsed = parseDesc(w.description || "");
             const expanded = expandedId === w.id;
             return (
@@ -333,8 +448,8 @@ export default function Withdrawals() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-bold text-gray-900 text-sm">{w.user?.name || "Unknown"}</p>
-                            {w.user?.role && (
-                              <Badge className={`text-[10px] font-bold ${roleColor(w.user.role)}`} variant="outline">{w.user.role}</Badge>
+                            {w.user?.roles?.[0] && (
+                              <Badge className={`text-[10px] font-bold ${roleColor(w.user.roles[0])}`} variant="outline">{w.user.roles[0]}</Badge>
                             )}
                             <StatusBadge status={w.status}/>
                           </div>
@@ -345,7 +460,7 @@ export default function Withdrawals() {
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <p className={`text-lg font-extrabold ${w.status === "paid" ? "text-green-600" : w.status === "rejected" ? "text-gray-400 line-through" : "text-red-600"}`}>
-                          {fc(w.amount)}
+                          {fc(Number(w.amount))}
                         </p>
                         {expanded ? <ChevronUp className="w-4 h-4 text-gray-400"/> : <ChevronDown className="w-4 h-4 text-gray-400"/>}
                       </div>
@@ -360,7 +475,7 @@ export default function Withdrawals() {
                           { label: "Bank / Method", value: `${methodIcon(w.paymentMethod || parsed.bank)} ${parsed.bank}` },
                           { label: "Account No.",   value: parsed.account },
                           { label: "Account Name",  value: parsed.title },
-                          { label: "Amount",        value: fc(w.amount) },
+                          { label: "Amount",        value: fc(Number(w.amount)) },
                           { label: "Status",        value: w.status.toUpperCase() },
                           ...(w.refNo ? [{ label: "Ref / Reason", value: w.refNo }] : []),
                         ].map(f => (
@@ -382,7 +497,7 @@ export default function Withdrawals() {
                         <div className="flex gap-3">
                           <Button size="sm"
                             className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold gap-2"
-                            onClick={() => setApproveTarget(w)}>
+                            onClick={() => setSensitiveApproveTarget(w)}>
                             <CheckCircle className="w-4 h-4"/> Approve & Mark Paid
                           </Button>
                           <Button size="sm" variant="outline"
@@ -398,7 +513,7 @@ export default function Withdrawals() {
                         <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2">
                           <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0"/>
                           <p className="text-xs text-green-700 font-medium">
-                            {fc(w.amount)} transferred to {parsed.bank} account <strong>{parsed.account}</strong>.
+                            {fc(Number(w.amount))} transferred to {parsed.bank} account <strong>{parsed.account}</strong>.
                             {w.refNo && <> Reference: <strong>{w.refNo}</strong></>}
                           </p>
                         </div>
@@ -409,7 +524,7 @@ export default function Withdrawals() {
                         <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
                           <XCircle className="w-4 h-4 text-red-500 flex-shrink-0"/>
                           <p className="text-xs text-red-700 font-medium">
-                            Request rejected. {w.refNo && <>Reason: <strong>{w.refNo}</strong>.</>} {fc(w.amount)} wapas rider wallet mein aa gaya.
+                            Request rejected. {w.refNo && <>Reason: <strong>{w.refNo}</strong>.</>} {fc(Number(w.amount))} wapas rider wallet mein aa gaya.
                           </p>
                         </div>
                       )}
@@ -424,6 +539,22 @@ export default function Withdrawals() {
 
       {approveTarget && <ApproveModal w={approveTarget} onClose={() => setApproveTarget(null)}/>}
       {rejectTarget  && <RejectModal  w={rejectTarget}  onClose={() => setRejectTarget(null)}/>}
+
+      {/* Sensitive password confirmation before withdrawal approval */}
+      <SensitiveActionDialog
+        open={!!sensitiveApproveTarget}
+        onClose={() => setSensitiveApproveTarget(null)}
+        onConfirm={() => {
+          setApproveTarget(sensitiveApproveTarget);
+          setSensitiveApproveTarget(null);
+        }}
+        title="Approve Withdrawal"
+        description={`Approving ${fc(Number(sensitiveApproveTarget?.amount))} payout to ${sensitiveApproveTarget?.user?.name || sensitiveApproveTarget?.user?.phone || "this user"}. Confirm your identity to proceed.`}
+        confirmLabel="Proceed to Approve"
+        actionType="approve_withdrawal"
+        targetId={sensitiveApproveTarget?.id}
+      />
     </div>
+    </ErrorBoundary>
   );
 }

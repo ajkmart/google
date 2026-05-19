@@ -10,4 +10,8 @@ import type { WalletTransaction } from "./walletTransaction";
 export interface WalletResponse {
   balance: number;
   transactions: WalletTransaction[];
+  pinSetup?: boolean;
+  walletHidden?: boolean;
+  nextCursor?: string | null;
+  hasMore?: boolean;
 }

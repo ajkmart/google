@@ -1,8 +1,6 @@
 import { Badge } from "@/components/ui/badge";
-import { renderSection, Setting, CatKey as OrigCatKey, SettingsSectionProps } from "./settings-render";
+import { renderSection, CatKey, SettingsSectionProps } from "./settings-render";
 import { Bell, MessageSquare } from "lucide-react";
-
-type CatKey = string;
 
 const NOTIF_CAT_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string; description: string }> = {
   notifications: { label: "Notifications",     icon: Bell,          color: "text-yellow-600", bg: "bg-yellow-50", description: "Email templates, push notification text, fraud alert thresholds" },
@@ -82,7 +80,7 @@ export function NotificationsSection({ settings, grouped, localValues, dirtyKeys
                 No settings configured for this sub-section yet.
               </p>
             ) : renderSection(
-              cat as OrigCatKey, childSettings, settings, localValues, dirtyKeys,
+              cat, childSettings, settings, localValues, dirtyKeys,
               handleChange, handleToggle, getInputType, getInputSuffix, getPlaceholder,
             )}
           </section>

@@ -4,21 +4,7 @@ import { apiFetch } from "../lib/api";
 import { PageHeader } from "../components/PageHeader";
 import { PullToRefresh } from "../components/PullToRefresh";
 import { fc, CARD, INPUT, SELECT, BTN_PRIMARY, BTN_SECONDARY, LABEL, errMsg } from "../lib/ui";
-import { usePlatformConfig } from "../lib/useConfig";
-
-function useCurrency() {
-  const { config } = usePlatformConfig();
-  const symbol = (config as any).finance?.currencySymbol ?? "Rs.";
-  return { symbol };
-}
-
-function formatDateTz(dateStr: string, opts: Intl.DateTimeFormatOptions, tz?: string): string {
-  try {
-    return new Date(dateStr).toLocaleDateString("en-PK", { ...opts, timeZone: tz ?? "Asia/Karachi" });
-  } catch {
-    return new Date(dateStr).toLocaleDateString("en-PK", opts);
-  }
-}
+import { useCurrency, usePlatformConfig, formatDateTz } from "../lib/useConfig";
 import { ErrorState } from "../components/ui/ErrorState";
 
 const EMPTY_PROMO = {
@@ -35,7 +21,7 @@ export default function Promos() {
   const qc = useQueryClient();
   const { symbol: currencySymbol } = useCurrency();
   const { config } = usePlatformConfig();
-  const tz = (config as any).regional?.timezone ?? "Asia/Karachi";
+  const tz = config.regional?.timezone ?? "Asia/Karachi";
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ ...EMPTY_PROMO });
   const [toast, setToast] = useState("");
@@ -176,8 +162,8 @@ export default function Promos() {
                     <p className="text-xs text-gray-500 mt-0.5">
                       {promo.discountType === "percentage"
                         ? `${promo.discountValue}% off`
-                        : `${fc(promo.discountValue)} off`}
-                      {promo.minOrder ? ` · Min order ${fc(promo.minOrder)}` : ""}
+                        : `${fc(promo.discountValue, currencySymbol)} off`}
+                      {promo.minOrder ? ` · Min order ${fc(promo.minOrder, currencySymbol)}` : ""}
                       {promo.maxUses  ? ` · Max ${promo.maxUses} uses` : ""}
                     </p>
                     {promo.expiresAt && (

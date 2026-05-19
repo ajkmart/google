@@ -1,16 +1,75 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/vendor-auth";
 import { api } from "../lib/api";
-import { usePlatformConfig } from "../lib/useConfig";
+import { vendorEnv } from "../lib/envValidation";
+import { usePlatformConfig, useCurrency } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PageHeader } from "../components/PageHeader";
 import { ImageUploader } from "../components/ImageUploader";
+import { SafeImage } from "../components/ui/SafeImage";
 import { fc, CARD, INPUT, TEXTAREA, BTN_PRIMARY, LABEL, errMsg } from "../lib/ui";
 import {
   Accordion, AccordionItem, AccordionTrigger, AccordionContent,
 } from "../components/ui/accordion";
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { patchLeafletDefaultIcon } from "../lib/leafletIconFix";
+
+/* Fix Leaflet icons in Vite */
+patchLeafletDefaultIcon();
+
+/* ── Vendor tile config ── */
+function useVendorTileConfig() {
+  const [tile, setTile] = useState({ url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', provider: "osm" });
+  useEffect(() => {
+    fetch(`${vendorEnv.baseUrl}api/maps/config?app=vendor`)
+      .then(r => r.json())
+      .then((d: any) => {
+        const cfg = d?.data ?? d;
+        const prov = cfg?.provider ?? "osm";
+        const tok  = cfg?.token ?? "";
+        if (prov === "mapbox" && tok) {
+          setTile({ url: `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${tok}`, attribution: '© <a href="https://www.mapbox.com/">Mapbox</a> © OpenStreetMap', provider: "mapbox" });
+        } else if (prov === "google" && tok) {
+          setTile({ url: `https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${tok}`, attribution: "© Google Maps", provider: "google" });
+        }
+      })
+      .catch((err) => { console.warn('[artifacts/vendor-app/src/pages/Store.tsx]', err); }); // eslint-disable-line no-console
+  }, []);
+  return tile;
+}
+
+/* ── Draggable marker + click-to-set ── */
+function DraggableMarker({ lat, lng, onChange }: { lat: number; lng: number; onChange: (lat: number, lng: number) => void }) {
+  const markerRef = useRef<L.Marker | null>(null);
+  useMapEvents({
+    click(e) { onChange(e.latlng.lat, e.latlng.lng); },
+  });
+  return (
+    <Marker
+      draggable
+      position={[lat, lng]}
+      ref={markerRef}
+      eventHandlers={{
+        dragend() {
+          const m = markerRef.current;
+          if (m) { const ll = m.getLatLng(); onChange(ll.lat, ll.lng); }
+        },
+      }}
+    />
+  );
+}
+
+/* ── Auto-pan map when lat/lng change ── */
+function PanTo({ lat, lng }: { lat: number; lng: number }) {
+  const map = useMap();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { map.setView([lat, lng], map.getZoom()); }, [lat, lng]);
+  return null;
+}
 
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const DEFAULT_HOURS = Object.fromEntries(DAYS.map(d => [d, { open:"09:00", close:"22:00", closed:false }]));
@@ -18,13 +77,20 @@ const DEFAULT_HOURS = Object.fromEntries(DAYS.map(d => [d, { open:"09:00", close
 export default function Store() {
   const { user, refreshUser } = useAuth();
   const { config } = usePlatformConfig();
+  const { symbol: currencySymbol, code: currencyCode } = useCurrency();
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const promoEnabled = config.vendor?.promoEnabled !== false;
   const qc = useQueryClient();
-  const [tab, setTab] = useState<"info"|"hours"|"promos">("info");
+  const [tab, setTab] = useState<"info"|"hours"|"schedule"|"promos"|"location">("info");
   const [toast, setToast] = useState("");
-  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(""), 3000); };
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
+  const showToast = (m: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(m);
+    toastTimerRef.current = setTimeout(() => setToast(""), 3000);
+  };
 
   const [sf, setSf] = useState({
     storeName:         user?.storeName || "",
@@ -40,7 +106,7 @@ export default function Store() {
   const [hours, setHours] = useState<Record<string, { open:string; close:string; closed:boolean }>>(() => {
     if (!user?.storeHours) return DEFAULT_HOURS;
     if (typeof user.storeHours === "string") {
-      try { return JSON.parse(user.storeHours); } catch { return DEFAULT_HOURS; }
+      try { return JSON.parse(user.storeHours); } catch (err) { console.warn('[artifacts/vendor-app/src/pages/Store.tsx]', err); } // eslint-disable-line no-console
     }
     return user.storeHours;
   });
@@ -58,10 +124,11 @@ export default function Store() {
     });
     if (user.storeHours) {
       const parsed = typeof user.storeHours === "string"
-        ? (() => { try { return JSON.parse(user.storeHours as string); } catch { return null; } })()
+        ? (() => { try { return JSON.parse(user.storeHours as string); } catch (err) { console.warn('[artifacts/vendor-app/src/pages/Store.tsx]', err); } })() // eslint-disable-line no-console
         : user.storeHours;
       if (parsed) setHours(parsed);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.storeName, user?.storeCategory, user?.storeDescription, user?.storeBanner, user?.storeAnnouncement, user?.storeDeliveryTime, user?.storeMinOrder, user?.storeHours]);
 
   const storeMut = useMutation({
@@ -85,12 +152,33 @@ export default function Store() {
   });
 
   const { data: promoData, isLoading: promoLoad } = useQuery({ queryKey: ["vendor-promos"], queryFn: () => api.getPromos(), enabled: tab === "promos" });
-  const promos = promoData?.promos || [];
+  const promos: any[] = Array.isArray(promoData?.promos) ? promoData.promos : [];
 
   const [pf, setPf] = useState({ code:"", description:"", discountPct:"", discountFlat:"", minOrderAmount:"", usageLimit:"", expiresAt:"", type:"pct" as "pct"|"flat" });
   const p = (k: string, v: string) => setPf(x => ({ ...x, [k]: v }));
   const [editingPromo, setEditingPromo] = useState<Record<string, string | number | null> | null>(null);
   const [hoursError, setHoursError] = useState("");
+
+  /* ── Location tab state ── */
+  const DEFAULT_LAT = 34.3697, DEFAULT_LNG = 73.4716; // Abbottabad default
+  const [locLat, setLocLat] = useState<number>(() => Number(user?.storeLat) || DEFAULT_LAT);
+  const [locLng, setLocLng] = useState<number>(() => Number(user?.storeLng) || DEFAULT_LNG);
+  const [locHasPin, setLocHasPin] = useState(() => Boolean(user?.storeLat && user?.storeLng));
+  const tile = useVendorTileConfig();
+
+  useEffect(() => {
+    if (user?.storeLat && user?.storeLng) {
+      setLocLat(Number(user.storeLat));
+      setLocLng(Number(user.storeLng));
+      setLocHasPin(true);
+    }
+  }, [user?.storeLat, user?.storeLng]);
+
+  const locMut = useMutation({
+    mutationFn: () => api.updateStore({ storeLat: locLat, storeLng: locLng }),
+    onSuccess: () => { refreshUser(); showToast("✅ Store location saved!"); },
+    onError: (e: Error) => showToast("❌ " + errMsg(e)),
+  });
 
   const discountValue = pf.type === "pct" ? Number(pf.discountPct) : Number(pf.discountFlat);
   const promoDiscountValid = discountValue > 0;
@@ -136,10 +224,39 @@ export default function Store() {
     onError: (e: Error) => showToast("❌ " + errMsg(e)),
   });
 
-  const TABS = [
-    { key:"info",   label: T("storeInfo"), icon:"🏪" },
-    { key:"hours",  label: T("hoursLabel"), icon:"🕐" },
-    { key:"promos", label: T("promosLabel"), icon:"🎟️" },
+  /* ── Weekly Schedule (backed by vendor_schedules table) ── */
+  const SCHED_DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const { data: schedData, isLoading: schedLoading } = useQuery({
+    queryKey: ["vendor-schedule"],
+    queryFn: () => api.getSchedule(),
+    enabled: tab === "schedule",
+  });
+  const [localSched, setLocalSched] = useState<Array<{ dayOfWeek: number; dayName: string; openTime: string; closeTime: string; isEnabled: boolean }>>([]);
+  const [schedInited, setSchedInited] = useState(false);
+  useEffect(() => {
+    if (schedData?.schedule && !schedInited) {
+      setLocalSched(schedData.schedule.map((s: any) => ({ dayOfWeek: s.dayOfWeek, dayName: s.dayName, openTime: s.openTime, closeTime: s.closeTime, isEnabled: s.isEnabled })));
+      setSchedInited(true);
+    }
+  }, [schedData, schedInited]);
+  const schedMut = useMutation({
+    mutationFn: () => api.updateSchedule(localSched.map(s => ({ dayOfWeek: s.dayOfWeek, openTime: s.openTime, closeTime: s.closeTime, isEnabled: s.isEnabled }))),
+    onSuccess: (d: any) => {
+      if (d?.schedule) setLocalSched(d.schedule.map((s: any) => ({ dayOfWeek: s.dayOfWeek, dayName: s.dayName, openTime: s.openTime, closeTime: s.closeTime, isEnabled: s.isEnabled })));
+      showToast("Schedule saved!");
+    },
+    onError: (e: Error) => showToast(errMsg(e)),
+  });
+  const updateSchedDay = (i: number, patch: Partial<{ openTime: string; closeTime: string; isEnabled: boolean }>) =>
+    setLocalSched(prev => prev.map((d, idx) => idx === i ? { ...d, ...patch } : d));
+
+  type TabKey = "info" | "hours" | "schedule" | "promos" | "location";
+  const TABS: { key: TabKey; label: string; icon: string }[] = [
+    { key:"info",     label: T("storeInfo"),   icon:"🏪" },
+    { key:"hours",    label: T("hoursLabel"),  icon:"🕐" },
+    { key:"schedule", label: "Schedule",        icon:"📅" },
+    { key:"promos",   label: T("promosLabel"), icon:"🎟️" },
+    { key:"location", label: "Location",       icon:"📍" },
   ];
 
   return (
@@ -157,7 +274,7 @@ export default function Store() {
       {/* Tabs */}
       <div className="bg-white border-b border-gray-200 flex sticky top-0 z-10">
         {TABS.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key as any)}
+          <button key={t.key} onClick={() => setTab(t.key)}
             className={`flex-1 flex flex-col md:flex-row items-center md:justify-center md:gap-2 py-3 text-[11px] md:text-sm font-bold border-b-2 transition-colors android-press min-h-0
               ${tab === t.key ? "border-orange-500 text-orange-600" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
             <span className="text-lg md:text-base mb-0.5 md:mb-0">{t.icon}</span>
@@ -173,20 +290,33 @@ export default function Store() {
             <div className="space-y-4">
               {user?.storeBanner && (
                 <div className="rounded-2xl overflow-hidden h-36 bg-gray-100">
-                  <img src={user.storeBanner} alt="Banner" className="w-full h-full object-cover"/>
+                  <SafeImage src={user.storeBanner} alt="Banner" className="w-full h-full object-cover" />
                 </div>
               )}
               <div className={`${CARD} p-4 space-y-3`}>
                 {[
-                  { label: T("storeName"),                   key:"storeName",         placeholder:"My Awesome Store",                  type:"text" },
-                  { label: T("categoryLabel"),               key:"storeCategory",     placeholder:"restaurant / grocery / pharmacy...", type:"text" },
-                  { label: T("announcementNotice"),           key:"storeAnnouncement", placeholder:"20% off all items today!",           type:"text" },
+                  { label: T("storeName"),     key:"storeName",     placeholder:"My Awesome Store",                  type:"text" },
+                  { label: T("categoryLabel"), key:"storeCategory", placeholder:"restaurant / grocery / pharmacy...", type:"text" },
                 ].map(({ label, key, placeholder, type }) => (
                   <div key={key}>
                     <label className={LABEL}>{label}</label>
-                    <input type={type} value={(sf as any)[key]} onChange={e => s(key, e.target.value)} placeholder={placeholder} className={INPUT}/>
+                    <input type={type} value={(sf as Record<string, string>)[key]} onChange={e => s(key, e.target.value)} placeholder={placeholder} className={INPUT}/>
                   </div>
                 ))}
+                <div>
+                  <div className="flex justify-between items-baseline mb-1">
+                    <label className={LABEL}>{T("announcementNotice")}</label>
+                    <span className={`text-[10px] font-semibold ${sf.storeAnnouncement.length > 140 ? "text-red-500" : "text-gray-400"}`}>{sf.storeAnnouncement.length}/160</span>
+                  </div>
+                  <textarea
+                    value={sf.storeAnnouncement}
+                    onChange={e => s("storeAnnouncement", e.target.value)}
+                    placeholder="20% off all items today!"
+                    rows={2}
+                    maxLength={160}
+                    className={TEXTAREA}
+                  />
+                </div>
               </div>
             </div>
             <div className="space-y-4">
@@ -203,12 +333,15 @@ export default function Store() {
                   <input type="text" value={sf.storeDeliveryTime} onChange={e => s("storeDeliveryTime", e.target.value)} placeholder="30-45 min" className={INPUT}/>
                 </div>
                 <div>
-                  <label className={LABEL}>{T("minOrder")} (Rs.)</label>
+                  <label className={LABEL}>{T("minOrder")} ({currencySymbol})</label>
                   <input type="number" inputMode="numeric" value={sf.storeMinOrder} onChange={e => s("storeMinOrder", e.target.value)} placeholder="0" className={INPUT}/>
                 </div>
                 <div>
-                  <label className={LABEL}>{T("aboutStore")}</label>
-                  <textarea value={sf.storeDescription} onChange={e => s("storeDescription", e.target.value)} placeholder="Tell customers about your store..." rows={3} className={TEXTAREA}/>
+                  <div className="flex justify-between items-baseline mb-1">
+                    <label className={LABEL}>{T("aboutStore")}</label>
+                    <span className={`text-[10px] font-semibold ${sf.storeDescription.length > 450 ? "text-red-500" : "text-gray-400"}`}>{sf.storeDescription.length}/500</span>
+                  </div>
+                  <textarea value={sf.storeDescription} onChange={e => s("storeDescription", e.target.value)} placeholder="Tell customers about your store..." rows={3} maxLength={500} className={TEXTAREA}/>
                 </div>
               </div>
               <button onClick={() => storeMut.mutate()} disabled={storeMut.isPending} className={BTN_PRIMARY}>
@@ -324,6 +457,59 @@ export default function Store() {
           </div>
         )}
 
+        {/* ── WEEKLY SCHEDULE ── */}
+        {tab === "schedule" && (
+          <div className="space-y-4">
+            <div className={`${CARD} p-4`}>
+              <p className="font-bold text-gray-800 text-base mb-1">Weekly Auto-Schedule</p>
+              <p className="text-xs text-gray-500 mb-4">Set your regular operating hours for each day. Enabled days will automatically toggle your store open/closed.</p>
+              {schedLoading ? (
+                <div className="py-8 text-center text-gray-400">Loading schedule...</div>
+              ) : localSched.length === 0 ? (
+                <div className="py-8 text-center text-gray-400">
+                  <p>No schedule data found.</p>
+                  <button onClick={() => {
+                    setLocalSched(SCHED_DAYS.map((name, i) => ({ dayOfWeek: i, dayName: name, openTime: "09:00", closeTime: "21:00", isEnabled: false })));
+                  }} className="mt-2 text-orange-500 font-bold text-sm underline">Initialize Schedule</button>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {localSched.map((day, i) => (
+                    <div key={day.dayOfWeek} className="py-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="font-bold text-sm text-gray-800">{day.dayName}</p>
+                        <button
+                          onClick={() => updateSchedDay(i, { isEnabled: !day.isEnabled })}
+                          className={`text-xs font-bold px-3 py-1.5 rounded-full ${day.isEnabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400"}`}>
+                          {day.isEnabled ? "Enabled" : "Disabled"}
+                        </button>
+                      </div>
+                      {day.isEnabled && (
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1">
+                            <p className="text-[10px] text-gray-400 font-bold mb-1">OPEN</p>
+                            <input type="time" value={day.openTime} onChange={e => updateSchedDay(i, { openTime: e.target.value })}
+                              className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-400 text-sm" />
+                          </div>
+                          <span className="text-gray-300 font-bold mt-4">-</span>
+                          <div className="flex-1">
+                            <p className="text-[10px] text-gray-400 font-bold mb-1">CLOSE</p>
+                            <input type="time" value={day.closeTime} onChange={e => updateSchedDay(i, { closeTime: e.target.value })}
+                              className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-400 text-sm" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button onClick={() => schedMut.mutate()} disabled={schedMut.isPending || localSched.length === 0} className={BTN_PRIMARY}>
+              {schedMut.isPending ? T("saving") : "Save Schedule"}
+            </button>
+          </div>
+        )}
+
         {/* ── PROMOS ── */}
         {tab === "promos" && !promoEnabled && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center">
@@ -346,7 +532,7 @@ export default function Store() {
                   <label className={LABEL}>{T("discountType")}</label>
                   <div className="flex gap-2">
                     <button onClick={() => p("type","pct")}  className={`flex-1 h-11 rounded-xl text-sm font-bold border-2 android-press min-h-0 ${pf.type==="pct"  ? "border-orange-500 bg-orange-50 text-orange-600" : "border-gray-200 text-gray-400"}`}>% {T("percentage")}</button>
-                    <button onClick={() => p("type","flat")} className={`flex-1 h-11 rounded-xl text-sm font-bold border-2 android-press min-h-0 ${pf.type==="flat" ? "border-orange-500 bg-orange-50 text-orange-600" : "border-gray-200 text-gray-400"}`}>Rs. {T("flatAmount")}</button>
+                    <button onClick={() => p("type","flat")} className={`flex-1 h-11 rounded-xl text-sm font-bold border-2 android-press min-h-0 ${pf.type==="flat" ? "border-orange-500 bg-orange-50 text-orange-600" : "border-gray-200 text-gray-400"}`}>{currencySymbol} {T("flatAmount")}</button>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -355,7 +541,7 @@ export default function Store() {
                     <input type="number" inputMode="numeric" value={pf.type==="pct" ? pf.discountPct : pf.discountFlat} onChange={e => p(pf.type==="pct" ? "discountPct" : "discountFlat", e.target.value)} placeholder={pf.type==="pct" ? "20" : "100"} className={INPUT}/>
                   </div>
                   <div>
-                    <label className={LABEL}>{T("minOrder")} (Rs.)</label>
+                    <label className={LABEL}>{T("minOrder")} ({currencySymbol})</label>
                     <input type="number" inputMode="numeric" value={pf.minOrderAmount} onChange={e => p("minOrderAmount",e.target.value)} placeholder="500" className={INPUT}/>
                   </div>
                   <div>
@@ -401,9 +587,9 @@ export default function Store() {
                             {pm.description && <p className="text-xs text-gray-500 mt-0.5">{pm.description}</p>}
                             <div className="flex items-center gap-2 mt-2 flex-wrap">
                               <span className="text-xs bg-orange-50 text-orange-600 font-bold px-2.5 py-1 rounded-full">
-                                {pm.discountPct > 0 ? `${pm.discountPct}% OFF` : `Rs. ${pm.discountFlat} OFF`}
+                                {pm.discountPct > 0 ? `${pm.discountPct}% OFF` : `${currencySymbol} ${pm.discountFlat} OFF`}
                               </span>
-                              {pm.minOrderAmount > 0 && <span className="text-xs text-gray-400">Min: {fc(pm.minOrderAmount)}</span>}
+                              {pm.minOrderAmount > 0 && <span className="text-xs text-gray-400">Min: {fc(pm.minOrderAmount, currencySymbol)}</span>}
                               {pm.usageLimit && <span className="text-xs text-gray-400">{pm.usedCount}/{pm.usageLimit} used</span>}
                             </div>
                           </div>
@@ -437,7 +623,7 @@ export default function Store() {
                                 <input type="number" inputMode="numeric" value={pf.type==="pct" ? pf.discountPct : pf.discountFlat} onChange={e => p(pf.type==="pct" ? "discountPct" : "discountFlat", e.target.value)} className={INPUT}/>
                               </div>
                               <div>
-                                <label className={LABEL}>{T("minOrder")} (Rs.)</label>
+                                <label className={LABEL}>{T("minOrder")} ({currencySymbol})</label>
                                 <input type="number" inputMode="numeric" value={pf.minOrderAmount} onChange={e => p("minOrderAmount", e.target.value)} className={INPUT}/>
                               </div>
                               <div>
@@ -464,6 +650,100 @@ export default function Store() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ── LOCATION TAB ── */}
+        {tab === "location" && (
+          <div className="space-y-4">
+            <div className={`${CARD} p-4`}>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-sm font-bold text-gray-900">Store Location</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Drag the pin or tap the map to set your store's exact location.</p>
+                </div>
+                <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">{tile.provider.toUpperCase()}</span>
+              </div>
+
+              {/* Map */}
+              <div className="rounded-xl overflow-hidden border border-gray-200" style={{ height: 300 }}>
+                <MapContainer center={[locLat, locLng]} zoom={14} style={{ height: "100%", width: "100%" }} scrollWheelZoom={true}>
+                  <TileLayer url={tile.url} attribution={tile.attribution} maxZoom={19} />
+                  <PanTo lat={locLat} lng={locLng} />
+                  <DraggableMarker
+                    lat={locLat} lng={locLng}
+                    onChange={(lat, lng) => { setLocLat(lat); setLocLng(lng); setLocHasPin(true); }}
+                  />
+                </MapContainer>
+              </div>
+              <p className="text-[11px] text-center text-gray-400 mt-1.5">Tap on the map or drag the marker to adjust position</p>
+
+              {/* Coordinates display */}
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                <div>
+                  <label className={LABEL}>Latitude</label>
+                  <input
+                    type="number" step="0.000001"
+                    value={locLat.toFixed(6)}
+                    onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) { setLocLat(v); setLocHasPin(true); }}}
+                    className={INPUT}
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>Longitude</label>
+                  <input
+                    type="number" step="0.000001"
+                    value={locLng.toFixed(6)}
+                    onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) { setLocLng(v); setLocHasPin(true); }}}
+                    className={INPUT}
+                  />
+                </div>
+              </div>
+
+              {/* Use current GPS */}
+              <button
+                type="button"
+                className="w-full mt-3 h-10 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl text-sm android-press transition-colors"
+                onClick={() => {
+                  if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                      pos => { setLocLat(pos.coords.latitude); setLocLng(pos.coords.longitude); setLocHasPin(true); },
+                      () => showToast("❌ Could not get GPS location"),
+                      { enableHighAccuracy: true, timeout: 8000 }
+                    );
+                  } else {
+                    showToast("❌ GPS not available on this device");
+                  }
+                }}
+              >
+                📡 Use My Current Location
+              </button>
+
+              {/* Google Maps link */}
+              {locHasPin && (
+                <a
+                  href={`https://www.google.com/maps?q=${locLat},${locLng}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="block text-center text-xs text-blue-600 underline mt-2"
+                >
+                  🗺️ Verify on Google Maps
+                </a>
+              )}
+            </div>
+
+            <button
+              onClick={() => locMut.mutate()}
+              disabled={locMut.isPending || !locHasPin}
+              className={BTN_PRIMARY}
+            >
+              {locMut.isPending ? "Saving..." : "📍 Save Store Location"}
+            </button>
+
+            {!locHasPin && (
+              <p className="text-center text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                Tap on the map above to pin your store location
+              </p>
+            )}
           </div>
         )}
       </div>

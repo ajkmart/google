@@ -4,21 +4,7 @@ import { apiFetch } from "../lib/api";
 import { PageHeader } from "../components/PageHeader";
 import { PullToRefresh } from "../components/PullToRefresh";
 import { CARD, BTN_PRIMARY, BTN_SECONDARY, errMsg, fc } from "../lib/ui";
-import { usePlatformConfig } from "../lib/useConfig";
-
-function useCurrency() {
-  const { config } = usePlatformConfig();
-  const symbol = (config as any).finance?.currencySymbol ?? (config as any).platform?.currencySymbol ?? "Rs.";
-  return { symbol };
-}
-
-function formatDateTz(dateStr: string, opts: Intl.DateTimeFormatOptions, tz?: string): string {
-  try {
-    return new Date(dateStr).toLocaleDateString("en-PK", { ...opts, timeZone: tz ?? "Asia/Karachi" });
-  } catch {
-    return new Date(dateStr).toLocaleDateString("en-PK", opts);
-  }
-}
+import { useCurrency, usePlatformConfig, formatDateTz } from "../lib/useConfig";
 import { ErrorState } from "../components/ui/ErrorState";
 
 type Participation = {
@@ -173,7 +159,7 @@ function PerformancePanel({ campaignId }: { campaignId: string }) {
     { label: "Impressions", value: (data.impressions ?? 0).toLocaleString(), icon: "👁️" },
     { label: "Clicks",      value: (data.clicks ?? 0).toLocaleString(),      icon: "🖱️" },
     { label: "Orders",      value: (data.orders ?? 0).toLocaleString(),       icon: "📦" },
-    { label: "Revenue",     value: `${currencySymbol}${Math.round(data.revenue ?? 0).toLocaleString()}`,      icon: "💰" },
+    { label: "Revenue",     value: fc(data.revenue ?? 0, currencySymbol),      icon: "💰" },
   ];
 
   return (
@@ -196,7 +182,7 @@ export default function Campaigns() {
   const qc = useQueryClient();
   const { symbol: currencySymbol } = useCurrency();
   const { config } = usePlatformConfig();
-  const tz = (config as any).regional?.timezone ?? "Asia/Karachi";
+  const tz = config.regional?.timezone ?? "Asia/Karachi";
   const [toast, setToast] = useState("");
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);

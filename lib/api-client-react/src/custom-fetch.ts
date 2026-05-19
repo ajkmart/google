@@ -20,6 +20,7 @@ let _authTokenGetter: AuthTokenGetter | null = null;
 let _onUnauthorized: ((statusCode?: number, errorMsg?: string) => void) | null = null;
 let _refreshTokenGetter: (() => Promise<string | null> | string | null) | null = null;
 let _onTokenRefreshed: ((newToken: string, newRefreshToken: string) => void) | null = null;
+let _onApiError: ((url: string, status: number, message: string) => void) | null = null;
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -66,6 +67,10 @@ export function setRefreshTokenGetter(getter: (() => Promise<string | null> | st
  */
 export function setOnTokenRefreshed(callback: ((newToken: string, newRefreshToken: string) => void) | null): void {
   _onTokenRefreshed = callback;
+}
+
+export function setOnApiError(handler: ((url: string, status: number, message: string) => void) | null): void {
+  _onApiError = handler;
 }
 
 function isRequest(input: RequestInfo | URL): input is Request {
@@ -351,6 +356,8 @@ async function parseSuccessBody(
 
 type TokenRefreshResult = { token: string; newRefreshToken: string };
 
+let _refreshPromise: Promise<TokenRefreshResult | null> | null = null;
+
 async function attemptTokenRefresh(baseUrl: string | null): Promise<TokenRefreshResult | null> {
   if (!_refreshTokenGetter) return null;
   const refreshToken = await _refreshTokenGetter();
@@ -374,9 +381,25 @@ async function attemptTokenRefresh(baseUrl: string | null): Promise<TokenRefresh
   }
 }
 
-const MAX_RETRIES = 3;
-const RETRY_BASE_MS = 1000;
+let MAX_RETRIES = 3;
+let RETRY_BASE_MS = 1000;
 const IDEMPOTENT_METHODS = new Set(["GET", "HEAD", "OPTIONS", "DELETE"]);
+
+/**
+ * Override the maximum number of retry attempts for idempotent requests.
+ * Call this at app startup after loading platform config.
+ */
+export function setMaxRetryAttempts(n: number): void {
+  if (Number.isFinite(n) && n >= 0) MAX_RETRIES = Math.min(Math.floor(n), 10);
+}
+
+/**
+ * Override the exponential-backoff base delay in milliseconds.
+ * Call this at app startup after loading platform config.
+ */
+export function setRetryBackoffBaseMs(ms: number): void {
+  if (Number.isFinite(ms) && ms > 0) RETRY_BASE_MS = Math.min(ms, 30_000);
+}
 
 function isNetworkError(error: unknown): boolean {
   if (error instanceof TypeError) return true;
@@ -450,7 +473,10 @@ export async function customFetch<T = unknown>(
     }
 
     if (response.status === 401 && !_isRetry) {
-      const refreshResult = await attemptTokenRefresh(_baseUrl);
+      if (!_refreshPromise) {
+        _refreshPromise = attemptTokenRefresh(_baseUrl).finally(() => { _refreshPromise = null; });
+      }
+      const refreshResult = await _refreshPromise;
       if (refreshResult) {
         const { token: newToken, newRefreshToken } = refreshResult;
         setAuthTokenGetter(() => newToken);
@@ -468,10 +494,24 @@ export async function customFetch<T = unknown>(
         const errMsg = getStringField(errorData, "error") || getStringField(errorData, "message") || undefined;
         _onUnauthorized(403, errMsg);
       }
+      if (_onApiError) {
+        const errMsg = getStringField(errorData, "error") || getStringField(errorData, "message") || "API error";
+        _onApiError(requestInfo.url, response.status, errMsg);
+      }
       throw new ApiError(response, errorData, requestInfo);
     }
 
-    return (await parseSuccessBody(response, responseType, requestInfo)) as T;
+    const parsed = await parseSuccessBody(response, responseType, requestInfo);
+    if (
+      parsed != null &&
+      typeof parsed === "object" &&
+      "success" in parsed &&
+      (parsed as Record<string, unknown>).success === true &&
+      "data" in parsed
+    ) {
+      return (parsed as Record<string, unknown>).data as T;
+    }
+    return parsed as T;
   }
 
   throw lastError ?? new Error("Request failed after retries");

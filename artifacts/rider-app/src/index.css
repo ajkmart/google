@@ -52,7 +52,66 @@
   --sar: env(safe-area-inset-right, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
   --sal: env(safe-area-inset-left, 0px);
+
+  /* Login page brand tokens — dark trading-platform theme */
+  --login-brand: #F0B90B;
+  --login-brand-hover: #D97706;
+  --login-brand-shadow: rgba(240, 185, 11, 0.25);
+  --login-brand-glow-sm: rgba(240, 185, 11, 0.30);
+  --login-brand-glow-md: rgba(240, 185, 11, 0.35);
+  --login-brand-glow-blob: rgba(240, 185, 11, 0.07);
+  --login-brand-border: rgba(240, 185, 11, 0.20);
+  --login-hero-from: #0B0E11;
+  --login-hero-via: #0D1017;
+  --login-hero-to: #0F1117;
+  --login-otp-filled-bg: rgba(240,185,11,0.08);
+  --login-otp-filled-border: #F0B90B;
+  --login-otp-filled-text: #F0B90B;
+  --login-btn-radius: 0.75rem;
 }
+
+.dark {
+  color-scheme: dark;
+  --background: 222 47% 8%;
+  --foreground: 210 40% 96%;
+  --card: 222 47% 11%;
+  --card-foreground: 210 40% 96%;
+  --border: 217 33% 20%;
+  --input: 217 33% 20%;
+  --ring: 142 71% 45%;
+  --primary: 142 71% 45%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 90%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 16% 60%;
+  --accent: 38 92% 50%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+}
+
+@layer components {
+  .login-btn-primary {
+    background-color: var(--login-brand);
+    border-radius: var(--login-btn-radius);
+    box-shadow: 0 1px 3px var(--login-brand-shadow);
+    transition: background-color 0.15s ease, opacity 0.15s ease;
+  }
+  .login-btn-primary:hover:not(:disabled) { background-color: var(--login-brand-hover); }
+  .login-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .login-otp-box-filled {
+    border-color: var(--login-otp-filled-border) !important;
+    background-color: var(--login-otp-filled-bg) !important;
+    color: var(--login-otp-filled-text) !important;
+  }
+}
+
+@keyframes loginStepIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.login-step-enter { animation: loginStepIn 0.22s ease-out; }
 
 @layer base {
   * { @apply border-border; box-sizing: border-box; }

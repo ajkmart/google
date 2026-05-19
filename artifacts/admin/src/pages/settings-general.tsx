@@ -1,6 +1,5 @@
 import { Badge } from "@/components/ui/badge";
 import { renderSection, CatKey, SettingsSectionProps } from "./settings-render";
-
 import {
   Globe, Zap, Languages,
 } from "lucide-react";

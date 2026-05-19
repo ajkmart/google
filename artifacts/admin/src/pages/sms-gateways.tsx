@@ -13,15 +13,8 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { adminFetch } from "@/lib/adminFetcher";
+import { useSmsGateways, useCreateSmsGateway, useUpdateSmsGateway, useDeleteSmsGateway, useToggleSmsGateway } from "@/hooks/use-admin";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-
-const useSmsGateways = () => useQuery({ queryKey: ["sms-gateways"], queryFn: () => adminFetch("/admin/sms-gateways") });
-const useCreateSmsGateway = () => { const qc = useQueryClient(); return useMutation({ mutationFn: (data: any) => adminFetch("/admin/sms-gateways", { method: "POST", body: JSON.stringify(data) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["sms-gateways"] }) }); };
-const useUpdateSmsGateway = () => { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, ...data }: any) => adminFetch(`/admin/sms-gateways/${id}`, { method: "PUT", body: JSON.stringify(data) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["sms-gateways"] }) }); };
-const useDeleteSmsGateway = () => { const qc = useQueryClient(); return useMutation({ mutationFn: (id: string) => adminFetch(`/admin/sms-gateways/${id}`, { method: "DELETE" }), onSuccess: () => qc.invalidateQueries({ queryKey: ["sms-gateways"] }) }); };
-const useToggleSmsGateway = () => { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, active }: { id: string; active: boolean }) => adminFetch(`/admin/sms-gateways/${id}/toggle`, { method: "POST", body: JSON.stringify({ active }) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["sms-gateways"] }) }); };
 
 const PROVIDERS = [
   { value: "twilio",  label: "Twilio",           color: "text-red-600"    },
@@ -97,8 +90,8 @@ export default function SmsGateways() {
     catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
   }
 
-  async function handleToggle(id: string, currentActive: boolean) {
-    try { await toggleGw.mutateAsync({ id, active: !currentActive }); }
+  async function handleToggle(id: string) {
+    try { await toggleGw.mutateAsync(id); }
     catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
   }
 

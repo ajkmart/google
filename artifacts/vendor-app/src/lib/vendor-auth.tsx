@@ -130,14 +130,14 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
 
       if (!activeToken) {
         const result = await api.refreshToken();
-        if (!result) { setLoading(false); return; }
+        if (result !== "refreshed") { setLoading(false); return; }
         activeToken = api.getToken();
         if (!activeToken) { setLoading(false); return; }
       }
 
       setToken(activeToken);
       try {
-        const u: AuthUser = await api.getMe();
+        const u: AuthUser = await api.getMe(controller.signal);
         const rawRoles = u.roles;
         const roles: string[] = Array.isArray(rawRoles)
           ? rawRoles

@@ -1,12 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { usePlatformConfig } from "../lib/useConfig";
+import { unlockAudio, playOrderSound, markOrderSeen, wasOrderSeenRecently } from "../lib/notificationSound";
+import { usePlatformConfig, useCurrency } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/vendor-auth";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PageHeader } from "../components/PageHeader";
 import { PullToRefresh } from "../components/PullToRefresh";
+import { ErrorState } from "../components/ui/ErrorState";
+import { ErrorBoundary } from "../components/ErrorBoundary";
+import { useOfflineQueue } from "../hooks/useOfflineQueue";
 import { fc, fd, CARD, DEFAULT_COMMISSION_PCT, errMsg } from "../lib/ui";
 import { io, type Socket } from "socket.io-client";
 
@@ -23,6 +27,7 @@ const TAB_KEYS: { key: string; labelKey: TranslationKey; icon: string }[] = [
   { key: "new",       labelKey: "newLabel",  icon: "🔔" },
   { key: "active",    labelKey: "active",    icon: "🍳" },
   { key: "delivered", labelKey: "done",      icon: "✅" },
+  { key: "cancelled", labelKey: "cancelled", icon: "❌" },
   { key: "all",       labelKey: "all",       icon: "📋" },
 ];
 
@@ -53,9 +58,10 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export default function Orders() {
+export default function Orders({ targetOrderId }: { targetOrderId?: string } = {}) {
   const qc = useQueryClient();
   const { config } = usePlatformConfig();
+  const { symbol: currencySymbol } = useCurrency();
   const { language } = useLanguage();
   const { user } = useAuth();
   const T = (key: TranslationKey) => tDual(key, language);
@@ -69,43 +75,87 @@ export default function Orders() {
   };
   const now = useNow(10000);
 
+  const { isOnline, syncToast, enqueueStatusUpdate } = useOfflineQueue();
+
   const [tab, setTab]           = useState("new");
-  const [expanded, setExpanded] = useState<string|null>(null);
+  const [expanded, setExpanded] = useState<string|null>(targetOrderId ?? null);
+
+  /* When arriving via a notification tap, use the prefetched per-order cache
+     as an immediate seed while the list query loads in the background. */
+  const { data: prefetchedOrder } = useQuery({
+    queryKey: ["vendor-order", targetOrderId],
+    queryFn: () => api.getVendorOrder(targetOrderId!),
+    enabled: !!targetOrderId,
+    staleTime: 30_000,
+  });
   const [toast, setToast]       = useState("");
-  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(""), 3000); };
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = (m: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(m);
+    toastTimerRef.current = setTimeout(() => setToast(""), 3000);
+  };
+  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
   const [pendingOrderIds, setPendingOrderIds] = useState<Set<string>>(new Set());
   const [acceptDialog, setAcceptDialog] = useState<{ id: string; total: number } | null>(null);
   const [rejectDialog, setRejectDialog] = useState<{ id: string } | null>(null);
   const [assignModal, setAssignModal] = useState<{ orderId: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState<"newest"|"oldest"|"highest">("newest");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkConfirm, setBulkConfirm] = useState<"accept"|"reject"|null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [socketConnected, setSocketConnected] = useState(true);
   const socketRef = useRef<Socket | null>(null);
+  const [riderPositions, setRiderPositions] = useState<Record<string, { lat: number; lng: number; updatedAt: string }>>({});
 
-  const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
-  const vendorToken = () => localStorage.getItem("ajkmart_vendor_token") ?? "";
+  /* Vendor's own lat/lng — prefer backend-persisted location, fall back to browser */
+  const [vendorLat, setVendorLat] = useState<number | null>(null);
+  const [vendorLng, setVendorLng] = useState<number | null>(null);
+  const [locationPermission, setLocationPermission] = useState<"granted" | "prompt" | "denied" | "unknown">("unknown");
+
+  /* Detect geolocation permission state and listen for changes */
+  useEffect(() => {
+    if (!navigator.permissions) return;
+    navigator.permissions.query({ name: "geolocation" }).then(status => {
+      setLocationPermission(status.state as "granted" | "prompt" | "denied");
+      status.onchange = () => setLocationPermission(status.state as "granted" | "prompt" | "denied");
+    }).catch(() => setLocationPermission("unknown"));
+  }, []);
+
+  /* Re-request location (used by "Try Again" button) */
+  const retryLocation = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setVendorLat(latitude);
+        setVendorLng(longitude);
+        saveVendorLocationToBackend(latitude, longitude);
+      },
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) setLocationPermission("denied");
+      },
+    );
+  };
 
   const { data: availableRidersData, isLoading: ridersLoading } = useQuery({
-    queryKey: ["vendor-available-riders", vendorLat, vendorLng],
+    queryKey: ["vendor-order-riders", assignModal?.orderId],
     queryFn: async () => {
-      if (vendorLat === null || vendorLng === null) return { riders: [] };
-      const r = await fetch(`${BASE}/api/vendor/orders/available-riders?lat=${vendorLat}&lng=${vendorLng}&maxKm=10`, {
-        headers: { Authorization: `Bearer ${vendorToken()}` },
-      });
-      if (!r.ok) return { riders: [] };
-      return r.json() as Promise<{ riders: { id: string; name: string; phone: string; distanceKm: number; walletBalance: number }[] }>;
+      if (!assignModal?.orderId) return { riders: [] };
+      try {
+        return await api.getOrderAvailableRiders(assignModal.orderId) as { riders: { id: string; name: string; phone: string; distanceKm: number | null; walletBalance: string }[] };
+      } catch {
+        return { riders: [] };
+      }
     },
-    enabled: !!assignModal && vendorLat !== null && vendorLng !== null,
+    enabled: !!assignModal,
     staleTime: 30_000,
   });
 
   const assignRiderMut = useMutation({
-    mutationFn: async ({ orderId, riderId }: { orderId: string; riderId: string }) => {
-      const r = await fetch(`${BASE}/api/vendor/orders/${orderId}/assign-rider`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${vendorToken()}` },
-        body: JSON.stringify({ riderId }),
-      });
-      if (!r.ok) { const d = await r.json(); throw new Error(d.error || "Assignment failed"); }
-      return r.json();
-    },
+    mutationFn: ({ orderId, riderId }: { orderId: string; riderId: string }) =>
+      api.assignRider(orderId, riderId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["vendor-orders"] });
       setAssignModal(null);
@@ -115,16 +165,7 @@ export default function Orders() {
   });
 
   const autoAssignMut = useMutation({
-    mutationFn: async (orderId: string) => {
-      if (vendorLat === null || vendorLng === null) throw new Error("Vendor location not available");
-      const r = await fetch(`${BASE}/api/vendor/orders/${orderId}/auto-assign`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${vendorToken()}` },
-        body: JSON.stringify({ vendorLat, vendorLng }),
-      });
-      if (!r.ok) { const d = await r.json(); throw new Error(d.error || "Auto-assign failed"); }
-      return r.json();
-    },
+    mutationFn: (orderId: string) => api.autoAssignRider(orderId),
     onSuccess: (d) => {
       qc.invalidateQueries({ queryKey: ["vendor-orders"] });
       setAssignModal(null);
@@ -134,44 +175,40 @@ export default function Orders() {
       showToast("❌ " + e.message);
     },
   });
-  const [riderPositions, setRiderPositions] = useState<Record<string, { lat: number; lng: number; updatedAt: string }>>({});
-
-  /* Vendor's own lat/lng — prefer backend-persisted location, fall back to browser */
-  const [vendorLat, setVendorLat] = useState<number | null>(null);
-  const [vendorLng, setVendorLng] = useState<number | null>(null);
-
   /* Fetch vendor's persisted location from the backend live_locations store */
   const { data: vendorLocData } = useQuery({
     queryKey: ["vendor-live-location", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const token = localStorage.getItem("ajkmart_vendor_token") ?? "";
-      const res = await fetch(`${(import.meta.env.BASE_URL || "/").replace(/\/$/, "")}/api/locations/${user.id}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) return null;
-      return res.json() as Promise<{ latitude: number; longitude: number } | null>;
+      try {
+        return await api.getLocation(user.id) as { latitude: number; longitude: number } | null;
+      } catch {
+        return null;
+      }
     },
     enabled: !!user?.id,
     refetchInterval: 30_000,
     staleTime: 20_000,
   });
 
-  /* Save vendor location to backend (used for rider dispatch radius checks) */
+  /* Last coordinates successfully sent to the backend — used to skip redundant calls */
+  const lastSavedLocRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  /* Save vendor location to backend (used for rider dispatch radius checks).
+     Skips the API call when the position hasn't moved more than ~10 metres
+     (~0.0001 degrees) to avoid hammering the server with redundant updates. */
   const saveVendorLocationToBackend = async (lat: number, lng: number) => {
+    const EPSILON = 0.0001;
+    const last = lastSavedLocRef.current;
+    if (last && Math.abs(lat - last.lat) < EPSILON && Math.abs(lng - last.lng) < EPSILON) {
+      return;
+    }
     try {
-      const token = localStorage.getItem("ajkmart_vendor_token") ?? "";
-      if (!token) return;
-      const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
-      await fetch(`${base}/api/locations/update`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ latitude: lat, longitude: lng, role: "vendor" }),
-      });
-    } catch {}
+      await api.updateLocation({ latitude: lat, longitude: lng, role: "vendor" });
+      lastSavedLocRef.current = { lat, lng };
+    } catch {
+      showToast("⚠️ " + T("locationSaveFailed"));
+    }
   };
 
   useEffect(() => {
@@ -191,6 +228,7 @@ export default function Orders() {
         () => {},
       );
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendorLocData]);
 
   /* Periodic refresh: re-save vendor location every 5 minutes and on window focus */
@@ -217,49 +255,192 @@ export default function Orders() {
       clearInterval(intervalId);
       window.removeEventListener("focus", refreshLocation);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  /* Socket.io: subscribe to vendor:{userId} room for rider tracking */
+  /* Harden audio unlock — resume AudioContext on click, pointerdown, and
+     visibilitychange (when vendor switches back to the tab) so the context is
+     unlocked as early as possible without requiring a specific button press. */
+  useEffect(() => {
+    const unlock = () => unlockAudio();
+    document.addEventListener("click", unlock, { once: true });
+    document.addEventListener("pointerdown", unlock, { once: true });
+    const onVisibility = () => { if (document.visibilityState === "visible") unlockAudio(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      document.removeEventListener("click", unlock);
+      document.removeEventListener("pointerdown", unlock);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
+  /* Update browser tab title with unread order badge */
+  useEffect(() => {
+    const base = "Vendor Orders";
+    document.title = unreadCount > 0 ? `(${unreadCount}) New Order! — ${base}` : base;
+    return () => { document.title = base; };
+  }, [unreadCount]);
+
+  /* Clear unread badge when window is focused */
+  useEffect(() => {
+    const handler = () => setUnreadCount(0);
+    window.addEventListener("focus", handler);
+    return () => window.removeEventListener("focus", handler);
+  }, []);
+
+  /* Socket.io: subscribe to vendor:{userId} room for real-time order events.
+   *
+   * Room re-join on reconnect: `vendor:join` is emitted on every `connect`
+   * event (not just the first one) so reconnections after a network drop
+   * automatically restore the real-time channel without vendor action.
+   * Socket.IO re-fires `connect` after each successful reconnection, making
+   * this the single reliable hook for both initial join and post-disconnect
+   * re-join. The `reconnect` event fires at the same time and is added as an
+   * explicit belt-and-suspenders guard. */
   useEffect(() => {
     if (!user?.id) return;
-    const token = localStorage.getItem("ajkmart_vendor_token") ?? "";
+    const token = api.getToken();
     const socket = io(window.location.origin, {
       path: "/api/socket.io",
       query: { rooms: `vendor:${user.id}` },
       auth: { token },
       extraHeaders: { Authorization: `Bearer ${token}` },
       transports: ["polling", "websocket"],
+      /* Reconnection settings — aggressive retries so a brief network drop
+         does not permanently lose the real-time channel. */
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
     });
     socketRef.current = socket;
-    socket.on("connect", () => socket.emit("join", `vendor:${user.id}`));
+
+    /* joinVendorRoom: called on initial connect AND every reconnect. */
+    const joinVendorRoom = () => {
+      socket.emit("join", `vendor:${user.id}`);
+    };
+
+    let isFirstConnect = true;
+    socket.on("connect", () => {
+      joinVendorRoom();
+      setSocketConnected(true);
+      if (!isFirstConnect) {
+        /* Catch-up: fetch any orders that arrived while disconnected. */
+        qc.invalidateQueries({ queryKey: ["vendor-orders"] });
+      }
+      isFirstConnect = false;
+    });
+
+    socket.on("disconnect", () => {
+      setSocketConnected(false);
+    });
+
+    /* Belt-and-suspenders: socket.io-client `reconnect` fires after the
+       transport is fully re-established. Re-emit the join in case the
+       `connect` event was missed for any reason. */
+    socket.io.on("reconnect", () => {
+      joinVendorRoom();
+      setSocketConnected(true);
+    });
     socket.on("rider:location", (payload: { userId: string; latitude: number; longitude: number; updatedAt: string }) => {
       setRiderPositions(prev => ({
         ...prev,
         [payload.userId]: { lat: payload.latitude, lng: payload.longitude, updatedAt: payload.updatedAt },
       }));
     });
-    socket.on("order:new", () => {
+    socket.on("order:new", (payload?: { _isTest?: boolean; id?: string }) => {
+      /* Deduplicate: if the FCM foreground handler already alerted for this
+         order within the last 5 seconds, skip the sound/badge to avoid a
+         double-alert. Cache invalidation is always safe to run. */
+      const orderId = payload?.id;
+      const alreadySeen = orderId ? wasOrderSeenRecently(orderId) : false;
+      if (orderId && !alreadySeen) markOrderSeen(orderId);
       qc.invalidateQueries({ queryKey: ["vendor-orders"] });
+      if (!payload?._isTest && !alreadySeen) {
+        playOrderSound();
+        setUnreadCount(c => c + 1);
+      }
     });
     socket.on("order:update", () => {
       qc.invalidateQueries({ queryKey: ["vendor-orders"] });
     });
-    return () => { socket.disconnect(); socketRef.current = null; };
+    return () => {
+      socket.io.off("reconnect");
+      socket.disconnect();
+      socketRef.current = null;
+      setSocketConnected(true);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   const apiStatus = tab === "new" ? "pending" : tab;
-  const { data, isLoading, refetch } = useQuery({ queryKey: ["vendor-orders", tab], queryFn: () => api.getOrders(apiStatus), refetchInterval: 15000 });
-  const orders = data?.orders || [];
+  const { data, isLoading, isError, refetch } = useQuery({ queryKey: ["vendor-orders", tab], queryFn: () => api.getOrders(apiStatus), refetchInterval: 15000, retry: 2 });
+  const rawOrders = data?.orders || [];
+
+  /* Merge the prefetched single-order into the list so it's visible
+     immediately from cache while the full list query is still loading. */
+  const mergedOrders: any[] = (() => {
+    const seed = prefetchedOrder?.order;
+    if (!seed || rawOrders.some((o: any) => o.id === seed.id)) return rawOrders;
+    return [seed, ...rawOrders];
+  })();
+
+  const orders = mergedOrders
+    .filter((o: any) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      const idMatch = (o.id || "").toLowerCase().includes(q);
+      const nameMatch = (o.customerName || o.userName || "").toLowerCase().includes(q);
+      return idMatch || nameMatch;
+    })
+    .sort((a: any, b: any) => {
+      if (sortOrder === "oldest") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      if (sortOrder === "highest") return Number(b.total) - Number(a.total);
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
   const countQ = useQuery({ queryKey: ["vendor-orders-count"], queryFn: () => api.getOrders("pending"), refetchInterval: 15000, enabled: tab !== "new" });
-  const newCount = tab === "new" ? orders.length : (countQ.data?.orders?.length || 0);
+  const newCount = tab === "new" ? rawOrders.length : (countQ.data?.orders?.length || 0);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const bulkActionMut = useMutation({
+    mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
+      for (const id of ids) {
+        await api.updateOrder(id, status);
+      }
+    },
+    onSuccess: (_, { status }) => {
+      setSelectedIds(new Set());
+      setBulkConfirm(null);
+      qc.invalidateQueries({ queryKey: ["vendor-orders"] });
+      qc.invalidateQueries({ queryKey: ["vendor-stats"] });
+      showToast(status === "confirmed" ? "✅ Orders accepted!" : "❌ Orders rejected!");
+    },
+    onError: (e: Error) => { setBulkConfirm(null); showToast("❌ " + errMsg(e)); },
+  });
 
   const updateMut = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => {
+      /* If offline, enqueue and show feedback without hitting network */
+      if (enqueueStatusUpdate(id, status)) {
+        return Promise.resolve(null);
+      }
       setPendingOrderIds(s => new Set(s).add(id));
       return api.updateOrder(id, status);
     },
-    onSuccess: (_, { id, status }) => {
+    onSuccess: (result, { id, status }) => {
+      if (result === null) {
+        /* Queued offline — clear pending state and notify user */
+        showToast(`📴 Saved offline — will sync when reconnected`);
+        return;
+      }
       setPendingOrderIds(s => { const n = new Set(s); n.delete(id); return n; });
       qc.invalidateQueries({ queryKey: ["vendor-orders"] });
       qc.invalidateQueries({ queryKey: ["vendor-stats"] });
@@ -288,8 +469,76 @@ export default function Orders() {
   }, [qc]);
 
   return (
+    <ErrorBoundary fallback={(reset) => (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-gray-50">
+        <div className="text-5xl mb-4">⚠️</div>
+        <h2 className="text-lg font-bold text-gray-900 mb-2">Orders section failed to load</h2>
+        <p className="text-gray-500 text-sm mb-5">An unexpected error occurred. Tap retry to reload this section.</p>
+        <button onClick={reset} className="px-5 py-2 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-700">Retry</button>
+      </div>
+    )}>
     <PullToRefresh onRefresh={handlePullRefresh} className="min-h-screen bg-gray-50 md:bg-transparent">
+      {/* ── Offline Banner ── */}
+      {!isOnline && (
+        <div className="bg-red-500 text-white text-center text-xs font-bold py-2 px-4">
+          📴 You're offline — order updates will be queued and sent when reconnected
+        </div>
+      )}
+      {/* ── Socket.IO reconnect indicator — shown only when real-time link drops ── */}
+      {isOnline && !socketConnected && (
+        <div className="bg-amber-500 text-white text-center text-xs font-bold py-2 px-4 flex items-center justify-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-white/70 animate-pulse inline-block" />
+          Real-time updates disconnected — reconnecting…
+        </div>
+      )}
+      {syncToast && (
+        <div className="fixed top-4 left-4 right-4 z-[9999] bg-gray-900 text-white text-sm font-semibold px-4 py-3 rounded-2xl shadow-xl text-center">
+          {syncToast}
+        </div>
+      )}
       <PageHeader title={T("orders")} subtitle={`${orders.length} ${subtitleTab} order${orders.length !== 1 ? "s" : ""}`} actions={RefreshBtn} />
+
+      {/* ── Search + Sort ── */}
+      <div className="px-4 pt-3 pb-2 bg-white border-b border-gray-100 flex gap-2 md:px-0">
+        <input
+          type="search"
+          placeholder="Search by order ID or customer..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          className="flex-1 h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-orange-400"
+        />
+        <select
+          value={sortOrder}
+          onChange={e => setSortOrder(e.target.value as "newest"|"oldest"|"highest")}
+          className="h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-orange-400 font-medium text-gray-700"
+        >
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="highest">Highest value</option>
+        </select>
+      </div>
+
+      {/* ── Bulk Action Bar ── */}
+      {selectedIds.size > 0 && (
+        <div className="px-4 py-2 bg-orange-50 border-b border-orange-200 flex items-center gap-3 md:px-0">
+          <span className="text-xs font-bold text-orange-700 flex-1">{selectedIds.size} selected</span>
+          <button
+            onClick={() => setBulkConfirm("accept")}
+            className="h-8 px-4 bg-green-500 text-white text-xs font-bold rounded-xl"
+          >
+            ✓ Accept All
+          </button>
+          <button
+            onClick={() => setBulkConfirm("reject")}
+            className="h-8 px-4 bg-red-100 text-red-600 text-xs font-bold rounded-xl"
+          >
+            ✕ Reject All
+          </button>
+          <button onClick={() => setSelectedIds(new Set())} className="h-8 px-3 bg-gray-200 text-gray-600 text-xs font-bold rounded-xl">
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* ── Tabs ── */}
       <div className="bg-white border-b border-gray-200 flex sticky top-0 z-10 md:mx-0">
@@ -310,18 +559,40 @@ export default function Orders() {
 
       {/* ── Order List ── */}
       <div className="px-4 py-4 space-y-3 md:px-0 md:py-4">
-        {isLoading ? (
+        {isError && (
+          <div className={CARD}>
+            <ErrorState
+              title={T("somethingWentWrong")}
+              subtitle={T("checkInternetRetry")}
+              onRetry={() => refetch()}
+              retryLabel={T("retry")}
+            />
+          </div>
+        )}
+        {!isError && isLoading ? (
           [1,2,3].map(i => <div key={i} className="h-20 skeleton rounded-2xl"/>)
-        ) : orders.length === 0 ? (
+        ) : !isError && orders.length === 0 ? (
           <div className={`${CARD} px-4 py-16 text-center`}>
             <p className="text-5xl mb-3">{TAB_KEYS.find(tb => tb.key === tab)?.icon}</p>
-            <p className="font-bold text-gray-700 text-base">{T("noNewOrders")}</p>
-            <p className="text-sm text-gray-400 mt-1">{T("theyAppearAutomatically")}</p>
+            <p className="font-bold text-gray-700 text-base">{T(
+              tab === "cancelled" ? "noCancelledOrders" :
+              tab === "active"    ? "noActiveOrders" :
+              tab === "delivered" ? "noDeliveredOrders" :
+              tab === "all"       ? "noOrdersYet" :
+              "noNewOrders"
+            )}</p>
+            <p className="text-sm text-gray-400 mt-1">{T(
+              tab === "cancelled" ? "cancelledOrdersAppear" :
+              tab === "active"    ? "activeOrdersAppearHere" :
+              tab === "delivered" ? "deliveredOrdersAppear" :
+              tab === "all"       ? "ordersAppearHere" :
+              "theyAppearAutomatically"
+            )}</p>
           </div>
         ) : (
           <div className="md:grid md:grid-cols-2 md:gap-4 space-y-3 md:space-y-0">
             {orders.map((o: any) => {
-              const next = NEXT_KEYS[o.status];
+              const next = o.status ? NEXT_KEYS[o.status] : undefined;
               const items = Array.isArray(o.items) ? o.items : [];
               const isExp = expanded === o.id;
 
@@ -336,9 +607,12 @@ export default function Orders() {
               const timerRed       = minsLeft <= 2 && isPendingTimer;
               const isOrderPending = pendingOrderIds.has(o.id);
               const orderDeliveryFee = o.deliveryFee != null ? o.deliveryFee : (dlvFeeMap[o.type] ?? dlvFeeMap.mart);
+              /* Cancel window: vendor can only cancel within 5 minutes */
+              const msSincePlacedForCancel = o.createdAt ? Date.now() - new Date(o.createdAt).getTime() : 0;
+              const cancelWindowExpired = msSincePlacedForCancel > 5 * 60 * 1000;
 
               return (
-                <div key={o.id} className={`${CARD}${o.status === "pending" ? " border-l-4 border-orange-400" : ""}`}>
+                <div key={o.id} className={`${CARD}${o.status === "pending" ? " border-l-4 border-orange-400" : ""}${selectedIds.has(o.id) ? " ring-2 ring-orange-400" : ""}`}>
                   {/* Auto-cancel countdown bar */}
                   {isPendingTimer && (
                     <div className="px-4 pt-3 pb-1">
@@ -367,8 +641,8 @@ export default function Orders() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_BADGE[o.status] || "bg-gray-100 text-gray-600"}`}>
-                          {o.status.replace(/_/g," ").toUpperCase()}
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${(o.status && STATUS_BADGE[o.status]) || "bg-gray-100 text-gray-600"}`}>
+                          {o.status ? o.status.replace(/_/g," ").toUpperCase() : "UNKNOWN"}
                         </span>
                         <span className="text-xs text-gray-400 font-mono">#{(o.id || "").slice(-6).toUpperCase()}</span>
                       </div>
@@ -376,14 +650,22 @@ export default function Orders() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="font-extrabold text-gray-800 text-base">{fc(o.total)}</p>
-                      <p className="text-xs text-green-600 font-semibold">+{fc(o.total * vendorKeep)}</p>
+                      <p className="text-xs text-green-600 font-semibold">+{fc(Number(o.total) * vendorKeep)}</p>
                       <span className="text-gray-300 text-xs">{isExp ? "▲" : "▼"}</span>
                     </div>
                   </button>
 
-                  {/* Quick Accept */}
+                  {/* Quick Accept + Checkbox for bulk */}
                   {!isExp && o.status === "pending" && (
-                    <div className="px-4 pb-3 flex gap-2">
+                    <div className="px-4 pb-3 flex gap-2 items-center">
+                      <label className="flex items-center gap-1.5 cursor-pointer flex-shrink-0" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(o.id)}
+                          onChange={() => toggleSelect(o.id)}
+                          className="w-4 h-4 rounded accent-orange-500"
+                        />
+                      </label>
                       <button onClick={() => setAcceptDialog({ id: o.id, total: o.total })} disabled={isOrderPending}
                         className="flex-1 h-10 bg-green-500 text-white font-bold rounded-xl text-sm android-press disabled:opacity-60">✓ Accept</button>
                       <button onClick={() => setRejectDialog({ id: o.id })} disabled={isOrderPending}
@@ -467,8 +749,13 @@ export default function Orders() {
                             {T(next.labelKey)}
                           </button>
                           {o.status === "pending" && (
-                            <button onClick={() => setRejectDialog({ id: o.id })} disabled={isOrderPending}
-                              className="h-11 px-4 bg-red-50 text-red-600 font-bold rounded-xl text-sm android-press disabled:opacity-60">✕ {T("rejectOrder")}</button>
+                            <button
+                              onClick={() => setRejectDialog({ id: o.id })}
+                              disabled={isOrderPending || cancelWindowExpired}
+                              title={cancelWindowExpired ? "Cancellation window (5 min) has passed" : undefined}
+                              className="h-11 px-4 bg-red-50 text-red-600 font-bold rounded-xl text-sm android-press disabled:opacity-40 disabled:cursor-not-allowed">
+                              {cancelWindowExpired ? "🔒 Window Closed" : `✕ ${T("rejectOrder")}`}
+                            </button>
                           )}
                         </div>
                       )}
@@ -490,6 +777,31 @@ export default function Orders() {
           </div>
         )}
       </div>
+
+      {/* Bulk Action Confirm Dialog */}
+      {bulkConfirm && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setBulkConfirm(null)}>
+          <div className="bg-white w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-extrabold text-gray-800 mb-1">
+              {bulkConfirm === "accept" ? `Accept ${selectedIds.size} Orders?` : `Reject ${selectedIds.size} Orders?`}
+            </h3>
+            <p className="text-sm text-gray-500 mb-5">
+              {bulkConfirm === "accept"
+                ? "This will confirm all selected pending orders and deduct stock."
+                : "This will cancel all selected pending orders. This cannot be undone."}
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setBulkConfirm(null)} className="flex-1 h-11 border-2 border-gray-200 text-gray-600 font-bold rounded-xl text-sm">← Back</button>
+              <button
+                onClick={() => bulkActionMut.mutate({ ids: Array.from(selectedIds), status: bulkConfirm === "accept" ? "confirmed" : "cancelled" })}
+                disabled={bulkActionMut.isPending}
+                className={`flex-1 h-11 font-bold rounded-xl text-sm ${bulkConfirm === "accept" ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}>
+                {bulkActionMut.isPending ? "Processing..." : bulkConfirm === "accept" ? "✓ Confirm Accept" : "✕ Confirm Reject"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Accept order confirmation dialog */}
       {acceptDialog && (
@@ -546,26 +858,64 @@ export default function Orders() {
               <button onClick={() => setAssignModal(null)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-sm font-bold">✕</button>
             </div>
 
+            {/* Location guidance banner — shown when vendor location is unavailable */}
+            {vendorLat === null && (
+              <div className={`mx-5 mt-3 rounded-xl p-3 flex gap-2.5 ${locationPermission === "denied" ? "bg-red-50 border border-red-200" : "bg-amber-50 border border-amber-200"}`}>
+                <span className="text-base flex-shrink-0 mt-0.5">{locationPermission === "denied" ? "🚫" : "📍"}</span>
+                <div className="flex-1 min-w-0">
+                  {locationPermission === "denied" ? (
+                    <>
+                      <p className="text-xs font-bold text-red-700">Location permission blocked</p>
+                      <p className="text-[11px] text-red-600 mt-0.5 leading-snug">
+                        {/Firefox/.test(navigator.userAgent)
+                          ? "In Firefox: click the lock icon in the address bar → Connection Secure → More Information → Permissions → Access Your Location → unblock."
+                          : /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)
+                            ? "In Safari: go to Settings → Safari → Location → set this website to Allow."
+                            : "In Chrome/Edge: click the lock 🔒 icon in the address bar → Site Settings → Location → Allow. Then refresh this page."}
+                      </p>
+                      <a
+                        href="https://support.google.com/chrome/answer/142065"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1.5 inline-block text-[11px] font-bold text-red-700 underline">
+                        How to enable location →
+                      </a>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs font-bold text-amber-700">Location access required for auto-assign</p>
+                      <p className="text-[11px] text-amber-600 mt-0.5 leading-snug">Riders are shown without distance sorting. Allow location for nearest-rider auto-assign.</p>
+                      <button
+                        onClick={retryLocation}
+                        className="mt-1.5 text-[11px] font-bold text-amber-700 underline">
+                        Try Again (re-request location)
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Auto-assign button */}
             <div className="px-5 py-3 border-b border-gray-50">
               <button
-                disabled={autoAssignMut.isPending || vendorLat === null}
+                disabled={autoAssignMut.isPending}
                 onClick={() => autoAssignMut.mutate(assignModal.orderId)}
                 className="w-full h-11 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-50">
                 {autoAssignMut.isPending ? (
                   <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Auto-assigning...</>
                 ) : (
-                  <>⚡ Auto-Assign Nearest Rider</>
+                  <>⚡ Auto-Assign Nearest Rider (≤5 km)</>
                 )}
               </button>
-              {vendorLat === null && (
-                <p className="text-xs text-amber-600 text-center mt-1.5">⚠️ Enable location to use auto-assign</p>
-              )}
+              <p className="text-[10px] text-gray-400 text-center mt-1.5">Selects the closest rider within 5 km of the delivery address</p>
             </div>
 
             {/* Manual rider list */}
             <div className="px-5 py-3">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Or choose manually</p>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                {vendorLat === null ? "All Online Riders" : "Or choose manually"}
+              </p>
               {ridersLoading ? (
                 <div className="space-y-2">
                   {[1, 2, 3].map(i => <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />)}
@@ -573,7 +923,7 @@ export default function Orders() {
               ) : !availableRidersData?.riders?.length ? (
                 <div className="py-8 text-center">
                   <p className="text-3xl mb-2">🏍️</p>
-                  <p className="text-sm font-semibold text-gray-600">No available riders nearby</p>
+                  <p className="text-sm font-semibold text-gray-600">No riders currently online</p>
                   <p className="text-xs text-gray-400 mt-1">Try again in a few minutes</p>
                 </div>
               ) : (
@@ -590,8 +940,12 @@ export default function Orders() {
                         <p className="text-xs text-gray-400">{rider.phone}</p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="text-xs font-bold text-indigo-600">{rider.distanceKm.toFixed(1)} km</p>
-                        <p className="text-[10px] text-green-600 font-semibold">Rs. {rider.walletBalance.toFixed(0)}</p>
+                        {rider.distanceKm !== null ? (
+                          <p className="text-xs font-bold text-indigo-600">{rider.distanceKm.toFixed(1)} km</p>
+                        ) : (
+                          <p className="text-xs text-gray-400">— km</p>
+                        )}
+                        <p className="text-[10px] text-green-600 font-semibold">{fc(rider.walletBalance, currencySymbol)}</p>
                       </div>
                     </button>
                   ))}
@@ -611,5 +965,6 @@ export default function Orders() {
         </div>
       )}
     </PullToRefresh>
+    </ErrorBoundary>
   );
 }

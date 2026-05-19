@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { adminFetch, getAdminAccessToken } from "@/lib/adminFetcher";
+import { LastUpdated } from "@/components/ui/LastUpdated";
 import { AlertTriangle, RefreshCw, Phone, MapPin, Car, Clock, CheckCircle, CheckCheck, X } from "lucide-react";
-import { fetcher } from "@/lib/api";
+import { PageHeader, StatCard } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { io, type Socket } from "socket.io-client";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 type SosStatus = "pending" | "acknowledged" | "resolved";
 
@@ -74,7 +77,7 @@ function ResolveDialog({ alert, onClose, onResolved }: {
     setLoading(true);
     setError(null);
     try {
-      await fetcher(`/sos/alerts/${alert.id}/resolve`, {
+      await adminFetch(`/sos/alerts/${alert.id}/resolve`, {
         method: "PATCH",
         body: JSON.stringify({ notes: notes.trim() || null }),
       });
@@ -275,6 +278,7 @@ function AlertCard({
 
 export default function SosAlerts() {
   const [alerts, setAlerts] = useState<SosAlert[]>([]);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number>(0);
   const [total, setTotal]   = useState(0);
   const [activeCount, setActiveCount] = useState(0);
   const [page, setPage]     = useState(1);
@@ -301,30 +305,33 @@ export default function SosAlerts() {
     const status = statusForTab(currentTab);
     try {
       const qs = `?page=${p}&limit=20${status ? `&status=${status}` : ""}`;
-      const data = await fetcher(`/sos/alerts${qs}`);
+      const data = await adminFetch(`/sos/alerts${qs}`);
       const newAlerts: SosAlert[] = data.alerts || [];
       setAlerts(prev => append ? [...prev, ...newAlerts] : newAlerts);
       setTotal(data.total || 0);
       setHasMore(data.hasMore || false);
       setActiveCount(typeof data.activeCount === "number" ? data.activeCount : 0);
       setPage(p);
-    } catch {}
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn("[sos-alerts] Failed to load alerts:", err);
+    }
+    setLastUpdatedAt(Date.now());
     setLoading(false);
   }, [tab]);
 
   /* ── Initial load + reload on tab change ── */
   useEffect(() => {
     loadAlerts(1, false, tab);
-  }, [tab]);
+  }, [tab, loadAlerts]);
 
   /* ── Socket.io real-time connection ── */
   useEffect(() => {
-    const token = localStorage.getItem("ajkmart_admin_token") ?? "";
+    const token = getAdminAccessToken() ?? "";
     const socket = io(window.location.origin, {
       path: "/api/socket.io",
       query: { rooms: "admin-fleet" },
-      auth: { adminToken: token },
-      extraHeaders: { "x-admin-token": token },
+      auth: { token },
       transports: ["websocket", "polling"],
     });
     socketRef.current = socket;
@@ -391,7 +398,8 @@ export default function SosAlerts() {
   const handleAcknowledge = async (id: string) => {
     setAcknowledging(id);
     try {
-      await fetcher(`/sos/alerts/${id}/acknowledge`, { method: "PATCH", body: "{}" });
+      await adminFetch(`/sos/alerts/${id}/acknowledge`, { method: "PATCH", body: "{}" });
+    // eslint-disable-next-line ajk-local/no-silent-catch -- socket will update UI state regardless of HTTP call outcome
     } catch { /* socket will update UI anyway */ }
     setAcknowledging(null);
   };
@@ -408,27 +416,33 @@ export default function SosAlerts() {
   ];
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">SOS Alerts page crashed. Please reload.</div>}>
     <div className="p-6 max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2 text-red-600">
-            <AlertTriangle className="w-6 h-6" /> SOS Alerts
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {total} alert{total !== 1 ? "s" : ""} in this view · {activeCount} unresolved
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border ${wsConnected ? "bg-green-50 border-green-200 text-green-700" : "bg-gray-50 border-gray-200 text-gray-500"}`}>
-            <span className={`w-2 h-2 rounded-full ${wsConnected ? "bg-green-500 animate-pulse" : "bg-gray-400"}`} />
-            {wsConnected ? "Live" : "Connecting..."}
+      <PageHeader
+        icon={AlertTriangle}
+        title="SOS Alerts"
+        subtitle={`${total} alert${total !== 1 ? "s" : ""} in this view · ${activeCount} unresolved`}
+        iconBgClass="bg-red-100"
+        iconColorClass="text-red-600"
+        actions={
+          <div className="flex items-center gap-2">
+            <div className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border ${wsConnected ? "bg-green-50 border-green-200 text-green-700" : "bg-gray-50 border-gray-200 text-gray-500"}`}>
+              <span className={`w-2 h-2 rounded-full ${wsConnected ? "bg-green-500 animate-pulse" : "bg-gray-400"}`} />
+              {wsConnected ? "Live" : "Connecting..."}
+            </div>
+            <LastUpdated dataUpdatedAt={lastUpdatedAt} onRefresh={() => loadAlerts(1)} isRefreshing={loading} />
+            <Button size="sm" variant="outline" onClick={() => loadAlerts(1)} disabled={loading} className="h-9 text-xs gap-1.5">
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
           </div>
-          <Button size="sm" variant="outline" onClick={() => loadAlerts(1)} disabled={loading} className="h-9 text-xs gap-1.5">
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-        </div>
+        }
+      />
+
+      {/* Summary stats */}
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard icon={AlertTriangle} label="Total in View" value={total} iconBgClass="bg-gray-100" iconColorClass="text-gray-600" />
+        <StatCard icon={Clock} label="Unresolved (Active)" value={activeCount} iconBgClass="bg-red-100" iconColorClass="text-red-600" onClick={() => setTab("active")} />
       </div>
 
       {/* Tabs */}
@@ -514,5 +528,6 @@ export default function SosAlerts() {
         />
       )}
     </div>
+    </ErrorBoundary>
   );
 }

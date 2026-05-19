@@ -4,7 +4,7 @@ import { api } from "../lib/api";
 import { usePlatformConfig, getRiderAuthConfig } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
-import { TwoFactorVerify, executeCaptcha } from "@workspace/auth-utils";
+import { TwoFactorVerify, executeCaptcha, formatPhoneForApi } from "@workspace/auth-utils";
 import {
   ArrowLeft, Loader2, Eye, EyeOff, Phone, Mail,
   CheckCircle, KeyRound,
@@ -25,20 +25,24 @@ function getPasswordStrength(pw: string): { level: number; label: TranslationKey
   return { level: 4, label: "passwordStrong", color: "bg-green-500", width: "w-full" };
 }
 
-function formatPhoneForApi(localDigits: string): string {
-  const digits = localDigits.replace(/\D/g, "");
-  if (digits.startsWith("0")) return digits;
-  return `0${digits}`;
-}
-
 const INPUT = "w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:bg-white transition-all";
 
 export default function ForgotPassword() {
   const { config } = usePlatformConfig();
   const { language } = useLanguage();
-  const T = (key: TranslationKey) => tDual(key, language);
+  const T = (key: TranslationKey) => tDual(key, language); // eslint-disable-line react-hooks/exhaustive-deps
   const auth = getRiderAuthConfig(config);
   const captchaSiteKey = config.auth?.captchaSiteKey;
+  const phoneHint = config.regional?.phoneHint ?? "03XXXXXXXXX";
+  const isValidPhone = (() => {
+    try {
+      if (config.regional?.phoneFormat) {
+        const re = new RegExp(config.regional.phoneFormat);
+        return (p: string) => re.test(p);
+      }
+    } catch (err) { console.warn('[artifacts/rider-app/src/pages/ForgotPassword.tsx]', err); } // eslint-disable-line no-console
+    return (p: string) => /^0?3\d{9}$/.test(p.replace(/[\s\-()+]/g, ""));
+  })();
 
   const [step, setStep] = useState<ForgotStep>("choose-method");
   const [method, setMethod] = useState<"phone" | "email">("phone");
@@ -64,13 +68,13 @@ export default function ForgotPassword() {
 
   const sendOtp = async () => {
     clearError();
-    if (method === "phone" && (!phone || phone.length < 10)) { setError(T("enterValidPhone")); return; }
+    if (method === "phone" && (!phone || !isValidPhone(phone))) { setError(`${T("enterValidPhone")} (e.g. ${phoneHint})`); return; }
     if (method === "email" && (!email || !email.includes("@"))) { setError(T("enterValidEmail")); return; }
     setLoading(true);
     try {
       let captchaToken: string | undefined;
       if (auth.captchaEnabled) {
-        try { captchaToken = await executeCaptcha("forgot_password", captchaSiteKey); } catch { /* noop */ }
+        try { captchaToken = await executeCaptcha("forgot_password", captchaSiteKey); } catch (err) { console.warn('[artifacts/rider-app/src/pages/ForgotPassword.tsx]', err); } // eslint-disable-line no-console
         if (!captchaToken) { setError(T("captchaRequired")); setLoading(false); return; }
       }
       const res = await api.forgotPassword({
@@ -93,7 +97,7 @@ export default function ForgotPassword() {
     try {
       let captchaToken: string | undefined;
       if (auth.captchaEnabled) {
-        try { captchaToken = await executeCaptcha("reset_password", captchaSiteKey); } catch { /* noop */ }
+        try { captchaToken = await executeCaptcha("reset_password", captchaSiteKey); } catch (err) { console.warn('[artifacts/rider-app/src/pages/ForgotPassword.tsx]', err); } // eslint-disable-line no-console
         if (!captchaToken) { setError(T("captchaRequired")); setLoading(false); return; }
       }
       await api.resetPassword({
@@ -122,7 +126,7 @@ export default function ForgotPassword() {
     try {
       let captchaToken: string | undefined;
       if (auth.captchaEnabled) {
-        try { captchaToken = await executeCaptcha("reset_password_2fa", captchaSiteKey); } catch { /* noop */ }
+        try { captchaToken = await executeCaptcha("reset_password_2fa", captchaSiteKey); } catch (err) { console.warn('[artifacts/rider-app/src/pages/ForgotPassword.tsx]', err); } // eslint-disable-line no-console
       }
       await api.resetPassword({
         ...(method === "phone" ? { phone: formatPhoneForApi(phone) } : { email }),
@@ -244,7 +248,14 @@ export default function ForgotPassword() {
                   <h3 className="text-lg font-bold text-gray-800 mb-1">{T("resetViaPhone")}</h3>
                   <div className="flex gap-2">
                     <div className="h-12 px-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center text-sm font-medium text-gray-600">+92</div>
-                    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="3XX XXXXXXX"
+                    <input type="tel" value={phone}
+                      onChange={e => {
+                        let v = e.target.value.replace(/\D/g, "");
+                        if (v.startsWith("92")) v = v.slice(2);
+                        if (v.startsWith("0")) v = v.slice(1);
+                        setPhone(v.slice(0, 10));
+                      }}
+                      placeholder={phoneHint}
                       onKeyDown={e => e.key === "Enter" && sendOtp()}
                       className={`flex-1 ${INPUT}`} autoFocus />
                   </div>
@@ -269,7 +280,7 @@ export default function ForgotPassword() {
             <div className="space-y-3">
               <h3 className="text-lg font-bold text-gray-800 mb-1">{T("enterResetOtp")}</h3>
               <p className="text-sm text-gray-500">{method === "phone" ? `+92${phone}` : email}</p>
-              {devOtp && (
+              {import.meta.env.DEV && devOtp && (
                 <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700">
                   <strong>{T("devOtp")}:</strong> {devOtp}
                 </div>

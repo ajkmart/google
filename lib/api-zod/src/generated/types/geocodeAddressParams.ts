@@ -8,7 +8,11 @@
 
 export type GeocodeAddressParams = {
   /**
-   * Coordinates as 'lat,lng' or address string
+   * Address text to forward geocode
    */
-  address: string;
+  address?: string;
+  /**
+   * Place ID to resolve to coordinates
+   */
+  place_id?: string;
 };

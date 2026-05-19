@@ -1,6 +1,5 @@
 /* eslint-disable no-console */
-import { api } from "./api";
-import { getRiderApiBase as getApiBase } from "./envValidation";
+import { getApiBase, api } from "./api";
 
 const SOURCE_APP = "rider";
 let _initialized = false;

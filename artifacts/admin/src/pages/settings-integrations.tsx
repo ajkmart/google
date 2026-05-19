@@ -1,16 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { adminAbsoluteFetch, adminFetch } from "@/lib/adminFetcher";
+import { ManageInSettingsLink } from "@/components/shared";
+import {
+  loadIntegrationTestHistory,
+  recordIntegrationTestResult,
+} from "@/lib/integrationTestHistory";
 import {
   AlertTriangle, Info, ExternalLink, CheckCircle2, XCircle, Wifi, Loader2,
   MessageSquare, Phone, Globe, MapPin, BarChart3, Shield, Bug, Link,
-  KeyRound, Puzzle, ToggleRight, Car,
+  KeyRound, Puzzle, ToggleRight, Car, Send, FlaskConical,
+  Flame, Mail, Activity, Siren, CreditCard, RefreshCw,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { fetcher } from "@/lib/api";
+import { parseIntegrationTestResponse } from "@/lib/integrationsApi";
+import { isValidPhone } from "@/lib/validation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Toggle, Field, SecretInput, SLabel } from "@/components/AdminShared";
+import { MapsMgmtSection } from "@/components/MapsMgmtSection";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 /* ─── Integrations Section ───────────────────────────────────────────────── */
 type IntTab = "firebase" | "sms" | "email" | "whatsapp" | "analytics" | "sentry" | "maps";
@@ -24,6 +34,446 @@ const INT_TABS: { id: IntTab; label: string; emoji: string; color: string; activ
   { id: "sentry",    label: "Sentry",    emoji: "🐛", color: "text-red-700",    active: "bg-red-600",    desc: "Error monitoring & performance traces" },
   { id: "maps",      label: "Maps",      emoji: "🗺️", color: "text-sky-700",    active: "bg-sky-600",    desc: "Google Maps for routing & tracking" },
 ];
+
+/* ─── Integration Health Panel ────────────────────────────────────────────── */
+
+type HealthStatus = "configured" | "partial" | "missing" | "disabled" | "manual";
+
+interface IntegrationHealth {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  status: HealthStatus;
+  missingFields: string[];
+  hint?: string;
+  testType?: "email" | "sms" | "whatsapp" | "maps" | "fcm" | "jazzcash" | "easypaisa";
+  needsPhone?: boolean;
+  needsToken?: boolean;
+  navigateTo?: IntTab;
+}
+
+function computeHealth(localValues: Record<string, string>): IntegrationHealth[] {
+  const v = (k: string) => (localValues[k] ?? "").trim();
+  const on = (k: string, def = "off") => (localValues[k] ?? def) === "on";
+
+  /* Firebase FCM */
+  const fcmEnabled = on("integration_push_notif");
+  const fcmKeys = { "FCM Server Key": v("fcm_server_key"), "Project ID": v("fcm_project_id") };
+  const fcmMissing = Object.entries(fcmKeys).filter(([, val]) => !val).map(([k]) => k);
+  const fcmStatus: HealthStatus = !fcmEnabled ? "disabled"
+    : fcmMissing.length === 0 ? "configured"
+    : fcmMissing.length < Object.keys(fcmKeys).length ? "partial"
+    : "missing";
+
+  /* SMS — provider-specific required fields */
+  const smsEnabled = on("integration_sms");
+  const smsProvider = v("sms_provider") || "console";
+  const smsIsConsole = smsProvider === "console";
+  let smsMissing: string[] = [];
+  if (!smsIsConsole) {
+    if (smsProvider === "twilio") {
+      if (!v("sms_account_sid")) smsMissing.push("Account SID");
+      if (!v("sms_api_key"))     smsMissing.push("Auth Token");
+      if (!v("sms_sender_id"))   smsMissing.push("From Phone Number");
+    } else if (smsProvider === "msg91") {
+      if (!v("sms_msg91_key"))   smsMissing.push("MSG91 Auth Key");
+      if (!v("sms_sender_id"))   smsMissing.push("Sender ID");
+    } else {
+      if (!v("sms_api_key"))     smsMissing.push("API Key");
+      if (!v("sms_sender_id"))   smsMissing.push("Sender ID");
+    }
+  }
+  const smsStatus: HealthStatus = !smsEnabled ? "disabled"
+    : smsIsConsole ? "partial"
+    : smsMissing.length === 0 ? "configured"
+    : smsMissing.length < (smsProvider === "twilio" ? 3 : 2) ? "partial"
+    : "missing";
+
+  /* Email / SMTP */
+  const emailEnabled = on("integration_email");
+  const smtpFields = { "SMTP Host": v("smtp_host"), "Username": v("smtp_user"), "Password": v("smtp_password") };
+  const smtpMissing = Object.entries(smtpFields).filter(([, val]) => !val).map(([k]) => k);
+  const emailStatus: HealthStatus = !emailEnabled ? "disabled"
+    : smtpMissing.length === 0 ? "configured"
+    : smtpMissing.length < Object.keys(smtpFields).length ? "partial"
+    : "missing";
+
+  /* WhatsApp */
+  const waEnabled = on("integration_whatsapp");
+  const waFields = { "Phone Number ID": v("wa_phone_number_id"), "Access Token": v("wa_access_token") };
+  const waMissing = Object.entries(waFields).filter(([, val]) => !val).map(([k]) => k);
+  const waStatus: HealthStatus = !waEnabled ? "disabled"
+    : waMissing.length === 0 ? "configured"
+    : waMissing.length < Object.keys(waFields).length ? "partial"
+    : "missing";
+
+  /* Analytics */
+  const analyticsPlatform = v("analytics_platform") || "none";
+  const analyticsTrackingId = v("analytics_tracking_id");
+  const analyticsStatus: HealthStatus = analyticsPlatform === "none" ? "disabled"
+    : analyticsTrackingId ? "configured"
+    : "missing";
+  const analyticsMissing = analyticsTrackingId ? [] : ["Tracking ID / API Key"];
+
+  /* Sentry */
+  const sentryDsn = v("sentry_dsn");
+  const sentryEnabled = on("integration_sentry");
+  const sentryStatus: HealthStatus = !sentryEnabled ? "disabled"
+    : sentryDsn ? "configured"
+    : "missing";
+
+  /* Weather Widget */
+  const weatherEnabled = on("feature_weather", "on");
+  const weatherStatus: HealthStatus = weatherEnabled ? "configured" : "disabled";
+
+  /* Maps */
+  const mapsEnabled = on("integration_maps");
+  const mapsProvider = v("maps_provider") || "google";
+  const mapsKey = v("google_maps_api_key") || v("maps_api_key") || v("mapbox_api_key") || v("locationiq_api_key");
+  const mapsMissing = mapsKey ? [] : [`${mapsProvider === "mapbox" ? "Mapbox" : mapsProvider === "locationiq" ? "LocationIQ" : "Google Maps"} API Key`];
+  const mapsStatus: HealthStatus = !mapsEnabled ? "disabled"
+    : mapsKey ? "configured"
+    : "missing";
+
+  /* JazzCash */
+  const jcEnabled = on("jazzcash_enabled");
+  const jcType = v("jazzcash_type") || "manual";
+  const jcApiReady = !!(v("jazzcash_merchant_id") && v("jazzcash_password") && v("jazzcash_salt"));
+  const jcApiMissing = [
+    ...(!v("jazzcash_merchant_id") ? ["Merchant ID"] : []),
+    ...(!v("jazzcash_password")    ? ["Password"] : []),
+    ...(!v("jazzcash_salt")        ? ["Integrity Salt"] : []),
+  ];
+  const jcStatus: HealthStatus = !jcEnabled ? "disabled"
+    : jcType === "manual" ? "manual"
+    : jcApiReady ? "configured"
+    : jcApiMissing.length < 3 ? "partial"
+    : "missing";
+  const jcMissing = jcType === "manual" ? [] : jcApiMissing;
+
+  /* EasyPaisa */
+  const epEnabled = on("easypaisa_enabled");
+  const epType = v("easypaisa_type") || "manual";
+  const epApiReady = !!(v("easypaisa_store_id") && v("easypaisa_hash_key"));
+  const epApiMissing = [
+    ...(!v("easypaisa_store_id")  ? ["Store ID"] : []),
+    ...(!v("easypaisa_hash_key")  ? ["Hash Key"] : []),
+  ];
+  const epStatus: HealthStatus = !epEnabled ? "disabled"
+    : epType === "manual" ? "manual"
+    : epApiReady ? "configured"
+    : epApiMissing.length < 2 ? "partial"
+    : "missing";
+  const epMissing = epType === "manual" ? [] : epApiMissing;
+
+  return [
+    {
+      id: "firebase", label: "Firebase FCM", icon: <Flame className="w-4 h-4 text-orange-500" />,
+      status: fcmStatus, missingFields: fcmMissing,
+      hint: fcmStatus === "partial" ? "Server Key or Project ID missing" : undefined,
+      testType: fcmStatus === "configured" ? "fcm" as const : undefined,
+      needsToken: true,
+      navigateTo: "firebase",
+    },
+    {
+      id: "sms", label: "SMS Gateway", icon: <Phone className="w-4 h-4 text-blue-500" />,
+      status: smsStatus, missingFields: smsMissing,
+      hint: smsIsConsole && smsEnabled ? "Console (Dev) mode — OTP logs to terminal only" : undefined,
+      testType: smsStatus === "configured" ? "sms" : undefined,
+      needsPhone: true, navigateTo: "sms",
+    },
+    {
+      id: "email", label: "Email / SMTP", icon: <Mail className="w-4 h-4 text-teal-500" />,
+      status: emailStatus, missingFields: smtpMissing,
+      testType: emailStatus === "configured" ? "email" : undefined,
+      navigateTo: "email",
+    },
+    {
+      id: "whatsapp", label: "WhatsApp Business", icon: <MessageSquare className="w-4 h-4 text-green-500" />,
+      status: waStatus, missingFields: waMissing,
+      testType: waStatus === "configured" ? "whatsapp" : undefined,
+      needsPhone: true, navigateTo: "whatsapp",
+    },
+    {
+      id: "maps", label: "Maps API", icon: <MapPin className="w-4 h-4 text-sky-500" />,
+      status: mapsStatus, missingFields: mapsMissing,
+      testType: mapsStatus === "configured" ? "maps" : undefined,
+      navigateTo: "maps",
+    },
+    {
+      id: "analytics", label: "Analytics", icon: <BarChart3 className="w-4 h-4 text-purple-500" />,
+      status: analyticsStatus, missingFields: analyticsMissing,
+      hint: analyticsPlatform !== "none" && !analyticsTrackingId ? `${analyticsPlatform} tracking ID required` : undefined,
+      navigateTo: "analytics",
+    },
+    {
+      id: "sentry", label: "Sentry", icon: <Bug className="w-4 h-4 text-red-500" />,
+      status: sentryStatus, missingFields: sentryDsn ? [] : ["Sentry DSN URL"],
+      navigateTo: "sentry",
+    },
+    {
+      id: "weather", label: "Weather Widget", icon: <Activity className="w-4 h-4 text-sky-500" />,
+      status: weatherStatus, missingFields: [],
+      hint: weatherEnabled ? "Widget enabled — configure cities in Widgets → Weather" : "Widget disabled in feature flags",
+    },
+    {
+      id: "jazzcash", label: `JazzCash ${jcType === "manual" ? "(Manual)" : "(API)"}`,
+      icon: <CreditCard className="w-4 h-4 text-red-600" />,
+      status: jcStatus, missingFields: jcMissing,
+      hint: jcType === "manual" && jcStatus === "manual" ? "Manual mode — always ready, no API needed" : undefined,
+      testType: (jcStatus === "configured" || jcStatus === "manual") ? "jazzcash" as const : undefined,
+    },
+    {
+      id: "easypaisa", label: `EasyPaisa ${epType === "manual" ? "(Manual)" : "(API)"}`,
+      icon: <CreditCard className="w-4 h-4 text-green-600" />,
+      status: epStatus, missingFields: epMissing,
+      hint: epType === "manual" && epStatus === "manual" ? "Manual mode — always ready, no API needed" : undefined,
+      testType: (epStatus === "configured" || epStatus === "manual") ? "easypaisa" as const : undefined,
+    },
+  ];
+}
+
+const STATUS_CONFIG: Record<HealthStatus, { label: string; badge: string; dot: string }> = {
+  configured: { label: "Configured",   badge: "bg-green-100 text-green-700 border-green-200",  dot: "bg-green-500" },
+  partial:    { label: "Partial",       badge: "bg-amber-100 text-amber-700 border-amber-200",   dot: "bg-amber-400" },
+  missing:    { label: "Missing",       badge: "bg-red-100 text-red-700 border-red-200",          dot: "bg-red-400" },
+  disabled:   { label: "Disabled",      badge: "bg-gray-100 text-gray-500 border-gray-200",       dot: "bg-gray-300" },
+  manual:     { label: "Manual Ready",  badge: "bg-blue-100 text-blue-700 border-blue-200",       dot: "bg-blue-400" },
+};
+
+function IntegrationHealthPanel({
+  localValues, switchTab,
+}: {
+  localValues: Record<string, string>;
+  switchTab: (tab: IntTab) => void;
+}) {
+  const { toast } = useToast();
+  const [phoneInputs, setPhoneInputs] = useState<Record<string, string>>({});
+  const [testingMap, setTestingMap] = useState<Record<string, boolean>>({});
+  const [testResults, setTestResults] = useState<Record<string, { ok: boolean; msg: string } | null>>({});
+
+  /**
+   * Hydrate previously persisted test results so admins see the last
+   * known state of each integration after a reload, rather than having
+   * to re-run every probe. Persistence is best-effort (see
+   * `integrationTestHistory.ts`) and never throws into the React tree.
+   */
+  useEffect(() => {
+    const history = loadIntegrationTestHistory();
+    if (Object.keys(history).length === 0) return;
+    const seed: Record<string, { ok: boolean; msg: string } | null> = {};
+    for (const [id, entry] of Object.entries(history)) {
+      seed[id] = { ok: entry.ok, msg: entry.msg };
+    }
+    setTestResults(prev => ({ ...seed, ...prev }));
+  }, []);
+
+  const rows = computeHealth(localValues);
+  const configuredCount = rows.filter(r => r.status === "configured" || r.status === "manual").length;
+  const missingCount = rows.filter(r => r.status === "missing").length;
+  const partialCount = rows.filter(r => r.status === "partial").length;
+
+  async function handleTest(row: IntegrationHealth) {
+    if (!row.testType) return;
+    const id = row.id;
+    setTestingMap(prev => ({ ...prev, [id]: true }));
+    setTestResults(prev => ({ ...prev, [id]: null }));
+    try {
+      let data: unknown;
+      if (row.testType === "jazzcash" || row.testType === "easypaisa") {
+        data = await adminAbsoluteFetch(`/api/payments/test-connection/${row.testType}`, { method: "GET" });
+      } else {
+        const body: Record<string, string> = {};
+        if (row.testType === "sms" || row.testType === "whatsapp") {
+          const phone = (phoneInputs[id + "_phone"] ?? "").trim();
+          if (!phone) {
+            setPhoneInputs(p => ({ ...p, [id + "_phone_err"]: "1" }));
+            setTestingMap(prev => ({ ...prev, [id]: false }));
+            return;
+          }
+          if (!isValidPhone(phone)) {
+            setPhoneInputs(p => ({ ...p, [id + "_phone_err"]: "1" }));
+            setTestingMap(prev => ({ ...prev, [id]: false }));
+            toast({
+              title: "Invalid phone",
+              description: "Use E.164 (+countrycode...) or local 03xxxxxxxxx.",
+              variant: "destructive",
+            });
+            return;
+          }
+          body["phone"] = phone;
+        } else if (row.testType === "fcm") {
+          const token = (phoneInputs[id + "_token"] ?? "").trim();
+          if (!token) {
+            setPhoneInputs(p => ({ ...p, [id + "_token_err"]: "1" }));
+            setTestingMap(prev => ({ ...prev, [id]: false }));
+            return;
+          }
+          body["deviceToken"] = token;
+        }
+        data = await adminFetch(`/system/test-integration/${row.testType}`, { method: "POST", body: JSON.stringify(body) });
+      }
+      // Use the typed normaliser instead of `(data as any)` accesses so
+      // that the integration health card honours backend `ok`/`error`
+      // fields consistently across endpoints.
+      const parsed = parseIntegrationTestResponse(data, `${row.label} test passed`);
+      const entry = { ok: parsed.ok, msg: parsed.message };
+      setTestResults(prev => ({ ...prev, [id]: entry }));
+      recordIntegrationTestResult(id, entry);
+      toast({
+        title: parsed.ok ? `${row.label} ✅` : `${row.label} ⚠️`,
+        description: parsed.message,
+        ...(parsed.ok ? {} : { variant: "destructive" as const }),
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : `${row.label} test failed`;
+      const entry = { ok: false, msg };
+      setTestResults(prev => ({ ...prev, [id]: entry }));
+      recordIntegrationTestResult(id, entry);
+      toast({ title: "Test Failed ❌", description: msg, variant: "destructive" });
+    } finally {
+      setTestingMap(prev => ({ ...prev, [id]: false }));
+    }
+  }
+
+  const isTesting = (id: string) => !!testingMap[id];
+  const result = (id: string) => testResults[id] ?? null;
+
+  return (
+    <div className="rounded-2xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50/60 to-white overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-indigo-200/70 bg-indigo-50/80">
+        <div className="flex items-center gap-2.5">
+          <Activity className="w-4 h-4 text-indigo-600" />
+          <h3 className="text-sm font-bold text-indigo-900">Integration Health</h3>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+            {configuredCount}/{rows.length} Ready
+          </span>
+        </div>
+        <div className="flex items-center gap-2 text-[10px] font-semibold">
+          {missingCount > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700">{missingCount} Missing</span>
+          )}
+          {partialCount > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{partialCount} Partial</span>
+          )}
+        </div>
+      </div>
+
+      {/* Grid of rows */}
+      <div className="divide-y divide-indigo-100/60">
+        {rows.map(row => {
+          const cfg = STATUS_CONFIG[row.status];
+          const testing = isTesting(row.id);
+          const res = result(row.id);
+          const needPhone = row.testType === "sms" || row.testType === "whatsapp";
+          const needToken = row.testType === "fcm";
+          const phoneVal = phoneInputs[row.id + "_phone"] ?? "";
+          const phoneErr = phoneInputs[row.id + "_phone_err"];
+          const tokenVal = phoneInputs[row.id + "_token"] ?? "";
+          const tokenErr = phoneInputs[row.id + "_token_err"];
+          const canTest = !!row.testType && row.status !== "disabled";
+
+          return (
+            <div key={row.id} className="flex flex-col sm:flex-row sm:items-center gap-2 px-4 py-2.5 hover:bg-indigo-50/40 transition-colors group">
+              {/* Icon + Name + Status */}
+              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-white border border-indigo-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+                  {row.icon}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-bold text-foreground">{row.label}</span>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${cfg.badge} inline-flex items-center gap-1`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                      {cfg.label}
+                    </span>
+                    {res && (
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${res.ok ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                        {res.ok ? "✓ OK" : "✗ Fail"}
+                      </span>
+                    )}
+                  </div>
+                  {row.hint && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{row.hint}</p>
+                  )}
+                  {row.missingFields.length > 0 && row.status !== "disabled" && (
+                    <p className="text-[10px] text-red-600 mt-0.5 truncate">
+                      Missing: {row.missingFields.join(", ")}
+                    </p>
+                  )}
+                  {res && (
+                    <p className={`text-[10px] mt-0.5 truncate ${res.ok ? "text-green-700" : "text-red-600"}`} title={res.msg}>
+                      {res.msg}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-1.5 flex-shrink-0 pl-9 sm:pl-0">
+                {needPhone && canTest && (
+                  <div className="relative">
+                    <Input
+                      value={phoneVal}
+                      onChange={e => setPhoneInputs(p => ({ ...p, [row.id + "_phone"]: e.target.value, [row.id + "_phone_err"]: "" }))}
+                      placeholder="03xxxxxxxxx"
+                      className={`h-7 text-xs w-32 font-mono ${phoneErr ? "border-red-400" : ""}`}
+                    />
+                    {phoneErr && <p className="text-[9px] text-red-500 absolute -bottom-3.5 left-0">Phone required</p>}
+                  </div>
+                )}
+                {needToken && canTest && (
+                  <div className="relative">
+                    <Input
+                      value={tokenVal}
+                      onChange={e => setPhoneInputs(p => ({ ...p, [row.id + "_token"]: e.target.value, [row.id + "_token_err"]: "" }))}
+                      placeholder="FCM device token"
+                      className={`h-7 text-xs w-36 font-mono ${tokenErr ? "border-red-400" : ""}`}
+                    />
+                    {tokenErr && <p className="text-[9px] text-red-500 absolute -bottom-3.5 left-0">Token required</p>}
+                  </div>
+                )}
+                {canTest && (
+                  <button
+                    type="button"
+                    onClick={() => handleTest(row)}
+                    disabled={testing}
+                    title={`Test ${row.label}`}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-all focus-visible:ring-2 focus-visible:ring-indigo-500 focus:outline-none"
+                  >
+                    {testing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                    {testing ? "Testing…" : "Test"}
+                  </button>
+                )}
+                {row.navigateTo && (
+                  <button
+                    type="button"
+                    onClick={() => switchTab(row.navigateTo!)}
+                    title={`Open ${row.label} settings`}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold border border-indigo-200 text-indigo-700 bg-white hover:bg-indigo-50 transition-colors focus-visible:ring-2 focus-visible:ring-indigo-400 focus:outline-none"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Config
+                  </button>
+                )}
+                {row.status === "disabled" && !row.navigateTo && (
+                  <span className="text-[10px] text-muted-foreground">—</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer note */}
+      <div className="px-4 py-2 border-t border-indigo-100/70 bg-indigo-50/40 flex items-center gap-1.5">
+        <Info className="w-3 h-3 text-indigo-400 flex-shrink-0" />
+        <p className="text-[10px] text-indigo-600">Status updates instantly when settings are changed. Use Config to open each integration's settings.</p>
+      </div>
+    </div>
+  );
+}
 
 function IntStatusBadge({ enabled, configured }: { enabled: boolean; configured: boolean }) {
   if (!enabled) return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">DISABLED</span>;
@@ -44,7 +494,7 @@ function IntCard({ title, emoji, description, enableKey, localValues, dirtyKeys,
         <div className="flex items-center gap-3">
           <span className="text-2xl">{emoji}</span>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h4 className="font-bold text-foreground text-sm">{title}</h4>
               <IntStatusBadge enabled={enabled} configured={configured} />
               {dirtyKeys.has(enableKey) && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">CHANGED</Badge>}
@@ -52,11 +502,16 @@ function IntCard({ title, emoji, description, enableKey, localValues, dirtyKeys,
             <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
           </div>
         </div>
-        <div onClick={() => handleToggle(enableKey, !enabled)} className="cursor-pointer">
+        <button
+          type="button"
+          onClick={() => handleToggle(enableKey, !enabled)}
+          aria-label={enabled ? `Disable ${title}` : `Enable ${title}`}
+          className="ml-3 flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
+        >
           <div className={`w-12 h-6 rounded-full relative transition-colors ${enabled ? "bg-green-500" : "bg-gray-300"}`}>
             <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-transform ${enabled ? "translate-x-6" : "translate-x-0.5"}`} />
           </div>
-        </div>
+        </button>
       </div>
       {/* Card Body — only when enabled */}
       {enabled ? (
@@ -75,9 +530,129 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
 }) {
   const [intTab, setIntTab] = useState<IntTab>("firebase");
 
+  /* Per-integration test state (keyed by type) */
+  const [testPhones, setTestPhones] = useState<Record<string, string>>({});
+  const [testingMap, setTestingMap] = useState<Record<string, boolean>>({});
+  const [testResults, setTestResults] = useState<Record<string, { ok: boolean; msg: string } | null>>({});
+  const [fcmDeviceToken, setFcmDeviceToken] = useState("");
+
+  const { toast } = useToast();
+
+  /* Hydrate persisted test results — see IntegrationHealthMatrix above. */
+  useEffect(() => {
+    const history = loadIntegrationTestHistory();
+    const seed: Record<string, { ok: boolean; msg: string } | null> = {};
+    for (const type of ["email", "sms", "whatsapp", "fcm", "maps"] as const) {
+      const entry = history[`runTest:${type}`];
+      if (entry) seed[type] = { ok: entry.ok, msg: entry.msg };
+    }
+    if (Object.keys(seed).length > 0) {
+      setTestResults(prev => ({ ...seed, ...prev }));
+    }
+  }, []);
+
   const val = (k: string) => localValues[k] ?? "";
   const dirty = (k: string) => dirtyKeys.has(k);
   const tog = (k: string, def: string = "off") => (localValues[k] ?? def) === "on";
+
+  /* Clear stale test results when switching tabs */
+  const switchTab = (tab: IntTab) => {
+    setIntTab(tab);
+  };
+
+  async function runTest(type: "email" | "sms" | "whatsapp" | "fcm" | "maps") {
+    setTestingMap(prev => ({ ...prev, [type]: true }));
+    setTestResults(prev => ({ ...prev, [type]: null }));
+    try {
+      const body: Record<string, string> = {};
+      if (type === "sms" || type === "whatsapp") {
+        const phone = (testPhones[type] ?? "").trim();
+        if (!phone) {
+          toast({ title: "Phone required", description: "Enter a phone number to test SMS/WhatsApp", variant: "destructive" });
+          setTestingMap(prev => ({ ...prev, [type]: false }));
+          return;
+        }
+        if (!isValidPhone(phone)) {
+          toast({
+            title: "Invalid phone",
+            description: "Use E.164 (+countrycode...) or local 03xxxxxxxxx.",
+            variant: "destructive",
+          });
+          setTestingMap(prev => ({ ...prev, [type]: false }));
+          return;
+        }
+        body["phone"] = phone;
+      }
+      if (type === "fcm") {
+        const token = fcmDeviceToken.trim();
+        if (!token) {
+          toast({ title: "Device token required", description: "Enter an FCM device token to test push notifications", variant: "destructive" });
+          setTestingMap(prev => ({ ...prev, [type]: false }));
+          return;
+        }
+        body["deviceToken"] = token;
+      }
+      const data = await adminFetch(`/system/test-integration/${type}`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      const parsed = parseIntegrationTestResponse(data, `${type} test sent successfully`);
+      const entry = { ok: parsed.ok, msg: parsed.message };
+      setTestResults(prev => ({ ...prev, [type]: entry }));
+      recordIntegrationTestResult(`runTest:${type}`, entry);
+      toast({
+        title: parsed.ok ? "Test Passed ✅" : "Test Failed ❌",
+        description: parsed.message,
+        ...(parsed.ok ? {} : { variant: "destructive" as const }),
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : `${type} test failed`;
+      const entry = { ok: false, msg };
+      setTestResults(prev => ({ ...prev, [type]: entry }));
+      recordIntegrationTestResult(`runTest:${type}`, entry);
+      toast({ title: "Test Failed ❌", description: msg, variant: "destructive" });
+    } finally {
+      setTestingMap(prev => ({ ...prev, [type]: false }));
+    }
+  }
+
+  function TestRow({ type, label }: { type: "email" | "sms" | "whatsapp"; label: string }) {
+    const needsPhone = type !== "email";
+    const isTesting = !!testingMap[type];
+    const result = testResults[type] ?? null;
+    return (
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 p-3 bg-muted/30 rounded-xl border border-border/50">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <FlaskConical className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          <span className="text-xs font-semibold text-foreground">{label}</span>
+          {result && (
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${result.ok ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+              {result.ok ? "✓ PASSED" : "✗ FAILED"}
+            </span>
+          )}
+        </div>
+        {needsPhone && (
+          <Input
+            value={testPhones[type] ?? ""}
+            onChange={e => setTestPhones(prev => ({ ...prev, [type]: e.target.value }))}
+            placeholder="03xxxxxxxxx"
+            className="h-7 text-xs w-40 font-mono"
+          />
+        )}
+        <button
+          type="button"
+          onClick={() => runTest(type)}
+          disabled={isTesting}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all focus-visible:ring-2 focus-visible:ring-primary focus:outline-none">
+          {isTesting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+          {isTesting ? "Sending…" : "Send Test"}
+        </button>
+        {result && (
+          <p className="text-[10px] text-muted-foreground w-full sm:w-auto truncate max-w-xs" title={result.msg}>{result.msg}</p>
+        )}
+      </div>
+    );
+  }
 
   const F = ({ label, k, placeholder, mono, hint }: { label: string; k: string; placeholder?: string; mono?: boolean; hint?: string }) => (
     <Field label={label} value={val(k)} onChange={v => handleChange(k, v)} isDirty={dirty(k)} placeholder={placeholder} mono={mono} hint={hint} />
@@ -93,29 +668,136 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
   const fcmConfigured = !!(val("fcm_server_key") || val("fcm_project_id"));
   /* ── SMS ── */
   const smsProvider = val("sms_provider") || "console";
-  const smsConfigured = smsProvider !== "console" && !!(val("sms_api_key") || val("sms_msg91_key"));
+  const smsEnabled  = (localValues["integration_sms"] ?? "off") === "on";
+  const smsConsoleActive = smsEnabled && smsProvider === "console";
+  const smsConfigured    = smsEnabled && smsProvider !== "console" && !!(val("sms_api_key") || val("sms_msg91_key"));
   /* ── Email ── */
-  const smtpConfigured = !!(val("smtp_host") && val("smtp_user"));
+  const emailEnabled   = (localValues["integration_email"] ?? "off") === "on";
+  const smtpConfigured = emailEnabled && !!(val("smtp_host") && val("smtp_user") && val("smtp_password"));
   /* ── WhatsApp ── */
-  const waConfigured = !!(val("wa_phone_number_id") && val("wa_access_token"));
+  const waEnabled    = (localValues["integration_whatsapp"] ?? "off") === "on";
+  const waConfigured = waEnabled && !!(val("wa_phone_number_id") && val("wa_access_token"));
   /* ── Analytics ── */
   const analyticsPlatform = val("analytics_platform") || "none";
   const analyticsConfigured = analyticsPlatform !== "none" && !!val("analytics_tracking_id");
   /* ── Sentry ── */
   const sentryConfigured = !!val("sentry_dsn");
   /* ── Maps ── */
-  const mapsConfigured = !!(val("maps_api_key") || val("mapbox_api_key"));
+  const mapsEnabled = (localValues["integration_maps"] ?? "off") === "on";
+  const mapsConfigured = !!(val("maps_api_key") || val("mapbox_api_key") || val("google_maps_api_key") || val("locationiq_api_key"));
+
+  /* Dynamic webhook URL */
+  const webhookBaseUrl = window.location.origin;
+  const whatsappWebhookUrl = `${webhookBaseUrl}/api/webhooks/whatsapp`;
+
+  /* ── OTP delivery health ── */
+  /* Console mode counts as active (OTP goes to server terminal) */
+  const anyOtpProviderReady   = smsConfigured || smsConsoleActive || smtpConfigured || waConfigured;
+  const strictWhenNoProvider  = (localValues["otp_require_when_no_provider"] ?? "off") === "on";
 
   return (
     <div className="space-y-4">
-      {/* Sub-tab bar */}
-      <div className="flex flex-wrap gap-1.5 bg-muted/50 p-1.5 rounded-xl">
-        {INT_TABS.map(t => (
-          <button key={t.id} onClick={() => setIntTab(t.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${intTab === t.id ? `${t.active} text-white shadow-sm` : `text-muted-foreground hover:bg-white`}`}>
-            <span>{t.emoji}</span> {t.label}
-          </button>
-        ))}
+      {/* ── Integration Health Panel ── */}
+      <IntegrationHealthPanel localValues={localValues} switchTab={switchTab} />
+
+      {/* ── OTP Default Control Panel ── */}
+      <div className={`rounded-2xl border-2 p-4 space-y-4 ${anyOtpProviderReady ? "border-green-200 bg-green-50" : "border-amber-300 bg-amber-50"}`}>
+        {/* Header row */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            {anyOtpProviderReady
+              ? <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+              : <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            }
+            <div>
+              <p className={`text-sm font-bold ${anyOtpProviderReady ? "text-green-800" : "text-amber-800"}`}>
+                {anyOtpProviderReady ? "OTP Delivery Active" : "OTP Delivery — No Provider Configured"}
+              </p>
+              <p className={`text-xs mt-0.5 ${anyOtpProviderReady ? "text-green-700" : "text-amber-700"}`}>
+                {anyOtpProviderReady
+                  ? `Active: ${[
+                      smsConfigured && "SMS",
+                      smsConsoleActive && !smsConfigured && "SMS Console (Dev)",
+                      waConfigured && "WhatsApp",
+                      smtpConfigured && "Email",
+                    ].filter(Boolean).join(", ")}`
+                  : "SMS, WhatsApp aur Email — koi bhi configured nahi hai."}
+              </p>
+              {smsConsoleActive && !smsConfigured && (
+                <p className="text-[10px] text-amber-600 mt-1 font-medium">
+                  ⚠️ Console (Dev) mode active — OTP sirf server terminal mein print hota hai, real SMS nahi jaata.
+                </p>
+              )}
+            </div>
+          </div>
+          <span className={`text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0 ${anyOtpProviderReady ? "bg-green-200 text-green-800" : "bg-amber-200 text-amber-800"}`}>
+            {anyOtpProviderReady ? "● ACTIVE" : "NOT CONFIGURED"}
+          </span>
+        </div>
+
+        {/* ── OTP Enable / Disable when no provider ── */}
+        <div className={`rounded-xl border p-3 flex items-start justify-between gap-3 ${anyOtpProviderReady ? "border-green-200 bg-white/60" : "border-amber-200 bg-white/60"}`}>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-foreground">OTP Default Mode (when no provider)</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {strictWhenNoProvider
+                ? "🔒 Strict — OTP required; login blocked if no provider configured."
+                : "🔓 Bypass — OTP auto-disabled; users can log in without a code."}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-1 italic">
+              Jab koi SMS/WhatsApp/Email provider set nahi ho tab kya ho?
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${strictWhenNoProvider ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
+                {strictWhenNoProvider ? "OTP ON (Block)" : "OTP OFF (Bypass)"}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleToggle("otp_require_when_no_provider", !strictWhenNoProvider)}
+                aria-label="Toggle OTP strict mode"
+                className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
+              >
+                <div className={`w-10 h-5 rounded-full relative transition-colors ${strictWhenNoProvider ? "bg-red-500" : "bg-blue-400"}`}>
+                  <div className={`w-4 h-4 bg-white rounded-full shadow absolute top-0.5 transition-transform ${strictWhenNoProvider ? "translate-x-5" : "translate-x-0.5"}`} />
+                </div>
+              </button>
+            </div>
+            {dirtyKeys.has("otp_require_when_no_provider") && (
+              <span className="text-[9px] font-bold text-amber-600">● Unsaved</span>
+            )}
+          </div>
+        </div>
+
+        {/* Quick-setup shortcuts (only when not configured) */}
+        {!anyOtpProviderReady && (
+          <div className="flex flex-wrap gap-2">
+            <p className="text-[10px] text-amber-700 w-full font-medium">Provider setup karo:</p>
+            {[
+              { tab: "sms" as IntTab,       icon: "📱", label: "Setup SMS"       },
+              { tab: "whatsapp" as IntTab,  icon: "💬", label: "Setup WhatsApp"  },
+              { tab: "email" as IntTab,     icon: "📧", label: "Setup Email"     },
+            ].map(({ tab, icon, label }) => (
+              <button key={tab} type="button" onClick={() => switchTab(tab)}
+                className="text-[10px] font-bold px-3 py-1 rounded-lg bg-amber-200 text-amber-800 hover:bg-amber-300 transition-colors">
+                {icon} {label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Sub-tab bar — horizontally scrollable on mobile */}
+      <div className="overflow-x-auto -mx-1 px-1">
+        <div className="flex gap-1.5 bg-muted/50 p-1.5 rounded-xl w-max min-w-full">
+          {INT_TABS.map(t => (
+            <button key={t.id} type="button" onClick={() => switchTab(t.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex-shrink-0 transition-all focus-visible:ring-2 focus-visible:ring-primary focus:outline-none ${intTab === t.id ? `${t.active} text-white shadow-sm` : `text-muted-foreground hover:bg-white`}`}>
+              <span>{t.emoji}</span> {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Description */}
@@ -161,92 +843,55 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
                 ))}
               </div>
             </div>
+            {fcmConfigured && (
+              <div>
+                <SLabel icon={FlaskConical}>Test Push Notification</SLabel>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 p-3 bg-muted/30 rounded-xl border border-border/50 mt-3">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <FlaskConical className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-xs font-semibold text-foreground">Send test push to FCM device token</span>
+                    {testResults["fcm"] && (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${testResults["fcm"]?.ok ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                        {testResults["fcm"]?.ok ? "✓ PASSED" : "✗ FAILED"}
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    value={fcmDeviceToken}
+                    onChange={e => setFcmDeviceToken(e.target.value)}
+                    placeholder="FCM device registration token"
+                    className="h-7 text-xs w-52 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => runTest("fcm")}
+                    disabled={!!testingMap["fcm"]}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all focus-visible:ring-2 focus-visible:ring-primary focus:outline-none">
+                    {testingMap["fcm"] ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                    {testingMap["fcm"] ? "Sending…" : "Send Test Push"}
+                  </button>
+                  {testResults["fcm"] && (
+                    <p className="text-[10px] text-muted-foreground w-full sm:w-auto truncate max-w-xs" title={testResults["fcm"]?.msg}>{testResults["fcm"]?.msg}</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </IntCard>
       )}
 
       {/* ─── SMS Gateway ─── */}
       {intTab === "sms" && (
-        <IntCard title="SMS Gateway" emoji="📱" description="OTP verification, order & ride notifications via SMS"
-          enableKey="integration_sms" localValues={localValues} dirtyKeys={dirtyKeys} handleToggle={handleToggle} configured={smsConfigured}>
-          <div className="space-y-5">
-            {/* Provider selector */}
-            <div>
-              <SLabel icon={Puzzle}>SMS Provider</SLabel>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
-                {[
-                  { id: "console", label: "Console (Dev)", emoji: "🖥️", desc: "Logs to terminal only" },
-                  { id: "twilio",  label: "Twilio",        emoji: "📞", desc: "International & PK" },
-                  { id: "msg91",   label: "MSG91",          emoji: "🇮🇳", desc: "India & Pakistan" },
-                  { id: "zong",    label: "Zong/CM.com",   emoji: "🇵🇰", desc: "AJK / Pakistan" },
-                ].map(p => (
-                  <button key={p.id} onClick={() => handleChange("sms_provider", p.id)}
-                    className={`p-3 rounded-xl border-2 text-left transition-all ${smsProvider === p.id ? "border-blue-500 bg-blue-50" : "border-border hover:bg-muted/30"} ${dirty("sms_provider") ? "ring-1 ring-amber-300" : ""}`}>
-                    <div className="text-xl mb-1">{p.emoji}</div>
-                    <div className="text-xs font-bold">{p.label}</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">{p.desc}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-            {smsProvider === "console" && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex gap-2">
-                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span><strong>Dev Mode:</strong> SMS messages are logged to the server console only. Choose a real provider above to send actual SMS.</span>
-              </div>
-            )}
-            {smsProvider === "twilio" && (
-              <div className="space-y-4">
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 flex gap-2">
-                  <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <span>Get credentials at <span className="font-mono bg-white/70 px-1 rounded">console.twilio.com</span> → Account Info</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <F label="Account SID" k="sms_account_sid" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" mono />
-                  <S label="Auth Token" k="sms_api_key" placeholder="your_auth_token" />
-                  <F label="From Phone Number" k="sms_sender_id" placeholder="+12025551234" mono />
-                </div>
-              </div>
-            )}
-            {smsProvider === "msg91" && (
-              <div className="space-y-4">
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 flex gap-2">
-                  <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <span>Get credentials at <span className="font-mono bg-white/70 px-1 rounded">msg91.com</span> → API → Auth Key</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <S label="MSG91 Auth Key" k="sms_msg91_key" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxx" />
-                  <F label="Sender ID (6 chars)" k="sms_sender_id" placeholder="AJKMAR" mono />
-                </div>
-              </div>
-            )}
-            {smsProvider === "zong" && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <S label="API Key" k="sms_api_key" placeholder="your_api_key" />
-                  <F label="Sender ID" k="sms_sender_id" placeholder="AJKMart" mono />
-                </div>
-              </div>
-            )}
-            {smsProvider !== "console" && (
-              <div>
-                <SLabel icon={MessageSquare}>SMS Templates</SLabel>
-                <div className="grid grid-cols-1 gap-4 mt-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground">OTP Template <span className="text-muted-foreground font-normal">(use &#123;otp&#125; placeholder)</span></label>
-                    <textarea value={val("sms_template_otp")} onChange={e => handleChange("sms_template_otp", e.target.value)}
-                      rows={2} className={`w-full border rounded-lg p-2 text-sm resize-none font-mono ${dirty("sms_template_otp") ? "border-amber-300 bg-amber-50/50" : ""}`} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground">Order Status Template <span className="text-muted-foreground font-normal">(use &#123;id&#125;, &#123;status&#125;)</span></label>
-                    <textarea value={val("sms_template_order")} onChange={e => handleChange("sms_template_order", e.target.value)}
-                      rows={2} className={`w-full border rounded-lg p-2 text-sm resize-none font-mono ${dirty("sms_template_order") ? "border-amber-300 bg-amber-50/50" : ""}`} />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </IntCard>
+        <div className="space-y-4">
+        <ManageInSettingsLink
+          label="SMS Gateway Configuration"
+          value="Managed in SMS Gateways"
+          description="Configure SMS provider (Twilio, MSG91, Zong), API keys, and sender IDs. The dedicated SMS Gateways page is the canonical location for all SMS settings."
+          tone="info"
+          to="/sms-gateways"
+          linkLabel="Open SMS Gateways"
+        />
+        </div>
       )}
 
       {/* ─── Email SMTP ─── */}
@@ -274,7 +919,7 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
                 </div>
                 <div className="flex gap-2 mt-1.5">
                   {["tls","ssl","none"].map(mode => (
-                    <button key={mode} onClick={() => handleChange("smtp_secure", mode)}
+                    <button key={mode} type="button" onClick={() => handleChange("smtp_secure", mode)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${val("smtp_secure") === mode ? "bg-teal-600 text-white border-teal-600" : "border-border hover:bg-muted/30"} ${dirty("smtp_secure") ? "ring-1 ring-amber-300" : ""}`}>
                       {mode.toUpperCase()}
                     </button>
@@ -317,6 +962,14 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
                 ))}
               </div>
             </div>
+            {smtpConfigured && (
+              <div>
+                <SLabel icon={FlaskConical}>Test Connection</SLabel>
+                <div className="mt-3">
+                  <TestRow type="email" label="Send test alert email to admin recipient" />
+                </div>
+              </div>
+            )}
           </div>
         </IntCard>
       )}
@@ -346,9 +999,17 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
                 <S label="Webhook Verify Token (set same in Meta Developer Console)" k="wa_verify_token" placeholder="my_secure_verify_token_123" />
                 <div className="bg-muted/50 border border-border rounded-xl p-3 space-y-1">
                   <p className="text-xs font-semibold text-foreground">Webhook Callback URL (set in Meta console):</p>
-                  <p className="text-xs font-mono text-muted-foreground">https://your-domain.replit.app/api/webhooks/whatsapp</p>
+                  <p className="text-xs font-mono text-muted-foreground break-all">{whatsappWebhookUrl}</p>
                   <p className="text-xs text-muted-foreground">Subscribe to: <span className="font-mono">messages, message_deliveries, message_reads</span></p>
                 </div>
+                <ManageInSettingsLink
+                  label="Business Event Webhooks"
+                  value="Managed in Webhook Manager"
+                  description="Configure outbound webhook endpoints for business events (order placed, rider assigned, payment confirmed). These are separate from the WhatsApp inbound webhook above."
+                  tone="info"
+                  to="/webhook-manager"
+                  linkLabel="Open Webhook Manager"
+                />
               </div>
             </div>
             <div>
@@ -379,6 +1040,14 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
                 ))}
               </div>
             </div>
+            {waConfigured && (
+              <div>
+                <SLabel icon={FlaskConical}>Test Connection</SLabel>
+                <div className="mt-3">
+                  <TestRow type="whatsapp" label="Send test OTP via WhatsApp (OTP: 123456)" />
+                </div>
+              </div>
+            )}
           </div>
         </IntCard>
       )}
@@ -398,7 +1067,7 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
                   { id: "mixpanel",  emoji: "🧪", label: "Mixpanel",        desc: "Event analytics" },
                   { id: "amplitude", emoji: "📈", label: "Amplitude",       desc: "Product analytics" },
                 ].map(p => (
-                  <button key={p.id} onClick={() => handleChange("analytics_platform", p.id)}
+                  <button key={p.id} type="button" onClick={() => handleChange("analytics_platform", p.id)}
                     className={`p-3 rounded-xl border-2 text-left transition-all ${analyticsPlatform === p.id ? "border-purple-500 bg-purple-50" : "border-border hover:bg-muted/30"} ${dirty("analytics_platform") ? "ring-1 ring-amber-300" : ""}`}>
                     <div className="text-xl mb-1">{p.emoji}</div>
                     <div className="text-xs font-bold">{p.label}</div>
@@ -419,6 +1088,12 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
                   <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 flex gap-2">
                     <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
                     <span>Go to <span className="font-mono bg-white/70 px-1 rounded">mixpanel.com</span> → Project Settings → Project Token.</span>
+                  </div>
+                )}
+                {analyticsPlatform === "amplitude" && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 flex gap-2">
+                    <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <span>Go to <span className="font-mono bg-white/70 px-1 rounded">amplitude.com</span> → Settings → Projects → select your project → API Key.</span>
                   </div>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -450,6 +1125,15 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
                 ))}
               </div>
             </div>
+
+            <ManageInSettingsLink
+              label="Search Analytics"
+              value="Managed in Search Analytics"
+              description="View in-app search query reports, popular search terms, zero-result searches, and tune search ranking weights."
+              tone="info"
+              to="/search-analytics"
+              linkLabel="Open Search Analytics"
+            />
           </div>
         </IntCard>
       )}
@@ -479,7 +1163,7 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
                   </div>
                   <div className="flex gap-2 mt-1.5">
                     {["production","staging","development"].map(env => (
-                      <button key={env} onClick={() => handleChange("sentry_environment", env)}
+                      <button key={env} type="button" onClick={() => handleChange("sentry_environment", env)}
                         className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${val("sentry_environment") === env ? "bg-red-600 text-white border-red-600" : "border-border hover:bg-muted/30"} ${dirty("sentry_environment") ? "ring-1 ring-amber-300" : ""}`}>
                         {env}
                       </button>
@@ -517,156 +1201,54 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
         </IntCard>
       )}
 
-      {/* ─── Map & API Settings ─── */}
+      {/* ─── Maps ─── */}
       {intTab === "maps" && (
-        <IntCard title="Map & API Settings" emoji="🗺️" description="Visual map provider, search API, and routing engine — all DB-managed, never hardcoded"
-          enableKey="integration_maps" localValues={localValues} dirtyKeys={dirtyKeys} handleToggle={handleToggle} configured={mapsConfigured}>
-          <div className="space-y-6">
-
-            {/* ── 1. Active Map Provider ── */}
-            <div>
-              <SLabel icon={MapPin}>Active Map Provider</SLabel>
-              <p className="text-xs text-muted-foreground mt-1 mb-3">Controls which tile/SDK renders the Admin Fleet Map and customer-facing maps. API keys are served securely from the backend — never embedded in build files.</p>
-              <div className="flex gap-2 flex-wrap">
-                {[
-                  { v: "osm",    label: "OpenStreetMap", sub: "Free, no key needed", color: "border-green-400 bg-green-50 text-green-800" },
-                  { v: "mapbox", label: "Mapbox GL JS",  sub: "Vector tiles, requires token", color: "border-blue-400 bg-blue-50 text-blue-800" },
-                  { v: "google", label: "Google Maps",   sub: "Requires Maps JS API key", color: "border-red-400 bg-red-50 text-red-800" },
-                ].map(({ v, label, sub, color }) => {
-                  const active = (val("map_provider") || "osm") === v;
-                  return (
-                    <button key={v} onClick={() => handleChange("map_provider", v)}
-                      className={`flex-1 min-w-[140px] rounded-xl border-2 p-3 text-left transition-all ${active ? color + " shadow-sm" : "border-border bg-muted/20 text-muted-foreground hover:bg-muted/40"} ${dirty("map_provider") && active ? "ring-2 ring-amber-300" : ""}`}>
-                      <div className="font-bold text-xs">{label}</div>
-                      <div className="text-[10px] mt-0.5 opacity-70">{sub}</div>
-                    </button>
-                  );
-                })}
-              </div>
-              {/* Provider-specific key inputs */}
-              <div className="mt-4 space-y-3">
-                {(val("map_provider") || "osm") === "mapbox" && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-3">
-                    <div className="text-xs text-blue-800 flex gap-2">
-                      <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                      <div><strong>Mapbox Setup:</strong> Create a token at <span className="font-mono bg-white/70 px-1 rounded">account.mapbox.com</span> → Access Tokens. Enable: <em>styles:read, tiles:read</em>. Restrict to your domain.</div>
-                    </div>
-                    <S label="Mapbox Access Token" k="mapbox_api_key" placeholder="pk.eyJ1Ijoib..." />
+        <IntCard
+          title="Maps Management"
+          emoji="🗺️"
+          description="Multi-provider map configuration, routing engine, fare settings, usage analytics & geocoding cache"
+          enableKey="integration_maps"
+          localValues={localValues}
+          dirtyKeys={dirtyKeys}
+          handleToggle={handleToggle}
+          configured={mapsConfigured}
+        >
+          <div className="space-y-5">
+            <ErrorBoundary fallback={<div className="py-4 text-center text-sm text-red-500 border border-red-200 rounded-xl bg-red-50">Maps configuration unavailable. Please refresh.</div>}>
+              <MapsMgmtSection
+                localValues={localValues}
+                dirtyKeys={dirtyKeys}
+                handleChange={handleChange}
+                handleToggle={handleToggle}
+              />
+            </ErrorBoundary>
+            {mapsEnabled && mapsConfigured && (
+              <div>
+                <SLabel icon={FlaskConical}>Test Geocoding</SLabel>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 p-3 bg-muted/30 rounded-xl border border-border/50 mt-3">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <FlaskConical className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-xs font-semibold text-foreground">Geocode "Muzaffarabad, Azad Kashmir"</span>
+                    {testResults["maps"] && (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${testResults["maps"]?.ok ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                        {testResults["maps"]?.ok ? "✓ PASSED" : "✗ FAILED"}
+                      </span>
+                    )}
                   </div>
-                )}
-                {(val("map_provider") || "osm") === "google" && (
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 space-y-3">
-                    <div className="text-xs text-red-800 flex gap-2">
-                      <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                      <div><strong>Google Maps Setup:</strong> Go to <span className="font-mono bg-white/70 px-1 rounded">console.cloud.google.com</span> → APIs & Services → Enable: <em>Maps JavaScript API</em>. Restrict key to your domain.</div>
-                    </div>
-                    <S label="Google Maps API Key" k="maps_api_key" placeholder="AIzaSy..." />
-                  </div>
-                )}
-                {(val("map_provider") || "osm") === "osm" && (
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-green-800 flex gap-2">
-                    <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                    <div>OpenStreetMap is active — no API key required. Tiles are served by Leaflet with the OSM public tile server.</div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* ── 2. Search API Provider ── */}
-            <div>
-              <SLabel icon={Globe}>Search / Autocomplete API</SLabel>
-              <p className="text-xs text-muted-foreground mt-1 mb-3">Used for address autocomplete and geocoding when customers search for locations.</p>
-              <div className="flex gap-2 flex-wrap">
-                {[
-                  { v: "google",     label: "Google Places", sub: "Places API key required", color: "border-red-400 bg-red-50 text-red-800" },
-                  { v: "locationiq", label: "LocationIQ",    sub: "Cheaper, AJK-friendly", color: "border-purple-400 bg-purple-50 text-purple-800" },
-                ].map(({ v, label, sub, color }) => {
-                  const active = (val("search_api_provider") || "google") === v;
-                  return (
-                    <button key={v} onClick={() => handleChange("search_api_provider", v)}
-                      className={`flex-1 min-w-[140px] rounded-xl border-2 p-3 text-left transition-all ${active ? color + " shadow-sm" : "border-border bg-muted/20 text-muted-foreground hover:bg-muted/40"} ${dirty("search_api_provider") && active ? "ring-2 ring-amber-300" : ""}`}>
-                      <div className="font-bold text-xs">{label}</div>
-                      <div className="text-[10px] mt-0.5 opacity-70">{sub}</div>
-                    </button>
-                  );
-                })}
-              </div>
-              {(val("search_api_provider") || "google") === "google" && (
-                <div className="mt-3 bg-sky-50 border border-sky-200 rounded-xl p-3 space-y-2">
-                  <p className="text-xs text-sky-800">Google Places uses the same API key as Google Maps. Enable <em>Places API &amp; Geocoding API</em> in the Google Cloud Console.</p>
-                  <S label="Google Maps / Places API Key" k="maps_api_key" placeholder="AIzaSy..." />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                    <T label="Distance Matrix API" k="maps_distance_matrix" sub="Fare calculation & ETAs" def="on" />
-                    <T label="Places Autocomplete" k="maps_places_autocomplete" sub="Address search" def="on" />
-                    <T label="Geocoding API" k="maps_geocoding" sub="Coordinates ↔ address" def="on" />
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => runTest("maps")}
+                    disabled={!!testingMap["maps"]}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all focus-visible:ring-2 focus-visible:ring-primary focus:outline-none">
+                    {testingMap["maps"] ? <Loader2 className="w-3 h-3 animate-spin" /> : <MapPin className="w-3 h-3" />}
+                    {testingMap["maps"] ? "Testing…" : "Test Geocoding"}
+                  </button>
+                  {testResults["maps"] && (
+                    <p className="text-[10px] text-muted-foreground w-full sm:w-auto truncate max-w-xs" title={testResults["maps"]?.msg}>{testResults["maps"]?.msg}</p>
+                  )}
                 </div>
-              )}
-              {(val("search_api_provider") || "google") === "locationiq" && (
-                <div className="mt-3 bg-purple-50 border border-purple-200 rounded-xl p-3 space-y-2">
-                  <p className="text-xs text-purple-800">LocationIQ is a cost-effective alternative with OpenStreetMap-based geocoding. Get a free key at <span className="font-mono bg-white/70 px-1 rounded">locationiq.com</span>.</p>
-                  <S label="LocationIQ API Key" k="locationiq_api_key" placeholder="pk...." />
-                </div>
-              )}
-            </div>
-
-            {/* ── 3. Routing API Provider ── */}
-            <div>
-              <SLabel icon={Car}>Routing Engine</SLabel>
-              <p className="text-xs text-muted-foreground mt-1 mb-3">Used for fare calculation, ETA estimates, and turn-by-turn directions.</p>
-              <div className="flex gap-2 flex-wrap">
-                {[
-                  { v: "mapbox", label: "Mapbox Directions", sub: "Requires Mapbox token", color: "border-blue-400 bg-blue-50 text-blue-800" },
-                  { v: "google", label: "Google Directions", sub: "Requires Google API key", color: "border-red-400 bg-red-50 text-red-800" },
-                ].map(({ v, label, sub, color }) => {
-                  const active = (val("routing_api_provider") || "mapbox") === v;
-                  return (
-                    <button key={v} onClick={() => handleChange("routing_api_provider", v)}
-                      className={`flex-1 min-w-[140px] rounded-xl border-2 p-3 text-left transition-all ${active ? color + " shadow-sm" : "border-border bg-muted/20 text-muted-foreground hover:bg-muted/40"} ${dirty("routing_api_provider") && active ? "ring-2 ring-amber-300" : ""}`}>
-                      <div className="font-bold text-xs">{label}</div>
-                      <div className="text-[10px] mt-0.5 opacity-70">{sub}</div>
-                    </button>
-                  );
-                })}
               </div>
-            </div>
-
-            {/* ── 4. Maps Usage Toggles ── */}
-            <div>
-              <SLabel icon={ToggleRight}>Maps Usage</SLabel>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                {[
-                  { k: "maps_use_customer_app", label: "Customer App Map",    sub: "Show map on order/ride screens", def: "on" },
-                  { k: "maps_use_rider_app",    label: "Rider Navigation Map",sub: "Live route for riders",          def: "on" },
-                  { k: "maps_use_vendor_app",   label: "Vendor Area Map",     sub: "Delivery zone visualization",    def: "off" },
-                  { k: "maps_live_tracking",    label: "Live Order Tracking", sub: "Customer tracks rider in real time", def: "on" },
-                ].map(({ k, label, sub, def }) => (
-                  <Toggle key={k} label={label} sub={sub} checked={tog(k, def)}
-                    onChange={v => handleToggle(k, v)} isDirty={dirty(k)} />
-                ))}
-              </div>
-            </div>
-
-            {/* ── 5. Fare Calculation ── */}
-            <div>
-              <SLabel icon={BarChart3}>Fare Calculation</SLabel>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
-                <Field label="Per KM Rate (Rs)"
-                  value={val("maps_per_km_rate")} onChange={v => handleChange("maps_per_km_rate", v)}
-                  isDirty={dirty("maps_per_km_rate")} type="number" suffix="Rs" placeholder="25"
-                  hint="Used in distance-based fare calculation" />
-                <Field label="Base Fare (Rs)"
-                  value={val("maps_base_fare")} onChange={v => handleChange("maps_base_fare", v)}
-                  isDirty={dirty("maps_base_fare")} type="number" suffix="Rs" placeholder="50" />
-                <Field label="Max Delivery Radius (KM)"
-                  value={val("maps_max_radius_km")} onChange={v => handleChange("maps_max_radius_km", v)}
-                  isDirty={dirty("maps_max_radius_km")} type="number" suffix="KM" placeholder="15" />
-                <Field label="Surge Multiplier (peak hours)"
-                  value={val("maps_surge_multiplier")} onChange={v => handleChange("maps_surge_multiplier", v)}
-                  isDirty={dirty("maps_surge_multiplier")} type="number" suffix="×" placeholder="1.5" />
-              </div>
-            </div>
-
+            )}
           </div>
         </IntCard>
       )}

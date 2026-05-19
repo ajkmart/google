@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, type ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
+import { getAdminTiming } from "@/lib/adminTiming";
 
 interface PullToRefreshProps {
   onRefresh: () => Promise<void>;
@@ -15,7 +16,9 @@ function formatAgo(d: Date | null): string {
   if (s < 60) return `${s}s ago`;
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m ago`;
-  return `${Math.floor(m / 60)}h ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
 }
 
 function isAtTop(): boolean {
@@ -32,10 +35,16 @@ export function PullToRefresh({ onRefresh, children, accentColor = "#1A56DB", cl
   const pulling = useRef(false);
   const intentLocked = useRef(false);
   const isVertical = useRef(false);
-  const threshold = 80;
+  // Read the pull threshold from the centralised admin timing config so
+  // it stays in sync with `pullToRefreshIntervalMs` and any backend
+  // override published via `admin_timing_pull_to_refresh_threshold_px`.
+  const threshold = getAdminTiming().pullToRefreshThresholdPx;
 
   useEffect(() => {
-    const id = setInterval(() => setAgoText(formatAgo(lastUpdated)), 15000);
+    const id = setInterval(
+      () => setAgoText(formatAgo(lastUpdated)),
+      getAdminTiming().pullToRefreshIntervalMs,
+    );
     return () => clearInterval(id);
   }, [lastUpdated]);
 
@@ -99,7 +108,7 @@ export function PullToRefresh({ onRefresh, children, accentColor = "#1A56DB", cl
     } else {
       setPullY(0);
     }
-  }, [pullY, handleRefresh]);
+  }, [pullY, handleRefresh, threshold]);
 
   const progress = Math.min(pullY / threshold, 1);
   const showIndicator = pullY > 10 || refreshing;
@@ -138,14 +147,6 @@ export function PullToRefresh({ onRefresh, children, accentColor = "#1A56DB", cl
           </span>
         </div>
       </div>
-
-      {lastUpdated && agoText && !refreshing && (
-        <div className="flex items-center justify-center py-1">
-          <span className="text-[10px] font-medium text-gray-300">
-            Updated {agoText}
-          </span>
-        </div>
-      )}
 
       <div
         style={{

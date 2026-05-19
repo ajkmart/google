@@ -1,11 +1,15 @@
 import { useState, useRef, useCallback, useEffect, type ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[PullToRefresh]");
 
 interface PullToRefreshProps {
   onRefresh: () => Promise<void>;
   children: ReactNode;
   accentColor?: string;
   className?: string;
+  /* U4: Caller can opt in to receive refresh failures (e.g. show a toast). */
+  onRefreshError?: (err: unknown) => void;
 }
 
 function formatAgo(d: Date | null): string {
@@ -22,11 +26,14 @@ function isAtTop(): boolean {
   return window.scrollY <= 0 && document.documentElement.scrollTop <= 0;
 }
 
-export function PullToRefresh({ onRefresh, children, accentColor = "#10B981", className = "" }: PullToRefreshProps) {
+export function PullToRefresh({ onRefresh, children, accentColor = "#10B981", className = "", onRefreshError }: PullToRefreshProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [pullY, setPullY] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [agoText, setAgoText] = useState("");
+  /* U4: Track whether the most recent refresh succeeded so the "last updated"
+     indicator can visually mark stale data. */
+  const [lastRefreshFailed, setLastRefreshFailed] = useState(false);
   const startY = useRef(0);
   const startX = useRef(0);
   const pulling = useRef(false);
@@ -46,11 +53,21 @@ export function PullToRefresh({ onRefresh, children, accentColor = "#10B981", cl
       const now = new Date();
       setLastUpdated(now);
       setAgoText(formatAgo(now));
+      setLastRefreshFailed(false);
+    } catch (err) {
+      /* U4: Surface failures rather than swallowing them via the global
+         unhandledrejection listener. Caller decides toast vs UI banner. */
+      setLastRefreshFailed(true);
+      if (onRefreshError) {
+        try { onRefreshError(err); } catch (err) { console.warn('[artifacts/rider-app/src/components/PullToRefresh.tsx]', err); } // eslint-disable-line no-console
+      } else {
+        log.warn("onRefresh failed:", err);
+      }
     } finally {
       setRefreshing(false);
       setPullY(0);
     }
-  }, [onRefresh]);
+  }, [onRefresh, onRefreshError]);
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     if (refreshing) return;
@@ -141,8 +158,8 @@ export function PullToRefresh({ onRefresh, children, accentColor = "#10B981", cl
 
       {lastUpdated && agoText && !refreshing && (
         <div className="flex items-center justify-center py-1">
-          <span className="text-[10px] font-medium text-gray-300">
-            Updated {agoText}
+          <span className={`text-[10px] font-medium ${lastRefreshFailed ? "text-amber-500" : "text-gray-300"}`}>
+            {lastRefreshFailed ? `Stale — last updated ${agoText}` : `Updated ${agoText}`}
           </span>
         </div>
       )}

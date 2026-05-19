@@ -1,18 +1,22 @@
 import { useState, useEffect, useCallback } from "react";
+import { adminFetch, fetchAdminAbsolute, fetchAdminAbsoluteResponse } from "@/lib/adminFetcher";
+import { PageHeader } from "@/components/shared";
 import {
   Shield, Save, RefreshCw, Info, AlertTriangle,
   CheckCircle2, XCircle, Lock,
   KeyRound, FileText, Zap, Bike, BarChart3, Globe,
-  ShieldCheck, Loader2, Users,
+  ShieldCheck, Loader2, Users, Download, Bug, RotateCcw,
+  X, Wifi, Clock, ChevronRight, Activity, LogOut, CheckCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { fetcher } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Toggle, Field, SecretInput } from "@/components/AdminShared";
+import { LastUpdated } from "@/components/ui/LastUpdated";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
-type SecTab = "auth" | "authmethods" | "ratelimit" | "gps" | "passwords" | "uploads" | "fraud";
+type SecTab = "auth" | "authmethods" | "ratelimit" | "gps" | "passwords" | "uploads" | "fraud" | "dataexports" | "tokenaudit";
 
 type SecurityDashboard = Record<string, unknown>;
 
@@ -33,9 +37,61 @@ type MfaStatus = {
   mfaEnabled: boolean;
 };
 
+type DataExportLog = {
+  id: string;
+  userId: string | null;
+  maskedPhone: string | null;
+  ip: string;
+  requestedAt: string;
+  completedAt: string | null;
+  success: boolean;
+};
+
 type MfaSetupData = {
   secret: string;
   qrCodeDataUrl: string;
+};
+
+type TokenAuditEvent = {
+  id: string;
+  userId: string;
+  userPhone: string | null;
+  userName: string | null;
+  authMethod: string | null;
+  tokenFamilyId: string | null;
+  revokedReason: string | null;
+  eventType: "rotation" | "breach" | "reuse" | "security" | "expired" | "other";
+  revokedAt: string | null;
+  issuedAt: string;
+};
+
+type TimelineToken = {
+  id: string;
+  authMethod: string | null;
+  revoked: boolean;
+  revokedReason: string | null;
+  status: "active" | "rotation" | "breach" | "reuse" | "security" | "expired" | "other";
+  usedAt: string | null;
+  expiresAt: string;
+  revokedAt: string | null;
+  issuedAt: string;
+};
+
+type TimelineFamily = {
+  familyId: string | null;
+  startedAt: string;
+  tokens: TimelineToken[];
+};
+
+type UserTimeline = {
+  userId: string;
+  userPhone: string | null;
+  userName: string | null;
+  totalTokens: number;
+  activeCount: number;
+  breachCount: number;
+  familyCount: number;
+  families: TimelineFamily[];
 };
 
 const SEC_TABS: { id: SecTab; label: string; emoji: string; active: string; desc: string }[] = [
@@ -46,6 +102,8 @@ const SEC_TABS: { id: SecTab; label: string; emoji: string; active: string; desc
   { id: "passwords",   label: "Passwords",         emoji: "🔑", active: "bg-amber-600",   desc: "Password policy, JWT rotation, token expiry" },
   { id: "uploads",     label: "File Uploads",      emoji: "📁", active: "bg-teal-600",    desc: "Upload limits, allowed file types, compression" },
   { id: "fraud",       label: "Fraud Detection",   emoji: "🚨", active: "bg-red-600",     desc: "Fake orders, IP auto-block, live IP manager, account limits" },
+  { id: "dataexports", label: "Data Exports",      emoji: "📦", active: "bg-violet-600",  desc: "GDPR data export audit log — who exported their data and when, plus suspicious API pattern events" },
+  { id: "tokenaudit",  label: "Token Audit",       emoji: "🔄", active: "bg-rose-600",    desc: "Refresh token rotation trail — rotations, reuse attempts, family invalidations per user" },
 ];
 
 function SecPanel({ title, icon: Icon, color, children }: { title: string; icon: React.ElementType; color: string; children: React.ReactNode }) {
@@ -66,6 +124,7 @@ export default function SecurityPage() {
   const [savedValues, setSavedValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number>(0);
   const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(new Set());
   const [secTab, setSecTab] = useState<SecTab>("auth");
 
@@ -85,20 +144,35 @@ export default function SecurityPage() {
   const [disableToken, setDisableToken] = useState("");
   const [mfaLoading,   setMfaLoading]  = useState(false);
 
-  const adminToken  = localStorage.getItem("ajkmart_admin_token") || "";
-  const apiHeaders  = { "Content-Type": "application/json", "x-admin-token": adminToken };
+  /* ── Data Exports tab state ── */
+  const [dataExports,      setDataExports]      = useState<DataExportLog[]>([]);
+  const [dataExportsTotal, setDataExportsTotal]  = useState(0);
+  const [dataExportsLoading, setDataExportsLoading] = useState(false);
+  const [dataExportsPage,  setDataExportsPage]  = useState(0);
+  const DATA_EXPORTS_PAGE_SIZE = 20;
+  const [suspiciousEvents, setSuspiciousEvents]  = useState<SecurityEvent[]>([]);
+
+  /* ── Token Audit tab state ── */
+  const [tokenAuditEvents,  setTokenAuditEvents]  = useState<TokenAuditEvent[]>([]);
+  const [tokenAuditTotal,   setTokenAuditTotal]   = useState(0);
+  const [tokenAuditLoading, setTokenAuditLoading] = useState(false);
+  const [tokenAuditPage,    setTokenAuditPage]    = useState(0);
+  const [tokenAuditSearch,  setTokenAuditSearch]  = useState("");
+  const [tokenAuditReason,  setTokenAuditReason]  = useState("");
+  const TOKEN_AUDIT_PAGE_SIZE = 30;
 
   /* ── Load platform settings ── */
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetcher("/platform-settings");
+      const data = await adminFetch("/platform-settings");
       const vals: Record<string, string> = {};
       for (const s of (data.settings || [])) vals[s.key] = s.value;
       setLocalValues(vals);
       setSavedValues(vals);
       setDirtyKeys(new Set());
       setIpWhitelistError(null);
+      setLastUpdatedAt(Date.now());
     } catch (e: unknown) {
       toast({ title: "Failed to load settings", description: (e as Error).message, variant: "destructive" });
     }
@@ -109,18 +183,13 @@ export default function SecurityPage() {
 
   /* ── Load live data (lockouts, blocked IPs, events, dashboard) ── */
   const fetchLiveData = useCallback(async () => {
-    if (!adminToken) return;
     setLiveLoading(true);
     try {
-      const checkOk = async (r: Response) => {
-        if (!r.ok) { const body = await r.json().catch(() => ({})); throw new Error(body.error ?? `HTTP ${r.status}`); }
-        return r.json();
-      };
       const [dash, lockoutData, ipsData, eventsData] = await Promise.all([
-        fetch(`${window.location.origin}/api/admin/security-dashboard`, { headers: apiHeaders }).then(checkOk),
-        fetch(`${window.location.origin}/api/admin/login-lockouts`,     { headers: apiHeaders }).then(checkOk),
-        fetch(`${window.location.origin}/api/admin/blocked-ips`,        { headers: apiHeaders }).then(checkOk),
-        fetch(`${window.location.origin}/api/admin/security-events?limit=30`, { headers: apiHeaders }).then(checkOk),
+        fetchAdminAbsolute(`/api/admin/security-dashboard`),
+        fetchAdminAbsolute(`/api/admin/login-lockouts`),
+        fetchAdminAbsolute(`/api/admin/blocked-ips`),
+        fetchAdminAbsolute(`/api/admin/security-events?limit=30`),
       ]);
       setSecDash(dash);
       setLockouts(lockoutData.lockouts ?? []);
@@ -130,22 +199,63 @@ export default function SecurityPage() {
       toast({ title: "Failed to load live data", description: (e as Error).message, variant: "destructive" });
     }
     setLiveLoading(false);
-  }, [adminToken]);
+  }, [toast]);
 
   /* ── Load MFA status ── */
   const fetchMfaStatus = useCallback(async () => {
-    if (!adminToken) return;
     try {
-      const data = await fetch(`${window.location.origin}/api/admin/mfa/status`, { headers: apiHeaders }).then(r => r.json());
+      const data = await fetchAdminAbsolute(`/api/admin/auth/mfa/status`);
       setMfaStatus(data);
-    } catch { /* ignore */ }
-  }, [adminToken]);
+    } catch (err) {
+      toast({ title: "Could not load MFA status", description: "Auth settings may be unavailable.", variant: "destructive" });
+    }
+  }, [toast]);
+
+  /* ── Load data exports and suspicious pattern events ── */
+  const fetchDataExports = useCallback(async (page = 0) => {
+    setDataExportsLoading(true);
+    const offset = page * DATA_EXPORTS_PAGE_SIZE;
+    try {
+      const [exportsData, eventsData] = await Promise.all([
+        fetchAdminAbsolute(`/api/admin/security/data-exports?limit=${DATA_EXPORTS_PAGE_SIZE}&offset=${offset}`),
+        fetchAdminAbsolute(`/api/admin/security-events?limit=50&type=suspicious_pattern`),
+      ]);
+      setDataExports(exportsData.exports ?? []);
+      setDataExportsTotal(exportsData.total ?? 0);
+      setSuspiciousEvents((eventsData.events ?? []).filter((e: SecurityEvent) => e.type === "suspicious_pattern"));
+    } catch (e: unknown) {
+      toast({ title: "Failed to load data exports", description: (e as Error).message, variant: "destructive" });
+    }
+    setDataExportsLoading(false);
+  }, [toast, DATA_EXPORTS_PAGE_SIZE]);
+
+  /* ── Load token audit events ── */
+  const fetchTokenAudit = useCallback(async (page = 0, userId = "", reason = "") => {
+    setTokenAuditLoading(true);
+    const offset = page * TOKEN_AUDIT_PAGE_SIZE;
+    const params = new URLSearchParams({
+      limit:  String(TOKEN_AUDIT_PAGE_SIZE),
+      offset: String(offset),
+    });
+    if (userId.trim()) params.set("userId", userId.trim());
+    if (reason.trim()) params.set("reason", reason.trim());
+    try {
+      const data = await fetchAdminAbsolute(`/api/admin/security/token-audit?${params.toString()}`);
+      setTokenAuditEvents(data.events ?? []);
+      setTokenAuditTotal(data.total ?? 0);
+    } catch (e: unknown) {
+      toast({ title: "Failed to load token audit log", description: (e as Error).message, variant: "destructive" });
+    }
+    setTokenAuditLoading(false);
+  }, [toast, TOKEN_AUDIT_PAGE_SIZE]);
 
   /* ── Auto-load live data when switching to auth or fraud tabs ── */
   useEffect(() => {
     if (secTab === "auth" || secTab === "fraud") fetchLiveData();
     if (secTab === "auth") fetchMfaStatus();
-  }, [secTab, fetchLiveData, fetchMfaStatus]);
+    if (secTab === "dataexports") fetchDataExports();
+    if (secTab === "tokenaudit") fetchTokenAudit(0, tokenAuditSearch, tokenAuditReason);
+  }, [secTab, fetchLiveData, fetchMfaStatus, fetchDataExports, fetchTokenAudit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Platform settings handlers ── */
   const handleChange = (key: string, value: string) => {
@@ -190,7 +300,7 @@ export default function SecurityPage() {
     setSaving(true);
     try {
       const changed = Array.from(dirtyKeys).map(key => ({ key, value: localValues[key] ?? "" }));
-      await fetcher("/platform-settings", { method: "PUT", body: JSON.stringify({ settings: changed }) });
+      await adminFetch("/platform-settings", { method: "PUT", body: JSON.stringify({ settings: changed }) });
       setSavedValues(prev => {
         const updated = { ...prev };
         for (const c of changed) updated[c.key] = c.value;
@@ -207,10 +317,7 @@ export default function SecurityPage() {
   /* ── Lockout management ── */
   const unlockPhone = async (phone: string) => {
     try {
-      const r = await fetch(`${window.location.origin}/api/admin/login-lockouts/${encodeURIComponent(phone)}`, {
-        method: "DELETE", headers: apiHeaders,
-      });
-      if (!r.ok) { const body = await r.json().catch(() => ({})); throw new Error(body.error ?? `HTTP ${r.status}`); }
+      await fetchAdminAbsolute(`/api/admin/login-lockouts/${encodeURIComponent(phone)}`, { method: "DELETE" });
       toast({ title: "Account Unlocked", description: `${phone} has been unlocked.` });
       fetchLiveData();
     } catch (e: unknown) {
@@ -229,11 +336,10 @@ export default function SecurityPage() {
       return;
     }
     try {
-      const r = await fetch(`${window.location.origin}/api/admin/blocked-ips`, {
-        method: "POST", headers: apiHeaders,
+      await fetchAdminAbsolute(`/api/admin/blocked-ips`, {
+        method: "POST",
         body: JSON.stringify({ ip, reason: "Manual block by admin" }),
       });
-      if (!r.ok) { const body = await r.json().catch(() => ({})); throw new Error(body.error ?? `HTTP ${r.status}`); }
       setNewBlockIP("");
       toast({ title: "IP Blocked", description: `${ip} has been blocked.` });
       fetchLiveData();
@@ -244,10 +350,7 @@ export default function SecurityPage() {
 
   const unblockIP = async (ip: string) => {
     try {
-      const r = await fetch(`${window.location.origin}/api/admin/blocked-ips/${encodeURIComponent(ip)}`, {
-        method: "DELETE", headers: apiHeaders,
-      });
-      if (!r.ok) { const body = await r.json().catch(() => ({})); throw new Error(body.error ?? `HTTP ${r.status}`); }
+      await fetchAdminAbsolute(`/api/admin/blocked-ips/${encodeURIComponent(ip)}`, { method: "DELETE" });
       toast({ title: "IP Unblocked", description: `${ip} has been unblocked.` });
       fetchLiveData();
     } catch (e: unknown) {
@@ -259,9 +362,7 @@ export default function SecurityPage() {
   const startMfaSetup = async () => {
     setMfaLoading(true);
     try {
-      const data = await fetch(`${window.location.origin}/api/admin/mfa/setup`, {
-        method: "POST", headers: apiHeaders,
-      }).then(r => r.json());
+      const data = await fetchAdminAbsolute(`/api/admin/auth/mfa/setup`, { method: "POST" });
       if (data.secret) { setMfaSetupData(data); setMfaToken(""); }
       else toast({ title: "Error", description: data.error ?? "Failed to start MFA setup", variant: "destructive" });
     } catch {
@@ -277,9 +378,9 @@ export default function SecurityPage() {
     }
     setMfaLoading(true);
     try {
-      const data = await fetch(`${window.location.origin}/api/admin/mfa/verify`, {
-        method: "POST", headers: apiHeaders, body: JSON.stringify({ token: mfaToken }),
-      }).then(r => r.json());
+      const data = await fetchAdminAbsolute(`/api/admin/auth/mfa/verify`, {
+        method: "POST", body: JSON.stringify({ token: mfaToken }),
+      });
       if (data.success) {
         toast({ title: "MFA Activated!", description: "Two-factor authentication is now enabled." });
         setMfaSetupData(null); setMfaToken(""); fetchMfaStatus();
@@ -299,9 +400,9 @@ export default function SecurityPage() {
     }
     setMfaLoading(true);
     try {
-      const data = await fetch(`${window.location.origin}/api/admin/mfa/disable`, {
-        method: "DELETE", headers: apiHeaders, body: JSON.stringify({ token: disableToken }),
-      }).then(r => r.json());
+      const data = await fetchAdminAbsolute(`/api/admin/auth/mfa/disable`, {
+        method: "DELETE", body: JSON.stringify({ token: disableToken }),
+      });
       if (data.success) {
         toast({ title: "MFA Disabled", description: "Two-factor authentication has been disabled." });
         setDisableToken(""); fetchMfaStatus();
@@ -370,54 +471,50 @@ export default function SecurityPage() {
   }
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Security page crashed. Please reload.</div>}>
     <div className="space-y-6 max-w-5xl">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 bg-red-100 rounded-xl flex items-center justify-center">
-            <Shield className="w-5 h-5 text-red-600" />
+      <PageHeader
+        icon={Shield}
+        title="Security"
+        subtitle={dirtyKeys.size > 0 ? `${dirtyKeys.size} unsaved change${dirtyKeys.size > 1 ? "s" : ""}` : "OTP, sessions, rate limits, GPS, fraud detection, IP whitelist, audit log"}
+        iconBgClass="bg-red-100"
+        iconColorClass="text-red-600"
+        actions={
+          <div className="flex items-center gap-2">
+            <LastUpdated dataUpdatedAt={lastUpdatedAt} onRefresh={loadSettings} isRefreshing={loading} />
+            <Button variant="outline" onClick={() => { loadSettings(); toast({ title: "Reloaded" }); }} disabled={loading} className="h-9 rounded-xl gap-2">
+              <RefreshCw className="w-4 h-4" /> Reset
+            </Button>
+            <Button onClick={handleSave} disabled={saving || dirtyKeys.size === 0 || !!ipWhitelistError} className="h-9 rounded-xl gap-2 shadow-sm">
+              {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {saving ? "Saving..." : `Save${dirtyKeys.size > 0 ? ` (${dirtyKeys.size})` : ""}`}
+            </Button>
           </div>
-          <div>
-            <h1 className="text-2xl font-display font-bold text-foreground">Security</h1>
-            <p className="text-sm text-muted-foreground">
-              {dirtyKeys.size > 0
-                ? <span className="text-amber-600 font-medium">{dirtyKeys.size} unsaved change{dirtyKeys.size > 1 ? "s" : ""}</span>
-                : <span>OTP, sessions, rate limits, GPS, fraud detection, IP whitelist, audit log</span>}
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => { loadSettings(); toast({ title: "Reloaded" }); }} disabled={loading} className="h-9 rounded-xl gap-2">
-            <RefreshCw className="w-4 h-4" /> Reset
-          </Button>
-          <Button onClick={handleSave} disabled={saving || dirtyKeys.size === 0 || !!ipWhitelistError} className="h-9 rounded-xl gap-2 shadow-sm">
-            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {saving ? "Saving..." : `Save${dirtyKeys.size > 0 ? ` (${dirtyKeys.size})` : ""}`}
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Sub-tab bar */}
-      <div className="flex flex-wrap gap-1.5 bg-muted/50 p-1.5 rounded-xl">
-        {SEC_TABS.map(t => (
-          <button key={t.id} onClick={() => setSecTab(t.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${secTab === t.id ? `${t.active} text-white shadow-sm` : "text-muted-foreground hover:bg-white"}`}>
-            <span>{t.emoji}</span> {t.label}
-          </button>
-        ))}
+      {/* Sub-tab bar — horizontally scrollable on mobile */}
+      <div className="overflow-x-auto -mx-1 px-1">
+        <div className="flex gap-1.5 bg-muted/50 p-1.5 rounded-xl w-max min-w-full">
+          {SEC_TABS.map(t => (
+            <button key={t.id} onClick={() => setSecTab(t.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex-shrink-0 transition-all ${secTab === t.id ? `${t.active} text-white shadow-sm` : "text-muted-foreground hover:bg-white"}`}>
+              <span>{t.emoji}</span> {t.label}
+            </button>
+          ))}
+        </div>
       </div>
       <p className="text-xs text-muted-foreground px-1">{SEC_TABS.find(t => t.id === secTab)?.desc}</p>
 
       {/* ─── Auth & Sessions ─── */}
       {secTab === "auth" && (
         <div className="space-y-4">
-          {/* DANGER ZONE */}
-          <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-5 space-y-3">
-            <div className="flex items-center gap-2 text-red-700 mb-1">
-              <AlertTriangle className="w-4 h-4" />
-              <span className="text-sm font-bold">DANGER ZONE — Development Only</span>
-            </div>
-            <T k="security_otp_bypass" label="OTP Bypass Mode" sub="All OTPs auto-accept (NEVER enable in production)" danger />
+          {/* OTP pointer — managed in OTP Control page */}
+          <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 flex items-start gap-3">
+            <AlertTriangle className="w-4 h-4 text-violet-600 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-violet-800">
+              OTP suspension and per-user bypass are managed exclusively in <strong>OTP Global Control</strong> (sidebar). No duplicate OTP toggles exist here.
+            </p>
           </div>
 
           <SecPanel title="Multi-Factor Authentication (Policy)" icon={Shield} color="text-indigo-700">
@@ -439,6 +536,9 @@ export default function SecurityPage() {
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 flex gap-2 mb-3">
               <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <span>After <strong>Max Attempts</strong> failures, the account is locked for <strong>Lockout Duration</strong>. Applies to customer, rider, and vendor logins.</span>
+            </div>
+            <div className="mb-3">
+              <T k="security_lockout_enabled" label="Enable Account Lockout" sub="Globally enable / disable login lockout" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <N k="security_login_max_attempts" label="Max Failed Login Attempts" placeholder="5"  hint="Before account lockout" />
@@ -1107,6 +1207,36 @@ export default function SecurityPage() {
         </div>
       )}
 
+      {secTab === "dataexports" && (
+        <DataExportsTab
+          dataExports={dataExports}
+          dataExportsTotal={dataExportsTotal}
+          dataExportsLoading={dataExportsLoading}
+          suspiciousEvents={suspiciousEvents}
+          page={dataExportsPage}
+          pageSize={DATA_EXPORTS_PAGE_SIZE}
+          onPageChange={(p) => { setDataExportsPage(p); fetchDataExports(p); }}
+          onRefresh={() => fetchDataExports(dataExportsPage)}
+        />
+      )}
+
+      {secTab === "tokenaudit" && (
+        <TokenAuditTab
+          events={tokenAuditEvents}
+          total={tokenAuditTotal}
+          loading={tokenAuditLoading}
+          page={tokenAuditPage}
+          pageSize={TOKEN_AUDIT_PAGE_SIZE}
+          search={tokenAuditSearch}
+          reasonFilter={tokenAuditReason}
+          onSearchChange={setTokenAuditSearch}
+          onReasonChange={setTokenAuditReason}
+          onSearch={() => { setTokenAuditPage(0); fetchTokenAudit(0, tokenAuditSearch, tokenAuditReason); }}
+          onPageChange={(p) => { setTokenAuditPage(p); fetchTokenAudit(p, tokenAuditSearch, tokenAuditReason); }}
+          onRefresh={() => fetchTokenAudit(tokenAuditPage, tokenAuditSearch, tokenAuditReason)}
+        />
+      )}
+
       <div className="bg-blue-50/60 border border-blue-200/60 rounded-xl p-4 flex gap-3">
         <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-blue-700">
@@ -1114,5 +1244,1043 @@ export default function SecurityPage() {
         </p>
       </div>
     </div>
+    </ErrorBoundary>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   DATA EXPORTS TAB — GDPR export audit + suspicious
+   pattern events
+═══════════════════════════════════════════════════════ */
+function DataExportsTab({
+  dataExports,
+  dataExportsTotal,
+  dataExportsLoading,
+  suspiciousEvents,
+  page,
+  pageSize,
+  onPageChange,
+  onRefresh,
+}: {
+  dataExports: DataExportLog[];
+  dataExportsTotal: number;
+  dataExportsLoading: boolean;
+  suspiciousEvents: SecurityEvent[];
+  page: number;
+  pageSize: number;
+  onPageChange: (p: number) => void;
+  onRefresh: () => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(dataExportsTotal / pageSize));
+  const formatDate = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleString("en-GB", {
+        day: "2-digit", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      });
+    } catch { return iso; }
+  };
+
+  const severityBadge = (sev: string) => {
+    const cls: Record<string, string> = {
+      critical: "bg-red-100 text-red-700",
+      high:     "bg-orange-100 text-orange-700",
+      medium:   "bg-yellow-100 text-yellow-700",
+      low:      "bg-gray-100 text-gray-600",
+    };
+    return cls[sev] ?? cls["low"];
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-bold text-gray-900">Data Export Audit Log</h3>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Every GDPR data-export request is logged here with user, IP, and outcome.
+            {dataExportsTotal > 0 && ` (${dataExportsTotal} total records)`}
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onRefresh}
+          disabled={dataExportsLoading}
+          className="gap-1.5"
+        >
+          {dataExportsLoading
+            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            : <RefreshCw className="w-3.5 h-3.5" />}
+          Refresh
+        </Button>
+      </div>
+
+      {/* Export logs table */}
+      <div className="rounded-2xl border border-border bg-white overflow-hidden">
+        {dataExportsLoading ? (
+          <div className="flex items-center justify-center py-16 text-gray-400 gap-2">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-sm">Loading export logs…</span>
+          </div>
+        ) : dataExports.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-gray-400 gap-3">
+            <Download className="w-8 h-8 opacity-40" />
+            <div className="text-center">
+              <p className="text-sm font-medium">No data exports yet</p>
+              <p className="text-xs mt-1">Records will appear here when users request their data exports.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border bg-gray-50/70">
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">User / Phone</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">IP Address</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Requested At</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Completed At</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {dataExports.map(row => (
+                  <tr key={row.id} className="hover:bg-gray-50/60 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="font-mono text-gray-700">{row.maskedPhone ?? "—"}</div>
+                      {row.userId && (
+                        <div className="text-gray-400 text-[10px] mt-0.5 truncate max-w-[140px]">{row.userId}</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-gray-600">{row.ip}</td>
+                    <td className="px-4 py-3 text-gray-600">{formatDate(row.requestedAt)}</td>
+                    <td className="px-4 py-3 text-gray-500">
+                      {row.completedAt ? formatDate(row.completedAt) : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      {row.success ? (
+                        <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-[10px]">
+                          <CheckCircle2 className="w-3 h-3 mr-1" />Success
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-red-100 text-red-600 hover:bg-red-100 text-[10px]">
+                          <XCircle className="w-3 h-3 mr-1" />Failed
+                        </Badge>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {/* Pagination controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50/50">
+                <span className="text-xs text-gray-500">
+                  Page {page + 1} of {totalPages} &middot; {dataExportsTotal} total record{dataExportsTotal !== 1 ? "s" : ""}
+                </span>
+                <div className="flex gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onPageChange(page - 1)}
+                    disabled={page === 0 || dataExportsLoading}
+                    className="h-7 px-2 text-xs"
+                  >
+                    ← Prev
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onPageChange(page + 1)}
+                    disabled={page >= totalPages - 1 || dataExportsLoading}
+                    className="h-7 px-2 text-xs"
+                  >
+                    Next →
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Suspicious pattern events */}
+      <div className="rounded-2xl border border-border bg-white overflow-hidden">
+        <div className="flex items-center gap-2 px-5 py-4 border-b border-border bg-orange-50/50">
+          <AlertTriangle className="w-4 h-4 text-orange-600" />
+          <h4 className="text-sm font-bold text-orange-800">Suspicious API Pattern Events</h4>
+          {suspiciousEvents.length > 0 && (
+            <Badge className="bg-orange-200 text-orange-800 hover:bg-orange-200 text-[10px] ml-auto">
+              {suspiciousEvents.length} event{suspiciousEvents.length !== 1 ? "s" : ""}
+            </Badge>
+          )}
+        </div>
+
+        {suspiciousEvents.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-3">
+            <ShieldCheck className="w-7 h-7 opacity-40" />
+            <div className="text-center">
+              <p className="text-sm font-medium">No suspicious patterns detected</p>
+              <p className="text-xs mt-1">
+                Events appear here when an IP exceeds the rate threshold on sensitive endpoints.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border bg-gray-50/70">
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Severity</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Details</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {suspiciousEvents.map((ev, i) => (
+                  <tr key={i} className="hover:bg-gray-50/60 transition-colors">
+                    <td className="px-4 py-3">
+                      <Badge className={`${severityBadge(ev.severity)} hover:${severityBadge(ev.severity)} text-[10px] capitalize`}>
+                        {ev.severity}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-gray-700 max-w-xs">
+                      <span className="truncate block">{ev.details}</span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-500">{formatDate(ev.timestamp)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Sentry Known Issues info card */}
+      <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <Bug className="w-4 h-4 text-violet-600" />
+          <h4 className="text-sm font-bold text-violet-800">Sentry Webhook Deduplication</h4>
+        </div>
+        <p className="text-xs text-violet-700 leading-relaxed">
+          When a new Sentry error type (unique fingerprint) arrives at{" "}
+          <code className="bg-violet-100 px-1 rounded font-mono text-[10px]">POST /api/admin/sentry-webhook</code>,
+          it is recorded in the <code className="bg-violet-100 px-1 rounded font-mono text-[10px]">sentry_known_issues</code> table
+          and an admin alert is sent. Subsequent occurrences of the same fingerprint are silently acknowledged.
+        </p>
+        <div className="flex items-start gap-2 bg-violet-100/70 rounded-xl p-3 text-xs text-violet-700">
+          <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>
+            To enable: add <strong>SENTRY_WEBHOOK_SECRET</strong> to Replit Secrets, then configure the webhook URL in
+            Sentry → Project Settings → Integrations → Webhooks.
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   TOKEN AUDIT TAB — refresh token rotation trail
+   Shows rotations, reuse attempts, family invalidations,
+   and other revocation events per user.
+═══════════════════════════════════════════════════════ */
+const REASON_OPTIONS = [
+  { value: "",                          label: "All reasons" },
+  { value: "ROTATED",                   label: "Rotated (normal)" },
+  { value: "FAMILY_BREACH_DETECTED",    label: "Family breach detected" },
+  { value: "SUSPICIOUS_FAMILY_REUSE",   label: "Suspicious family reuse" },
+  { value: "REUSE_DETECTED",            label: "Reuse detected" },
+  { value: "EXPIRED",                   label: "Expired" },
+  { value: "AUTH_METHOD_DISABLED",      label: "Auth method disabled" },
+  { value: "USER_UNAVAILABLE",          label: "User unavailable" },
+  { value: "ALL_SESSIONS_REVOKED",      label: "All sessions revoked" },
+  { value: "UNKNOWN_METHOD",            label: "Unknown method" },
+  { value: "REVOKED",                   label: "Generic revoke" },
+];
+
+function TokenAuditTab({
+  events,
+  total,
+  loading,
+  page,
+  pageSize,
+  search,
+  reasonFilter,
+  onSearchChange,
+  onReasonChange,
+  onSearch,
+  onPageChange,
+  onRefresh,
+}: {
+  events: TokenAuditEvent[];
+  total: number;
+  loading: boolean;
+  page: number;
+  pageSize: number;
+  search: string;
+  reasonFilter: string;
+  onSearchChange: (v: string) => void;
+  onReasonChange: (v: string) => void;
+  onSearch: () => void;
+  onPageChange: (p: number) => void;
+  onRefresh: () => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  /* ── Session timeline drawer state (self-contained here) ── */
+  const [timelineUserId,    setTimelineUserId]    = useState<string | null>(null);
+  const [timelineUserLabel, setTimelineUserLabel] = useState("");
+
+  const openTimeline = (userId: string, label: string) => {
+    setTimelineUserId(userId);
+    setTimelineUserLabel(label);
+  };
+
+  const formatDate = (iso: string | null) => {
+    if (!iso) return "—";
+    try {
+      return new Date(iso).toLocaleString("en-GB", {
+        day: "2-digit", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit", second: "2-digit",
+      });
+    } catch { return iso; }
+  };
+
+  const eventTypeMeta: Record<string, { label: string; cls: string; icon: React.ElementType }> = {
+    rotation: { label: "Rotated",      cls: "bg-blue-100 text-blue-700",      icon: RotateCcw },
+    breach:   { label: "Breach",       cls: "bg-red-100 text-red-800",        icon: AlertTriangle },
+    reuse:    { label: "Reuse",        cls: "bg-orange-100 text-orange-700",  icon: AlertTriangle },
+    security: { label: "Security",     cls: "bg-amber-100 text-amber-700",    icon: ShieldCheck },
+    expired:  { label: "Expired",      cls: "bg-gray-100 text-gray-600",      icon: Lock },
+    other:    { label: "Other",        cls: "bg-slate-100 text-slate-600",    icon: KeyRound },
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Session timeline drawer */}
+      {timelineUserId && (
+        <UserTimelineDrawer
+          userId={timelineUserId}
+          userLabel={timelineUserLabel}
+          onClose={() => setTimelineUserId(null)}
+        />
+      )}
+
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h3 className="text-base font-bold text-gray-900">Token Rotation Audit Trail</h3>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Every refresh token revocation is recorded here — rotations, reuse alerts, session invalidations.
+            {total > 0 && ` (${total} total events)`}
+            {" "}<span className="text-rose-500 font-medium">Click a user to see their full session timeline.</span>
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onRefresh}
+          disabled={loading}
+          className="gap-1.5"
+        >
+          {loading
+            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            : <RefreshCw className="w-3.5 h-3.5" />}
+          Refresh
+        </Button>
+      </div>
+
+      {/* Filter bar */}
+      <div className="flex gap-2 flex-wrap">
+        <Input
+          className="h-8 text-xs w-64 font-mono"
+          placeholder="Filter by User ID…"
+          value={search}
+          onChange={e => onSearchChange(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && onSearch()}
+        />
+        <select
+          className="h-8 rounded-md border border-input bg-background px-2 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-ring"
+          value={reasonFilter}
+          onChange={e => onReasonChange(e.target.value)}
+        >
+          {REASON_OPTIONS.map(o => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        <Button size="sm" variant="secondary" className="h-8 text-xs" onClick={onSearch}>
+          Search
+        </Button>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-2">
+        {Object.entries(eventTypeMeta).map(([key, m]) => (
+          <span key={key} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${m.cls}`}>
+            <m.icon className="w-3 h-3" />
+            {m.label}
+          </span>
+        ))}
+      </div>
+
+      {/* Events table */}
+      <div className="rounded-2xl border border-border bg-white overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-16 text-gray-400 gap-2">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-sm">Loading audit events…</span>
+          </div>
+        ) : events.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-gray-400 gap-3">
+            <RotateCcw className="w-8 h-8 opacity-40" />
+            <div className="text-center">
+              <p className="text-sm font-medium">No token events found</p>
+              <p className="text-xs mt-1">
+                {search || reasonFilter
+                  ? "Try clearing the filters."
+                  : "Rotation events will appear here as users log in and refresh their sessions."}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border bg-gray-50/70">
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Event</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">User</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Auth Method</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Token Family</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Issued At</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Revoked At</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {events.map(ev => {
+                  const meta = eventTypeMeta[ev.eventType] ?? eventTypeMeta["other"]!;
+                  const Icon = meta.icon;
+                  const isBreach = ev.eventType === "breach" || ev.eventType === "reuse";
+                  const label = ev.userPhone ?? ev.userName ?? ev.userId;
+                  return (
+                    <tr
+                      key={ev.id}
+                      className={`hover:bg-gray-50/60 transition-colors ${isBreach ? "bg-red-50/30" : ""}`}
+                    >
+                      <td className="px-4 py-3">
+                        <Badge className={`${meta.cls} hover:${meta.cls} text-[10px] gap-1`}>
+                          <Icon className="w-3 h-3" />
+                          {meta.label}
+                        </Badge>
+                        {ev.revokedReason && (
+                          <div className="text-[10px] text-gray-400 mt-0.5 font-mono">{ev.revokedReason}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {/* Clickable user cell — opens timeline drawer */}
+                        <button
+                          onClick={() => openTimeline(ev.userId, label)}
+                          className="text-left group w-full"
+                          title="View session timeline"
+                        >
+                          {ev.userPhone ? (
+                            <div className="font-mono text-gray-700 group-hover:text-rose-600 transition-colors flex items-center gap-1">
+                              {ev.userPhone}
+                              <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-rose-500" />
+                            </div>
+                          ) : (
+                            <div className="text-gray-400 italic text-[10px]">deleted user</div>
+                          )}
+                          {ev.userName && (
+                            <div className="text-gray-500 text-[10px] mt-0.5">{ev.userName}</div>
+                          )}
+                          <div className="text-gray-300 text-[10px] font-mono truncate max-w-[120px] group-hover:text-rose-300 transition-colors">
+                            {ev.userId}
+                          </div>
+                        </button>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 capitalize">
+                        {ev.authMethod ? ev.authMethod.replace(/_/g, " ") : <span className="text-gray-300">—</span>}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-gray-500 text-[10px]">
+                        {ev.tokenFamilyId
+                          ? <span title={ev.tokenFamilyId}>{ev.tokenFamilyId.slice(0, 8)}…</span>
+                          : <span className="text-gray-300">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDate(ev.issuedAt)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {isBreach ? (
+                          <span className="text-red-600 font-semibold">{formatDate(ev.revokedAt)}</span>
+                        ) : (
+                          <span className="text-gray-500">{formatDate(ev.revokedAt)}</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50/50">
+                <span className="text-xs text-gray-500">
+                  Page {page + 1} of {totalPages} &middot; {total} total event{total !== 1 ? "s" : ""}
+                </span>
+                <div className="flex gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onPageChange(page - 1)}
+                    disabled={page === 0 || loading}
+                    className="h-7 px-2 text-xs"
+                  >
+                    ← Prev
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onPageChange(page + 1)}
+                    disabled={page >= totalPages - 1 || loading}
+                    className="h-7 px-2 text-xs"
+                  >
+                    Next →
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Info card */}
+      <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-rose-600" />
+          <h4 className="text-sm font-bold text-rose-800">Reuse & Breach Detection</h4>
+        </div>
+        <p className="text-xs text-rose-700 leading-relaxed">
+          If a <strong>Breach</strong>, <strong>Suspicious family reuse</strong> or <strong>Reuse detected</strong> event
+          appears, every token in that family was immediately invalidated — forcing the user to log in again. This
+          indicates a refresh token may have been stolen and replayed from a second device.
+        </p>
+        <div className="flex items-start gap-2 bg-rose-100/70 rounded-xl p-3 text-xs text-rose-700">
+          <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>
+            Click any user row to open their <strong>full session timeline</strong> — all token families,
+            rotation chains, and breach events in one view.
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   USER TIMELINE DRAWER
+   Slide-over panel showing a user's complete login →
+   rotation → revocation chain across all token families.
+═══════════════════════════════════════════════════════ */
+function UserTimelineDrawer({
+  userId,
+  userLabel,
+  onClose,
+}: {
+  userId: string;
+  userLabel: string;
+  onClose: () => void;
+}) {
+  const { toast } = useToast();
+  const [timeline, setTimeline]   = useState<UserTimeline | null>(null);
+  const [loading,  setLoading]    = useState(true);
+  const [error,    setError]      = useState<string | null>(null);
+
+  /* ── Force logout state machine: idle → confirming → loading → done ── */
+  type FLState = "idle" | "confirming" | "loading" | "done";
+  const [flState,        setFlState]        = useState<FLState>("idle");
+  const [flRevokedCount, setFlRevokedCount] = useState(0);
+
+  /* ── Per-family surgical revoke ── */
+  type FamRevokeState = "idle" | "confirming" | "loading";
+  const [familyRevoke, setFamilyRevoke] = useState<Record<string, FamRevokeState>>({});
+
+  const setFamState = (fid: string, state: FamRevokeState) =>
+    setFamilyRevoke(prev => ({ ...prev, [fid]: state }));
+
+  const revokeFamily = async (familyId: string) => {
+    setFamState(familyId, "loading");
+    try {
+      const resp = await fetchAdminAbsolute(
+        `/api/admin/security/revoke-family/${encodeURIComponent(userId)}/${encodeURIComponent(familyId)}`,
+        { method: "POST" },
+      );
+      toast({
+        title:       "Family revoked",
+        description: resp.message ?? `Session family terminated.`,
+      });
+      setFamilyRevoke(prev => { const next = { ...prev }; delete next[familyId]; return next; });
+      fetchTimeline();
+    } catch (err: unknown) {
+      setFamState(familyId, "idle");
+      toast({
+        title:       "Revoke failed",
+        description: (err as Error).message ?? "An error occurred",
+        variant:     "destructive",
+      });
+    }
+  };
+
+  /* ── CSV export ── */
+  const [csvLoading, setCsvLoading] = useState(false);
+
+  const downloadCsv = async () => {
+    if (csvLoading) return;
+    setCsvLoading(true);
+    try {
+      const res = await fetchAdminAbsoluteResponse(
+        `/api/admin/security/token-export/${encodeURIComponent(userId)}`,
+      );
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+
+      const blob     = await res.blob();
+      const url      = URL.createObjectURL(blob);
+      const dateStr  = new Date().toISOString().slice(0, 10);
+      const filename = `session-history-${userId.slice(0, 8)}-${dateStr}.csv`;
+
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({ title: "Export ready", description: `${filename} downloaded.` });
+    } catch (err: unknown) {
+      toast({
+        title:       "Export failed",
+        description: (err as Error).message ?? "Could not download CSV",
+        variant:     "destructive",
+      });
+    } finally {
+      setCsvLoading(false);
+    }
+  };
+
+  const fetchTimeline = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    fetchAdminAbsolute(`/api/admin/security/token-timeline/${encodeURIComponent(userId)}`)
+      .then((data: UserTimeline) => { setTimeline(data); setLoading(false); })
+      .catch((err: unknown) => { setError((err as Error).message ?? "Failed to load"); setLoading(false); });
+  }, [userId]);
+
+  useEffect(() => { fetchTimeline(); }, [fetchTimeline]);
+
+  const executeForceLogout = async () => {
+    setFlState("loading");
+    try {
+      const resp = await fetchAdminAbsolute(
+        `/api/admin/security/force-logout/${encodeURIComponent(userId)}`,
+        { method: "POST" },
+      );
+      setFlRevokedCount(resp.revokedCount ?? 0);
+      setFlState("done");
+      toast({
+        title: "Sessions revoked",
+        description: resp.message ?? `${resp.revokedCount} session(s) terminated.`,
+      });
+      /* Re-fetch timeline so stats + chain reflect the revocations */
+      fetchTimeline();
+    } catch (err: unknown) {
+      setFlState("idle");
+      toast({
+        title: "Force logout failed",
+        description: (err as Error).message ?? "An error occurred",
+        variant: "destructive",
+      });
+    }
+  };
+
+  /* Close on Escape key */
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  const formatDate = (iso: string | null) => {
+    if (!iso) return "—";
+    try {
+      return new Date(iso).toLocaleString("en-GB", {
+        day: "2-digit", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      });
+    } catch { return iso; }
+  };
+
+  const formatShort = (iso: string | null) => {
+    if (!iso) return "—";
+    try {
+      return new Date(iso).toLocaleString("en-GB", {
+        day: "2-digit", month: "short",
+        hour: "2-digit", minute: "2-digit",
+      });
+    } catch { return iso; }
+  };
+
+  const statusMeta: Record<string, { label: string; dot: string; textCls: string; icon: React.ElementType }> = {
+    active:   { label: "Active",   dot: "bg-emerald-400",  textCls: "text-emerald-700",  icon: Wifi },
+    rotation: { label: "Rotated",  dot: "bg-blue-400",     textCls: "text-blue-700",     icon: RotateCcw },
+    breach:   { label: "Breach",   dot: "bg-red-500",      textCls: "text-red-700",      icon: AlertTriangle },
+    reuse:    { label: "Reuse",    dot: "bg-orange-400",   textCls: "text-orange-700",   icon: AlertTriangle },
+    security: { label: "Security", dot: "bg-amber-400",    textCls: "text-amber-700",    icon: ShieldCheck },
+    expired:  { label: "Expired",  dot: "bg-gray-300",     textCls: "text-gray-500",     icon: Clock },
+    other:    { label: "Other",    dot: "bg-slate-300",    textCls: "text-slate-600",    icon: KeyRound },
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/30 z-40 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
+
+      {/* Drawer */}
+      <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white z-50 shadow-2xl flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 py-5 border-b border-border bg-gradient-to-r from-rose-50 to-white flex-shrink-0">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <Activity className="w-4 h-4 text-rose-600 flex-shrink-0" />
+              <h2 className="text-sm font-bold text-gray-900">Session Timeline</h2>
+            </div>
+            {timeline ? (
+              <>
+                <p className="text-sm font-mono text-gray-700 truncate">
+                  {timeline.userPhone ?? userLabel}
+                  {timeline.userName && (
+                    <span className="ml-1.5 font-sans text-gray-500 font-normal text-xs">({timeline.userName})</span>
+                  )}
+                </p>
+                <p className="text-[10px] font-mono text-gray-400 mt-0.5 truncate">{userId}</p>
+              </>
+            ) : (
+              <p className="text-sm font-mono text-gray-500 truncate">{userLabel || userId}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-1 ml-4 flex-shrink-0">
+            {/* Export CSV */}
+            <button
+              onClick={downloadCsv}
+              disabled={csvLoading || loading}
+              title="Export full session history as CSV"
+              className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {csvLoading
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <Download className="w-4 h-4" />
+              }
+            </button>
+            {/* Close */}
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Summary stats strip */}
+        {timeline && (
+          <div className="grid grid-cols-4 divide-x divide-border border-b border-border flex-shrink-0">
+            {[
+              { label: "Total tokens",    value: timeline.totalTokens, cls: "text-gray-700" },
+              { label: "Active now",      value: timeline.activeCount,  cls: timeline.activeCount > 0 ? "text-emerald-600" : "text-gray-400" },
+              { label: "Families",        value: timeline.familyCount,  cls: "text-blue-600" },
+              { label: "Breach events",   value: timeline.breachCount,  cls: timeline.breachCount > 0 ? "text-red-600 font-bold" : "text-gray-400" },
+            ].map(s => (
+              <div key={s.label} className="flex flex-col items-center justify-center py-3 px-2 text-center">
+                <span className={`text-lg font-bold ${s.cls}`}>{s.value}</span>
+                <span className="text-[10px] text-gray-400 mt-0.5 leading-tight">{s.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Body — scrollable */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {loading && (
+            <div className="flex items-center justify-center py-24 text-gray-400 gap-2">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-sm">Loading session timeline…</span>
+            </div>
+          )}
+
+          {error && (
+            <div className="flex flex-col items-center justify-center py-24 text-red-400 gap-3">
+              <XCircle className="w-8 h-8 opacity-60" />
+              <p className="text-sm text-center">{error}</p>
+              <Button size="sm" variant="outline" onClick={() => {
+                setError(null); setLoading(true);
+                fetchAdminAbsolute(`/api/admin/security/token-timeline/${encodeURIComponent(userId)}`)
+                  .then((data: UserTimeline) => { setTimeline(data); setLoading(false); })
+                  .catch((err: unknown) => { setError((err as Error).message); setLoading(false); });
+              }}>
+                Retry
+              </Button>
+            </div>
+          )}
+
+          {timeline && !loading && (
+            <div className="space-y-6">
+              {timeline.families.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-20 text-gray-400 gap-3">
+                  <Users className="w-8 h-8 opacity-40" />
+                  <p className="text-sm">No token records found for this user.</p>
+                </div>
+              )}
+
+              {timeline.families.map((family, fi) => {
+                const hasBreach = family.tokens.some(t => t.status === "breach" || t.status === "reuse");
+                return (
+                  <div
+                    key={family.familyId ?? `no-family-${fi}`}
+                    className={`rounded-2xl border overflow-hidden ${hasBreach ? "border-red-200 bg-red-50/30" : "border-border bg-white"}`}
+                  >
+                    {/* Family header */}
+                    <div className={`px-4 py-3 border-b flex items-center gap-2 ${hasBreach ? "border-red-200 bg-red-100/40" : "border-border bg-gray-50/60"}`}>
+                      {hasBreach
+                        ? <AlertTriangle className="w-3.5 h-3.5 text-red-600 flex-shrink-0" />
+                        : <Shield className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-gray-700">
+                            {family.familyId ? `Family ${String(fi + 1).padStart(2, "0")}` : "Legacy (no family)"}
+                          </span>
+                          {hasBreach && (
+                            <Badge className="bg-red-100 text-red-700 hover:bg-red-100 text-[10px]">
+                              Breach detected
+                            </Badge>
+                          )}
+                          <span className="text-[10px] text-gray-400 ml-auto whitespace-nowrap">
+                            Started {formatDate(family.startedAt)}
+                          </span>
+                        </div>
+                        {family.familyId && (
+                          <div className="text-[10px] font-mono text-gray-400 mt-0.5 truncate" title={family.familyId}>
+                            {family.familyId}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-[10px]">
+                          {family.tokens.length} token{family.tokens.length !== 1 ? "s" : ""}
+                        </Badge>
+
+                        {/* Surgical revoke — only for families with active tokens */}
+                        {family.familyId && family.tokens.some(t => t.status === "active") && (() => {
+                          const fid   = family.familyId!;
+                          const fst   = familyRevoke[fid] ?? "idle";
+
+                          if (fst === "loading") return (
+                            <span className="flex items-center gap-1 text-[10px] text-orange-600">
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            </span>
+                          );
+
+                          if (fst === "confirming") return (
+                            <span className="flex items-center gap-1">
+                              <button
+                                onClick={() => revokeFamily(fid)}
+                                className="text-[10px] font-semibold text-white bg-orange-500 hover:bg-orange-600 px-2 py-0.5 rounded-full transition-colors"
+                              >
+                                Confirm?
+                              </button>
+                              <button
+                                onClick={() => setFamState(fid, "idle")}
+                                className="text-[10px] text-gray-400 hover:text-gray-600 px-1"
+                              >
+                                ✕
+                              </button>
+                            </span>
+                          );
+
+                          return (
+                            <button
+                              onClick={() => setFamState(fid, "confirming")}
+                              className="text-[10px] font-medium text-orange-600 border border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-300 px-2 py-0.5 rounded-full transition-colors"
+                            >
+                              Revoke
+                            </button>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Token chain */}
+                    <div className="px-4 py-3 space-y-0">
+                      {family.tokens.map((tok, ti) => {
+                        const sm = statusMeta[tok.status] ?? statusMeta["other"]!;
+                        const TokIcon = sm.icon;
+                        const isLast = ti === family.tokens.length - 1;
+                        const isBreach = tok.status === "breach" || tok.status === "reuse";
+
+                        return (
+                          <div key={tok.id} className="flex gap-3 group">
+                            {/* Timeline spine */}
+                            <div className="flex flex-col items-center flex-shrink-0">
+                              <div className={`w-2.5 h-2.5 rounded-full mt-3.5 ring-2 ring-white ${sm.dot} ${isBreach ? "ring-red-200 animate-pulse" : ""}`} />
+                              {!isLast && <div className={`w-0.5 flex-1 mt-1 mb-0 min-h-[20px] ${hasBreach && !isLast ? "bg-red-200" : "bg-gray-200"}`} />}
+                            </div>
+
+                            {/* Token detail */}
+                            <div className={`flex-1 py-2.5 min-w-0 ${!isLast ? "border-b border-dashed border-gray-100" : ""}`}>
+                              <div className="flex items-start justify-between gap-2 flex-wrap">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className={`inline-flex items-center gap-1 text-[10px] font-semibold ${sm.textCls}`}>
+                                    <TokIcon className="w-3 h-3 flex-shrink-0" />
+                                    {sm.label}
+                                  </span>
+                                  {tok.authMethod && (
+                                    <span className="text-[10px] text-gray-500 capitalize bg-gray-100 px-1.5 py-0.5 rounded-full">
+                                      {tok.authMethod.replace(/_/g, " ")}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                                  {formatShort(tok.issuedAt)}
+                                </span>
+                              </div>
+
+                              {tok.revokedReason && (
+                                <div className={`text-[10px] font-mono mt-0.5 ${isBreach ? "text-red-500 font-semibold" : "text-gray-400"}`}>
+                                  {tok.revokedReason}
+                                </div>
+                              )}
+
+                              <div className="flex gap-3 mt-1 flex-wrap">
+                                {tok.usedAt && (
+                                  <span className="text-[10px] text-gray-400">
+                                    Used: {formatShort(tok.usedAt)}
+                                  </span>
+                                )}
+                                {tok.revokedAt ? (
+                                  <span className={`text-[10px] ${isBreach ? "text-red-500 font-medium" : "text-gray-400"}`}>
+                                    Revoked: {formatShort(tok.revokedAt)}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-gray-400">
+                                    Expires: {formatShort(tok.expiresAt)}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="text-[10px] font-mono text-gray-300 mt-0.5 truncate" title={tok.id}>
+                                {tok.id}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer — Force Logout action */}
+        <div className="px-6 py-4 border-t border-border bg-gray-50/60 flex-shrink-0 space-y-3">
+
+          {/* idle: show button only if there are active sessions */}
+          {flState === "idle" && (
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[10px] text-gray-400 leading-relaxed">
+                Each block is one login session. Tokens chain downward as sessions are refreshed.
+              </p>
+              {timeline && timeline.activeCount > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 whitespace-nowrap flex-shrink-0"
+                  onClick={() => setFlState("confirming")}
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  Force Logout
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* confirming: two-step confirmation */}
+          {flState === "confirming" && (
+            <div className="rounded-xl border border-red-200 bg-red-50/70 p-4 space-y-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-bold text-red-800">Confirm force logout</p>
+                  <p className="text-[11px] text-red-700 mt-0.5 leading-relaxed">
+                    This will immediately revoke all{" "}
+                    <strong>{timeline?.activeCount} active session(s)</strong> for this user. They
+                    will be signed out on every device and must log in again.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 h-8 text-xs"
+                  onClick={() => setFlState("idle")}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1 h-8 text-xs bg-red-600 hover:bg-red-700 text-white gap-1.5"
+                  onClick={executeForceLogout}
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  Yes, Force Logout
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* loading: revocation in progress */}
+          {flState === "loading" && (
+            <div className="flex items-center justify-center gap-2 py-2 text-red-600">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-xs font-medium">Revoking sessions…</span>
+            </div>
+          )}
+
+          {/* done: success state */}
+          {flState === "done" && (
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-emerald-700">
+                <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                <p className="text-xs font-medium">
+                  {flRevokedCount} session{flRevokedCount !== 1 ? "s" : ""} revoked. User must re-authenticate.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700 flex-shrink-0"
+                onClick={() => setFlState("idle")}
+              >
+                Dismiss
+              </Button>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </>
   );
 }

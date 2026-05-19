@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "./api";
 
 export interface PlatformConfig {
+  currencySymbol?: string;
+  currencyCode?: string;
   vendor: {
     commissionPct: number;
     settleDays: number;
@@ -12,12 +14,14 @@ export interface PlatformConfig {
     autoApprove: boolean;
     promoEnabled: boolean;
     withdrawalEnabled: boolean;
+    lowStockThreshold: number;
+    requireDocuments?: boolean;
   };
   platform: {
     appName: string;
     appTagline: string;
     appVersion: string;
-    appStatus: "active" | "maintenance";
+    appStatus: "active" | "maintenance" | "limited";
     supportPhone: string;
     supportEmail: string;
     supportHours: string;
@@ -27,6 +31,8 @@ export interface PlatformConfig {
     commissionPct: number;
     vendorCommissionPct: number;
     minOrderAmount: number;
+    currencySymbol?: string;
+    currencyCode?: string;
   };
   features: {
     mart: boolean;
@@ -92,6 +98,14 @@ export interface PlatformConfig {
     vendorSettleDays: number;
     referralBonus: number;
   };
+  uploads?: {
+    maxImageMb?: number;
+    maxVideoMb?: number;
+    maxVideoDurationSec?: number;
+    allowedImageFormats?: string[];
+    allowedVideoFormats?: string[];
+  };
+  cities?: string[];
   auth?: {
     phoneOtpEnabled?: boolean | { customer?: boolean; rider?: boolean; vendor?: boolean };
     emailOtpEnabled?: boolean | { customer?: boolean; rider?: boolean; vendor?: boolean };
@@ -100,8 +114,15 @@ export interface PlatformConfig {
     facebookEnabled?: boolean | { customer?: boolean; rider?: boolean; vendor?: boolean };
     magicLinkEnabled?: boolean | { customer?: boolean; rider?: boolean; vendor?: boolean };
     captchaEnabled?: boolean;
+    captchaSiteKey?: string;
     googleClientId?: string;
     facebookAppId?: string;
+    lockoutEnabled?: boolean;
+    lockoutMaxAttempts?: number;
+    lockoutDurationSec?: number;
+  };
+  wallet?: {
+    withdrawalProcessingDays?: number | null;
   };
   integrations?: {
     pushNotif: boolean;
@@ -121,11 +142,43 @@ export interface PlatformConfig {
     whatsapp: boolean;
     sms: boolean;
     email: boolean;
+    jazzcash?: { enabled?: boolean };
+    easypaisa?: { enabled?: boolean };
+  };
+  network?: {
+    apiTimeoutMs: number;
+    maxRetryAttempts: number;
+    retryBackoffBaseMs: number;
+    riderGpsQueueMax: number;
+    riderDismissedRequestTtlSec: number;
+  };
+  regional?: {
+    phoneFormat?: string;
+    phoneHint?: string;
+    timezone?: string;
+    currencySymbol?: string;
+    countryCode?: string;
+  };
+  branding?: {
+    colorMart?: string;
+    colorFood?: string;
+    colorRides?: string;
+    colorPharmacy?: string;
+    colorParcel?: string;
+    colorVan?: string;
+    mapCenterLat?: number;
+    mapCenterLng?: number;
+    mapCenterLabel?: string;
+  };
+  compliance?: {
+    termsVersion?: string;
+    privacyVersion?: string;
+    minAppVersion?: string;
   };
 }
 
 const DEFAULT_CONFIG: PlatformConfig = {
-  vendor: { commissionPct: 15, settleDays: 7, minPayout: 500, maxPayout: 50000, minOrder: 100, maxItems: 100, autoApprove: false, promoEnabled: true, withdrawalEnabled: true },
+  vendor: { commissionPct: 15, settleDays: 7, minPayout: 500, maxPayout: 50000, minOrder: 100, maxItems: 100, autoApprove: false, promoEnabled: true, withdrawalEnabled: true, lowStockThreshold: 10 },
   platform: {
     appName: "AJKMart",
     appTagline: "Your super app for everything",
@@ -165,13 +218,18 @@ export interface VendorAuthConfig {
   google: boolean;
   facebook: boolean;
   magicLink: boolean;
+  captchaEnabled: boolean;
+  captchaSiteKey: string;
+  lockoutEnabled: boolean;
+  lockoutMaxAttempts: number;
+  lockoutDurationSec: number;
   googleClientId?: string;
   facebookAppId?: string;
 }
 
 export function getVendorAuthConfig(config: PlatformConfig): VendorAuthConfig {
   const a = config.auth;
-  if (!a) return { phoneOtp: false, emailOtp: false, usernamePassword: false, google: false, facebook: false, magicLink: false };
+  if (!a) return { phoneOtp: false, emailOtp: false, usernamePassword: false, google: false, facebook: false, magicLink: false, captchaEnabled: false, captchaSiteKey: "", lockoutEnabled: false, lockoutMaxAttempts: 5, lockoutDurationSec: 300 };
   return {
     phoneOtp: resolveVendorFlag(a.phoneOtpEnabled),
     emailOtp: resolveVendorFlag(a.emailOtpEnabled),
@@ -179,6 +237,11 @@ export function getVendorAuthConfig(config: PlatformConfig): VendorAuthConfig {
     google: resolveVendorFlag(a.googleEnabled),
     facebook: resolveVendorFlag(a.facebookEnabled),
     magicLink: resolveVendorFlag(a.magicLinkEnabled),
+    captchaEnabled: a.captchaEnabled ?? false,
+    captchaSiteKey: a.captchaSiteKey ?? "",
+    lockoutEnabled: a.lockoutEnabled ?? false,
+    lockoutMaxAttempts: a.lockoutMaxAttempts ?? 5,
+    lockoutDurationSec: a.lockoutDurationSec ?? 300,
     googleClientId: a.googleClientId,
     facebookAppId: a.facebookAppId,
   };
@@ -188,9 +251,55 @@ export function usePlatformConfig() {
   const { data, isLoading } = useQuery<PlatformConfig>({
     queryKey: ["platform-config"],
     queryFn: () => apiFetch("/platform-config"),
-    staleTime: 60_000,
-    refetchInterval: 5 * 60_000,
+    staleTime: 25_000,
+    refetchInterval: 30_000,
     retry: 2,
   });
   return { config: data ?? DEFAULT_CONFIG, isLoading };
+}
+
+export function useCurrency() {
+  const { config } = usePlatformConfig();
+  return {
+    symbol: config.platform.currencySymbol ?? config.currencySymbol ?? config.regional?.currencySymbol ?? "Rs.",
+    code:   config.platform.currencyCode   ?? config.currencyCode   ?? "PKR",
+  };
+}
+
+export function buildPhoneValidator(config: PlatformConfig): (phone: string) => boolean {
+  const pattern = config.regional?.phoneFormat;
+  if (!pattern) return () => true;
+  try {
+    const re = new RegExp(pattern);
+    return (phone: string) => re.test(phone.trim());
+  } catch {
+    return () => true;
+  }
+}
+
+export function usePhoneValidator(): (phone: string) => boolean {
+  const { config } = usePlatformConfig();
+  return buildPhoneValidator(config);
+}
+
+export function useDateFormatter(): (date: string | Date | null | undefined, options?: Intl.DateTimeFormatOptions) => string {
+  const { config } = usePlatformConfig();
+  const tz = config.regional?.timezone;
+  return (date, options) => formatDateTz(date, options, tz);
+}
+
+export function formatDateTz(
+  date: string | Date | null | undefined,
+  options?: Intl.DateTimeFormatOptions,
+  timezone?: string,
+): string {
+  if (!date) return "";
+  try {
+    const tz = timezone || "Asia/Karachi";
+    return new Intl.DateTimeFormat("en-PK", { timeZone: tz, ...options }).format(
+      typeof date === "string" ? new Date(date) : date,
+    );
+  } catch {
+    return new Date(date as string).toLocaleString();
+  }
 }

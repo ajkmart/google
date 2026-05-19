@@ -1,15 +1,21 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { PageHeader, StatCardSkeleton } from "@/components/shared";
 import {
   ArrowDownToLine, CheckCircle, XCircle, RefreshCw, ChevronDown, ChevronUp, Clock,
+  Wallet, AlertTriangle, PartyPopper, Inbox, Download, ArrowUpDown, ArrowUp, ArrowDown,
 } from "lucide-react";
 import { useDepositRequests, useApproveDeposit, useRejectDeposit, useBulkApproveDeposits, useBulkRejectDeposits } from "@/hooks/use-admin";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { formatCurrency } from "@/lib/format";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { LastUpdated } from "@/components/ui/LastUpdated";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const fc = formatCurrency;
 const fd = (d: string | Date) =>
@@ -17,11 +23,44 @@ const fd = (d: string | Date) =>
 
 type StatusFilter = "all" | "pending" | "approved" | "rejected";
 
-function methodIcon(method: string | null) {
+interface DepositUser {
+  roles?: string[];
+  name?: string;
+  phone?: string;
+}
+
+interface Deposit {
+  id: string;
+  amount: string | number;
+  description: string;
+  status: "pending" | "approved" | "rejected";
+  paymentMethod?: string | null;
+  createdAt: string | Date;
+  user?: DepositUser;
+  txId?: string;
+  adminNote?: string;
+  refNo?: string;
+}
+
+interface BulkResult {
+  approved?: string[];
+  rejected?: string[];
+}
+
+function methodLabel(method: string | null) {
+  if (!method) return "Card";
+  const m = method.toLowerCase();
+  if (m.includes("jazzcash"))  return "JazzCash";
+  if (m.includes("easypaisa")) return "EasyPaisa";
+  if (m.includes("bank"))      return "Bank";
+  return "Card";
+}
+
+function methodIcon(method: string | null | undefined): string {
   if (!method) return "💳";
   const m = method.toLowerCase();
-  if (m.includes("jazzcash"))  return "🔴";
-  if (m.includes("easypaisa")) return "🟢";
+  if (m.includes("jazzcash"))  return "📱";
+  if (m.includes("easypaisa")) return "📲";
   if (m.includes("bank"))      return "🏦";
   return "💳";
 }
@@ -43,12 +82,6 @@ function parseDesc(desc: string) {
   };
 }
 
-function StatusBadge({ status }: { status: string }) {
-  if (status === "pending")  return <Badge className="bg-amber-100 text-amber-700 border-0 text-xs font-bold">⏳ Pending</Badge>;
-  if (status === "approved") return <Badge className="bg-green-100 text-green-700 border-0 text-xs font-bold">✅ Approved</Badge>;
-  if (status === "rejected") return <Badge className="bg-red-100 text-red-700 border-0 text-xs font-bold">❌ Rejected</Badge>;
-  return <Badge className="bg-gray-100 text-gray-600 border-0 text-xs">{status}</Badge>;
-}
 
 function roleColor(role: string) {
   if (role === "rider")    return "bg-green-100 text-green-700";
@@ -56,7 +89,7 @@ function roleColor(role: string) {
   return "bg-gray-100 text-gray-600";
 }
 
-function ApproveModal({ d, onClose }: { d: any; onClose: () => void }) {
+function ApproveModal({ d, onClose }: { d: Deposit; onClose: () => void }) {
   const [refNo, setRefNo] = useState("");
   const [note, setNote]   = useState("");
   const { toast } = useToast();
@@ -68,7 +101,7 @@ function ApproveModal({ d, onClose }: { d: any; onClose: () => void }) {
   const handleApprove = () => {
     approve.mutate({ id: d.id, refNo: refNo.trim() || undefined, note: note.trim() || undefined }, {
       onSuccess: () => {
-        toast({ title: "✅ Deposit Approved", description: `${fc(d.amount)} wallet mein credit ho gaya.` });
+        toast({ title: "Deposit approved", description: `${fc(Number(d.amount))} credited to wallet.` });
         onClose();
       },
       onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -76,24 +109,24 @@ function ApproveModal({ d, onClose }: { d: any; onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent className="p-0 max-w-md overflow-hidden rounded-2xl border-0 shadow-2xl">
         <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-5">
-          <h2 className="text-lg font-extrabold text-white">✅ Approve Deposit</h2>
-          <p className="text-green-200 text-sm mt-0.5">Wallet credit ho jayega aur user ko notification milegi</p>
+          <DialogTitle className="text-lg font-extrabold text-white">Approve Deposit</DialogTitle>
+          <p className="text-green-200 text-sm mt-0.5">Wallet will be credited and the user notified</p>
         </div>
         <div className="p-5 space-y-4">
           <div className="bg-green-50 rounded-xl p-4 space-y-2">
             <div className="flex justify-between text-sm"><span className="text-gray-500">User</span><span className="font-bold">{d.user?.name}</span></div>
             <div className="flex justify-between text-sm"><span className="text-gray-500">Phone</span><span className="font-bold">{d.user?.phone}</span></div>
-            <div className="flex justify-between text-sm"><span className="text-gray-500">Method</span><span className="font-bold">{methodIcon(d.paymentMethod)} {parsed.method}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-gray-500">Method</span><span className="font-bold">{methodLabel(d.paymentMethod ?? null)} · {parsed.method}</span></div>
             <div className="flex justify-between text-sm"><span className="text-gray-500">Transaction ID</span><span className="font-bold font-mono">{parsed.txId}</span></div>
             {parsed.sender !== "—" && (
               <div className="flex justify-between text-sm"><span className="text-gray-500">Sender Account</span><span className="font-bold">{parsed.sender}</span></div>
             )}
             <div className="flex justify-between items-center pt-1 border-t border-green-200">
               <span className="text-gray-600 font-semibold">Amount to Credit</span>
-              <span className="text-xl font-extrabold text-green-600">{fc(d.amount)}</span>
+              <span className="text-xl font-extrabold text-green-600">{fc(Number(d.amount))}</span>
             </div>
           </div>
 
@@ -111,19 +144,19 @@ function ApproveModal({ d, onClose }: { d: any; onClose: () => void }) {
           </div>
 
           <div className="flex gap-3 pt-1">
-            <Button variant="outline" className="flex-1" onClick={onClose}>{T("cancel")}</Button>
+            <Button autoFocus variant="outline" className="flex-1" onClick={onClose}>{T("cancel")}</Button>
             <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold"
               onClick={handleApprove} disabled={approve.isPending}>
-              {approve.isPending ? T("processing") : "✅ Approve & Credit"}
+              {approve.isPending ? T("processing") : "Approve & Credit"}
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
-function RejectModal({ d, onClose }: { d: any; onClose: () => void }) {
+function RejectModal({ d, onClose }: { d: Deposit; onClose: () => void }) {
   const [reason, setReason] = useState("");
   const { toast } = useToast();
   const { language } = useLanguage();
@@ -134,7 +167,7 @@ function RejectModal({ d, onClose }: { d: any; onClose: () => void }) {
     if (!reason.trim()) { toast({ title: "Reason required", variant: "destructive" }); return; }
     reject.mutate({ id: d.id, reason: reason.trim() }, {
       onSuccess: () => {
-        toast({ title: "Deposit Rejected", description: "User ko notification bhej di gayi." });
+        toast({ title: "Deposit rejected", description: "User has been notified." });
         onClose();
       },
       onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -142,19 +175,19 @@ function RejectModal({ d, onClose }: { d: any; onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent className="p-0 max-w-md overflow-hidden rounded-2xl border-0 shadow-2xl">
         <div className="bg-gradient-to-r from-red-600 to-rose-600 p-5">
-          <h2 className="text-lg font-extrabold text-white">❌ Reject Deposit</h2>
-          <p className="text-red-200 text-sm mt-0.5">Deposit reject ho jaye gi — wallet credit nahi hoga</p>
+          <DialogTitle className="text-lg font-extrabold text-white">Reject Deposit</DialogTitle>
+          <p className="text-red-200 text-sm mt-0.5">Deposit will be rejected — wallet will not be credited</p>
         </div>
         <div className="p-5 space-y-4">
           <div className="bg-red-50 rounded-xl p-4 space-y-2">
             <div className="flex justify-between text-sm"><span className="text-gray-500">User</span><span className="font-bold">{d.user?.name}</span></div>
-            <div className="flex justify-between text-sm"><span className="text-gray-500">Role</span><span className="font-bold capitalize">{d.user?.role}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-gray-500">Role</span><span className="font-bold capitalize">{d.user?.roles?.[0]}</span></div>
             <div className="flex justify-between items-center pt-1 border-t border-red-200">
               <span className="text-gray-600 font-semibold">Amount (NOT credited)</span>
-              <span className="text-xl font-extrabold text-red-600">{fc(d.amount)}</span>
+              <span className="text-xl font-extrabold text-red-600">{fc(Number(d.amount))}</span>
             </div>
           </div>
 
@@ -166,15 +199,15 @@ function RejectModal({ d, onClose }: { d: any; onClose: () => void }) {
           </div>
 
           <div className="flex gap-3 pt-1">
-            <Button variant="outline" className="flex-1" onClick={onClose}>{T("cancel")}</Button>
+            <Button autoFocus variant="outline" className="flex-1" onClick={onClose}>{T("cancel")}</Button>
             <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold"
               onClick={handleReject} disabled={reject.isPending}>
-              {reject.isPending ? T("processing") : "❌ Reject Request"}
+              {reject.isPending ? T("processing") : "Reject Request"}
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -186,11 +219,11 @@ function BulkApproveModal({ count, totalAmount, onConfirm, onClose, isPending }:
   const T = (key: TranslationKey) => tDual(key, language);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent className="p-0 max-w-md overflow-hidden rounded-2xl border-0 shadow-2xl">
         <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-5">
-          <h2 className="text-lg font-extrabold text-white">✅ Bulk Approve Deposits</h2>
-          <p className="text-green-200 text-sm mt-0.5">{count} deposits ko ek saath approve karein</p>
+          <DialogTitle className="text-lg font-extrabold text-white">Bulk Approve Deposits</DialogTitle>
+          <p className="text-green-200 text-sm mt-0.5">Approve {count} deposits at once</p>
         </div>
         <div className="p-5 space-y-4">
           <div className="bg-green-50 rounded-xl p-4 space-y-2">
@@ -209,15 +242,15 @@ function BulkApproveModal({ count, totalAmount, onConfirm, onClose, isPending }:
           </div>
 
           <div className="flex gap-3 pt-1">
-            <Button variant="outline" className="flex-1" onClick={onClose}>{T("cancel")}</Button>
+            <Button autoFocus variant="outline" className="flex-1" onClick={onClose}>{T("cancel")}</Button>
             <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold"
               onClick={() => onConfirm(refNo.trim() || undefined)} disabled={isPending}>
-              {isPending ? T("processing") : `✅ Approve ${count} Deposits`}
+              {isPending ? T("processing") : `Approve ${count} Deposits`}
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -230,11 +263,11 @@ function BulkRejectModal({ count, totalAmount, onConfirm, onClose, isPending }: 
   const T = (key: TranslationKey) => tDual(key, language);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent className="p-0 max-w-md overflow-hidden rounded-2xl border-0 shadow-2xl">
         <div className="bg-gradient-to-r from-red-600 to-rose-600 p-5">
-          <h2 className="text-lg font-extrabold text-white">❌ Bulk Reject Deposits</h2>
-          <p className="text-red-200 text-sm mt-0.5">{count} deposits ko ek saath reject karein</p>
+          <DialogTitle className="text-lg font-extrabold text-white">Bulk Reject Deposits</DialogTitle>
+          <p className="text-red-200 text-sm mt-0.5">Reject {count} deposits at once</p>
         </div>
         <div className="p-5 space-y-4">
           <div className="bg-red-50 rounded-xl p-4 space-y-2">
@@ -253,19 +286,29 @@ function BulkRejectModal({ count, totalAmount, onConfirm, onClose, isPending }: 
           </div>
 
           <div className="flex gap-3 pt-1">
-            <Button variant="outline" className="flex-1" onClick={onClose}>{T("cancel")}</Button>
+            <Button autoFocus variant="outline" className="flex-1" onClick={onClose}>{T("cancel")}</Button>
             <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold"
               onClick={() => {
                 if (!reason.trim()) { toast({ title: "Reason required", variant: "destructive" }); return; }
                 onConfirm(reason.trim());
               }} disabled={isPending}>
-              {isPending ? T("processing") : `❌ Reject ${count} Deposits`}
+              {isPending ? T("processing") : `Reject ${count} Deposits`}
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
+}
+
+function exportDepositsCSV(rows: Deposit[]) {
+  const header = "ID,User,Phone,Role,Method,Amount,Status,Date";
+  const lines = rows.map(d =>
+    [d.id, d.user?.name ?? "", d.user?.phone ?? "", d.user?.roles?.[0] ?? "", methodLabel(d.paymentMethod ?? null), Number(d.amount).toFixed(2), d.status, new Date(d.createdAt).toISOString().slice(0, 10)].join(",")
+  );
+  const blob = new Blob([[header, ...lines].join("\n")], { type: "text/csv" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `deposits-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 0);
 }
 
 export default function DepositRequests() {
@@ -281,10 +324,12 @@ export default function DepositRequests() {
   const T = (key: TranslationKey) => tDual(key, language);
   const { data, isLoading, refetch } = useDepositRequests();
   const { toast } = useToast();
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  useEffect(() => { if (data) setLastRefreshed(new Date()); }, [data]);
   const bulkApprove = useBulkApproveDeposits();
   const bulkReject = useBulkRejectDeposits();
 
-  const deposits: any[] = data?.deposits || [];
+  const deposits = useMemo<Deposit[]>(() => data?.deposits ?? [], [data?.deposits]);
 
   const duplicateTxIds = useMemo(() => {
     const seen = new Map<string, number>();
@@ -298,16 +343,41 @@ export default function DepositRequests() {
     return dups;
   }, [deposits]);
 
-  const filtered      = statusFilter === "all" ? deposits : deposits.filter(d => d.status === statusFilter);
+  type DepSortKey = "amount" | "createdAt" | "status";
+  const [depSortKey, setDepSortKey] = useState<DepSortKey>("createdAt");
+  const [depSortDir, setDepSortDir] = useState<"asc" | "desc">("desc");
+
+  const handleDepSort = (key: DepSortKey) => {
+    if (depSortKey === key) setDepSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setDepSortKey(key); setDepSortDir("asc"); }
+  };
+
+  function DepSortIcon({ col }: { col: DepSortKey }) {
+    if (depSortKey !== col) return <ArrowUpDown className="w-3 h-3 opacity-40 inline ml-0.5" />;
+    return depSortDir === "asc" ? <ArrowUp className="w-3 h-3 text-primary inline ml-0.5" /> : <ArrowDown className="w-3 h-3 text-primary inline ml-0.5" />;
+  }
+
+  const depStatusOrder: Record<string, number> = { pending: 0, approved: 1, rejected: 2 };
+
+  const rawFiltered = statusFilter === "all" ? deposits : deposits.filter(d => d.status === statusFilter);
+  const filtered = useMemo(() => {
+    return [...rawFiltered].sort((a, b) => {
+      const dir = depSortDir === "asc" ? 1 : -1;
+      if (depSortKey === "amount") return dir * (Number(a.amount) - Number(b.amount));
+      if (depSortKey === "status") return dir * ((depStatusOrder[a.status] ?? 9) - (depStatusOrder[b.status] ?? 9));
+      return dir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawFiltered, depSortKey, depSortDir]);
   const pendingCount  = deposits.filter(d => d.status === "pending").length;
-  const pendingAmt    = deposits.filter(d => d.status === "pending").reduce((s: number, d: any) => s + Number(d.amount), 0);
+  const pendingAmt    = deposits.filter(d => d.status === "pending").reduce((s: number, d: Deposit) => s + Number(d.amount), 0);
   const approvedCount = deposits.filter(d => d.status === "approved").length;
   const rejectedCount = deposits.filter(d => d.status === "rejected").length;
 
-  const pendingInFiltered = useMemo(() => filtered.filter((d: any) => d.status === "pending" && d.user?.role === "customer"), [filtered]);
-  const allPendingSelected = pendingInFiltered.length > 0 && pendingInFiltered.every((d: any) => selectedIds.has(d.id));
+  const pendingInFiltered = useMemo(() => filtered.filter((d: Deposit) => d.status === "pending" && d.user?.roles?.[0] === "customer"), [filtered]);
+  const allPendingSelected = pendingInFiltered.length > 0 && pendingInFiltered.every((d: Deposit) => selectedIds.has(d.id));
 
-  const selectedDeposits = useMemo(() => deposits.filter(d => selectedIds.has(d.id) && d.status === "pending" && d.user?.role === "customer"), [deposits, selectedIds]);
+  const selectedDeposits = useMemo(() => deposits.filter(d => selectedIds.has(d.id) && d.status === "pending" && d.user?.roles?.[0] === "customer"), [deposits, selectedIds]);
   const selectedTotal = useMemo(() => selectedDeposits.reduce((s, d) => s + Number(d.amount), 0), [selectedDeposits]);
 
   const toggleSelect = (id: string) => {
@@ -322,39 +392,39 @@ export default function DepositRequests() {
     if (allPendingSelected) {
       setSelectedIds(prev => {
         const next = new Set(prev);
-        pendingInFiltered.forEach((d: any) => next.delete(d.id));
+        pendingInFiltered.forEach((d: Deposit) => next.delete(d.id));
         return next;
       });
     } else {
       setSelectedIds(prev => {
         const next = new Set(prev);
-        pendingInFiltered.forEach((d: any) => next.add(d.id));
+        pendingInFiltered.forEach((d: Deposit) => next.add(d.id));
         return next;
       });
     }
   };
 
   const handleBulkApprove = (refNo?: string) => {
-    const ids = Array.from(selectedIds).filter(id => deposits.find(d => d.id === id && d.status === "pending" && d.user?.role === "customer"));
+    const ids = Array.from(selectedIds).filter(id => deposits.find(d => d.id === id && d.status === "pending" && d.user?.roles?.[0] === "customer"));
     bulkApprove.mutate({ ids, refNo }, {
-      onSuccess: (data: any) => {
-        toast({ title: `✅ ${data.approved} deposits approved` });
+      onSuccess: (data: BulkResult) => {
+        toast({ title: `${data.approved?.length ?? 0} deposits approved` });
         setSelectedIds(new Set());
         setShowBulkApprove(false);
       },
-      onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+      onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
     });
   };
 
   const handleBulkReject = (reason: string) => {
-    const ids = Array.from(selectedIds).filter(id => deposits.find(d => d.id === id && d.status === "pending" && d.user?.role === "customer"));
+    const ids = Array.from(selectedIds).filter(id => deposits.find(d => d.id === id && d.status === "pending" && d.user?.roles?.[0] === "customer"));
     bulkReject.mutate({ ids, reason }, {
-      onSuccess: (data: any) => {
-        toast({ title: `❌ ${data.rejected} deposits rejected` });
+      onSuccess: (data: BulkResult) => {
+        toast({ title: `${data.rejected?.length ?? 0} deposits rejected` });
         setSelectedIds(new Set());
         setShowBulkReject(false);
       },
-      onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+      onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
     });
   };
 
@@ -366,33 +436,64 @@ export default function DepositRequests() {
   ];
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Deposit Requests page crashed. Please reload.</div>}>
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5 pb-28">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Deposit Requests</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Approve or reject rider & customer wallet deposit requests</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} className="self-start sm:self-auto">
-          <RefreshCw className="w-4 h-4 mr-2"/> {T("refresh")}
-        </Button>
-      </div>
+      <PageHeader
+        icon={ArrowDownToLine}
+        title="Deposit Requests"
+        subtitle="Approve or reject rider & customer wallet deposit requests"
+        iconBgClass="bg-green-100"
+        iconColorClass="text-green-600"
+        actions={
+          <div className="flex items-center gap-2">
+            <LastUpdated dataUpdatedAt={lastRefreshed?.getTime() ?? 0} />
+            <Button variant="outline" size="sm" onClick={() => exportDepositsCSV(filtered)} className="h-9 rounded-xl gap-2">
+              <Download className="w-4 h-4" /> CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => refetch()} className="h-9 rounded-xl gap-2">
+              <RefreshCw className="w-4 h-4"/> {T("refresh")}
+            </Button>
+          </div>
+        }
+      />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: "Pending Requests", value: String(pendingCount), icon: "⏳", color: "text-amber-600", bg: "bg-amber-50" },
-          { label: "Pending Amount",   value: fc(pendingAmt),       icon: "💰", color: "text-blue-600",  bg: "bg-blue-50"  },
-          { label: "Approved",         value: String(approvedCount),icon: "✅", color: "text-green-600", bg: "bg-green-50" },
-          { label: "Rejected",         value: String(rejectedCount),icon: "❌", color: "text-gray-600",  bg: "bg-gray-50"  },
-        ].map(c => (
-          <Card key={c.label} className={`border-0 shadow-sm ${c.bg}`}>
-            <CardContent className="p-4">
-              <span className="text-2xl">{c.icon}</span>
-              <p className={`text-lg font-extrabold ${c.color} mt-1`}>{c.value}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{c.label}</p>
-            </CardContent>
-          </Card>
+        {isLoading ? (
+          [1,2,3,4].map(i => <StatCardSkeleton key={i} />)
+        ) : (
+          [
+            { label: "Pending Requests", value: String(pendingCount), Icon: Clock,        color: "text-amber-600", bg: "bg-amber-50" },
+            { label: "Pending Amount",   value: fc(pendingAmt),       Icon: Wallet,       color: "text-blue-600",  bg: "bg-blue-50"  },
+            { label: "Approved",         value: String(approvedCount),Icon: CheckCircle,  color: "text-green-600", bg: "bg-green-50" },
+            { label: "Rejected",         value: String(rejectedCount),Icon: XCircle,      color: "text-gray-600",  bg: "bg-gray-50"  },
+          ].map(c => (
+            <Card key={c.label} className={`border-0 shadow-sm ${c.bg}`}>
+              <CardContent className="p-4">
+                <c.Icon className={`w-6 h-6 ${c.color}`} />
+                <p className={`text-lg font-extrabold ${c.color} mt-1`}>{c.value}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{c.label}</p>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* Sort Controls */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-xs text-muted-foreground font-medium mr-1">Sort:</span>
+        {([
+          { key: "createdAt" as const, label: "Date" },
+          { key: "amount" as const,    label: "Amount" },
+          { key: "status" as const,    label: "Status" },
+        ] as const).map(opt => (
+          <button
+            key={opt.key}
+            onClick={() => handleDepSort(opt.key)}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${depSortKey === opt.key ? "bg-primary text-primary-foreground border-primary" : "bg-muted/30 border-border/50 text-muted-foreground hover:border-primary/40"}`}
+          >
+            {opt.label}<DepSortIcon col={opt.key} />
+          </button>
         ))}
       </div>
 
@@ -432,10 +533,10 @@ export default function DepositRequests() {
       {/* Pending banner */}
       {pendingCount > 0 && statusFilter !== "approved" && statusFilter !== "rejected" && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
-          <span className="text-xl flex-shrink-0">⚠️</span>
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-bold text-amber-800">Manual Verification Required</p>
-            <p className="text-xs text-amber-700 mt-0.5">{pendingCount} deposit request{pendingCount > 1 ? "s" : ""} pending. Transaction IDs verify karein aur approve ya reject karein.</p>
+            <p className="text-xs text-amber-700 mt-0.5">{pendingCount} deposit request{pendingCount > 1 ? "s" : ""} pending. Verify the transaction IDs and approve or reject.</p>
           </div>
         </div>
       )}
@@ -446,18 +547,20 @@ export default function DepositRequests() {
       ) : filtered.length === 0 ? (
         <Card className="border-0 shadow-sm">
           <CardContent className="p-12 text-center">
-            <p className="text-4xl mb-3">{statusFilter === "pending" ? "🎉" : "📋"}</p>
+            {statusFilter === "pending"
+              ? <PartyPopper className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
+              : <Inbox className="w-10 h-10 text-gray-400 mx-auto mb-3" />}
             <p className="font-bold text-gray-700">{statusFilter === "pending" ? "No pending requests!" : `No ${statusFilter} requests`}</p>
             <p className="text-sm text-gray-400 mt-1">{statusFilter === "pending" ? "All deposit requests have been processed." : "Nothing to show."}</p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
-          {filtered.map((d: any) => {
+          {filtered.map((d: Deposit) => {
             const parsed = parseDesc(d.description || "");
             const expanded = expandedId === d.id;
             const isPending = d.status === "pending";
-            const isCustomer = d.user?.role === "customer";
+            const isCustomer = d.user?.roles?.[0] === "customer";
             const isBulkSelectable = isPending && isCustomer;
             const isSelected = selectedIds.has(d.id);
             return (
@@ -484,26 +587,37 @@ export default function DepositRequests() {
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-bold text-gray-900 text-sm">{d.user?.name || "Unknown"}</p>
-                              {d.user?.role && (
-                                <Badge className={`text-[10px] font-bold ${roleColor(d.user.role)}`} variant="outline">
-                                  {d.user.role === "customer" ? "Customer" : "Rider"}
+                              {d.user?.roles?.[0] && (
+                                <Badge className={`text-[10px] font-bold ${roleColor(d.user.roles[0])}`} variant="outline">
+                                  {d.user.roles[0] === "customer" ? "Customer" : "Rider"}
                                 </Badge>
                               )}
                               <StatusBadge status={d.status}/>
+                              {isPending && (
+                                <Badge className="text-[10px] font-bold bg-orange-50 text-orange-700 border-orange-300 px-1.5 gap-0.5" variant="outline">
+                                  ⏳ Awaiting Manual Review
+                                </Badge>
+                              )}
                               {duplicateTxIds.has(parseDesc(d.description || "").txId) && (
                                 <Badge className="text-[10px] font-bold bg-red-100 text-red-700 border-red-300 px-1.5" variant="outline">
-                                  ⚠ Duplicate TxID
+                                  Duplicate TxID
                                 </Badge>
                               )}
                             </div>
                             <p className="text-xs text-gray-500 mt-0.5">
-                              {methodIcon(d.paymentMethod)} {parsed.method} · {d.user?.phone} · {fd(d.createdAt)}
+                              {methodIcon(d.paymentMethod ?? null)} {parsed.method} · {d.user?.phone} · {fd(d.createdAt)}
                             </p>
+                            {parsed.txId !== "—" && (
+                              <p className="text-xs font-mono font-bold text-gray-700 mt-0.5 flex items-center gap-1">
+                                <span className="text-[10px] font-sans font-semibold text-gray-400 uppercase tracking-wide">TxID:</span>
+                                {parsed.txId}
+                              </p>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <p className={`text-lg font-extrabold ${d.status === "approved" ? "text-green-600" : d.status === "rejected" ? "text-gray-400 line-through" : "text-blue-600"}`}>
-                            {fc(d.amount)}
+                            {fc(Number(d.amount))}
                           </p>
                           {expanded ? <ChevronUp className="w-4 h-4 text-gray-400"/> : <ChevronDown className="w-4 h-4 text-gray-400"/>}
                         </div>
@@ -515,10 +629,10 @@ export default function DepositRequests() {
                     <div className="border-t border-gray-100 px-4 py-4 bg-gray-50 space-y-4">
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         {[
-                          { label: "Payment Method", value: `${methodIcon(d.paymentMethod)} ${parsed.method}` },
+                          { label: "Payment Method", value: `${methodIcon(d.paymentMethod ?? null)} ${parsed.method}` },
                           { label: "Transaction ID",  value: parsed.txId },
                           { label: "Sender Account",  value: parsed.sender },
-                          { label: "Amount",          value: fc(d.amount) },
+                          { label: "Amount",          value: fc(Number(d.amount)) },
                           { label: "Status",          value: d.status.toUpperCase() },
                           ...(d.refNo ? [{ label: "Admin Ref", value: d.refNo }] : []),
                         ].map(f => (
@@ -552,7 +666,7 @@ export default function DepositRequests() {
                         <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2">
                           <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0"/>
                           <p className="text-xs text-green-700 font-medium">
-                            {fc(d.amount)} {d.user?.name}'s wallet mein credited.
+                            {fc(Number(d.amount))} {d.user?.name}'s wallet mein credited.
                             {d.refNo && <> Reference: <strong>{d.refNo}</strong></>}
                           </p>
                         </div>
@@ -622,5 +736,6 @@ export default function DepositRequests() {
         />
       )}
     </div>
+    </ErrorBoundary>
   );
 }

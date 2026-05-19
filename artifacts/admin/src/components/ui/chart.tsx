@@ -2,6 +2,7 @@ import * as React from "react"
 import * as RechartsPrimitive from "recharts"
 
 import { cn } from "@/lib/utils"
+import { isSafeCssColor, isSafeCssIdent } from "@/lib/escapeHtml"
 
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const
@@ -74,6 +75,10 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null
   }
 
+  // Both `key` (CSS custom-property name) and `color` (CSS value) flow
+  // into a `<style dangerouslySetInnerHTML>` block, so they are validated
+  // against strict allow-lists. Anything that does not match the safe
+  // patterns is dropped — defends against XSS via crafted chart configs.
   return (
     <style
       dangerouslySetInnerHTML={{
@@ -86,8 +91,10 @@ ${colorConfig
     const color =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
       itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
+    if (!color || !isSafeCssIdent(key) || !isSafeCssColor(color)) return null
+    return `  --color-${key}: ${color};`
   })
+  .filter((line): line is string => line !== null)
   .join("\n")}
 }
 `

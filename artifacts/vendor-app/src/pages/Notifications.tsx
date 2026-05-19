@@ -5,6 +5,7 @@ import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PageHeader } from "../components/PageHeader";
 import { fd, CARD, CARD_HEADER, errMsg } from "../lib/ui";
+import { ErrorState } from "../components/ui/ErrorState";
 
 interface Notification {
   id: string;
@@ -30,7 +31,7 @@ export default function Notifications() {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["vendor-notifications"],
     queryFn: () => api.getNotifications(),
     refetchInterval: 30000,
@@ -134,6 +135,15 @@ export default function Notifications() {
         {isLoading ? (
           <div className="space-y-3">
             {[1,2,3,4,5].map(i => <div key={i} className="h-20 skeleton rounded-2xl"/>)}
+          </div>
+        ) : isError ? (
+          <div className={CARD}>
+            <ErrorState
+              title={T("somethingWentWrong")}
+              subtitle={T("checkInternetRetry")}
+              onRetry={() => refetch()}
+              retryLabel={T("retry")}
+            />
           </div>
         ) : notifs.length === 0 ? (
           <div className={`${CARD} px-4 py-20 text-center`}>

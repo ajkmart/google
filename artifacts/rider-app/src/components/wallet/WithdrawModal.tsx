@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { useAuth } from "../../lib/auth";
+import { formatCurrency as _sharedFcW2 } from "@workspace/api-zod";
+import { useAuth } from "../../lib/rider-auth";
 import { api, apiFetch } from "../../lib/api";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[WithdrawModal]");
+import { checkSufficientBalance, checkDailyLimits } from "../../lib/wallet/validation";
 import { usePlatformConfig } from "../../lib/useConfig";
 import { useLanguage } from "../../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
@@ -42,7 +46,27 @@ export default function WithdrawModal({
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const currency = config.platform.currencySymbol ?? "Rs.";
-  const fc = (n: number) => `${currency} ${Math.round(n).toLocaleString()}`;
+  const fc = (n: string | number | null | undefined) => _sharedFcW2(n != null ? String(n) : (n as null | undefined), currency);
+
+  const [todayWithdrawn, setTodayWithdrawn]         = useState(0);
+  const [todayWithdrawCount, setTodayWithdrawCount] = useState(0);
+
+  /* Fetch today's withdrawal totals on mount so checkDailyLimits has real data.
+     Withdrawals are stored as type="debit" with description starting with "Withdrawal".
+     Filtering by type="withdrawal" would always return 0 since that type does not exist. */
+  useEffect(() => {
+    api.getWalletPage({ limit: 200 }).then(({ items }) => {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayWithdrawals = items.filter(
+        it =>
+          it.type === "debit" &&
+          it.description?.startsWith("Withdrawal") &&
+          (it.createdAt ?? "").startsWith(todayStr),
+      );
+      setTodayWithdrawn(todayWithdrawals.reduce((s, it) => s + Number(it.amount), 0));
+      setTodayWithdrawCount(todayWithdrawals.length);
+    }).catch((err) => { log.warn("Failed to load today's withdrawal totals:", err); });
+  }, []);
 
   const [amount, setAmount]         = useState("");
   const [selectedMethod, setMethod] = useState<PayMethod | null>(null);
@@ -80,16 +104,57 @@ export default function WithdrawModal({
         setMethods(enabled);
       }
     }).catch((err: Error) => {
-      console.warn("[WithdrawModal] Failed to load payment methods:", err.message);
+      log.warn("Failed to load payment methods:", err.message);
       setMethodsError(true);
     }).finally(() => setLoadingMethods(false));
   }, []);
 
   const mut = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const m = selectedMethod!;
+      /* W1: Re-fetch wallet + min-balance immediately before the request leaves
+         the device. Another tab (or a manual server-side adjustment) may have
+         changed the balance between modal open and submit; relying on the
+         captured `balance`/`minPayout` props lets the rider submit a request
+         the server will reject. We bail with a translated error rather than
+         showing the raw 4xx, and recompute the cap consistently with the
+         modal's existing `amt > balance` guard. */
+      const amt = Number(amount);
+      /* Sentinel class so we can reliably distinguish our own validation
+         errors from network/5xx failures inside the catch block below,
+         without depending on translated message content (which breaks in
+         non-English locales and is otherwise fragile). */
+      class PreflightValidationError extends Error {
+        constructor(msg: string) { super(msg); this.name = "PreflightValidationError"; }
+      }
+      try {
+        const [wallet, minBal] = await Promise.all([api.getWallet(), api.getMinBalance()]);
+        const w = wallet as { balance?: number | string } | null | undefined;
+        const liveBalance = Number(w?.balance ?? balance);
+        const liveMin = Number(minBal ?? minPayout);
+        if (amt < liveMin) {
+          throw new PreflightValidationError(`${T("minWithdrawalLabel")}: ${fc(liveMin)}`);
+        }
+        if (amt > liveBalance - liveMin) {
+          /* Reject if the request would drop us below the platform min-balance. */
+          throw new PreflightValidationError(T("enterValidAmount"));
+        }
+        if (amt > liveBalance) {
+          throw new PreflightValidationError(T("enterValidAmount"));
+        }
+      } catch (preflightErr) {
+        /* If the preflight fetch itself fails (offline, 5xx) we let the
+           withdraw submit go through — the server is the source of truth and
+           refusing here would block legitimate withdrawals on flaky networks.
+           But if the preflight surfaced a real validation error (PreflightValidationError
+           thrown above), bubble it up to onError. */
+        if (preflightErr instanceof PreflightValidationError) {
+          throw preflightErr;
+        }
+        /* Otherwise swallow the preflight failure and proceed. */
+      }
       return api.withdrawWallet({
-        amount: Number(amount),
+        amount: amt,
         bankName: m.id === "bank" ? bankName : m.id,
         accountNumber: acNo, accountTitle: acName,
         paymentMethod: m.id, note,
@@ -104,7 +169,15 @@ export default function WithdrawModal({
     if (!amount || isNaN(amt) || amt <= 0) { setErr(T("enterValidAmount")); return; }
     if (amt < minPayout) { setErr(`${T("minWithdrawalLabel")}: ${fc(minPayout)}`); return; }
     if (amt > maxPayout) { setErr(`${T("maxWithdrawalLabel")}: ${fc(maxPayout)}`); return; }
-    if (amt > balance)   { setErr(T("enterValidAmount")); return; }
+    const balanceCheck = checkSufficientBalance(balance, amt);
+    if (!balanceCheck.valid) { setErr(T("enterValidAmount")); return; }
+    const walletCfg = config?.wallet ?? {};
+    const maxDailyWithdrawal = typeof walletCfg.maxDailyWithdrawal === "number" ? walletCfg.maxDailyWithdrawal : Infinity;
+    const maxDailyTransactionCount = typeof walletCfg.maxDailyTransactionCount === "number" ? walletCfg.maxDailyTransactionCount : Infinity;
+    if (isFinite(maxDailyWithdrawal) || isFinite(maxDailyTransactionCount)) {
+      const limitsCheck = checkDailyLimits(todayWithdrawn, todayWithdrawCount, amt, { maxDailyWithdrawal, maxDailyTransactionCount });
+      if (!limitsCheck.valid) { setErr(limitsCheck.reason); return; }
+    }
     setErr(""); setStep("method");
   };
 
@@ -345,7 +418,32 @@ export default function WithdrawModal({
               </div>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{T("quickSelect")}</p>
               <div className="flex gap-2 mb-5 flex-wrap">
-                {[500, 1000, 2000, 5000, 10000].filter(v => v <= balance && v >= minPayout).map(v => (
+                {(() => {
+                  const cap = Math.min(maxPayout, balance);
+                  if (cap < minPayout) return [];
+                  const range = cap - minPayout;
+                  const step = range > 20000 ? 1000 : 500;
+                  const seen = new Set<number>();
+                  const amounts: number[] = [];
+                  // Sample 4 evenly-spaced points across the range
+                  for (let i = 1; i <= 4; i++) {
+                    const raw = minPayout + (range * i) / 4;
+                    const rounded = Math.round(raw / step) * step;
+                    if (rounded >= minPayout && rounded <= cap && !seen.has(rounded)) {
+                      seen.add(rounded);
+                      amounts.push(rounded);
+                    }
+                  }
+                  // Ensure at least 2 useful options in very narrow ranges
+                  if (amounts.length < 2) {
+                    const anchor = Math.ceil(minPayout / step) * step;
+                    if (anchor >= minPayout && anchor <= cap && !seen.has(anchor)) {
+                      amounts.unshift(anchor);
+                      seen.add(anchor);
+                    }
+                  }
+                  return amounts;
+                })().map(v => (
                   <button key={v} onClick={() => { setAmount(String(v)); setErr(""); }}
                     className={`px-3 py-1.5 rounded-xl text-sm font-bold border transition-all ${amount === String(v) ? "bg-green-600 text-white border-green-600" : "bg-gray-50 text-gray-600 border-gray-200"}`}>
                     {fc(v)}

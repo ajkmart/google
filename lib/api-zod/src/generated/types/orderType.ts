@@ -11,4 +11,9 @@ export type OrderType = (typeof OrderType)[keyof typeof OrderType];
 export const OrderType = {
   mart: "mart",
   food: "food",
+  rides: "rides",
+  pharmacy: "pharmacy",
+  parcel: "parcel",
+  van: "van",
+  school: "school",
 } as const;

@@ -90,9 +90,10 @@ export async function runSqlMigrations() {
           } catch (err: any) {
             // PG error codes: 42P07 = duplicate_table, 42710 = duplicate_object,
             // 42701 = duplicate_column, 42P16 = invalid_table_definition (idx already exists)
-            const alreadyExists = ["42P07", "42710", "42701", "42P16", "42P11"].includes(err.code);
+            // 42703 = undefined_column (index on missing column — skip gracefully)
+            const alreadyExists = ["42P07", "42710", "42701", "42P16", "42P11", "42703"].includes(err.code);
             if (alreadyExists) {
-              logger.warn({ file, code: err.code, msg: err.message }, "[migrations:drizzle] Skipping statement — objects already exist");
+              logger.warn({ file, code: err.code, msg: err.message }, "[migrations:drizzle] Skipping statement — objects already exist or column mismatch");
             } else {
               logger.error({ file, stmt: normalised.slice(0, 120), err }, "[migrations:drizzle] FAILED applying statement");
               hadFatal = true;
@@ -135,9 +136,9 @@ export async function runSqlMigrations() {
         } catch (err: any) {
           // PG error codes: 42P07 = duplicate_table, 42710 = duplicate_object,
           // 42701 = duplicate_column, 42P16 = invalid_table_definition (idx already exists)
-          const alreadyExists = ["42P07", "42710", "42701", "42P16", "42P11"].includes(err.code);
+          const alreadyExists = ["42P07", "42710", "42701", "42P16", "42P11", "42703"].includes(err.code);
           if (alreadyExists) {
-            logger.warn({ file, code: err.code, msg: err.message }, "[migrations] Skipping — objects already exist (marking as applied)");
+            logger.warn({ file, code: err.code, msg: err.message }, "[migrations] Skipping — objects already exist or column mismatch (marking as applied)");
           } else {
             logger.error({ file, err }, "[migrations] FAILED applying migration");
             throw err;

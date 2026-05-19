@@ -1,3 +1,6 @@
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[push]");
+
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
 export async function registerPush(): Promise<void> {
@@ -9,28 +12,53 @@ export async function registerPush(): Promise<void> {
 
     const vapidRes = await fetch(`${BASE}/api/push/vapid-key`);
     if (!vapidRes.ok) return;
-    const { publicKey } = await vapidRes.json() as { publicKey: string };
+    const vj = await vapidRes.json();
+    const { publicKey } = (vj?.success === true && "data" in vj ? vj.data : vj) as { publicKey: string };
     if (!publicKey) return;
+
+    const decoded = urlBase64ToUint8Array(publicKey);
+    if (!decoded) return;
 
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey),
+      applicationServerKey: decoded,
     });
 
-    const adminToken = localStorage.getItem("ajkmart_admin_token") ?? "";
-    await fetch(`${BASE}/api/push/subscribe`, {
+    const { fetchAdminAbsolute } = await import("./adminFetcher");
+    await fetchAdminAbsolute(`${BASE}/api/push/subscribe`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
       body: JSON.stringify({ endpoint: sub.endpoint, p256dh: sub.toJSON().keys?.p256dh, auth: sub.toJSON().keys?.auth, role: "admin" }),
     });
   } catch (e) {
-    console.warn("[push] registration failed:", e);
+    log.warn("registration failed:", e);
   }
 }
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+/**
+ * Decode a URL-safe base64 VAPID key into a Uint8Array. Validates the
+ * input character set and decoder output before returning, so a malformed
+ * key (wrong characters, atob failure) returns null instead of throwing
+ * deep inside `pushManager.subscribe`.
+ */
+const URL_SAFE_B64 = /^[A-Za-z0-9_\-]+=*$/;
+function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> | null {
+  if (typeof base64String !== "string" || base64String.length === 0) return null;
+  if (!URL_SAFE_B64.test(base64String)) {
+    log.warn("vapid key has invalid characters");
+    return null;
+  }
   const padding = "=".repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = window.atob(base64);
-  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+  let rawData: string;
+  try {
+    rawData = window.atob(base64);
+  } catch (err) {
+    log.warn("vapid key atob failed:", err);
+    return null;
+  }
+  const output = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) {
+    output[i] = rawData.charCodeAt(i);
+  }
+  return output;
 }

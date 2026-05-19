@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { PageHeader } from "@/components/shared";
 import { usePharmacyOrders, useUpdatePharmacyOrder } from "@/hooks/use-admin";
 import { formatCurrency, formatDate, getStatusColor } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
-import { Card } from "@/components/ui/card";
+import { useErrorHandler } from "@/hooks/useErrorHandler";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,6 +13,7 @@ import { Pill, Search, FileText, User, ShoppingCart, Phone, TrendingUp, CheckCir
 import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const STATUSES = ["pending", "confirmed", "preparing", "out_for_delivery", "delivered", "cancelled"];
 
@@ -47,13 +50,18 @@ export default function Pharmacy() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelling, setCancelling]               = useState(false);
 
+  const { onError: onUpdateStatusError } = useErrorHandler({ title: "Update failed" });
+  const { onError: onCancelOrderError } = useErrorHandler({ title: "Cancel failed", onError: () => setCancelling(false) });
   const handleUpdateStatus = (id: string, status: string, currentStatus?: string) => {
     if (currentStatus && !ALLOWED_TRANSITIONS[currentStatus]?.includes(status)) {
       toast({ title: "Invalid transition", description: `Can't move ${STATUS_LABELS[currentStatus]} → ${STATUS_LABELS[status]}`, variant: "destructive" }); return;
     }
     updateMutation.mutate({ id, status }, {
       onSuccess: () => toast({ title: `Status → ${STATUS_LABELS[status]} ✅` }),
-      onError: err => toast({ title: "Update failed", description: err.message, variant: "destructive" }),
+      onError: (err: any) => {
+        onUpdateStatusError(err);
+        toast({ title: "Update failed", description: err.message, variant: "destructive" });
+      },
     });
   };
 
@@ -67,8 +75,9 @@ export default function Pharmacy() {
         setCancelling(false);
         toast({ title: "Order cancelled ✅" + (selectedOrder.paymentMethod === "wallet" ? " — Wallet refund issued" : "") });
       },
-      onError: err => {
+      onError: (err: any) => {
         setCancelling(false);
+        onCancelOrderError(err);
         toast({ title: "Cancel failed", description: err.message, variant: "destructive" });
       },
     });
@@ -106,24 +115,22 @@ export default function Pharmacy() {
   }, [lastRefreshed]);
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Pharmacy page crashed. Please reload.</div>}>
     <div className="space-y-5 sm:space-y-6">
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 sm:w-12 sm:h-12 bg-pink-100 text-pink-600 rounded-xl flex items-center justify-center shrink-0">
-            <Pill className="w-5 h-5 sm:w-6 sm:h-6" />
+      <PageHeader
+        icon={Pill}
+        title={T("pharmacyOrders")}
+        subtitle={`${T("medicineDeliveries")} — ${orders.length} ${T("total")}`}
+        iconBgClass="bg-pink-100"
+        iconColorClass="text-pink-600"
+        actions={
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className={`w-2 h-2 rounded-full ${secAgo < 35 ? "bg-green-500" : "bg-amber-400"} animate-pulse`} />
+            {isLoading ? "Refreshing..." : `Refreshed ${secAgo}s ago`}
           </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground">{T("pharmacyOrders")}</h1>
-            <p className="text-muted-foreground text-xs sm:text-sm">{T("medicineDeliveries")} — {orders.length} {T("total")}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
-          <span className={`w-2 h-2 rounded-full ${secAgo < 35 ? "bg-green-500" : "bg-amber-400"} animate-pulse`} />
-          {isLoading ? "Refreshing..." : `Refreshed ${secAgo}s ago`}
-        </div>
-      </div>
+        }
+      />
 
       {/* Pending pharmacy orders alert */}
       {pendingCount > 0 && (
@@ -207,8 +214,77 @@ export default function Pharmacy() {
         </div>
       </Card>
 
-      {/* Table */}
-      <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
+      {/* Mobile card list — shown below md breakpoint */}
+      <section className="md:hidden space-y-3" aria-label="Pharmacy orders">
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="rounded-2xl border-border/50 shadow-sm p-4 animate-pulse">
+              <div className="flex justify-between items-start">
+                <div className="space-y-2">
+                  <div className="h-4 w-28 bg-muted rounded" />
+                  <div className="h-3 w-20 bg-muted rounded" />
+                </div>
+                <div className="h-5 w-16 bg-muted rounded-full" />
+              </div>
+            </Card>
+          ))
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="font-semibold text-muted-foreground">No orders found.</p>
+          </div>
+        ) : (
+          filtered.map((order: any) => (
+            <Card
+              key={order.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`View pharmacy order ${order.id.slice(-8).toUpperCase()}, ${STATUS_LABELS[order.status] ?? order.status}`}
+              className="rounded-2xl border-border/50 shadow-sm overflow-hidden cursor-pointer"
+              onClick={() => { setSelectedOrder(order); setShowCancelConfirm(false); }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedOrder(order); setShowCancelConfirm(false); } }}
+            >
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-mono font-semibold text-sm">{order.id.slice(-8).toUpperCase()}</p>
+                    <Badge variant="outline" className="mt-1 text-[10px] bg-pink-50 text-pink-600 border-pink-200">💊 Pharmacy</Badge>
+                  </div>
+                  <Badge className={`text-[10px] font-bold uppercase shrink-0 ${getStatusColor(order.status)}`}>
+                    {STATUS_LABELS[order.status] ?? order.status}
+                  </Badge>
+                </div>
+                {order.userName && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-pink-100 flex items-center justify-center shrink-0" aria-hidden="true">
+                      <User className="w-3.5 h-3.5 text-pink-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate">{order.userName}</p>
+                      <p className="text-xs text-muted-foreground">{order.userPhone}</p>
+                    </div>
+                  </div>
+                )}
+                {order.prescriptionNote && (
+                  <div className="flex items-start gap-2 bg-amber-50 text-amber-900 p-2 rounded-lg text-xs">
+                    <FileText className="w-3.5 h-3.5 shrink-0 mt-0.5" aria-hidden="true" />
+                    <p className="truncate">{order.prescriptionNote}</p>
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                  <div>
+                    <p className="font-bold">{formatCurrency(order.total)}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{order.paymentMethod === "wallet" ? "💳 Wallet" : "💵 Cash"}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{formatDate(order.createdAt)}</span>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </section>
+
+      {/* Desktop table — hidden below md breakpoint */}
+      <Card className="hidden md:block rounded-2xl border-border/50 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <Table className="min-w-[640px]">
             <TableHeader className="bg-muted/50">
@@ -472,5 +548,6 @@ export default function Pharmacy() {
         </DialogContent>
       </Dialog>
     </div>
+    </ErrorBoundary>
   );
 }

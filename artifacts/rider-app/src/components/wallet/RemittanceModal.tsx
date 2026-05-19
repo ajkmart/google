@@ -1,13 +1,17 @@
 import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { formatCurrency as _sharedFcR } from "@workspace/api-zod";
 import { api, apiFetch } from "../../lib/api";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[RemittanceModal]");
+import { useAuth } from "../../lib/rider-auth";
+import { checkSufficientBalance, checkPromoStackable, validatePromo, type PromoCode } from "../../lib/wallet/validation";
 import {
   X, ArrowLeft, Landmark, Smartphone, ChevronRight,
   CheckCircle, AlertTriangle, Loader2, Lightbulb,
 } from "lucide-react";
 import type { PayMethod } from "./WithdrawModal";
-
-const fc = (n: number) => `Rs. ${Math.round(n).toLocaleString()}`;
+import { useCurrency } from "../../lib/useConfig";
 const INPUT = "w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-400 focus:bg-white transition-colors";
 
 function MethodLogo({ id }: { id: string }) {
@@ -16,15 +20,19 @@ function MethodLogo({ id }: { id: string }) {
   return <Landmark size={28} className="text-blue-500"/>;
 }
 
-export default function RemittanceModal({ netOwed, onClose, onSuccess }: {
-  netOwed: number; onClose: () => void; onSuccess: () => void;
+export default function RemittanceModal({ netOwed, codCollected, onClose, onSuccess }: {
+  netOwed: number; codCollected?: number; onClose: () => void; onSuccess: () => void;
 }) {
+  const { user } = useAuth();
+  const { symbol: currencySymbol } = useCurrency();
+  const fc = (n: string | number | null | undefined) => _sharedFcR(n != null ? String(n) : (n as null | undefined), currencySymbol);
   const [step, setStep]     = useState<"method"|"details"|"confirm"|"done">("method");
   const [method, setMethod] = useState<PayMethod | null>(null);
   const [amount, setAmount] = useState(String(Math.ceil(netOwed)));
   const [acNo, setAcNo]     = useState("");
   const [txId, setTxId]     = useState("");
   const [note, setNote]     = useState("");
+  const [bonusCode, setBonusCode] = useState("");
   const [err, setErr]       = useState("");
   const [methods, setMethods] = useState<PayMethod[]>([]);
   const [loadingMethods, setLoadingMethods] = useState(true);
@@ -42,14 +50,14 @@ export default function RemittanceModal({ netOwed, onClose, onSuccess }: {
         setMethods(ms);
       }
     }).catch((err: Error) => {
-      console.warn("[RemittanceModal] Failed to load payment methods:", err.message);
+      log.warn("Failed to load payment methods:", err.message);
       setMethodsError(true);
     }).finally(() => setLoadingMethods(false));
   }, []);
 
   const mut = useMutation({
     mutationFn: () => api.submitCodRemittance({
-      amount: Number(amount), paymentMethod: method!.id,
+      amount: Number(amount), paymentMethod: method?.id ?? "",
       accountNumber: acNo, transactionId: txId, note,
     }),
     onSuccess: () => setStep("done"),
@@ -64,10 +72,29 @@ export default function RemittanceModal({ netOwed, onClose, onSuccess }: {
 
   const goToConfirm = () => {
     const amt = Number(amount);
-    if (!amount || isNaN(amt) || amt < 1) { setErr("Amount kam az kam Rs. 1 hona chahiye"); return; }
+    if (!amount || isNaN(amt) || amt < 1) { setErr(`Amount kam az kam ${currencySymbol} 1 hona chahiye`); return; }
+    if (codCollected != null && amt > codCollected) { setErr(`Amount ${fc(amt)} aapke collected COD ${fc(codCollected)} se zyada nahi ho sakta`); return; }
     if (amt > netOwed) { setErr(`Amount ${fc(amt)} owed amount ${fc(netOwed)} se zyada nahi ho sakta`); return; }
+    const balanceCheck = checkSufficientBalance(netOwed, amt);
+    if (!balanceCheck.valid) { setErr(balanceCheck.reason); return; }
     if (!acNo.trim()) { setErr("Account / phone number required"); return; }
     if (!txId.trim()) { setErr("Transaction reference ID required hai"); return; }
+    /* Promo / bonus code validation — riders may optionally enter a platform-
+       issued bonus code for COD remittance campaigns.
+       checkPromoStackable ensures they cannot apply more than one promo at a time.
+       validatePromo checks expiry and per-user usage limits client-side before
+       the mutation hits the server (server also validates; this is a first-pass
+       guard that gives immediate, translated feedback). */
+    if (bonusCode.trim()) {
+      const activeBonuses: PromoCode[] = [{ id: bonusCode.trim() }];
+      /* If a second bonus code were already applied in this session this guard
+         fires before the network call, preventing silent double-stacking. */
+      const stackCheck = checkPromoStackable(activeBonuses);
+      if (!stackCheck.valid) { setErr(stackCheck.reason); return; }
+      const promoEntry: PromoCode = { id: bonusCode.trim() };
+      const promoCheck = validatePromo(promoEntry, user?.id ?? "");
+      if (!promoCheck.valid) { setErr(promoCheck.reason); return; }
+    }
     setErr(""); setStep("confirm");
   };
 
@@ -184,7 +211,7 @@ export default function RemittanceModal({ netOwed, onClose, onSuccess }: {
 
               <div className="space-y-3">
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Amount (Rs.) *</p>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Amount ({currencySymbol}) *</p>
                   <input type="number" inputMode="numeric" value={amount} min={1} max={Math.ceil(netOwed)}
                     onChange={e => { setAmount(e.target.value); setErr(""); }} className={INPUT} placeholder="0"/>
                 </div>
@@ -198,6 +225,12 @@ export default function RemittanceModal({ netOwed, onClose, onSuccess }: {
                   <input value={txId} onChange={e => { setTxId(e.target.value); setErr(""); }}
                     placeholder="JazzCash/EasyPaisa TxID ya bank ref no." className={INPUT}/>
                   <p className="text-[10px] text-gray-400 mt-1">JazzCash app ya bank SMS mein milta hai</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Bonus Code (Optional)</p>
+                  <input value={bonusCode} onChange={e => { setBonusCode(e.target.value.toUpperCase()); setErr(""); }}
+                    placeholder="Platform promo ya bonus code (agar ho)" className={INPUT}/>
+                  <p className="text-[10px] text-gray-400 mt-1">Agar company ne bonus code diya ho to yahan likhein</p>
                 </div>
                 <div>
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Note (Optional)</p>

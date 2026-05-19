@@ -11,4 +11,9 @@ export type ProductType = (typeof ProductType)[keyof typeof ProductType];
 export const ProductType = {
   mart: "mart",
   food: "food",
+  rides: "rides",
+  pharmacy: "pharmacy",
+  parcel: "parcel",
+  van: "van",
+  school: "school",
 } as const;

@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "./api";
 
 export interface PlatformConfig {
+  currencySymbol?: string;
+  currencyCode?: string;
   rider?: {
     keepPct: number;
     bonusPerTrip: number;
@@ -28,7 +30,7 @@ export interface PlatformConfig {
     appName: string;
     appTagline: string;
     appVersion: string;
-    appStatus: "active" | "maintenance";
+    appStatus: "active" | "maintenance" | "limited";
     supportPhone: string;
     supportEmail: string;
     supportHours: string;
@@ -39,6 +41,7 @@ export interface PlatformConfig {
     vendorCommissionPct: number;
     minOrderAmount: number;
     currencySymbol?: string;
+    currencyCode?: string;
   };
   features: {
     mart: boolean;
@@ -105,6 +108,26 @@ export interface PlatformConfig {
     rickshawMinFare?: number;
     dabaMinFare?: number;
     acceptTimeoutSec?: number;
+  };
+  regional?: {
+    phoneFormat?: string;
+    phoneHint?: string;
+    timezone?: string;
+    currencySymbol?: string;
+    countryCode?: string;
+  };
+  branding?: {
+    colorMart?: string;
+    colorFood?: string;
+    colorRides?: string;
+    colorPharmacy?: string;
+    colorParcel?: string;
+    colorVan?: string;
+    mapCenterLat?: number;
+    mapCenterLng?: number;
+    mapCenterLabel?: string;
+  };
+  dispatch?: {
     broadcastTimeoutSec?: number;
   };
   finance: {
@@ -124,6 +147,11 @@ export interface PlatformConfig {
   };
   wallet?: {
     withdrawalProcessingDays?: number;
+    maxDailyWithdrawal?: number;
+    maxDailyTransactionCount?: number;
+  };
+  geofence?: {
+    polygon?: Array<[number, number]>;
   };
   payment?: {
     jazzcashNumber?: string;
@@ -136,20 +164,14 @@ export interface PlatformConfig {
     gpsInterval: number;
     sessionDays: number;
     riderTokenDays: number;
+    maxSpeedKmh?: number;
   };
-  dispatch?: {
-    broadcastTimeoutSec?: number;
-    acceptTimeoutSec?: number;
-    maxRetries?: number;
-    autoAssign?: boolean;
-  };
-  branding?: {
-    primaryColor?: string;
-    logoUrl?: string;
-    faviconUrl?: string;
-    appName?: string;
-    mapCenterLat?: number;
-    mapCenterLng?: number;
+  uploads?: {
+    maxImageMb?: number;
+    maxVideoMb?: number;
+    maxVideoDurationSec?: number;
+    allowedImageFormats?: string[];
+    allowedVideoFormats?: string[];
   };
   auth?: {
     phoneOtp?: boolean;
@@ -191,6 +213,13 @@ export interface PlatformConfig {
     sms: boolean;
     email: boolean;
   };
+  network?: {
+    apiTimeoutMs: number;
+    maxRetryAttempts: number;
+    retryBackoffBaseMs: number;
+    riderGpsQueueMax: number;
+    riderDismissedRequestTtlSec: number;
+  };
 }
 
 const DEFAULT_CONFIG: PlatformConfig = {
@@ -208,6 +237,8 @@ const DEFAULT_CONFIG: PlatformConfig = {
     commissionPct: 10,
     vendorCommissionPct: 15,
     minOrderAmount: 100,
+    currencySymbol: "Rs.",
+    currencyCode: "PKR",
   },
   features: { mart: true, food: true, rides: true, pharmacy: true, parcel: true, wallet: true, referral: true, newUsers: true, chat: false, liveTracking: true, reviews: true, sos: true },
   content: { trackerBannerEnabled: true, trackerBannerPosition: "top", showBanner: true, banner: "Free delivery on your first order! 🎉", announcement: "", maintenanceMsg: "We're performing scheduled maintenance. Back soon!", supportMsg: "Need help? Chat with us!", vendorNotice: "", riderNotice: "", tncUrl: "", privacyUrl: "", refundPolicyUrl: "", faqUrl: "", aboutUrl: "" },
@@ -217,6 +248,26 @@ const DEFAULT_CONFIG: PlatformConfig = {
   finance: { gstEnabled: false, gstPct: 17, cashbackEnabled: false, cashbackPct: 2, cashbackMaxRs: 100, invoiceEnabled: false, platformCommissionPct: 10, vendorCommissionPct: 15, riderEarningPct: 80, minVendorPayout: 500, minRiderPayout: 500, vendorSettleDays: 7, referralBonus: 100 },
   auth: { phoneOtp: false, emailOtp: false, usernamePassword: false, google: false, facebook: false, magicLink: false, captchaEnabled: false, lockoutEnabled: true, lockoutMaxAttempts: 5, lockoutDurationSec: 300 },
   security: { gpsTracking: true, gpsInterval: 30, sessionDays: 30, riderTokenDays: 7 },
+  rider: {
+    keepPct: 80,
+    bonusPerTrip: 0,
+    minPayout: 500,
+    maxPayout: 50000,
+    maxDeliveries: 3,
+    cashAllowed: true,
+    withdrawalEnabled: true,
+    autoApprove: false,
+    minBalance: 0,
+    depositEnabled: false,
+    dailyGoal: 5000,
+  },
+  uploads: {
+    maxImageMb: 5,
+    maxVideoMb: 50,
+    maxVideoDurationSec: 60,
+    allowedImageFormats: [],
+    allowedVideoFormats: [],
+  },
 };
 
 export interface RiderAuthConfig {
@@ -289,10 +340,59 @@ export function getRiderModules(config: PlatformConfig): RiderModules {
 export function usePlatformConfig() {
   const { data, isLoading } = useQuery<PlatformConfig>({
     queryKey: ["platform-config"],
-    queryFn: () => apiFetch("/platform-config"),
-    staleTime: 60_000,
-    refetchInterval: 2 * 60_000,
+    queryFn: () => apiFetch("/platform-config") as Promise<PlatformConfig>,
+    staleTime: 25_000,
+    refetchInterval: 30_000,
     retry: 2,
   });
-  return { config: data ?? DEFAULT_CONFIG, isLoading };
+  const config: PlatformConfig = data
+    ? { ...DEFAULT_CONFIG, ...data, rider: { ...DEFAULT_CONFIG.rider!, ...data.rider } }
+    : DEFAULT_CONFIG;
+  return { config, isLoading };
+}
+
+export function useCurrency() {
+  const { config } = usePlatformConfig();
+  return {
+    symbol: config.platform.currencySymbol ?? config.currencySymbol ?? config.regional?.currencySymbol ?? "Rs.",
+    code:   config.platform.currencyCode   ?? config.currencyCode   ?? "PKR",
+  };
+}
+
+export function buildPhoneValidator(config: PlatformConfig): (phone: string) => boolean {
+  const pattern = config.regional?.phoneFormat;
+  if (!pattern) return () => true;
+  try {
+    const re = new RegExp(pattern);
+    return (phone: string) => re.test(phone.trim());
+  } catch {
+    return () => true;
+  }
+}
+
+export function usePhoneValidator(): (phone: string) => boolean {
+  const { config } = usePlatformConfig();
+  return buildPhoneValidator(config);
+}
+
+export function useDateFormatter(): (date: string | Date | null | undefined, options?: Intl.DateTimeFormatOptions) => string {
+  const { config } = usePlatformConfig();
+  const tz = config.regional?.timezone;
+  return (date, options) => formatDateTz(date, options, tz);
+}
+
+export function formatDateTz(
+  date: string | Date | null | undefined,
+  options?: Intl.DateTimeFormatOptions,
+  timezone?: string,
+): string {
+  if (!date) return "";
+  try {
+    const tz = timezone || "Asia/Karachi";
+    return new Intl.DateTimeFormat("en-PK", { timeZone: tz, ...options }).format(
+      typeof date === "string" ? new Date(date) : date,
+    );
+  } catch {
+    return new Date(date as string).toLocaleString();
+  }
 }

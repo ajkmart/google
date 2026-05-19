@@ -1,13 +1,14 @@
 import { useState, useRef } from "react";
+import { adminFetch, fetchAdminAbsoluteResponse } from "@/lib/adminFetcher";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Image, Plus, Pencil, Trash2, Save, GripVertical,
   Calendar, Link as LinkIcon, ToggleLeft, ToggleRight,
   Eye, Layers, Upload, Loader2,
 } from "lucide-react";
+import { PageHeader } from "@/components/shared";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { useToast } from "@/hooks/use-toast";
-import { fetcher } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,9 @@ import {
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { StatusBadge } from "@/components/AdminShared";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { SafeImage } from "@/components/ui/SafeImage";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 interface Banner {
   id: string;
@@ -58,6 +62,8 @@ const EMPTY_BANNER = {
 
 const LINK_TYPES = [
   { value: "none", label: "No Link" },
+  { value: "service", label: "Service (Mart/Food/Ride…)" },
+  { value: "route", label: "In-App Route" },
   { value: "category", label: "Category" },
   { value: "product", label: "Product" },
   { value: "url", label: "External URL" },
@@ -90,6 +96,7 @@ export default function BannersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [previewBanner, setPreviewBanner] = useState<Banner | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [deleteBannerId, setDeleteBannerId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,13 +119,14 @@ export default function BannersPage() {
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      const uploadRes = await fetch(`${window.location.origin}/api/uploads`, {
+      const uploadRes = await fetchAdminAbsoluteResponse("/api/uploads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ file: base64, filename: file.name, mimeType: file.type }),
       });
-      const res = await uploadRes.json();
-      if (!uploadRes.ok) throw new Error(res.error || "Upload failed");
+      const uj = await uploadRes.json();
+      const res = uj?.success === true && "data" in uj ? uj.data : uj;
+      if (!uploadRes.ok) throw new Error(res.error || uj.error || "Upload failed");
       if (res?.url) {
         setForm(f => ({ ...f, imageUrl: res.url }));
         toast({ title: "Image uploaded successfully" });
@@ -133,7 +141,7 @@ export default function BannersPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-banners"],
-    queryFn: () => fetcher("/banners"),
+    queryFn: () => adminFetch("/banners"),
     refetchInterval: 30000,
   });
 
@@ -141,8 +149,8 @@ export default function BannersPage() {
 
   const saveBanner = useMutation({
     mutationFn: async (body: Record<string, unknown>) => {
-      if (editing) return fetcher(`/banners/${editing.id}`, { method: "PATCH", body: JSON.stringify(body) });
-      return fetcher("/banners", { method: "POST", body: JSON.stringify(body) });
+      if (editing) return adminFetch(`/banners/${editing.id}`, { method: "PATCH", body: JSON.stringify(body) });
+      return adminFetch("/banners", { method: "POST", body: JSON.stringify(body) });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-banners"] });
@@ -155,7 +163,7 @@ export default function BannersPage() {
   });
 
   const deleteBanner = useMutation({
-    mutationFn: (id: string) => fetcher(`/banners/${id}`, { method: "DELETE" }),
+    mutationFn: (id: string) => adminFetch(`/banners/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-banners"] });
       toast({ title: "Banner deleted" });
@@ -164,13 +172,13 @@ export default function BannersPage() {
 
   const toggleBanner = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      fetcher(`/banners/${id}`, { method: "PATCH", body: JSON.stringify({ isActive }) }),
+      adminFetch(`/banners/${id}`, { method: "PATCH", body: JSON.stringify({ isActive }) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-banners"] }),
   });
 
   const reorderBanners = useMutation({
     mutationFn: (items: { id: string; sortOrder: number }[]) =>
-      fetcher("/banners/reorder", { method: "PATCH", body: JSON.stringify({ items }) }),
+      adminFetch("/banners/reorder", { method: "PATCH", body: JSON.stringify({ items }) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-banners"] }),
   });
 
@@ -236,24 +244,21 @@ export default function BannersPage() {
   const scheduledBanners = banners.filter(b => b.status === "scheduled").length;
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Banners page crashed. Please reload.</div>}>
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center">
-            <Layers className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-display font-bold text-foreground">{T("navBanners")}</h1>
-            <p className="text-muted-foreground text-sm">
-              {activeBanners} active{scheduledBanners > 0 ? ` · ${scheduledBanners} scheduled` : ""} · {banners.length} total
-            </p>
-          </div>
-        </div>
-        <Button onClick={openNew} className="h-10 rounded-xl gap-2 shadow-md">
-          <Plus className="w-4 h-4" />
-          New Banner
-        </Button>
-      </div>
+      <PageHeader
+        icon={Layers}
+        title={T("navBanners")}
+        subtitle={`${activeBanners} active${scheduledBanners > 0 ? ` · ${scheduledBanners} scheduled` : ""} · ${banners.length} total`}
+        iconBgClass="bg-purple-100"
+        iconColorClass="text-purple-600"
+        actions={
+          <Button onClick={openNew} className="h-10 rounded-xl gap-2 shadow-md">
+            <Plus className="w-4 h-4" />
+            New Banner
+          </Button>
+        }
+      />
 
       <div className="space-y-3">
         {isLoading ? (
@@ -279,7 +284,12 @@ export default function BannersPage() {
             <Droppable droppableId="banners-list">
               {(provided) => (
                 <div className="grid gap-3" ref={provided.innerRef} {...provided.droppableProps}>
-                  {banners.map((banner, idx) => (
+                  {banners.length > 100 && (
+                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-center">
+                      Showing first 100 of {banners.length} banners. Delete old banners to manage more.
+                    </p>
+                  )}
+                  {banners.slice(0, 100).map((banner, idx) => (
                     <Draggable key={banner.id} draggableId={banner.id} index={idx}>
                       {(dragProvided, snapshot) => (
                         <Card
@@ -365,9 +375,7 @@ export default function BannersPage() {
                                   <Pencil className="w-4 h-4 text-blue-600" />
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    if (window.confirm("Delete this banner?")) deleteBanner.mutate(banner.id);
-                                  }}
+                                  onClick={() => setDeleteBannerId(banner.id)}
                                   disabled={deleteBanner.isPending}
                                   className="p-2 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-60"
                                 >
@@ -424,6 +432,9 @@ export default function BannersPage() {
               <Input
                 placeholder="e.g. Summer Sale - Up to 50% OFF"
                 value={form.title}
+                /* Title is shown in the customer banner carousel; cap at
+                   120 chars to keep it on one line on small screens. */
+                maxLength={120}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                 className="h-11 rounded-xl"
               />
@@ -434,6 +445,7 @@ export default function BannersPage() {
               <Input
                 placeholder="e.g. Shop groceries at unbeatable prices"
                 value={form.subtitle}
+                maxLength={200}
                 onChange={e => setForm(f => ({ ...f, subtitle: e.target.value }))}
                 className="h-11 rounded-xl"
               />
@@ -445,6 +457,9 @@ export default function BannersPage() {
                 <Input
                   placeholder="https://example.com/banner.jpg"
                   value={form.imageUrl}
+                  /* URLs hold object-storage paths; 2000 is the SQL Server
+                     URL limit and a safe ceiling for browsers too. */
+                  maxLength={2000}
                   onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))}
                   className="h-11 rounded-xl flex-1"
                 />
@@ -467,7 +482,7 @@ export default function BannersPage() {
               </div>
               {form.imageUrl && (
                 <div className="mt-2 rounded-lg overflow-hidden border border-border h-24">
-                  <img src={form.imageUrl} alt="Preview" className="w-full h-full object-cover" onError={e => (e.currentTarget.style.display = "none")} />
+                  <SafeImage src={form.imageUrl} alt="Preview" className="w-full h-full object-cover" />
                 </div>
               )}
             </div>
@@ -489,7 +504,13 @@ export default function BannersPage() {
                 <div className="space-y-1.5">
                   <label className="text-sm font-semibold">Link Value</label>
                   <Input
-                    placeholder={form.linkType === "url" ? "https://..." : form.linkType === "category" ? "Category name" : "Product ID"}
+                    placeholder={
+                      form.linkType === "url" ? "https://..." :
+                      form.linkType === "category" ? "e.g. fruits" :
+                      form.linkType === "service" ? "mart | food | rides | pharmacy | parcel" :
+                      form.linkType === "route" ? "/mart  or  /food  or  /ride" :
+                      "Product ID"
+                    }
                     value={form.linkValue}
                     onChange={e => setForm(f => ({ ...f, linkValue: e.target.value }))}
                     className="h-11 rounded-xl"
@@ -569,7 +590,11 @@ export default function BannersPage() {
               <Input
                 placeholder="e.g. pricetag, cart, gift"
                 value={form.icon}
-                onChange={e => setForm(f => ({ ...f, icon: e.target.value }))}
+                /* Ionicons names are kebab-case identifiers — restrict to
+                   the printable subset to avoid round-tripping unicode
+                   that the mobile app cannot render. */
+                maxLength={64}
+                onChange={e => setForm(f => ({ ...f, icon: e.target.value.replace(/[^a-zA-Z0-9-]/g, "") }))}
                 className="h-11 rounded-xl"
               />
             </div>
@@ -600,8 +625,13 @@ export default function BannersPage() {
               <Input
                 type="number"
                 min={0}
+                max={9999}
                 value={form.sortOrder}
-                onChange={e => setForm(f => ({ ...f, sortOrder: parseInt(e.target.value) || 0 }))}
+                onChange={e => {
+                  const v = parseInt(e.target.value);
+                  const clamped = Number.isFinite(v) ? Math.max(0, Math.min(9999, v)) : 0;
+                  setForm(f => ({ ...f, sortOrder: clamped }));
+                }}
                 className="h-11 rounded-xl"
               />
             </div>
@@ -626,6 +656,21 @@ export default function BannersPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteBannerId}
+        onClose={() => setDeleteBannerId(null)}
+        onConfirm={() => {
+          if (!deleteBannerId) return;
+          deleteBanner.mutate(deleteBannerId, { onSettled: () => setDeleteBannerId(null) });
+        }}
+        title={tDual("deleteBannerTitle", language)}
+        description={tDual("actionCannotBeUndone", language)}
+        confirmLabel="Delete"
+        variant="destructive"
+        busy={deleteBanner.isPending}
+      />
     </div>
+    </ErrorBoundary>
   );
 }

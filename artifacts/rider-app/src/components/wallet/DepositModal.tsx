@@ -1,13 +1,16 @@
 import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { formatCurrency as _sharedFcD } from "@workspace/api-zod";
 import { api, apiFetch } from "../../lib/api";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[DepositModal]");
+import { checkSufficientBalance } from "../../lib/wallet/validation";
 import {
   X, ArrowLeft, Landmark, Smartphone, ChevronRight,
   CheckCircle, AlertTriangle, Loader2,
 } from "lucide-react";
 import type { PayMethod } from "./WithdrawModal";
-
-const fc = (n: number) => `Rs. ${Math.round(n).toLocaleString()}`;
+import { useCurrency } from "../../lib/useConfig";
 const INPUT = "w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-teal-400 focus:bg-white transition-colors";
 
 function MethodLogo({ id }: { id: string }) {
@@ -21,6 +24,8 @@ export default function DepositModal({
 }: {
   minBalance: number; balance: number; onClose: () => void; onSuccess: () => void;
 }) {
+  const { symbol: currencySymbol } = useCurrency();
+  const fc = (n: string | number | null | undefined) => _sharedFcD(n != null ? String(n) : (n as null | undefined), currencySymbol);
   const [amount, setAmount]         = useState("");
   const [selectedMethod, setMethod] = useState<PayMethod | null>(null);
   const [txId, setTxId]             = useState("");
@@ -44,7 +49,7 @@ export default function DepositModal({
         setMethods(depositable);
       }
     }).catch((err: Error) => {
-      console.warn("[DepositModal] Failed to load payment methods:", err.message);
+      log.warn("Failed to load payment methods:", err.message);
       setMethodsError(true);
     }).finally(() => setLoadingMethods(false));
   }, []);
@@ -54,7 +59,7 @@ export default function DepositModal({
   const mut = useMutation({
     mutationFn: () => api.submitDeposit({
       amount: Number(amount),
-      paymentMethod: selectedMethod!.id,
+      paymentMethod: selectedMethod?.id ?? "",
       accountNumber: senderAcNo.trim() || undefined,
       transactionId: txId,
       note,
@@ -65,7 +70,18 @@ export default function DepositModal({
 
   const goToMethod = () => {
     const amt = Number(amount);
-    if (!amount || isNaN(amt) || amt < 100) { setErr("Minimum deposit Rs. 100 hai"); return; }
+    if (!amount || isNaN(amt) || amt < 100) { setErr(`Minimum deposit ${currencySymbol} 100 hai`); return; }
+    /* If the rider's balance is below the minimum operating threshold, ensure
+       this deposit is large enough to cover the shortfall — using the same
+       library guard that WithdrawModal uses to prevent overdrafts. */
+    const shortfall = Math.max(0, minBalance - balance);
+    if (shortfall > 0) {
+      const gapCheck = checkSufficientBalance(amt, shortfall);
+      if (!gapCheck.valid) {
+        setErr(`Please deposit at least ${fc(shortfall)} to cover your minimum balance requirement`);
+        return;
+      }
+    }
     setErr(""); setStep("method");
   };
 
@@ -73,17 +89,16 @@ export default function DepositModal({
 
   const goToConfirm = () => {
     if (!txId.trim()) { setErr("Transaction ID daalna zaroori hai — without ID verify nahi ho sakta"); return; }
-    if (senderAcNo.trim()) {
-      if (selectedMethod?.id === "jazzcash" || selectedMethod?.id === "easypaisa") {
-        const cleanPhone = senderAcNo.replace(/[\s-]/g, "");
-        if (!/^0[3]\d{9}$/.test(cleanPhone)) { setErr("Valid Pakistani mobile number daalen (e.g. 03XX-XXXXXXX, 11 digits)"); return; }
-      }
-      if (selectedMethod?.id === "bank") {
-        const cleaned = senderAcNo.replace(/[\s-]/g, "");
-        const isIban = /^PK\d{2}[A-Z]{4}\d{16}$/i.test(cleaned);
-        const isAccountNo = /^\d{8,20}$/.test(cleaned);
-        if (!isIban && !isAccountNo) { setErr("Valid IBAN (e.g. PK36SCBL0000001234567801) ya 8-20 digit account number daalen"); return; }
-      }
+    if (!senderAcNo.trim()) { setErr("Sender account / mobile number zaroori hai — admin verify karne ke liye chahiye"); return; }
+    if (selectedMethod?.id === "jazzcash" || selectedMethod?.id === "easypaisa") {
+      const cleanPhone = senderAcNo.replace(/[\s-]/g, "");
+      if (!/^0[3]\d{9}$/.test(cleanPhone)) { setErr("Valid Pakistani mobile number daalen (e.g. 03XX-XXXXXXX, 11 digits)"); return; }
+    }
+    if (selectedMethod?.id === "bank") {
+      const cleaned = senderAcNo.replace(/[\s-]/g, "");
+      const isIban = /^PK\d{2}[A-Z]{4}\d{16}$/i.test(cleaned);
+      const isAccountNo = /^\d{8,20}$/.test(cleaned);
+      if (!isIban && !isAccountNo) { setErr("Valid IBAN (e.g. PK36SCBL0000001234567801) ya 8-20 digit account number daalen"); return; }
     }
     setErr(""); setStep("confirm");
   };
@@ -153,7 +168,7 @@ export default function DepositModal({
               )}
               <p className="text-sm text-gray-600 mb-4">Kitna deposit karna chahte hain?</p>
               <div className="relative mb-2">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">Rs.</span>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">{currencySymbol}</span>
                 <input
                   value={amount} onChange={e => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
                   inputMode="numeric" placeholder="0"
@@ -264,7 +279,7 @@ export default function DepositModal({
                 <div className="border-t border-teal-200 pt-2 mt-2">
                   <p className="text-xs text-teal-700">
                     {selectedMethod.manualInstructions || selectedMethod.instructions ||
-                      `Rs. ${Number(amount).toLocaleString()} transfer karein aur Transaction ID yahan daalen.`}
+                      `${fc(amount)} transfer karein aur Transaction ID yahan daalen.`}
                   </p>
                 </div>
               </div>

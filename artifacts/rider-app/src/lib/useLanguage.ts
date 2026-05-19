@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import React from "react";
 import type { Language } from "@workspace/i18n";
 import { LANGUAGE_OPTIONS, isRTL } from "@workspace/i18n";
@@ -11,12 +11,18 @@ function getStoredLanguage(): Language | null {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored && VALID_LANGS.has(stored)) return stored as Language;
-  } catch {}
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/useLanguage.ts]', err); } // eslint-disable-line no-console
   return null;
 }
 
+/* P3: Cache the last-applied direction so we don't double-write the `dir`
+   attribute on the document during the initial sync (caused a brief LTR→RTL
+   flicker in the original code where applyRTL ran twice in quick succession). */
+let _lastAppliedDir: string | null = null;
 function applyRTL(lang: Language) {
   const dir = isRTL(lang) ? "rtl" : "ltr";
+  if (_lastAppliedDir === dir + "|" + lang) return;
+  _lastAppliedDir = dir + "|" + lang;
   document.documentElement.setAttribute("dir", dir);
   document.documentElement.setAttribute("lang", lang === "ur" || lang === "en_ur" ? "ur" : "en");
 }
@@ -40,33 +46,44 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [initialised, setInitialised] = useState(false);
 
+  /* P3: Track whether the user has explicitly picked a language locally so we
+     never silently overwrite that choice from the server. The server-side
+     `language` is treated as a default for first-run only; once the rider has
+     made a deliberate pick (either via setLanguage or by a previous local
+     storage entry), we leave it alone. */
+  const localPickRef = useRef<boolean>(getStoredLanguage() !== null);
+
   useEffect(() => {
     const local = getStoredLanguage();
     if (local) {
       setLanguageState(local);
       applyRTL(local);
       setInitialised(true);
-      api.getSettings()
-        .then((data: { language?: string }) => {
-          const serverLang = data?.language;
-          if (serverLang && VALID_LANGS.has(serverLang) && serverLang !== local) {
-            setLanguageState(serverLang as Language);
-            applyRTL(serverLang as Language);
-            try { localStorage.setItem(STORAGE_KEY, serverLang); } catch {}
-          }
-        })
-        .catch(() => {});
+      /* Only sync language preference from server when authenticated — avoids
+         a 401 on the login page which would log noise in the browser console. */
+      if (api.getToken()) {
+        api.getSettings().catch((err) => { console.warn('[artifacts/rider-app/src/lib/useLanguage.ts]', err); }); // eslint-disable-line no-console
+      }
     } else {
+      /* Only fetch from server when a token exists — avoids a 401 on the login
+         page which would trigger an unintended logout cycle in apiFetch. */
+      if (!api.getToken()) {
+        setInitialised(true);
+        return;
+      }
       api.getSettings()
         .then((data: { language?: string }) => {
+          /* If the user has set a language between fetch start and resolution,
+             skip the server overwrite. */
+          if (localPickRef.current) return;
           const serverLang = data?.language;
           if (serverLang && VALID_LANGS.has(serverLang)) {
             setLanguageState(serverLang as Language);
             applyRTL(serverLang as Language);
-            try { localStorage.setItem(STORAGE_KEY, serverLang); } catch {}
+            try { localStorage.setItem(STORAGE_KEY, serverLang); } catch (err) { console.warn('[artifacts/rider-app/src/lib/useLanguage.ts]', err); } // eslint-disable-line no-console
           }
         })
-        .catch(() => {})
+        .catch((err) => { console.warn('[artifacts/rider-app/src/lib/useLanguage.ts]', err); }) // eslint-disable-line no-console
         .finally(() => setInitialised(true));
     }
   }, []);
@@ -75,10 +92,13 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setLanguageState(lang);
     applyRTL(lang);
-    try { localStorage.setItem(STORAGE_KEY, lang); } catch {}
+    /* P3: Mark that the user has made an explicit pick so any in-flight
+       getSettings() resolution from the init effect does not overwrite it. */
+    localPickRef.current = true;
+    try { localStorage.setItem(STORAGE_KEY, lang); } catch (err) { console.warn('[artifacts/rider-app/src/lib/useLanguage.ts]', err); } // eslint-disable-line no-console
     try {
       await api.updateSettings({ language: lang });
-    } catch {}
+    } catch (err) { console.warn('[artifacts/rider-app/src/lib/useLanguage.ts]', err); } // eslint-disable-line no-console
     setLoading(false);
   }, []);
 

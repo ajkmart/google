@@ -1,10 +1,11 @@
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/vendor-auth";
 import { api } from "../lib/api";
-import { usePlatformConfig } from "../lib/useConfig";
+import { usePlatformConfig, useCurrency } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
+import { fc } from "../lib/ui";
 
 const items: { href: string; labelKey: TranslationKey; icon: string; descKey: TranslationKey }[] = [
   { href: "/",           labelKey: "dashboard",   icon: "📊", descKey: "overviewStats"     },
@@ -12,7 +13,10 @@ const items: { href: string; labelKey: TranslationKey; icon: string; descKey: Tr
   { href: "/products",   labelKey: "products",    icon: "🍽️", descKey: "yourMenuStock"    },
   { href: "/wallet",     labelKey: "wallet",      icon: "💰", descKey: "earningsPayoutsShort" },
   { href: "/analytics",  labelKey: "analytics",   icon: "📈", descKey: "salesPerf"        },
+  { href: "/chat",       labelKey: "chat" as TranslationKey, icon: "💬", descKey: "chat" as TranslationKey },
   { href: "/reviews",    labelKey: "reviews",     icon: "⭐", descKey: "customerFeedback" },
+  { href: "/promos",     labelKey: "promosLabel",   icon: "🏷️", descKey: "salesPerf"       },
+  { href: "/campaigns",  labelKey: "campaignsLabel", icon: "🎯", descKey: "salesPerf"     },
   { href: "/store",      labelKey: "myStore",     icon: "🏪", descKey: "settingsAndHours" },
   { href: "/profile",    labelKey: "account",     icon: "👤", descKey: "profileAndSecurity" },
 ];
@@ -21,6 +25,7 @@ export function SideNav() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const { config } = usePlatformConfig();
+  const { symbol: currencySymbol } = useCurrency();
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
 
@@ -82,7 +87,7 @@ export function SideNav() {
         <Link href="/wallet">
           <div className="px-3 py-2.5 bg-orange-50 rounded-xl cursor-pointer hover:bg-orange-100 transition-colors">
             <p className="text-xs text-gray-500 font-medium">{T("walletBalanceLabel")}</p>
-            <p className="text-lg font-extrabold text-orange-600">Rs. {Math.round(user?.walletBalance || 0).toLocaleString()}</p>
+            <p className="text-lg font-extrabold text-orange-600">{fc(user?.walletBalance ?? "0", currencySymbol)}</p>
           </div>
         </Link>
         <button onClick={logout} className="w-full flex items-center gap-2 px-3 py-2.5 text-red-500 hover:bg-red-50 rounded-xl text-sm font-semibold transition-colors">

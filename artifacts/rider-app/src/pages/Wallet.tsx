@@ -1,12 +1,19 @@
+import { formatCurrency as _sharedFcW } from "@workspace/api-zod";
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "../lib/auth";
+import { useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
+import { useAuth } from "../lib/rider-auth";
 import { api } from "../lib/api";
-import { usePlatformConfig } from "../lib/useConfig";
+import { usePlatformConfig, formatDateTz } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PullToRefresh } from "../components/PullToRefresh";
+import { ErrorState } from "../components/ui/ErrorState";
 import WithdrawModal from "../components/wallet/WithdrawModal";
+/* W3: Each wallet modal owns its own state and is conditionally mounted —
+   we ensure that flipping `showWithdraw`/`showDeposit`/`showRemittance` to
+   false unmounts the modal so its `useState` defaults reset on next open.
+   The render below already does this via `{showWithdraw && <WithdrawModal …>}`
+   guards, so reopening the modal yields a fresh instance with empty inputs. */
 import RemittanceModal from "../components/wallet/RemittanceModal";
 import DepositModal from "../components/wallet/DepositModal";
 import {
@@ -17,8 +24,8 @@ import {
   Eye, EyeOff, Sparkles, BarChart3, ChevronRight,
 } from "lucide-react";
 
-const fc  = (n: number, currencySymbol = "Rs.") => `${currencySymbol} ${Math.round(n).toLocaleString()}`;
-const fd  = (d: string | Date) => new Date(d).toLocaleString("en-PK", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const fc = (n: string | number | null | undefined, currencySymbol = "Rs.") => _sharedFcW(n != null ? String(n) : (n as null | undefined), currencySymbol);
+const fd  = (d: string | Date, tz?: string) => formatDateTz(d, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }, tz ?? "Asia/Karachi");
 const fdr = (d: string | Date) => {
   const diff = Date.now() - new Date(d).getTime();
   const h = Math.floor(diff / 3600000);
@@ -26,7 +33,6 @@ const fdr = (d: string | Date) => {
   if (h < 24) return `${h}h ago`;
   return `${Math.floor(h / 24)}d ago`;
 };
-
 function dateGroupLabel(d: string): string {
   const now = new Date();
   const dt  = new Date(d);
@@ -38,7 +44,6 @@ function dateGroupLabel(d: string): string {
   if (dt >= weekAgo) return "thisWeek_group";
   return dt.toLocaleDateString("en-PK", { month: "long", year: "numeric" });
 }
-
 function TxIcon({ type }: { type: string }) {
   const base = "w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0";
   if (type === "credit")          return <div className={`${base} bg-green-50`}><TrendingUp size={18} className="text-green-600"/></div>;
@@ -94,7 +99,7 @@ function EarningsChart({ transactions }: { transactions: WalletTx[] }) {
       });
     }
     return result;
-  }, [transactions]);
+  }, [transactions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const maxVal = Math.max(...days.map(d => d.amount), 1);
   const weekTotal = days.reduce((s, d) => s + d.amount, 0);
@@ -198,9 +203,11 @@ export default function Wallet() {
   const { user, refreshUser } = useAuth();
   const { config } = usePlatformConfig();
   const currency = config.platform.currencySymbol ?? "Rs.";
-  const riderKeepPct      = config.rider?.keepPct        ?? config.finance.riderEarningPct;
-  const minPayout         = config.rider?.minPayout      ?? config.finance.minRiderPayout;
-  const maxPayout         = config.rider?.maxPayout      ?? 50000;
+  const tz = config.regional?.timezone ?? "Asia/Karachi";
+  const fd = (d: string | Date) => formatDateTz(d, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }, tz);
+  const riderKeepPct      = config.rider?.keepPct ?? config.finance.riderEarningPct;
+  const minPayout         = config.rider?.minPayout ?? config.finance.minRiderPayout;
+  const maxPayout         = config.rider?.maxPayout ?? 0;
   const withdrawalEnabled = config.rider?.withdrawalEnabled !== false;
   const depositEnabled    = config.rider?.depositEnabled !== false;
   const minBalanceFallback = config.rider?.minBalance ?? 0;
@@ -216,6 +223,10 @@ export default function Wallet() {
   const [showCodHistory, setShowCodHistory] = useState(false);
   const [balanceHidden, setBalanceHidden]   = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /* W2: sentinel observed at the bottom of the transactions list to trigger
+     fetchNextPage. Kept as a ref so the IntersectionObserver re-binds only
+     when the sentinel mounts/unmounts, not on every render. */
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     return () => {
@@ -229,9 +240,24 @@ export default function Wallet() {
     toastTimer.current = setTimeout(() => setToast(null), 3500);
   };
 
-  const { data, isLoading, refetch } = useQuery({
+  /* W2: Cursor-paginated wallet history with infinite scroll. The first page
+     also carries the canonical `balance`. Subsequent pages append to the
+     visible list; the IntersectionObserver below auto-loads the next page
+     when the sentinel scrolls into view. */
+  const PAGE_SIZE = 50;
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ["rider-wallet"],
-    queryFn: () => api.getWallet(),
+    queryFn: ({ pageParam }) => api.getWalletPage({ cursor: pageParam ?? null, limit: PAGE_SIZE }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage?.nextCursor ?? null,
     refetchInterval: 30000,
     enabled: config.features.wallet,
   });
@@ -279,11 +305,23 @@ export default function Wallet() {
   });
   const minBalance = (minBalanceData?.minBalance ?? minBalanceFallback) as number;
 
-  const transactions: WalletTx[] = data?.transactions || [];
-  /* Only show balance once the wallet query resolves — never fall back to user.walletBalance
-     to avoid the "jumping" effect when the two sources differ. */
-  const balanceFromServer = data?.balance;
-  const balance = balanceFromServer != null ? Number(balanceFromServer) : 0;
+  /* W2: Flatten paged results into a single transactions array. Balance is
+     authoritative on the FIRST page only (each subsequent page also returns
+     the live balance, but using the first page avoids tiny flicker as later
+     pages stream in). Aggregates below (today/week/total) sum the loaded
+     pages — same behaviour as before, but now extends as the rider scrolls. */
+  const pages = data?.pages ?? []; // eslint-disable-line react-hooks/exhaustive-deps
+  const transactions: WalletTx[] = useMemo(() => {
+    const out: WalletTx[] = [];
+    for (const p of pages) {
+      const items = (p?.items ?? []) as WalletTx[];
+      for (const it of items) out.push(it);
+    }
+    return out;
+  }, [pages]);
+  const balanceFromServer = pages[0]?.balance;
+  const balance = balanceFromServer ?? "0";
+  const balanceNum = balanceFromServer != null ? Number(balanceFromServer) : 0;
   const isBalanceStale = false;
 
   const today   = new Date(); today.setHours(0,0,0,0);
@@ -293,6 +331,7 @@ export default function Wallet() {
   const weekEarned     = transactions.filter(t => t.type === "credit" && new Date(t.createdAt) >= weekAgo).reduce((s, t) => s + Number(t.amount), 0);
   const totalEarned    = transactions.filter(t => t.type === "credit" || t.type === "bonus").reduce((s, t) => s + Number(t.amount), 0);
   const totalWithdrawn = transactions.filter(t => t.type === "debit" && !t.reference?.startsWith("refund:")).reduce((s, t) => s + Number(t.amount), 0);
+  const promoBalance   = useMemo(() => transactions.filter(t => ["bonus", "cashback", "loyalty"].includes(t.type)).reduce((s, t) => s + Math.max(0, Number(t.amount)), 0), [transactions]);
 
   const withdrawalRequests = transactions.filter(t =>
     t.type === "debit" && t.description?.startsWith("Withdrawal") && !t.reference?.startsWith("refund:")
@@ -321,13 +360,40 @@ export default function Wallet() {
     for (const t of filtered) {
       const g = dateGroupLabel(t.createdAt);
       if (!groupMap.has(g)) {
-        groupMap.set(g, []);
-        groups.push({ label: g, items: groupMap.get(g)! });
+        const items: WalletTx[] = [];
+        groupMap.set(g, items);
+        groups.push({ label: g, items });
       }
-      groupMap.get(g)!.push(t);
+      groupMap.get(g)?.push(t);
     }
     return groups;
   }, [filtered]);
+
+  const handlePullRefresh = useCallback(async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["rider-wallet"] }),
+      qc.invalidateQueries({ queryKey: ["rider-withdrawals"] }),
+    ]);
+  }, [qc]);
+
+  /* W2: Auto-load next page when the sentinel scrolls into view. We re-bind
+     the observer whenever `hasNextPage` flips so that once we exhaust the
+     dataset we stop spending CPU on intersection callbacks. */
+  useEffect(() => {
+    if (!hasNextPage) return;
+    const node = loadMoreRef.current;
+    if (!node) return;
+    const obs = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting && !isFetchingNextPage) {
+          fetchNextPage();
+          break;
+        }
+      }
+    }, { rootMargin: "200px" });
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (isLoading) {
     return (
@@ -370,6 +436,26 @@ export default function Wallet() {
     );
   }
 
+  if (isError) {
+    return (
+      <div className="bg-[#F5F6F8] min-h-screen flex flex-col">
+        <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 px-5 pb-10 rounded-b-[2rem]"
+          style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}>
+          <p className="text-white/40 text-xs font-semibold tracking-widest uppercase mb-1">{T("walletBalance")}</p>
+          <h1 className="text-2xl font-extrabold text-white tracking-tight">{T("wallet")}</h1>
+        </div>
+        <div className="flex-1 flex items-center justify-center -mt-4">
+          <ErrorState
+            title={T("somethingWentWrong")}
+            subtitle={T("checkInternetRetry")}
+            onRetry={() => refetch()}
+            retryLabel={T("retry")}
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (!config.features.wallet) {
     return (
       <div className="bg-[#F5F6F8] min-h-screen">
@@ -389,13 +475,6 @@ export default function Wallet() {
       </div>
     );
   }
-
-  const handlePullRefresh = useCallback(async () => {
-    await Promise.all([
-      qc.invalidateQueries({ queryKey: ["rider-wallet"] }),
-      qc.invalidateQueries({ queryKey: ["rider-withdrawals"] }),
-    ]);
-  }, [qc]);
 
   return (
     <PullToRefresh onRefresh={handlePullRefresh} className="bg-[#F5F6F8] min-h-screen">
@@ -443,7 +522,7 @@ export default function Wallet() {
             )}
           </div>
 
-          <div className="grid grid-cols-3 gap-2.5 mb-5">
+          <div className="grid grid-cols-3 gap-2.5 mb-3">
             <div className="bg-white/[0.06] backdrop-blur-sm rounded-2xl px-3 py-2.5 border border-white/[0.06]">
               <p className="text-[9px] text-white/30 uppercase tracking-wider font-bold">{T("earnedToday")}</p>
               <p className="text-sm font-black text-green-400 mt-0.5">{balanceHidden ? "••••" : fc(todayEarned, currency)}</p>
@@ -458,12 +537,27 @@ export default function Wallet() {
             </div>
           </div>
 
-          {minBalance > 0 && balance < minBalance && (
+          {promoBalance > 0 && (
+            <div className="mb-5 bg-gradient-to-br from-purple-600/25 to-indigo-600/20 backdrop-blur-sm rounded-2xl px-4 py-3.5 border border-purple-400/20 flex items-center justify-between">
+              <div>
+                <p className="text-[9px] text-purple-300 uppercase tracking-wider font-bold flex items-center gap-1">
+                  <Sparkles size={9}/> Promo Balance
+                </p>
+                <p className="text-xl font-black text-white mt-0.5">{balanceHidden ? "••••" : fc(promoBalance, currency)}</p>
+                <p className="text-[9px] text-white/30 mt-0.5">Bonuses · Cashback · Loyalty</p>
+              </div>
+              <div className="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-400/20 flex items-center justify-center flex-shrink-0">
+                <Sparkles size={16} className="text-purple-300"/>
+              </div>
+            </div>
+          )}
+
+          {minBalance > 0 && balanceNum < minBalance && (
             <div className="mb-4 bg-amber-500/15 rounded-2xl px-3.5 py-2.5 flex items-center gap-2.5 border border-amber-500/15">
               <AlertTriangle size={14} className="text-amber-400 flex-shrink-0"/>
               <div>
                 <p className="text-xs text-amber-300 font-bold">{T("cashMinBalance")}: {fc(minBalance, currency)}</p>
-                <p className="text-[10px] text-amber-400/60">{currency} {Math.round(minBalance - balance)} {T("moreNeeded")}</p>
+                <p className="text-[10px] text-amber-400/60">{currency} {Math.round(minBalance - balanceNum)} {T("moreNeeded")}</p>
               </div>
             </div>
           )}
@@ -797,6 +891,20 @@ export default function Wallet() {
                   </div>
                 </div>
               ))}
+              {/* W2: infinite-scroll sentinel + spinner. Only rendered when
+                 there is a next page so we never show a permanent loader. */}
+              {hasNextPage && (
+                <div ref={loadMoreRef} className="px-5 py-4 flex items-center justify-center">
+                  {isFetchingNextPage ? (
+                    <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin"/>
+                  ) : (
+                    <div className="h-5"/>
+                  )}
+                </div>
+              )}
+              {!hasNextPage && transactions.length > 0 && (
+                <p className="text-center text-[10px] text-gray-300 py-3">{T("allTransactionsSecure")}</p>
+              )}
             </div>
           )}
         </div>
@@ -829,6 +937,7 @@ export default function Wallet() {
       {showRemittance && (
         <RemittanceModal
           netOwed={codNetOwed}
+          codCollected={codCollected}
           onClose={() => setShowRemittance(false)}
           onSuccess={() => {
             qc.invalidateQueries({ queryKey: ["rider-cod"] });
@@ -844,7 +953,7 @@ export default function Wallet() {
 
       {showWithdraw && withdrawalEnabled && (
         <WithdrawModal
-          balance={balance} minPayout={minPayout} maxPayout={maxPayout}
+          balance={balanceNum} minPayout={minPayout} maxPayout={maxPayout}
           onClose={() => setShowWithdraw(false)}
           onSuccess={() => {
             qc.invalidateQueries({ queryKey: ["rider-wallet"] });
@@ -853,7 +962,7 @@ export default function Wallet() {
             refetch();
             refetchCod();
             refetchDeposits();
-            refreshUser().catch(() => {});
+            refreshUser().catch((err) => { console.warn('[artifacts/rider-app/src/pages/Wallet.tsx]', err); }); // eslint-disable-line no-console
             /* Show "Under Review" message so rider knows the request is pending admin review
                and their balance will only be deducted after the request is approved. */
             showToast(`${T("withdrawalSubmitted")} ${T("underReview")}`, "success");
@@ -863,7 +972,7 @@ export default function Wallet() {
 
       {showDeposit && depositEnabled && (
         <DepositModal
-          balance={balance} minBalance={minBalance}
+          balance={balanceNum} minBalance={minBalance}
           onClose={() => setShowDeposit(false)}
           onSuccess={() => {
             qc.invalidateQueries({ queryKey: ["rider-wallet"] });

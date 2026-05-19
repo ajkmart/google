@@ -5,17 +5,22 @@
  * AJKMart Super App API
  * OpenAPI spec version: 0.1.0
  */
+import type { ProductApprovalStatus } from "./productApprovalStatus";
 import type { ProductType } from "./productType";
 
 export interface Product {
   id: string;
   name: string;
   description?: string;
-  price: number;
-  originalPrice?: number;
+  price: string;
+  originalPrice?: string;
   category: string;
   type: ProductType;
   image?: string;
+  images?: string[];
+  stock?: number;
+  approvalStatus?: ProductApprovalStatus;
+  videoUrl?: string | null;
   vendorId?: string;
   vendorName?: string;
   rating?: number;

@@ -7,6 +7,7 @@ import { PanelLeftIcon } from "lucide-react"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
+import { safeCookieSet } from "@/lib/safeStorage"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
@@ -83,7 +84,15 @@ function SidebarProvider({
       }
 
       // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+      // Routed through the shared safeCookieSet helper so cookie failures
+      // (Safari ITP private mode, third-party-cookie blockers, embedded
+      // WebViews) land in the [safeStorage] log channel instead of being
+      // swallowed silently.
+      safeCookieSet(SIDEBAR_COOKIE_NAME, String(openState), {
+        path: "/",
+        maxAge: SIDEBAR_COOKIE_MAX_AGE,
+        sameSite: "Lax",
+      })
     },
     [setOpenProp, open]
   )

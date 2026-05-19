@@ -1,4 +1,7 @@
 import { Component, type ReactNode } from "react";
+import { reportError } from "../lib/error-reporter";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[ErrorBoundary]");
 
 interface Props { children: ReactNode; fallback?: ReactNode; }
 interface State { hasError: boolean; error: Error | null; }
@@ -14,7 +17,13 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
-    console.error("[ErrorBoundary]", error, info);
+    log.error("caught:", error, info);
+    reportError({
+      errorType: "frontend_crash",
+      errorMessage: error.message || "Component crash",
+      stackTrace: error.stack || info.componentStack,
+      componentName: "ErrorBoundary",
+    });
   }
 
   render() {

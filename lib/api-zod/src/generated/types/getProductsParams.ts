@@ -11,4 +11,5 @@ export type GetProductsParams = {
   category?: string;
   search?: string;
   type?: GetProductsType;
+  sort?: string;
 };

@@ -1,38 +1,78 @@
-import { useState, useEffect, useMemo } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { getAdminAccessToken, adminAbsoluteFetch, adminFetch } from "@/lib/adminFetcher";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[rides]");
+import { PageHeader, StatCard } from "@/components/shared";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { io } from "socket.io-client";
+import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import {
   useRidesEnriched, useRideServices, useCreateRideService, useUpdateRideService, useDeleteRideService,
   usePopularLocations, useCreateLocation, useUpdateLocation, useDeleteLocation,
   useSchoolRoutes, useCreateSchoolRoute, useUpdateSchoolRoute, useDeleteSchoolRoute, useSchoolSubscriptions,
-  useUsers,
+  useSearchRiders,
   useAdminCancelRide, useAdminRefundRide, useAdminReassignRide,
   useRideDetail, useRideAuditTrail, useDispatchMonitor,
   usePlatformSettings, useUpdatePlatformSettings,
 } from "@/hooks/use-admin";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { useAbortableEffect, isAbortError } from "@/lib/useAbortableEffect";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { MobileDrawer } from "@/components/MobileDrawer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Car, Search, User, MapPin, Navigation, Phone,
   TrendingUp, UserCheck, AlertTriangle, CheckCircle2,
   MessageCircle, Clock, Zap, History, Activity, Settings2,
-  Plus, Pencil, Trash2, ToggleLeft, ToggleRight, ChevronUp, ChevronDown, Layers,
+  Plus, Pencil, Trash2, ToggleLeft, ToggleRight, ChevronUp, ChevronDown, Layers, Loader2,
   GraduationCap, Bus, X, Users, RefreshCw, DollarSign, ArrowLeftRight,
   Eye, ChevronLeft, ChevronRight, ArrowUpDown, Radio, Shield, Save,
-  Filter,
+  Filter, Info, BarChart2,
 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from "recharts";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
-import { StatusBadge } from "@/components/AdminShared";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { LastUpdated } from "@/components/ui/LastUpdated";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+
+interface EnrichedRide {
+  id: string;
+  status: string;
+  type: string;
+  userId: string;
+  riderId: string | null;
+  userName: string | null;
+  userPhone: string | null;
+  riderName: string | null;
+  riderPhone: string | null;
+  pickupAddress: string;
+  dropAddress: string;
+  pickupLat: string | null;
+  pickupLng: string | null;
+  dropLat: string | null;
+  dropLng: string | null;
+  fare: number;
+  distance: number;
+  offeredFare: number | null;
+  counterFare: number | null;
+  paymentMethod: string;
+  bargainStatus: string | null;
+  totalBids: number;
+  createdAt: string;
+  updatedAt: string;
+}
 
 const STATUS_LABELS: Record<string, string> = {
-  bargaining: "Bargaining", searching: "Searching", accepted: "Accepted",
+  pending: "Pending", bargaining: "Bargaining", searching: "Searching", accepted: "Accepted",
   arrived: "Arrived", in_transit: "In Transit", completed: "Completed", cancelled: "Cancelled",
 };
 const SVC_ICONS: Record<string, string> = { bike: "🏍️", car: "🚗", rickshaw: "🛺", daba: "🚐", school_shift: "🚌" };
@@ -70,7 +110,7 @@ function formatElapsed(seconds: number) {
   return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
 }
 
-type Tab = "rides" | "dispatch" | "settings" | "services" | "locations" | "school";
+type Tab = "rides" | "dispatch" | "settings" | "services" | "locations" | "school" | "analytics";
 
 function RideDetailModal({
   rideId, onClose,
@@ -80,7 +120,6 @@ function RideDetailModal({
 }) {
   const { data, isLoading, isError, error, refetch } = useRideDetail(rideId);
   const { data: auditData } = useRideAuditTrail(rideId);
-  const { data: usersData } = useUsers();
   const cancelMut = useAdminCancelRide();
   const refundMut = useAdminRefundRide();
   const reassignMut = useAdminReassignRide();
@@ -96,6 +135,14 @@ function RideDetailModal({
   const [assignPhone, setAssignPhone] = useState("");
   const [selectedRiderId, setSelectedRiderId] = useState<string | null>(null);
   const [riderSearch, setRiderSearch] = useState("");
+  const [debouncedRiderSearch, setDebouncedRiderSearch] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedRiderSearch(riderSearch), 300);
+    return () => clearTimeout(t);
+  }, [riderSearch]);
+
+  const { data: riderSearchData } = useSearchRiders(debouncedRiderSearch);
 
   if (isError) return (
     <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
@@ -127,7 +174,7 @@ function RideDetailModal({
   const handleCancel = () => {
     cancelMut.mutate({ id: rideId, reason: cancelReason || undefined }, {
       onSuccess: () => { toast({ title: "Ride cancelled" }); onClose(); },
-      onError: e => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+      onError: (e: unknown) => { toast({ title: "Failed to cancel ride", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" }); },
     });
   };
 
@@ -138,23 +185,11 @@ function RideDetailModal({
     }
     refundMut.mutate({ id: rideId, amount: amt, reason: refundReason || undefined }, {
       onSuccess: (d: any) => { toast({ title: `Refunded ${formatCurrency(Number(d.refundedAmount))}` }); setShowRefund(false); refetch(); },
-      onError: e => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+      onError: (e: unknown) => { toast({ title: "Refund failed", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" }); },
     });
   };
 
-  const allRiders = useMemo(() => {
-    const users: any[] = usersData?.users ?? [];
-    return users.filter((u: any) => u.role === "rider" && u.isActive !== false);
-  }, [usersData]);
-
-  const filteredRiders = useMemo(() => {
-    if (!riderSearch) return allRiders.slice(0, 20);
-    const q = riderSearch.toLowerCase();
-    return allRiders.filter((u: any) =>
-      (u.name || "").toLowerCase().includes(q) ||
-      (u.phone || "").toLowerCase().includes(q)
-    ).slice(0, 20);
-  }, [allRiders, riderSearch]);
+  const filteredRiders: any[] = riderSearchData?.riders ?? [];
 
   const selectRider = (r: any) => {
     setSelectedRiderId(r.id);
@@ -171,7 +206,7 @@ function RideDetailModal({
     }
     reassignMut.mutate({ id: rideId, riderId: selectedRiderId, riderName: assignName.trim(), riderPhone: assignPhone.trim() }, {
       onSuccess: () => { toast({ title: "Rider reassigned" }); setShowReassign(false); refetch(); },
-      onError: e => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+      onError: (e: unknown) => { toast({ title: "Reassignment failed", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" }); },
     });
   };
 
@@ -182,17 +217,12 @@ function RideDetailModal({
   };
 
   return (
-    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
-      <DialogContent className="w-[95vw] max-w-2xl rounded-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 flex-wrap">
-            <Car className="w-5 h-5 text-green-600" />
-            Ride Detail
-            <StatusBadge status={ride.status} />
-            <span className="font-mono text-xs text-muted-foreground ml-auto">#{ride.id.slice(-8).toUpperCase()}</span>
-          </DialogTitle>
-        </DialogHeader>
-
+    <MobileDrawer
+      open
+      onClose={onClose}
+      title={<><Car className="w-5 h-5 text-emerald-600" /> Ride Detail <StatusBadge status={ride.status} /> <span className="font-mono text-xs text-muted-foreground ml-auto">#{ride.id.slice(-8).toUpperCase()}</span></>}
+      dialogClassName="w-[95vw] max-w-2xl rounded-3xl max-h-[90vh] overflow-y-auto"
+    >
         <div className="space-y-4 mt-1">
           {/* Customer & Rider */}
           <div className="grid grid-cols-2 gap-3">
@@ -469,7 +499,7 @@ function RideDetailModal({
                 {bids.map((b: any) => (
                   <div key={b.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/30 text-xs">
                     <div>
-                      <span className="font-bold">{formatCurrency(b.amount)}</span>
+                      <span className="font-bold">{formatCurrency(b.fare)}</span>
                       {b.note && <span className="text-muted-foreground ml-2">{b.note}</span>}
                     </div>
                     <Badge variant="outline" className={`text-[10px] ${b.status === "accepted" ? "bg-green-100 text-green-700 border-green-200" : b.status === "rejected" ? "bg-red-100 text-red-700 border-red-200" : "bg-gray-100 text-gray-600"}`}>
@@ -535,29 +565,96 @@ function RideDetailModal({
             </div>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MobileDrawer>
   );
 }
 
+/* ── Tile config hook: fetches provider from /api/maps/config?app=admin ── */
+function useDispatchTileConfig() {
+  const [tile, setTile] = useState<{ url: string; attribution: string; provider: string }>({
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    provider: "osm",
+  });
+  useAbortableEffect((signal) => {
+    adminAbsoluteFetch("/api/maps/config?app=admin", { signal })
+      .then((cfg: any) => {
+        if (signal.aborted) return;
+        const prov = cfg?.provider ?? "osm";
+        const tok  = cfg?.token ?? "";
+        if (prov === "mapbox" && tok) {
+          setTile({
+            url: `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${tok}`,
+            attribution: '© <a href="https://www.mapbox.com/">Mapbox</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            provider: "mapbox",
+          });
+        } else if (prov === "google" && tok) {
+          setTile({
+            url: `https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${tok}`,
+            attribution: "© Google Maps",
+            provider: "google",
+          });
+        }
+      })
+      .catch((err) => {
+        if (isAbortError(err)) return;
+      });
+  }, []);
+  return tile;
+}
+
+/* ── FitBounds: auto-zooms map to show all markers ── */
+function FitBounds({ positions }: { positions: [number, number][] }) {
+  const map = useMap();
+  const posKey = useMemo(() => positions.map(p => p.join(",")).join("|"), [positions]);
+  useEffect(() => {
+    if (positions.length === 0) return;
+    if (positions.length === 1) {
+      map.setView(positions[0]!, 14);
+    } else {
+      map.fitBounds(L.latLngBounds(positions), { padding: [40, 40], maxZoom: 15 });
+    }
+  }, [posKey, map, positions]);
+  return null;
+}
+
+/* Fix leaflet default icons in Vite builds */
+const _fixLeafletIcons = () => {
+  delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+    iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+    shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  });
+};
+_fixLeafletIcons();
+
+function makeRideIcon(color: string) {
+  return L.divIcon({
+    className: "",
+    iconSize:  [32, 32],
+    iconAnchor: [16, 32],
+    html: `<div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;">
+      <div style="background:${color};border-radius:50% 50% 50% 0;transform:rotate(-45deg);width:24px;height:24px;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);">
+      </div>
+    </div>`,
+  });
+}
+
 function DispatchMap({ rides }: { rides: any[] }) {
+  const tile = useDispatchTileConfig();
   const geoRides = rides.filter(r => r.pickupLat != null && r.pickupLng != null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const positions: [number, number][] = geoRides.map(r => [r.pickupLat, r.pickupLng]);
+  const center: [number, number] = positions.length > 0
+    ? [
+        positions.reduce((s, p) => s + p[0], 0) / positions.length,
+        positions.reduce((s, p) => s + p[1], 0) / positions.length,
+      ]
+    : [34.3697, 73.4716];
+
   if (geoRides.length === 0) return null;
-
-  const lats = geoRides.map(r => r.pickupLat);
-  const lngs = geoRides.map(r => r.pickupLng);
-  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
-  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
-  const PAD = 0.005;
-  const latRange = Math.max(maxLat - minLat + PAD * 2, PAD * 4);
-  const lngRange = Math.max(maxLng - minLng + PAD * 2, PAD * 4);
-  const centerLat = (minLat + maxLat) / 2;
-  const centerLng = (minLng + maxLng) / 2;
-
-  const toX = (lng: number) => ((lng - (centerLng - lngRange / 2)) / lngRange) * 100;
-  const toY = (lat: number) => ((1 - (lat - (centerLat - latRange / 2)) / latRange)) * 100;
-
-  const [hovered, setHovered] = useState<string | null>(null);
 
   return (
     <Card className="rounded-2xl border-2 border-blue-200/60 overflow-hidden">
@@ -565,73 +662,50 @@ function DispatchMap({ rides }: { rides: any[] }) {
         <p className="text-xs font-bold text-blue-700 uppercase tracking-wide flex items-center gap-1.5">
           <MapPin className="w-3.5 h-3.5" /> Live Dispatch Map
         </p>
-        <span className="text-[10px] text-blue-600 font-semibold">{geoRides.length} active pickup{geoRides.length !== 1 ? "s" : ""}</span>
-      </div>
-      <div className="relative w-full bg-gradient-to-br from-blue-50 via-green-50/30 to-amber-50/20" style={{ height: 320 }}>
-        <div className="absolute inset-0">
-          {[...Array(6)].map((_, i) => (
-            <div key={`h${i}`} className="absolute w-full border-b border-blue-200/20" style={{ top: `${(i + 1) * (100 / 7)}%` }} />
-          ))}
-          {[...Array(8)].map((_, i) => (
-            <div key={`v${i}`} className="absolute h-full border-r border-blue-200/20" style={{ left: `${(i + 1) * (100 / 9)}%` }} />
-          ))}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-semibold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">{tile.provider.toUpperCase()}</span>
+          <span className="text-[10px] text-blue-600 font-semibold">{geoRides.length} active pickup{geoRides.length !== 1 ? "s" : ""}</span>
         </div>
-
-        {geoRides.map(r => {
-          const x = toX(r.pickupLng);
-          const y = toY(r.pickupLat);
-          const elapsed = Math.floor((Date.now() - new Date(r.createdAt).getTime()) / 1000);
-          const isUrgent = elapsed > 120;
-          const isBargaining = r.status === "bargaining";
-          return (
-            <div key={r.id}>
-              <a
-                href={`https://www.google.com/maps?q=${r.pickupLat},${r.pickupLng}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="absolute z-10 group cursor-pointer"
-                style={{ left: `${Math.max(3, Math.min(97, x))}%`, top: `${Math.max(3, Math.min(97, y))}%`, transform: "translate(-50%, -100%)" }}
-                onMouseEnter={() => setHovered(r.id)}
-                onMouseLeave={() => setHovered(null)}
+      </div>
+      <div className="h-[240px] sm:h-[340px]">
+        <MapContainer center={center} zoom={12} style={{ height: "100%", width: "100%" }} scrollWheelZoom={true}>
+          <TileLayer url={tile.url} attribution={tile.attribution} maxZoom={19} />
+          <FitBounds positions={positions} />
+          {geoRides.map(r => {
+            const elapsed = Math.floor((Date.now() - new Date(r.createdAt).getTime()) / 1000);
+            const isUrgent = elapsed > 120;
+            const isBargaining = r.status === "bargaining";
+            const color = isBargaining ? "#f97316" : isUrgent ? "#ef4444" : "#3b82f6";
+            return (
+              <Marker
+                key={r.id}
+                position={[r.pickupLat, r.pickupLng]}
+                icon={makeRideIcon(color)}
+                eventHandlers={{ click: () => setSelectedId(selectedId === r.id ? null : r.id) }}
               >
-                <div className={`relative flex flex-col items-center ${isUrgent ? "animate-bounce" : ""}`}>
-                  <div className={`px-2 py-1 rounded-lg text-[10px] font-bold shadow-md border-2 whitespace-nowrap ${
-                    isBargaining
-                      ? "bg-orange-500 text-white border-orange-600"
-                      : isUrgent
-                        ? "bg-red-500 text-white border-red-600"
-                        : "bg-blue-500 text-white border-blue-600"
-                  }`}>
-                    {svcIcon(r.type)} #{r.id.slice(-6).toUpperCase()}
+                <Popup>
+                  <div className="min-w-[160px]">
+                    <p className="font-bold text-sm">{svcIcon(r.type)} #{r.id.slice(-6).toUpperCase()}</p>
+                    <p className="text-xs text-gray-600 mt-0.5">{r.customerName}</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5 truncate max-w-[180px]">{r.pickupAddress}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="font-bold text-xs text-gray-800">{formatCurrency(r.offeredFare ?? r.fare)}</span>
+                      <span className={`text-xs font-bold ${elapsed > 120 ? "text-red-600" : "text-green-600"}`}>{formatElapsed(elapsed)}</span>
+                    </div>
+                    <a href={`https://www.google.com/maps?q=${r.pickupLat},${r.pickupLng}`} target="_blank" rel="noreferrer"
+                      className="text-[10px] text-blue-600 underline mt-1 block">Open in Maps</a>
                   </div>
-                  <div className={`w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent ${
-                    isBargaining ? "border-t-orange-500" : isUrgent ? "border-t-red-500" : "border-t-blue-500"
-                  }`} />
-                  <div className={`absolute -bottom-1 w-3 h-1.5 rounded-full opacity-30 ${
-                    isBargaining ? "bg-orange-500" : isUrgent ? "bg-red-500" : "bg-blue-500"
-                  }`} />
-                </div>
-              </a>
-              {hovered === r.id && (
-                <div className="absolute z-20 bg-white rounded-xl shadow-xl border-2 border-blue-200 p-3 min-w-[180px]"
-                  style={{ left: `${Math.max(10, Math.min(70, x))}%`, top: `${Math.max(3, Math.min(60, y - 15))}%` }}>
-                  <p className="text-xs font-bold text-gray-800">{r.customerName}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{r.pickupAddress}</p>
-                  <div className="flex items-center gap-3 mt-1.5">
-                    <span className="text-[10px] font-bold">{formatCurrency(r.offeredFare ?? r.fare)}</span>
-                    <span className={`text-[10px] font-bold ${elapsed > 120 ? "text-red-600" : "text-green-600"}`}>{formatElapsed(elapsed)}</span>
-                    <span className="text-[10px] text-muted-foreground">{r.notifiedRiders} notified</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                </Popup>
+              </Marker>
+            );
+          })}
+        </MapContainer>
       </div>
       <div className="flex items-center gap-4 px-4 py-2 bg-muted/30 border-t text-[10px] text-muted-foreground">
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Searching</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-orange-500" /> Bargaining</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-bounce" /> Urgent (&gt;2min)</span>
+        <span className="ml-auto text-[10px] text-muted-foreground">Provider: {tile.provider.toUpperCase()} • Click marker for details</span>
       </div>
     </Card>
   );
@@ -648,11 +722,11 @@ function DispatchMonitor() {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("ajkmart_admin_token") ?? "";
+    const token = getAdminAccessToken() ?? "";
     const socket = io(window.location.origin, {
       path: "/api/socket.io",
       query: { rooms: "admin-fleet" },
-      auth: { adminToken: token },
+      auth: { token },
       transports: ["websocket", "polling"],
     });
 
@@ -662,7 +736,7 @@ function DispatchMonitor() {
     });
 
     socket.on("connect_error", (err) => {
-      console.warn("[DispatchMonitor] socket connection error:", err.message);
+      log.warn("dispatch-monitor WebSocket connect_error:", err?.message ?? err);
     });
 
     return () => { socket.disconnect(); };
@@ -691,28 +765,50 @@ function DispatchMonitor() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="p-4 rounded-2xl text-center bg-amber-50/60 border-amber-200/60">
-          <p className="text-2xl font-bold text-amber-700">{searching.length}</p>
-          <p className="text-xs text-muted-foreground">Searching</p>
-        </Card>
-        <Card className="p-4 rounded-2xl text-center bg-orange-50/60 border-orange-200/60">
-          <p className="text-2xl font-bold text-orange-700">{bargaining.length}</p>
-          <p className="text-xs text-muted-foreground">Bargaining</p>
-        </Card>
-        <Card className="p-4 rounded-2xl text-center bg-blue-50/60 border-blue-200/60">
-          <p className="text-2xl font-bold text-blue-700">{rides.reduce((s, r) => s + r.notifiedRiders, 0)}</p>
-          <p className="text-xs text-muted-foreground">Riders Notified</p>
-        </Card>
-        <Card className="p-4 rounded-2xl text-center bg-green-50/60 border-green-200/60">
-          <p className="text-2xl font-bold text-green-700">{rides.reduce((s, r) => s + r.totalBids, 0)}</p>
-          <p className="text-xs text-muted-foreground">Total Bids</p>
-        </Card>
+        <StatCard icon={Search} label="Searching" value={searching.length} iconBgClass="bg-amber-100" iconColorClass="text-amber-600" />
+        <StatCard icon={MessageCircle} label="Bargaining" value={bargaining.length} iconBgClass="bg-orange-100" iconColorClass="text-orange-600" />
+        <StatCard icon={Users} label="Riders Notified" value={rides.reduce((s, r) => s + r.notifiedRiders, 0)} iconBgClass="bg-blue-100" iconColorClass="text-blue-600" />
+        <StatCard icon={TrendingUp} label="Total Bids" value={rides.reduce((s, r) => s + r.totalBids, 0)} iconBgClass="bg-green-100" iconColorClass="text-green-600" />
       </div>
 
       {/* Live Dispatch Map */}
       {rides.some(r => r.pickupLat) && <DispatchMap rides={rides} />}
 
-      <Card className="rounded-2xl overflow-hidden border-border/50 shadow-sm">
+      {/* Mobile Dispatch Cards */}
+      <div className="block md:hidden space-y-3">
+        {rides.map((r: any) => {
+          const elapsed = Math.floor((Date.now() - new Date(r.createdAt).getTime()) / 1000);
+          return (
+            <Card key={r.id} className="rounded-2xl p-4 space-y-2 border-border/50 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-sm">#{r.id.slice(-6).toUpperCase()}</span>
+                  <Badge variant="outline" className={`text-[10px] font-bold uppercase ${svcClr(r.type)}`}>
+                    {svcIcon(r.type)} {svcName(r.type)}
+                  </Badge>
+                </div>
+                <Badge variant="outline" className={`text-[10px] font-bold uppercase ${r.status === "bargaining" ? "bg-orange-100 text-orange-700 border-orange-200 animate-pulse" : "bg-amber-100 text-amber-700 border-amber-200 animate-pulse"}`}>
+                  {r.status === "bargaining" ? "💬 Bargaining" : "🔍 Searching"}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <p className="font-medium">{r.customerName}</p>
+                <span className={`font-bold ${elapsed > 120 ? "text-red-600" : elapsed > 60 ? "text-amber-600" : "text-green-600"}`}>
+                  {formatElapsed(elapsed)}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span>{r.notifiedRiders} notified</span>
+                <span>{r.totalBids} bids</span>
+                <span className="ml-auto font-bold text-foreground">{formatCurrency(r.offeredFare ?? r.fare)}</span>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Desktop Dispatch Table */}
+      <Card className="rounded-2xl overflow-hidden border-border/50 shadow-sm hidden md:block">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -813,9 +909,9 @@ function RideSettings() {
     { key: "ride_rickshaw_base_fare", label: "Rickshaw Base Fare (Rs.)" },
     { key: "ride_rickshaw_per_km", label: "Rickshaw Per KM (Rs.)" },
     { key: "ride_rickshaw_min_fare", label: "Rickshaw Min Fare (Rs.)" },
-    { key: "ride_daba_base_fare", label: "Daba Base Fare (Rs.)" },
-    { key: "ride_daba_per_km", label: "Daba Per KM (Rs.)" },
-    { key: "ride_daba_min_fare", label: "Daba Min Fare (Rs.)" },
+    { key: "ride_daba_base_fare", label: "Daba On-Demand Base Fare (Rs.)" },
+    { key: "ride_daba_per_km", label: "Daba On-Demand Per KM (Rs.)" },
+    { key: "ride_daba_min_fare", label: "Daba On-Demand Min Fare (Rs.)" },
   ];
 
   useEffect(() => {
@@ -892,8 +988,11 @@ function RideSettings() {
         <div key={f.key} className="flex items-center justify-between py-2">
           <span className="text-sm font-medium">{f.label}</span>
           <button onClick={() => setVal(f.key, isOn ? "off" : "on")}
-            className={`p-1 rounded-xl transition-colors ${isOn ? "text-green-600" : "text-gray-400"}`}>
-            {isOn ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
+            disabled={updateMut.isPending}
+            className={`p-1 rounded-xl transition-colors disabled:opacity-50 ${isOn ? "text-green-600" : "text-gray-400"}`}>
+            {updateMut.isPending
+              ? <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+              : isOn ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
           </button>
         </div>
       );
@@ -972,72 +1071,36 @@ function RideSettings() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {FARE_KEYS.map(f => renderField({ ...f, type: "number" }))}
           </div>
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2.5 mt-1">
+            <Info className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800 leading-relaxed">
+              <strong>Daba (On-Demand) fares above do not apply to Van bookings.</strong>{" "}
+              Van intercity routes use a fixed per-route fare set in the{" "}
+              <a href="/van" className="underline font-semibold hover:text-amber-900">Van Management page</a>.
+            </p>
+          </div>
         </Card>
       </div>
     </div>
   );
 }
 
-function ServicesManager() {
-  const { data: svcData, isLoading: svcLoading } = useRideServices();
-  const createMut  = useCreateRideService();
-  const updateMut  = useUpdateRideService();
-  const deleteMut  = useDeleteRideService();
-  const { toast }  = useToast();
+interface ServiceFormValues {
+  key: string; name: string; nameUrdu: string; icon: string; description: string;
+  baseFare: string; perKm: string; minFare: string; maxPassengers: string; allowBargaining: boolean; color: string;
+}
 
-  const services: any[] = svcData?.services ?? [];
-  const EMPTY_FORM = { key: "", name: "", nameUrdu: "", icon: "🚗", description: "", baseFare: "15", perKm: "8", minFare: "50", maxPassengers: "1", allowBargaining: true, color: "#6B7280" };
-  const [form, setForm]     = useState(EMPTY_FORM);
-  const [editId, setEditId] = useState<string|null>(null);
-  const [showAdd, setShowAdd] = useState(false);
-  const [delConfirm, setDelConfirm] = useState<string|null>(null);
+interface ServiceFormPanelProps {
+  isNew: boolean;
+  form: ServiceFormValues;
+  setForm: React.Dispatch<React.SetStateAction<ServiceFormValues>>;
+  onSubmit: () => void;
+  onCancel: () => void;
+  isPending: boolean;
+}
 
-  const resetForm = () => { setForm({ ...EMPTY_FORM }); setEditId(null); setShowAdd(false); };
-
-  const startEdit = (svc: any) => {
-    setEditId(svc.id);
-    setShowAdd(false);
-    setForm({ key: svc.key, name: svc.name, nameUrdu: svc.nameUrdu || "", icon: svc.icon, description: svc.description || "", baseFare: String(svc.baseFare), perKm: String(svc.perKm), minFare: String(svc.minFare), maxPassengers: String(svc.maxPassengers), allowBargaining: svc.allowBargaining, color: svc.color || "#6B7280" });
-  };
-
-  const handleSubmit = async () => {
-    const payload = { ...form, baseFare: Number(form.baseFare), perKm: Number(form.perKm), minFare: Number(form.minFare), maxPassengers: Number(form.maxPassengers), sortOrder: services.length };
-    try {
-      if (editId) {
-        await updateMut.mutateAsync({ id: editId, ...payload });
-        toast({ title: "Service updated" });
-      } else {
-        await createMut.mutateAsync(payload);
-        toast({ title: "Service created" });
-      }
-      resetForm();
-    } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
-  };
-
-  const toggleEnabled = (svc: any) => {
-    updateMut.mutate({ id: svc.id, isEnabled: !svc.isEnabled }, {
-      onSuccess: () => toast({ title: svc.isEnabled ? "Disabled" : "Enabled" }),
-    });
-  };
-
-  const reorder = async (svc: any, dir: "up" | "down") => {
-    const sorted = [...services].sort((a, b) => a.sortOrder - b.sortOrder);
-    const idx = sorted.findIndex(s => s.id === svc.id);
-    const swapIdx = dir === "up" ? idx - 1 : idx + 1;
-    if (swapIdx < 0 || swapIdx >= sorted.length) return;
-    const other = sorted[swapIdx]!;
-    await Promise.all([
-      updateMut.mutateAsync({ id: svc.id, sortOrder: other.sortOrder }),
-      updateMut.mutateAsync({ id: other.id, sortOrder: svc.sortOrder }),
-    ]);
-  };
-
-  const handleDelete = async (id: string) => {
-    try { await deleteMut.mutateAsync(id); toast({ title: "Service deleted" }); setDelConfirm(null); }
-    catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
-  };
-
-  const FormPanel = ({ isNew }: { isNew: boolean }) => (
+function ServiceFormPanel({ isNew, form, setForm, onSubmit, onCancel, isPending }: ServiceFormPanelProps) {
+  return (
     <Card className="p-5 rounded-2xl border-2 border-primary/20 bg-primary/5 space-y-4">
       <h3 className="font-bold text-base">{isNew ? "Add Custom Service" : `Edit: ${form.name}`}</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1051,7 +1114,7 @@ function ServicesManager() {
         <p className="text-xs font-bold text-muted-foreground mb-3 uppercase tracking-wide">Fare Settings (Rs.)</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[{ label: "Base Fare", key: "baseFare" }, { label: "Per Km", key: "perKm" }, { label: "Min Fare", key: "minFare" }, { label: "Max Pax", key: "maxPassengers" }].map(f => (
-            <div key={f.key}><label className="text-xs font-semibold text-muted-foreground mb-1 block">{f.label}</label><Input type="number" value={(form as any)[f.key]} onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))} /></div>
+            <div key={f.key}><label className="text-xs font-semibold text-muted-foreground mb-1 block">{f.label}</label><Input type="number" value={form[f.key as keyof ServiceFormValues] as string} onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))} /></div>
           ))}
         </div>
       </div>
@@ -1060,14 +1123,85 @@ function ServicesManager() {
         <span className="text-sm font-medium">Allow Bargaining</span>
       </label>
       <div className="flex gap-3">
-        <button onClick={handleSubmit} disabled={createMut.isPending || updateMut.isPending}
+        <button onClick={onSubmit} disabled={isPending}
           className="flex-1 bg-primary text-white font-bold py-2.5 rounded-xl hover:opacity-90 disabled:opacity-60 transition-opacity">
-          {createMut.isPending || updateMut.isPending ? "Saving..." : isNew ? "Create" : "Save"}
+          {isPending ? "Saving..." : isNew ? "Create" : "Save"}
         </button>
-        <button onClick={resetForm} className="px-4 py-2.5 rounded-xl border text-sm font-semibold text-muted-foreground hover:bg-muted/50">Cancel</button>
+        <button onClick={onCancel} className="px-4 py-2.5 rounded-xl border text-sm font-semibold text-muted-foreground hover:bg-muted/50">Cancel</button>
       </div>
     </Card>
   );
+}
+
+function ServicesManager() {
+  const { data: svcData, isLoading: svcLoading } = useRideServices();
+  const createMut  = useCreateRideService();
+  const updateMut  = useUpdateRideService();
+  const deleteMut  = useDeleteRideService();
+  const { toast }  = useToast();
+
+  const services: any[] = svcData?.services ?? [];
+  const EMPTY_FORM: ServiceFormValues = { key: "", name: "", nameUrdu: "", icon: "🚗", description: "", baseFare: "15", perKm: "8", minFare: "50", maxPassengers: "1", allowBargaining: true, color: "#6B7280" };
+  const [form, setForm]     = useState<ServiceFormValues>(EMPTY_FORM);
+  const [editId, setEditId] = useState<string|null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [delConfirm, setDelConfirm] = useState<string|null>(null);
+
+  const resetForm = () => { setForm({ ...EMPTY_FORM }); setEditId(null); setShowAdd(false); };
+
+  const startEdit = (svc: any) => {
+    setEditId(svc.id);
+    setShowAdd(false);
+    setForm({ key: svc.key, name: svc.name, nameUrdu: svc.nameUrdu || "", icon: svc.icon, description: svc.description || "", baseFare: String(svc.baseFare), perKm: String(svc.perKm), minFare: String(svc.minFare), maxPassengers: String(svc.maxPassengers), allowBargaining: svc.allowBargaining, color: svc.color || "#6B7280" });
+  };
+
+  const handleSubmit = async () => {
+    if (!form.name.trim()) { toast({ title: "Name is required", variant: "destructive" }); return; }
+    if (!form.icon.trim()) { toast({ title: "Icon is required", variant: "destructive" }); return; }
+    if (!editId && !form.key.trim()) { toast({ title: "Key is required for new services", variant: "destructive" }); return; }
+    if (isNaN(Number(form.baseFare)) || Number(form.baseFare) < 0) { toast({ title: "Base fare must be a valid non-negative number", variant: "destructive" }); return; }
+    if (isNaN(Number(form.perKm)) || Number(form.perKm) < 0) { toast({ title: "Per KM rate must be a valid non-negative number", variant: "destructive" }); return; }
+    if (isNaN(Number(form.minFare)) || Number(form.minFare) < 0) { toast({ title: "Min fare must be a valid non-negative number", variant: "destructive" }); return; }
+    const payload = { ...form, baseFare: Number(form.baseFare), perKm: Number(form.perKm), minFare: Number(form.minFare), maxPassengers: Number(form.maxPassengers), sortOrder: services.length };
+    try {
+      if (editId) {
+        await updateMut.mutateAsync({ id: editId, ...payload });
+        toast({ title: "Service updated" });
+      } else {
+        await createMut.mutateAsync(payload);
+        toast({ title: "Service created" });
+      }
+      resetForm();
+    } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+  };
+
+  const isPending = createMut.isPending || updateMut.isPending;
+
+  const toggleEnabled = (svc: any) => {
+    updateMut.mutate({ id: svc.id, isEnabled: !svc.isEnabled }, {
+      onSuccess: () => toast({ title: svc.isEnabled ? "Disabled" : "Enabled" }),
+      onError: (e: Error) => toast({ title: "Toggle failed", description: e.message, variant: "destructive" }),
+    });
+  };
+
+  const reorder = async (svc: any, dir: "up" | "down") => {
+    const sorted = [...services].sort((a, b) => a.sortOrder - b.sortOrder);
+    const idx = sorted.findIndex(s => s.id === svc.id);
+    const swapIdx = dir === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+    const other = sorted[swapIdx]!;
+    try {
+      await updateMut.mutateAsync({ id: svc.id, sortOrder: other.sortOrder });
+      await updateMut.mutateAsync({ id: other.id, sortOrder: svc.sortOrder });
+    } catch (e: any) {
+      toast({ title: "Reorder failed", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try { await deleteMut.mutateAsync(id); toast({ title: "Service deleted" }); setDelConfirm(null); }
+    catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+  };
 
   const sorted = [...services].sort((a, b) => a.sortOrder - b.sortOrder);
 
@@ -1084,7 +1218,7 @@ function ServicesManager() {
         </button>
       </div>
 
-      {showAdd && !editId && <FormPanel isNew />}
+      {showAdd && !editId && <ServiceFormPanel isNew form={form} setForm={setForm} onSubmit={handleSubmit} onCancel={resetForm} isPending={isPending} />}
 
       {svcLoading ? (
         <Card className="p-12 rounded-2xl text-center"><p className="text-muted-foreground">Loading...</p></Card>
@@ -1103,8 +1237,10 @@ function ServicesManager() {
                       <code className="text-[10px] text-muted-foreground/60 bg-muted/40 px-1 rounded">{svc.key}</code>
                     </div>
                   </div>
-                  <button onClick={() => toggleEnabled(svc)} className={`p-1.5 rounded-xl ${svc.isEnabled ? "text-green-600 bg-green-50" : "text-gray-400 bg-gray-100"}`}>
-                    {svc.isEnabled ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
+                  <button onClick={() => toggleEnabled(svc)} disabled={updateMut.isPending} className={`p-1.5 rounded-xl disabled:opacity-50 ${svc.isEnabled ? "text-green-600 bg-green-50" : "text-gray-400 bg-gray-100"}`}>
+                    {updateMut.isPending
+                      ? <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                      : svc.isEnabled ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
                   </button>
                 </div>
                 <div className="grid grid-cols-3 gap-2 mb-3">
@@ -1115,7 +1251,7 @@ function ServicesManager() {
                     </div>
                   ))}
                 </div>
-                {editId === svc.id && <FormPanel isNew={false} />}
+                {editId === svc.id && <ServiceFormPanel isNew={false} form={form} setForm={setForm} onSubmit={handleSubmit} onCancel={resetForm} isPending={isPending} />}
                 {editId !== svc.id && (
                   <div className="flex items-center gap-2">
                     <div className="flex gap-1">
@@ -1153,6 +1289,7 @@ function LocationsManager() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({ name: "", nameUrdu: "", lat: "", lng: "", category: "general", icon: "📍", sortOrder: "0", isActive: true });
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const locations = data?.locations || [];
   const CATEGORIES = ["chowk", "school", "hospital", "bazar", "park", "landmark", "general"];
 
@@ -1192,9 +1329,11 @@ function LocationsManager() {
                   <p className="text-[10px] text-muted-foreground mt-1">{l.lat?.toFixed(4)}, {l.lng?.toFixed(4)}</p>
                 </div>
                 <div className="flex flex-col gap-1.5 shrink-0">
-                  <button onClick={() => updateMut.mutate({ id: l.id, isActive: !l.isActive })}>{l.isActive ? <ToggleRight className="w-5 h-5 text-green-500" /> : <ToggleLeft className="w-5 h-5" />}</button>
+                  <button onClick={() => updateMut.mutate({ id: l.id, isActive: !l.isActive })} disabled={updateMut.isPending} className="disabled:opacity-50">
+                    {updateMut.isPending ? <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /> : l.isActive ? <ToggleRight className="w-5 h-5 text-green-500" /> : <ToggleLeft className="w-5 h-5" />}
+                  </button>
                   <button onClick={() => openEdit(l)} className="text-muted-foreground hover:text-blue-600"><Pencil className="w-4 h-4" /></button>
-                  <button onClick={() => { if (confirm(`Delete "${l.name}"?`)) deleteMut.mutate(l.id); }} className="text-muted-foreground hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => setDeleteTarget(l)} className="text-muted-foreground hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
             </Card>
@@ -1227,13 +1366,27 @@ function LocationsManager() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent className="rounded-2xl max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-red-500" /> Delete Location</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <span className="font-semibold">"{deleteTarget?.name}"</span>? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { deleteMut.mutate(deleteTarget.id, { onError: (e: Error) => toast({ title: "Delete failed", description: e.message, variant: "destructive" }) }); setDeleteTarget(null); }} className="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
 function SchoolRoutesManager() {
   const { data: routesData, isLoading } = useSchoolRoutes();
-  const { data: subsData } = useSchoolSubscriptions();
   const createMut = useCreateSchoolRoute();
   const updateMut = useUpdateSchoolRoute();
   const deleteMut = useDeleteSchoolRoute();
@@ -1241,8 +1394,8 @@ function SchoolRoutesManager() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({ routeName: "", schoolName: "", schoolNameUrdu: "", fromArea: "", fromAreaUrdu: "", toAddress: "", monthlyPrice: "", morningTime: "7:30 AM", afternoonTime: "", capacity: "30", vehicleType: "school_shift", notes: "", isActive: true, sortOrder: "0" });
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const routes = routesData?.routes || [];
-  const allSubs = subsData?.subscriptions || [];
 
   const openAdd = () => { setEditing(null); setForm({ routeName: "", schoolName: "", schoolNameUrdu: "", fromArea: "", fromAreaUrdu: "", toAddress: "", monthlyPrice: "", morningTime: "7:30 AM", afternoonTime: "", capacity: "30", vehicleType: "school_shift", notes: "", isActive: true, sortOrder: "0" }); setShowForm(true); };
 
@@ -1285,7 +1438,7 @@ function SchoolRoutesManager() {
                 <div className="flex flex-col gap-1.5 shrink-0">
                   <button onClick={() => updateMut.mutate({ id: r.id, isActive: !r.isActive })}>{r.isActive ? <ToggleRight className="w-5 h-5 text-green-500" /> : <ToggleLeft className="w-5 h-5" />}</button>
                   <button onClick={() => { setEditing(r); setForm({ routeName: r.routeName, schoolName: r.schoolName, schoolNameUrdu: r.schoolNameUrdu || "", fromArea: r.fromArea, fromAreaUrdu: r.fromAreaUrdu || "", toAddress: r.toAddress, monthlyPrice: String(r.monthlyPrice), morningTime: r.morningTime || "7:30 AM", afternoonTime: r.afternoonTime || "", capacity: String(r.capacity), vehicleType: r.vehicleType, notes: r.notes || "", isActive: r.isActive, sortOrder: String(r.sortOrder) }); setShowForm(true); }} className="text-muted-foreground hover:text-blue-600"><Pencil className="w-4 h-4" /></button>
-                  <button onClick={() => { if (confirm(`Delete "${r.routeName}"?`)) deleteMut.mutate(r.id); }} className="text-muted-foreground hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => setDeleteTarget(r)} className="text-muted-foreground hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
             </Card>
@@ -1311,6 +1464,304 @@ function SchoolRoutesManager() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent className="rounded-2xl max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-red-500" /> Delete Route</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <span className="font-semibold">"{deleteTarget?.routeName}"</span>? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { deleteMut.mutate(deleteTarget.id, { onError: (e: Error) => toast({ title: "Delete failed", description: e.message, variant: "destructive" }) }); setDeleteTarget(null); }} className="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function FleetAnalyticsTab() {
+  const [fromDate, setFromDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().slice(0, 10);
+  });
+  const [toDate, setToDate] = useState(() => new Date().toISOString().slice(0, 10));
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["admin-fleet-analytics", fromDate, toDate],
+    queryFn: () => adminFetch(`/fleet-analytics?from=${fromDate}&to=${toDate}`),
+    staleTime: 60_000,
+  });
+
+  const heatPoints: Array<{ lat: number; lng: number; weight: number }> = data?.heatmap ?? [];
+  const riderDistances: Array<{ userId: string; name: string; distanceKm: number }> = data?.riderDistances ?? [];
+  const peakZones: Array<{ lat: number; lng: number; pings: number }> = data?.peakZones ?? [];
+  const revenueTrend: Array<Record<string, any>> = data?.revenueTrend ?? [];
+  const revenueServiceTypes: string[] = data?.revenueServiceTypes ?? [];
+
+  const mapCenter: [number, number] = heatPoints.length > 0
+    ? [heatPoints[0].lat, heatPoints[0].lng]
+    : [33.7294, 73.0931];
+
+  /* Stable color palette per service type */
+  const SVC_COLORS: Record<string, string> = {
+    bike:         "#f97316",
+    car:          "#3b82f6",
+    rickshaw:     "#eab308",
+    daba:         "#8b5cf6",
+    school_shift: "#10b981",
+    parcel:       "#ec4899",
+    van:          "#06b6d4",
+  };
+  const svcColor = (type: string, idx: number) =>
+    SVC_COLORS[type] ?? ["#6366f1","#14b8a6","#f43f5e","#a3e635","#fb923c"][idx % 5];
+
+  const totalRevenue = revenueTrend.reduce((sum, day) => {
+    const dayTotal = revenueServiceTypes.reduce((s, t) => s + (day[t] ?? 0), 0);
+    return sum + dayTotal;
+  }, 0);
+
+  return (
+    <div className="space-y-5">
+      {/* Date Range Controls */}
+      <Card className="p-4 rounded-2xl border-border/50 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">From</label>
+            <Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
+              max={toDate} className="text-sm w-36 rounded-xl" />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">To</label>
+            <Input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
+              min={fromDate} max={new Date().toISOString().slice(0, 10)} className="text-sm w-36 rounded-xl" />
+          </div>
+          <button onClick={() => refetch()} disabled={isLoading}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors disabled:opacity-50">
+            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+          {data && (
+            <span className="text-xs text-muted-foreground ml-auto">
+              {data.from} → {data.to}
+            </span>
+          )}
+        </div>
+      </Card>
+
+      {/* Summary Stat Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <Card className="p-5 rounded-2xl border-border/50 shadow-sm">
+          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Total GPS Pings</p>
+          <p className="text-3xl font-black text-foreground">
+            {isLoading ? <span className="text-muted-foreground text-xl animate-pulse">—</span> : (data?.totalPings ?? 0).toLocaleString()}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">Rider location updates</p>
+        </Card>
+        <Card className="p-5 rounded-2xl border-border/50 shadow-sm">
+          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Avg Response Time</p>
+          <p className="text-3xl font-black text-foreground">
+            {isLoading ? <span className="text-muted-foreground text-xl animate-pulse">—</span>
+              : data?.avgResponseTimeMin != null ? `${data.avgResponseTimeMin}m` : "—"}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">Request → acceptance</p>
+        </Card>
+        <Card className="p-5 rounded-2xl border-border/50 shadow-sm">
+          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Active Riders</p>
+          <p className="text-3xl font-black text-foreground">
+            {isLoading ? <span className="text-muted-foreground text-xl animate-pulse">—</span> : riderDistances.length}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">With tracked GPS distance</p>
+        </Card>
+        <Card className="p-5 rounded-2xl border-border/50 shadow-sm bg-green-50/60 border-green-200/60">
+          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Total Revenue</p>
+          <p className="text-3xl font-black text-green-700">
+            {isLoading ? <span className="text-muted-foreground text-xl animate-pulse">—</span>
+              : `Rs ${totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">Completed rides in period</p>
+        </Card>
+      </div>
+
+      {/* Heatmap + Distance Chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Activity Heatmap */}
+        <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-border/40 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-orange-500" />
+            <h3 className="font-bold text-sm">Activity Heatmap</h3>
+            <span className="text-xs text-muted-foreground ml-1">({heatPoints.length.toLocaleString()} points)</span>
+          </div>
+          <div style={{ height: 350 }}>
+            {isLoading ? (
+              <div className="w-full h-full flex items-center justify-center bg-muted/20">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : heatPoints.length > 0 ? (
+              <MapContainer center={mapCenter} zoom={11} style={{ width: "100%", height: "100%" }}>
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
+                {heatPoints.slice(0, 2000).map((pt, i) => (
+                  <Circle key={i} center={[pt.lat, pt.lng]} radius={120}
+                    pathOptions={{ color: "transparent", fillColor: "#f97316", fillOpacity: 0.18 }} />
+                ))}
+              </MapContainer>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-muted/10">
+                <p className="text-sm text-muted-foreground">No location data for selected period</p>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Rider Distance Bar Chart */}
+        <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-border/40 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-blue-500" />
+            <h3 className="font-bold text-sm">Distance Covered</h3>
+            <span className="text-xs text-muted-foreground ml-1">(km · top 10 riders)</span>
+          </div>
+          <div className="p-4" style={{ height: 350 }}>
+            {isLoading ? (
+              <div className="w-full h-full flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : riderDistances.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={riderDistances.slice(0, 10)} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
+                  <XAxis type="number" tick={{ fontSize: 11 }} unit=" km" />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={96} />
+                  <Tooltip formatter={(v: any) => [`${v} km`, "Distance"]} />
+                  <Bar dataKey="distanceKm" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <p className="text-sm text-muted-foreground">No rider distance data</p>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* Revenue Trend by Service Type */}
+      <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-border/40 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <DollarSign className="w-4 h-4 text-green-500" />
+            <h3 className="font-bold text-sm">Revenue Trend by Service Type</h3>
+            {!isLoading && revenueTrend.length > 0 && (
+              <span className="text-xs text-muted-foreground ml-1">(completed rides · Rs)</span>
+            )}
+          </div>
+          {!isLoading && revenueServiceTypes.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {revenueServiceTypes.map((t, i) => (
+                <span key={t} className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                  <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: svcColor(t, i) }} />
+                  {t.replace(/_/g, " ")}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="p-4" style={{ height: 320 }}>
+          {isLoading ? (
+            <div className="w-full h-full flex items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : revenueTrend.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={revenueTrend} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
+                <defs>
+                  {revenueServiceTypes.map((t, i) => (
+                    <linearGradient key={t} id={`grad-${t}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={svcColor(t, i)} stopOpacity={0.25} />
+                      <stop offset="95%" stopColor={svcColor(t, i)} stopOpacity={0.03} />
+                    </linearGradient>
+                  ))}
+                </defs>
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={d => d.slice(5)} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `Rs ${(v as number).toLocaleString()}`} width={72} />
+                <Tooltip
+                  formatter={(value: any, name: string) => [`Rs ${Number(value).toLocaleString()}`, name.replace(/_/g, " ")]}
+                  labelFormatter={l => `Date: ${l}`}
+                  contentStyle={{ fontSize: 12, borderRadius: 10 }}
+                />
+                <Legend formatter={v => v.replace(/_/g, " ")} iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                {revenueServiceTypes.map((t, i) => (
+                  <Area
+                    key={t}
+                    type="monotone"
+                    dataKey={t}
+                    name={t}
+                    stroke={svcColor(t, i)}
+                    strokeWidth={2}
+                    fill={`url(#grad-${t})`}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                    stackId="revenue"
+                  />
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+              <DollarSign className="w-8 h-8 text-muted-foreground/30" />
+              <p className="text-sm text-muted-foreground">No completed rides in selected period</p>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Peak Activity Zones */}
+      {(isLoading || peakZones.length > 0) && (
+        <Card className="rounded-2xl border-border/50 shadow-sm">
+          <div className="p-4 border-b border-border/40 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-red-500" />
+            <h3 className="font-bold text-sm">Peak Activity Zones</h3>
+            {!isLoading && <span className="text-xs text-muted-foreground ml-1">(top {peakZones.length} clusters · ~500 m grid)</span>}
+          </div>
+          {isLoading ? (
+            <div className="p-8 flex justify-center">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="divide-y divide-border/40">
+              {peakZones.map((zone, i) => {
+                const maxPings = peakZones[0]?.pings ?? 1;
+                const pct = Math.round((zone.pings / maxPings) * 100);
+                return (
+                  <div key={i} className="flex items-center gap-4 px-4 py-3">
+                    <span className="text-lg font-black text-orange-500 w-7 shrink-0">#{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-medium text-foreground font-mono">
+                          {zone.lat.toFixed(4)}, {zone.lng.toFixed(4)}
+                        </p>
+                        <span className="text-sm font-bold text-foreground ml-3 shrink-0">
+                          {zone.pings.toLocaleString()} pings
+                        </span>
+                      </div>
+                      <div className="w-full bg-muted/40 rounded-full h-1.5">
+                        <div className="h-1.5 rounded-full bg-orange-400 transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                      <a href={`https://www.openstreetmap.org/?mlat=${zone.lat}&mlon=${zone.lng}&zoom=15`}
+                        target="_blank" rel="noreferrer"
+                        className="text-xs text-blue-500 hover:underline mt-0.5 inline-block">
+                        View on map ↗
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      )}
     </div>
   );
 }
@@ -1318,8 +1769,8 @@ function SchoolRoutesManager() {
 export default function Rides() {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
-  const { data, isLoading } = useRidesEnriched();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [tab, setTab] = useState<Tab>("rides");
   const [search, setSearch] = useState("");
@@ -1333,69 +1784,47 @@ export default function Rides() {
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [page, setPage] = useState(1);
   const [selectedRideId, setSelectedRideId] = useState<string | null>(null);
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = 50;
 
-  const [secAgo, setSecAgo] = useState(0);
-  useEffect(() => { if (!isLoading) setSecAgo(0); }, [isLoading]);
-  useEffect(() => { const t = setInterval(() => setSecAgo(s => s + 1), 1000); return () => clearInterval(t); }, []);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [debouncedCustomer, setDebouncedCustomer] = useState("");
+  const [debouncedRider, setDebouncedRider] = useState("");
+  useEffect(() => { const t = setTimeout(() => setDebouncedSearch(search), 300); return () => clearTimeout(t); }, [search]);
+  useEffect(() => { const t = setTimeout(() => setDebouncedCustomer(customerFilter), 300); return () => clearTimeout(t); }, [customerFilter]);
+  useEffect(() => { const t = setTimeout(() => setDebouncedRider(riderFilter), 300); return () => clearTimeout(t); }, [riderFilter]);
 
-  const rides: any[] = data?.rides || [];
+  const { data, isLoading, dataUpdatedAt, refetch, isFetching } = useRidesEnriched({
+    page, limit: PAGE_SIZE,
+    status: statusFilter, type: typeFilter,
+    search: debouncedSearch, customer: debouncedCustomer, rider: debouncedRider,
+    dateFrom, dateTo, sortBy, sortDir,
+  });
 
-  const filtered = useMemo(() => {
-    let result = [...rides];
-
-    if (statusFilter !== "all") result = result.filter(r => r.status === statusFilter);
-    if (typeFilter !== "all") result = result.filter(r => r.type === typeFilter);
-    if (dateFrom) result = result.filter(r => new Date(r.createdAt) >= new Date(dateFrom));
-    if (dateTo) {
-      const to = new Date(dateTo);
-      to.setHours(23, 59, 59, 999);
-      result = result.filter(r => new Date(r.createdAt) <= to);
-    }
-
-    if (customerFilter) {
-      const q = customerFilter.toLowerCase();
-      result = result.filter(r =>
-        (r.userName || "").toLowerCase().includes(q) ||
-        (r.userPhone || "").toLowerCase().includes(q)
-      );
-    }
-    if (riderFilter) {
-      const q = riderFilter.toLowerCase();
-      result = result.filter(r =>
-        (r.riderName || "").toLowerCase().includes(q) ||
-        (r.riderPhone || "").toLowerCase().includes(q)
-      );
-    }
-
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(r =>
-        r.id.toLowerCase().includes(q) ||
-        (r.userName || "").toLowerCase().includes(q) ||
-        (r.userPhone || "").toLowerCase().includes(q) ||
-        (r.riderName || "").toLowerCase().includes(q) ||
-        (r.pickupAddress || "").toLowerCase().includes(q) ||
-        (r.dropAddress || "").toLowerCase().includes(q)
-      );
-    }
-
-    result.sort((a, b) => {
-      if (sortBy === "fare") {
-        return sortDir === "desc" ? b.fare - a.fare : a.fare - b.fare;
-      }
-      return sortDir === "desc"
-        ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  /* ── Real-time ride list sync via Socket.io ── */
+  useEffect(() => {
+    const token = getAdminAccessToken() ?? "";
+    const socket = io(window.location.origin, {
+      path: "/api/socket.io",
+      query: { rooms: "admin-fleet" },
+      auth: { token },
+      transports: ["websocket", "polling"],
     });
+    socket.on("ride:dispatch-update", () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-rides"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
+    });
+    socket.on("connect_error", (err) => {
+      log.warn("WebSocket connect_error:", err?.message ?? err);
+    });
+    return () => { socket.disconnect(); };
+  }, [queryClient]);
 
-    return result;
-  }, [rides, statusFilter, typeFilter, dateFrom, dateTo, search, customerFilter, riderFilter, sortBy, sortDir]);
+  const rides: EnrichedRide[] = (data?.rides as EnrichedRide[]) || [];
+  const serverTotal: number = data?.total ?? rides.length;
+  const totalPages: number = data?.totalPages ?? Math.ceil(serverTotal / PAGE_SIZE);
+  const pageRides = rides;
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const pageRides = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  useEffect(() => { setPage(1); }, [statusFilter, typeFilter, dateFrom, dateTo, search, customerFilter, riderFilter, sortBy, sortDir]);
+  useEffect(() => { setPage(1); }, [statusFilter, typeFilter, debouncedSearch, debouncedCustomer, debouncedRider, dateFrom, dateTo, sortBy, sortDir]);
 
   const bargaining = rides.filter(r => r.status === "bargaining");
   const searching = rides.filter(r => r.status === "searching");
@@ -1429,25 +1858,18 @@ export default function Rides() {
   );
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Rides page crashed. Please reload.</div>}>
     <div className="space-y-5 sm:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 bg-green-100 text-green-600 rounded-xl flex items-center justify-center shrink-0">
-            <Car className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground">{T("ridesTitle")}</h1>
-            <p className="text-muted-foreground text-xs">{rides.length} total · {activeCount} active · {completed.length} completed</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className={`w-2 h-2 rounded-full ${secAgo < 35 ? "bg-green-500 animate-pulse" : "bg-amber-400"}`} />
-            {isLoading ? "Refreshing..." : `${secAgo}s ago`}
-          </span>
-        </div>
-      </div>
+      <PageHeader
+        icon={Car}
+        title={T("ridesTitle")}
+        subtitle={`${rides.length} total · ${activeCount} active · ${completed.length} completed`}
+        iconBgClass="bg-green-100"
+        iconColorClass="text-green-600"
+        actions={
+          <LastUpdated dataUpdatedAt={dataUpdatedAt ?? 0} onRefresh={() => refetch()} isRefreshing={isFetching} />
+        }
+      />
 
       {/* Urgent Alerts */}
       {(bargaining.length > 0 || searching.length > 0) && (
@@ -1483,9 +1905,10 @@ export default function Rides() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
         <TabBtn id="rides" icon={Car} label="All Rides" count={rides.length} />
         <TabBtn id="dispatch" icon={Radio} label="Dispatch Monitor" count={bargaining.length + searching.length} urgent />
+        <TabBtn id="analytics" icon={BarChart2} label="Fleet Analytics" />
         <TabBtn id="settings" icon={Settings2} label="Ride Settings" />
         <TabBtn id="services" icon={Layers} label="Services" />
         <TabBtn id="locations" icon={MapPin} label="Locations" />
@@ -1527,7 +1950,7 @@ export default function Rides() {
               <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} placeholder="To" className="text-sm" />
             </div>
             <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">{filtered.length} ride{filtered.length !== 1 ? "s" : ""} found</p>
+              <p className="text-xs text-muted-foreground">{serverTotal} ride{serverTotal !== 1 ? "s" : ""} found</p>
               <div className="flex gap-2">
                 <button onClick={() => toggleSort("date")} className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold border ${sortBy === "date" ? "bg-primary/10 text-primary border-primary/30" : "text-muted-foreground border-border/50"}`}>
                   <Clock className="w-3 h-3" /> Date {sortBy === "date" && (sortDir === "desc" ? "↓" : "↑")}
@@ -1539,8 +1962,48 @@ export default function Rides() {
             </div>
           </Card>
 
-          {/* Table */}
-          <Card className="rounded-2xl overflow-hidden border-border/50 shadow-sm">
+          {/* Mobile Card Layout */}
+          <div className="block md:hidden space-y-3">
+            {pageRides.length === 0 ? (
+              <Card className="p-8 rounded-2xl text-center text-muted-foreground">No rides found</Card>
+            ) : pageRides.map(r => (
+              <Card key={r.id} className="rounded-2xl p-4 space-y-3 border-border/50 shadow-sm active:bg-muted/20 cursor-pointer" onClick={() => setSelectedRideId(r.id)}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-sm">#{r.id.slice(-6).toUpperCase()}</span>
+                    <Badge variant="outline" className={`text-[10px] font-bold uppercase ${svcClr(r.type)}`}>
+                      {svcIcon(r.type)} {svcName(r.type)}
+                    </Badge>
+                  </div>
+                  <StatusBadge status={r.status} />
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p className="text-muted-foreground text-[10px] uppercase font-semibold">Customer</p>
+                    <p className="font-medium truncate">{r.userName || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-[10px] uppercase font-semibold">Rider</p>
+                    <p className="font-medium truncate">{r.riderName || "—"}</p>
+                  </div>
+                </div>
+                <div className="text-xs space-y-0.5">
+                  <p className="truncate"><MapPin className="w-3 h-3 inline text-green-600 mr-1" />{r.pickupAddress || "—"}</p>
+                  <p className="truncate text-muted-foreground"><MapPin className="w-3 h-3 inline text-red-600 mr-1" />{r.dropAddress || "—"}</p>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-base">{formatCurrency(r.counterFare ?? r.fare)}</span>
+                  <span className={`font-medium capitalize ${r.paymentMethod === "wallet" ? "text-blue-600" : "text-green-600"}`}>
+                    {r.paymentMethod === "wallet" ? "💳 Wallet" : "💵 Cash"}
+                  </span>
+                  <span className="text-muted-foreground">{formatDate(r.createdAt)}</span>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Desktop Table */}
+          <Card className="rounded-2xl overflow-hidden border-border/50 shadow-sm hidden md:block">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -1564,7 +2027,7 @@ export default function Rides() {
                 <TableBody>
                   {pageRides.length === 0 ? (
                     <TableRow><TableCell colSpan={10} className="text-center py-12 text-muted-foreground">No rides found</TableCell></TableRow>
-                  ) : pageRides.map((r: any) => (
+                  ) : pageRides.map(r => (
                     <TableRow key={r.id} className="hover:bg-muted/20 cursor-pointer" onClick={() => setSelectedRideId(r.id)}>
                       <TableCell>
                         <span className="font-mono font-bold text-sm">#{r.id.slice(-6).toUpperCase()}</span>
@@ -1619,7 +2082,7 @@ export default function Rides() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-2">
               <p className="text-xs text-muted-foreground">
-                Page {page} of {totalPages} ({filtered.length} rides)
+                Page {page} of {totalPages} ({serverTotal} rides)
               </p>
               <div className="flex items-center gap-2">
                 <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
@@ -1647,6 +2110,7 @@ export default function Rides() {
       )}
 
       {tab === "dispatch" && <DispatchMonitor />}
+      {tab === "analytics" && <FleetAnalyticsTab />}
       {tab === "settings" && <RideSettings />}
       {tab === "services" && <ServicesManager />}
       {tab === "locations" && <LocationsManager />}
@@ -1657,5 +2121,6 @@ export default function Rides() {
         <RideDetailModal rideId={selectedRideId} onClose={() => setSelectedRideId(null)} />
       )}
     </div>
+    </ErrorBoundary>
   );
 }

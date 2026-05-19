@@ -1,9 +1,6 @@
 import { Badge } from "@/components/ui/badge";
-import { renderSection, Setting, CatKey as OrigCatKey, SettingsSectionProps } from "./settings-render";
+import { renderSection, CatKey, SettingsSectionProps } from "./settings-render";
 import { Server, Clock, Wifi, MapPin, ImageUp, List, SlidersHorizontal } from "lucide-react";
-
-type CatKey = string;
-
 
 const MONITORING_CAT_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string; description: string }> = {
   system_limits: { label: "System Limits",       icon: Server,          color: "text-slate-600",   bg: "bg-slate-50",   description: "Log retention, cache TTL, body limit and upload size" },
@@ -86,7 +83,7 @@ export function MonitoringSection({ settings, grouped, localValues, dirtyKeys, h
                 No settings configured for this sub-section yet.
               </p>
             ) : renderSection(
-              cat as OrigCatKey, childSettings, settings, localValues, dirtyKeys,
+              cat, childSettings, settings, localValues, dirtyKeys,
               handleChange, handleToggle, getInputType, getInputSuffix, getPlaceholder,
             )}
           </section>

@@ -3,6 +3,7 @@ import {
   Ticket, Plus, RefreshCw, Search, Trash2, Pencil,
   CheckCircle2, XCircle, Clock, Zap, ToggleLeft, ToggleRight,
 } from "lucide-react";
+import { PageHeader } from "@/components/shared";
 import { usePromoCodes, useCreatePromoCode, useUpdatePromoCode, useDeletePromoCode } from "@/hooks/use-admin";
 import { formatDate } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
+import { SensitiveActionDialog } from "@/components/SensitiveActionDialog";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const EMPTY_FORM = {
   code: "", description: "", discountPct: "", discountFlat: "",
@@ -23,6 +26,8 @@ const EMPTY_FORM = {
 
 function PromoModal({ promo, onClose }: { promo?: any; onClose: () => void }) {
   const { toast } = useToast();
+  const { language } = useLanguage();
+  const T = (k: TranslationKey) => tDual(k, language);
   const createMutation = useCreatePromoCode();
   const updateMutation = useUpdatePromoCode();
   const isEdit = !!promo;
@@ -44,7 +49,7 @@ function PromoModal({ promo, onClose }: { promo?: any; onClose: () => void }) {
 
   const handleSubmit = () => {
     if (!form.code) { toast({ title: "Promo code required", variant: "destructive" }); return; }
-    if (!form.discountPct && !form.discountFlat) { toast({ title: "Discount % ya flat amount required hai", variant: "destructive" }); return; }
+    if (!form.discountPct && !form.discountFlat) { toast({ title: T("discountAmountRequired"), variant: "destructive" }); return; }
 
     const payload: any = {
       code:        form.code.toUpperCase().trim(),
@@ -227,19 +232,16 @@ export default function PromoCodes() {
   };
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Promo Codes page crashed. Please reload.</div>}>
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-violet-100 text-violet-600 rounded-xl flex items-center justify-center">
-            <Ticket className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground">{T("promoCodes")}</h1>
-            <p className="text-sm text-muted-foreground">{codes.length} total · {activeCodes} active · {expiredCodes} expired</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        icon={Ticket}
+        title={T("promoCodes")}
+        subtitle={`${codes.length} total · ${activeCodes} active · ${expiredCodes} expired`}
+        iconBgClass="bg-violet-100"
+        iconColorClass="text-violet-600"
+        actions={
+          <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="h-9 rounded-xl gap-2">
             <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
           </Button>
@@ -247,7 +249,8 @@ export default function PromoCodes() {
             <Plus className="w-4 h-4" /> New Code
           </Button>
         </div>
-      </div>
+        }
+      />
 
       {/* Summary */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -345,21 +348,18 @@ export default function PromoCodes() {
       {showModal  && <PromoModal onClose={() => setShowModal(false)} />}
       {editPromo  && <PromoModal promo={editPromo} onClose={() => setEditPromo(null)} />}
 
-      {/* Delete Confirm */}
-      {deleteId && (
-        <Dialog open onOpenChange={open => { if (!open) setDeleteId(null); }}>
-          <DialogContent className="w-[95vw] max-w-sm rounded-2xl">
-            <DialogHeader><DialogTitle>Delete Promo Code?</DialogTitle></DialogHeader>
-            <p className="text-sm text-muted-foreground mt-2">Yeh action undo nahi ho sakta.</p>
-            <div className="flex gap-3 mt-4">
-              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setDeleteId(null)}>Cancel</Button>
-              <Button variant="destructive" className="flex-1 rounded-xl" onClick={() => handleDelete(deleteId)} disabled={deleteMutation.isPending}>
-                {deleteMutation.isPending ? "Deleting..." : "Delete"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Delete Confirm — requires password re-entry */}
+      <SensitiveActionDialog
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={() => { if (deleteId) handleDelete(deleteId); }}
+        title={tDual("deletePromoCodeTitle", language)}
+        description={tDual("actionCannotBeUndone", language)}
+        confirmLabel="Delete"
+        actionType="delete_promo_code"
+        targetId={deleteId ?? undefined}
+      />
     </div>
+    </ErrorBoundary>
   );
 }

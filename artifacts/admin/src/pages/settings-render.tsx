@@ -1,34 +1,35 @@
-import { useState } from "react";
+import { useState, ReactNode } from "react";
 import {
   Info, Shield, Gift, Globe, MessageSquare, Package, ShoppingCart,
   AlertTriangle, CheckCircle2, ShieldCheck, UserPlus, Zap,
   Server, ToggleRight, FileText, Phone, Building2, Link as LinkIcon,
   BarChart3, Wallet, Banknote, Truck, Bike, Car, RotateCcw, Settings,
-  Users, Star, Percent, Store,
+  Users, Star, Percent, Store, ChevronDown,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Toggle, Field, SLabel } from "@/components/AdminShared";
+import { ManageInSettingsLink } from "@/components/shared";
 
 export interface Setting { key: string; value: string; label: string; category: string; }
-export type CatKey = 
-  "general" | "features" | "rides" | "orders" | "delivery" |
-  "customer" | "rider" | "vendor" | "finance" | "payment" |
-  "content" | "integrations" | "security" | "system" |
-  "localization" | "regional" | "onboarding" | "van" | "dispatch" |
-  "weather" | "pagination" | "uploads" | "geo" | "network" |
-  "cache" | "system_limits" | "branding" | "compliance" | "ratelimit" |
-  "moderation" | "jwt" | "notifications" | "sms" | "email" |
-  "gdpr" | "terms" | "colors" | "app_store" | "pricing" | "monitoring";
 
+/** Shared props contract for extracted settings tab sections (General, Notifications, Monitoring). */
 export interface SettingsSectionProps {
   settings: Setting[];
   grouped: Record<string, Setting[]>;
   localValues: Record<string, string>;
   dirtyKeys: Set<string>;
-  handleChange: (k: string, v: string) => void;
-  handleToggle: (k: string, v: boolean) => void;
+  handleChange: (key: string, value: string) => void;
+  handleToggle: (key: string, val: boolean) => void;
 }
+
+export type CatKey = 
+  "general" | "features" | "rides" | "orders" | "delivery" |
+  "customer" | "rider" | "vendor" | "finance" | "payment" |
+  "content" | "integrations" | "security" | "system" | "weather" |
+  "dispatch" | "branding" | "system_limits" | "regional" |
+  "notifications" | "uploads" | "pagination" | "van" | "onboarding" | "moderation" |
+  "cache" | "jwt" | "ratelimit" | "geo" | "localization" | "network" | "compliance";
 
 export const TOGGLE_KEYS = new Set([
   "feature_mart","feature_food","feature_rides","feature_pharmacy",
@@ -39,12 +40,17 @@ export const TOGGLE_KEYS = new Set([
   "rider_module_wallet","rider_module_earnings","rider_module_history","rider_module_2fa_required",
   "rider_module_gps_tracking","rider_module_profile_edit","rider_module_support_chat",
   "vendor_auto_approve","vendor_promo_enabled","vendor_withdrawal_enabled",
+  "feature_weather",
   "feature_chat","feature_live_tracking","feature_reviews","feature_sos",
-  "security_global_dev_otp","security_otp_bypass","security_mfa_required","security_multi_device","security_gps_tracking",
+  "security_lockout_enabled",
+  "security_otp_bypass","security_mfa_required","security_multi_device","security_gps_tracking",
   "security_geo_fence","security_spoof_detection","security_block_tor","security_block_vpn",
   "security_pwd_strong","security_allow_uploads","security_compress_images","security_scan_uploads",
   "security_fake_order_detect","security_auto_block_ip","security_phone_verify","security_single_phone",
   "security_audit_log",
+  "geo_open_world_fallback",
+  "order_gps_capture_enabled",
+  "profile_show_saved_addresses",
   "upload_payment_proof","upload_kyc_docs","upload_rider_docs","upload_vendor_docs","upload_product_imgs","upload_cod_proof",
   "notif_new_order","notif_order_ready","notif_ride_request","notif_promo",
   "integration_push_notif","integration_sms","integration_analytics","integration_email","integration_sentry","integration_whatsapp",
@@ -59,6 +65,7 @@ export const TOGGLE_KEYS = new Set([
   "payment_auto_cancel","payment_receipt_required",
   "wallet_p2p_enabled","wallet_kyc_required",
   "wallet_allowed_mart","wallet_allowed_food","wallet_allowed_pharmacy","wallet_allowed_parcel","wallet_allowed_rides",
+  "wallet_mpin_enabled",
   "wallet_cashback_on_orders","wallet_cashback_on_rides","wallet_cashback_on_pharmacy",
   "content_tracker_banner_enabled",
   "content_show_banner",
@@ -71,6 +78,9 @@ export const TOGGLE_KEYS = new Set([
   "ride_bargaining_enabled",
   "ride_payment_cash","ride_payment_wallet","ride_payment_jazzcash","ride_payment_easypaisa",
   "rider_ignore_restrict_enabled",
+  "vendor_auto_schedule_enabled",
+  "van_auto_notify_cancel","van_require_start_trip",
+  "comm_hide_phone","comm_hide_email","comm_hide_cnic","comm_hide_bank","comm_hide_address",
   /* email alert toggles */
   "email_alert_new_vendor","email_alert_high_value_order","email_alert_fraud",
   "email_alert_low_balance","email_alert_daily_summary","email_alert_weekly_report",
@@ -85,11 +95,19 @@ export const TOGGLE_KEYS = new Set([
   "sentry_capture_unhandled","sentry_capture_perf",
   /* maps usage */
   "maps_use_customer_app","maps_use_rider_app","maps_use_vendor_app","maps_live_tracking",
+  /* maps provider toggles */
+  "google_maps_enabled","mapbox_enabled","osm_enabled","locationiq_enabled","map_failover_enabled",
+  /* communication feature toggles */
+  "comm_enabled","comm_chat_enabled","comm_voice_calls_enabled","comm_voice_notes_enabled",
+  "comm_translation_enabled","comm_chat_assist_enabled",
+  /* auth method toggles */
+  "auth_phone_otp_enabled","auth_email_otp_enabled","auth_username_password_enabled",
+  "auth_email_register_enabled","auth_magic_link_enabled","auth_2fa_enabled",
+  "auth_biometric_enabled","auth_captcha_enabled",
 ]);
 
 export const TEXT_KEYS = new Set([
   "app_name","app_status","support_phone",
-  "default_language","enabled_languages",
   "app_tagline","app_version","support_email","support_hours","business_address","social_facebook","social_instagram",
   "content_banner","content_announcement","content_maintenance_msg","content_support_msg",
   "content_vendor_notice","content_rider_notice",
@@ -102,6 +120,12 @@ export const TEXT_KEYS = new Set([
   "security_pwd_min_length","security_pwd_expiry_days","security_jwt_rotation_days",
   "security_max_file_mb","security_allowed_types","security_img_quality",
   "security_max_daily_orders","security_new_acct_limit","security_same_addr_limit",
+  "gps_mismatch_threshold_m",
+  "cache_settings_ttl_sec","cache_vpn_ttl_min","cache_tor_ttl_min","cache_zone_ttl_min",
+  "jwt_access_ttl_sec","jwt_refresh_ttl_days","jwt_2fa_challenge_sec",
+  "rate_bargain_per_min","rate_booking_per_min","rate_cancel_per_min","rate_estimate_per_min",
+  "geo_default_zone_radius_km",
+  "currency_code","currency_symbol",
   "security_admin_ip_whitelist","security_maintenance_key",
   "fcm_server_key","fcm_project_id","fcm_sender_id","fcm_app_id","fcm_vapid_key",
   "sms_provider","sms_api_key","sms_account_sid","sms_sender_id","sms_msg91_key","sms_template_otp","sms_template_order",
@@ -117,13 +141,46 @@ export const TEXT_KEYS = new Set([
   "bank_name","bank_account_title","bank_account_number","bank_iban","bank_branch_code","bank_swift_code","bank_instructions",
   "cod_restricted_areas","cod_notes",
   "wallet_topup_methods",
+  "dispatch_broadcast_timeout_sec","ride_max_fare","ride_counter_offer_max_multiplier",
+  "brand_color_mart","brand_color_food","brand_color_rides","brand_color_pharmacy",
+  "brand_color_parcel","brand_color_van","brand_map_center_lat","brand_map_center_lng","brand_map_center_label",
+  "system_log_retention_days","system_cache_ttl_sec","system_json_body_limit","system_upload_size_limit",
+  "api_timeout_ms","max_retry_attempts","retry_backoff_base_ms","rider_gps_queue_max","rider_dismissed_request_ttl_sec",
+  "regional_phone_format","regional_phone_hint","regional_timezone","regional_currency_symbol","regional_country_code",
+  "upload_max_image_mb","upload_max_video_mb","upload_max_video_duration_sec",
+  "upload_allowed_image_formats","upload_allowed_video_formats",
+  "pagination_products_default","pagination_products_max","pagination_trending_limit","pagination_flash_deals",
+  "email_template_verify_html","email_template_reset_html","email_template_magic_html",
+  "notif_text_ride_request","notif_text_order_update",
+  "alert_high_value_threshold",
+  "fraud_same_address_limit","fraud_gps_mismatch_threshold_m","fraud_new_account_order_limit","fraud_daily_order_limit",
+  "vendor_auto_schedule_hours","onboarding_slides",
+  "moderation_custom_patterns","comm_flag_keywords",
+  "comm_mask_format_phone","comm_mask_format_email","comm_mask_format_cnic",
+  "van_min_advance_hours","van_max_seats_per_booking","van_cancellation_window_hours",
+  "van_refund_type","van_refund_partial_pct","van_seat_hold_minutes",
+  "van_min_passengers","van_min_check_hours_before",
+  "van_max_driver_trips_day","van_driver_rest_hours",
+  "van_peak_surcharge_pct","van_peak_hours","van_weekend_surcharge_pct",
+  "van_holiday_surcharge_pct","van_holiday_dates",
 ]);
 
 const FEATURE_ICONS: Record<string,string> = {
   feature_mart:"🛒", feature_food:"🍔", feature_rides:"🚗", feature_pharmacy:"💊",
-  feature_parcel:"📦", feature_wallet:"💰", feature_referral:"🎁", feature_new_users:"👤",
+  feature_parcel:"📦", feature_wallet:"💰", feature_referral:"🎁", feature_new_users:"👤", feature_weather:"🌤️",
   integration_push_notif:"🔔", integration_analytics:"📊", integration_email:"📧", integration_sentry:"🐛", integration_whatsapp:"💬",
 };
+
+/**
+ * Keys managed exclusively in the OTP Control Center page (/admin/otp-control).
+ * Excluded from the generic settings render loop to avoid duplicate controls.
+ * The SecuritySection in security.tsx also skips these to prevent duplication.
+ */
+export const OTP_CC_MANAGED_KEYS = new Set([
+  "security_otp_max_per_phone",
+  "security_otp_max_per_ip",
+  "security_otp_window_min",
+]);
 
 const CONTENT_TEXTAREA_KEYS = new Set([
   "content_announcement","content_maintenance_msg","content_support_msg","content_banner",
@@ -151,6 +208,42 @@ const CONTENT_HINTS: Record<string, { hint: string; apps: string }> = {
   content_about_url:        { hint: "About Us page. Leave empty to hide the row", apps: "📱 Customer  •  🏪 Vendor  •  🏍️ Rider" },
 };
 
+type CardFrameVariant = "default" | "danger" | "note";
+function CardFrame({
+  isDirty,
+  variant = "default",
+  className = "",
+  children,
+}: {
+  isDirty?: boolean;
+  variant?: CardFrameVariant;
+  className?: string;
+  children: ReactNode;
+}) {
+  const variantClasses = isDirty
+    ? "border-amber-300 bg-amber-50/30"
+    : variant === "danger"
+      ? "border-orange-300 bg-orange-50"
+      : variant === "note"
+        ? "border-slate-200 bg-white"
+        : "border-border bg-white";
+  return (
+    <div className={`rounded-xl border p-4 transition-all ${variantClasses} ${className}`.trim()}>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Keys that are now managed in OTP Control Center and must be excluded from
+ * the generic Security / Rate-Limit settings render loop to avoid duplication.
+ */
+const OTP_RATELIMIT_MANAGED_KEYS = new Set([
+  "security_otp_max_per_phone",
+  "security_otp_max_per_ip",
+  "security_otp_window_min",
+]);
+
 /* ─── Other section renderers ────────────────────────────────────────────── */
 export function renderSection(
   cat: CatKey, catSettings: Setting[], settings: Setting[],
@@ -161,14 +254,17 @@ export function renderSection(
   getInputSuffix: (k: string) => string,
   getPlaceholder: (k: string) => string,
 ) {
-  const toggles = catSettings.filter(s => TOGGLE_KEYS.has(s.key));
-  const inputs  = catSettings.filter(s => !TOGGLE_KEYS.has(s.key));
+  const filteredSettings = (cat === "security" || cat === "ratelimit")
+    ? catSettings.filter(s => !OTP_RATELIMIT_MANAGED_KEYS.has(s.key))
+    : catSettings;
+  const toggles = filteredSettings.filter(s => TOGGLE_KEYS.has(s.key));
+  const inputs  = filteredSettings.filter(s => !TOGGLE_KEYS.has(s.key));
 
   const NumField = ({ s }: { s: Setting }) => {
     const isDirty = dirtyKeys.has(s.key);
     const suffix = getInputSuffix(s.key);
     return (
-      <div className="space-y-2">
+      <CardFrame isDirty={isDirty} className="space-y-2">
         <div className="flex items-center gap-2">
           <label className="text-sm font-semibold text-foreground">{s.label}</label>
           {isDirty && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">CHANGED</Badge>}
@@ -182,7 +278,7 @@ export function renderSection(
           {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">{suffix}</span>}
         </div>
         <p className="text-[11px] text-muted-foreground font-mono">{s.key}</p>
-      </div>
+      </CardFrame>
     );
   };
 
@@ -194,7 +290,7 @@ export function renderSection(
       const on = fv(fkey);
       const dangerOn = danger && on;
       return (
-        <div className={`rounded-xl border p-4 transition-all ${dangerOn ? "bg-orange-50 border-orange-300" : on ? "bg-white border-slate-200" : "bg-red-50 border-red-200"}`}>
+        <div className={`rounded-xl border p-4 transition-all ${dangerOn ? "bg-red-50 border-red-200" : on ? "bg-white border-slate-200" : "bg-slate-50 border-slate-200"}`}>
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3 flex-1 min-w-0">
               <span className="text-2xl mt-0.5 shrink-0">{icon}</span>
@@ -202,22 +298,22 @@ export function renderSection(
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-semibold text-sm text-slate-800">{label}</p>
                   {danger && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200">
-                      ⚠️ Danger
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-200">
+                      ⚠️ High-Risk
                     </span>
                   )}
                   {enforcement === "api" && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700 border border-green-200">
-                      <Server size={9} />API Enforced
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">
+                      <Server size={9} />API
                     </span>
                   )}
                   {enforcement === "client" && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">
-                      📱 Client-Side
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">
+                      📱 Client
                     </span>
                   )}
                   {enforcement === "both" && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-700 border border-teal-200">
                       <Server size={9} />API + Client
                     </span>
                   )}
@@ -227,14 +323,14 @@ export function renderSection(
               </div>
             </div>
             <div className="shrink-0 flex flex-col items-center gap-1" onClick={() => handleToggle(fkey, !on)}>
-              <div className={`w-11 h-6 rounded-full relative transition-colors cursor-pointer ${dangerOn ? "bg-orange-500" : on ? "bg-green-500" : "bg-gray-300"} ${dirtyKeys.has(fkey) ? "ring-2 ring-amber-400" : ""}`}>
+              <div className={`w-11 h-6 rounded-full relative transition-colors cursor-pointer ${dangerOn ? "bg-red-500" : on ? "bg-green-500" : "bg-gray-300"} ${dirtyKeys.has(fkey) ? "ring-2 ring-amber-400" : ""}`}>
                 <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-transform ${on ? "translate-x-5" : "translate-x-0.5"}`} />
               </div>
-              <span className={`text-[10px] font-bold ${dangerOn ? "text-orange-600" : on ? "text-green-600" : "text-gray-400"}`}>{on ? "ON" : "OFF"}</span>
+              <span className={`text-[10px] font-bold ${dangerOn ? "text-red-600" : on ? "text-green-600" : "text-gray-400"}`}>{on ? "Enabled" : "Disabled"}</span>
             </div>
           </div>
           {dangerOn && (
-            <div className="mt-3 pt-3 border-t border-orange-200 flex items-center gap-1.5 text-orange-700">
+            <div className="mt-3 pt-3 border-t border-red-200 flex items-center gap-1.5 text-red-700">
               <AlertTriangle size={11} />
               <span className="text-[11px] font-medium">Caution: all newly registered accounts require manual admin approval before they can log in</span>
             </div>
@@ -250,23 +346,25 @@ export function renderSection(
     };
 
     const coreServices = [
-      { fkey: "feature_mart",     label: "Mart / Grocery",     icon: "🛒", desc: "Online grocery orders — order placement + wallet payment gated", apps: "📱 Customer  •  🏪 Vendor  •  🏍️ Rider", enforcement: "api" as const },
-      { fkey: "feature_food",     label: "Food Delivery",      icon: "🍔", desc: "Restaurant food orders — order placement + wallet payment gated", apps: "📱 Customer  •  🏪 Vendor  •  🏍️ Rider", enforcement: "api" as const },
-      { fkey: "feature_rides",    label: "Taxi & Bike Rides",  icon: "🚗", desc: "All ride bookings blocked when off — ridesEnabled gate in API",   apps: "📱 Customer  •  🏍️ Rider",             enforcement: "api" as const },
-      { fkey: "feature_pharmacy", label: "Pharmacy",           icon: "💊", desc: "Medicine orders blocked at API level — pharmacyEnabled gate",     apps: "📱 Customer  •  🏪 Vendor  •  🏍️ Rider", enforcement: "api" as const },
-      { fkey: "feature_parcel",   label: "Parcel Delivery",    icon: "📦", desc: "Parcel shipments blocked at API level — parcelEnabled gate",      apps: "📱 Customer  •  🏍️ Rider",             enforcement: "api" as const },
+      { fkey: "feature_mart",     label: "Mart / Grocery",     icon: "🛒", desc: "Allow customers to browse and order groceries and products.", apps: "📱 Customer  •  🏪 Vendor  •  🏍️ Rider", enforcement: "api" as const },
+      { fkey: "feature_food",     label: "Food Delivery",      icon: "🍔", desc: "Let customers order food from restaurants for delivery.", apps: "📱 Customer  •  🏪 Vendor  •  🏍️ Rider", enforcement: "api" as const },
+      { fkey: "feature_rides",    label: "Taxi & Bike Rides",  icon: "🚗", desc: "Enable the taxi and bike ride-hailing service.", apps: "📱 Customer  •  🏍️ Rider",             enforcement: "api" as const },
+      { fkey: "feature_pharmacy", label: "Pharmacy",           icon: "💊", desc: "Allow customers to order medicines and health products online.", apps: "📱 Customer  •  🏪 Vendor  •  🏍️ Rider", enforcement: "api" as const },
+      { fkey: "feature_parcel",   label: "Parcel Delivery",    icon: "📦", desc: "Let customers send and receive parcels through riders.", apps: "📱 Customer  •  🏍️ Rider",             enforcement: "api" as const },
     ];
     const accountFeatures = [
-      { fkey: "feature_wallet",       label: "Digital Wallet",         icon: "💰", desc: "Wallet top-up, send, and all wallet payments across all services", apps: "📱 Customer  •  🏪 Vendor  •  🏍️ Rider", enforcement: "both" as const },
-      { fkey: "feature_referral",     label: "Referral Program",       icon: "🎁", desc: "Refer & Earn card visibility + referral bonus tracking in app",    apps: "📱 Customer only",                        enforcement: "client" as const },
-      { fkey: "feature_new_users",    label: "New User Registration",  icon: "👤", desc: "Blocks all new sign-ups at auth API — existing users unaffected",  apps: "📱 Customer  •  🏪 Vendor  •  🏍️ Rider", enforcement: "api" as const },
-      { fkey: "user_require_approval",label: "Require Account Approval", icon: "🔒", desc: "New accounts are inactive until manually approved by an admin — use with caution", apps: "📱 Customer  •  🏪 Vendor  •  🏍️ Rider", enforcement: "api" as const, danger: true },
+      { fkey: "feature_wallet",       label: "Digital Wallet",          icon: "💰", desc: "Allow customers to top up, send money, and pay using the in-app wallet.", apps: "📱 Customer  •  🏪 Vendor  •  🏍️ Rider", enforcement: "api" as const },
+      { fkey: "wallet_mpin_enabled",  label: "MPIN Protection",         icon: "🔐", desc: "Require a 6-digit PIN before any wallet send or withdraw action.", apps: "📱 Customer  •  🏪 Vendor  •  🏍️ Rider", enforcement: "api" as const },
+      { fkey: "feature_referral",     label: "Referral Program",        icon: "🎁", desc: "Show the Refer & Earn card and track referral bonuses for customers.", apps: "📱 Customer only",                        enforcement: "client" as const },
+      { fkey: "feature_new_users",    label: "New User Registration",   icon: "👤", desc: "Allow new customers to register. Turn off to freeze sign-ups.", apps: "📱 Customer  •  🏪 Vendor  •  🏍️ Rider", enforcement: "api" as const },
+      { fkey: "user_require_approval",label: "Require Account Approval", icon: "🔒", desc: "New accounts wait for an admin to approve them before they can log in.", apps: "📱 Customer  •  🏪 Vendor  •  🏍️ Rider", enforcement: "api" as const, danger: true },
     ];
     const experienceFeatures = [
-      { fkey: "feature_chat",          label: "In-App Chat / WhatsApp",  icon: "💬", desc: "Chat icon in customer app — routes to WhatsApp support",          apps: "📱 Customer only",                        enforcement: "client" as const },
-      { fkey: "feature_live_tracking", label: "Live GPS Order Tracking",  icon: "📍", desc: "Customer can see rider's real-time location on map while en-route", apps: "📱 Customer  •  🏍️ Rider",             enforcement: "both" as const },
-      { fkey: "feature_reviews",       label: "Reviews & Star Ratings",   icon: "⭐", desc: "Star ratings + written reviews on orders and rides",               apps: "📱 Customer  •  🏪 Vendor  •  🏍️ Rider", enforcement: "api" as const },
-      { fkey: "feature_sos",            label: "SOS Emergency Alerts",    icon: "🆘", desc: "Emergency SOS button for riders and customers during active rides", apps: "📱 Customer  •  🏍️ Rider",             enforcement: "both" as const },
+      { fkey: "feature_chat",          label: "In-App Chat / WhatsApp",  icon: "💬", desc: "Show the chat button in the customer app, which opens a WhatsApp support conversation.", apps: "📱 Customer only",                        enforcement: "client" as const },
+      { fkey: "feature_live_tracking", label: "Live GPS Order Tracking",  icon: "📍", desc: "Let customers see their rider's real-time location on a map during delivery.", apps: "📱 Customer  •  🏍️ Rider",             enforcement: "both" as const },
+      { fkey: "feature_reviews",       label: "Reviews & Star Ratings",   icon: "⭐", desc: "Let customers leave star ratings and written reviews after orders and rides.", apps: "📱 Customer  •  🏪 Vendor  •  🏍️ Rider", enforcement: "api" as const },
+      { fkey: "feature_sos",           label: "SOS Emergency Alerts",    icon: "🆘", desc: "Show an emergency SOS button for riders and customers during active rides.", apps: "📱 Customer  •  🏍️ Rider",             enforcement: "both" as const },
+      { fkey: "feature_weather",       label: "Weather Widget",          icon: "🌤️", desc: "Show a weather card on the customer home screen with temperature and conditions.", apps: "📱 Customer only",                        enforcement: "client" as const },
     ];
 
     const allOn  = [...coreServices, ...accountFeatures, ...experienceFeatures].every(f => fv(f.fkey));
@@ -279,6 +377,7 @@ export function renderSection(
       { label: "Pharmacy orders",     key: "feature_pharmacy",      enforced: "✅ API" },
       { label: "Parcel shipments",    key: "feature_parcel",        enforced: "✅ API" },
       { label: "Wallet (all ops)",    key: "feature_wallet",        enforced: "✅ API" },
+      { label: "MPIN enforcement",   key: "wallet_mpin_enabled",   enforced: "✅ API" },
       { label: "Referral card/bonus", key: "feature_referral",      enforced: "📱 Client" },
       { label: "New user sign-up",    key: "feature_new_users",      enforced: "✅ API" },
       { label: "Account approval",    key: "user_require_approval",  enforced: "✅ API",          inverted: true  },
@@ -286,6 +385,7 @@ export function renderSection(
       { label: "Live GPS tracking",   key: "feature_live_tracking",  enforced: "✅ API + Client", inverted: false },
       { label: "Reviews & ratings",   key: "feature_reviews",        enforced: "✅ API",          inverted: false },
       { label: "SOS alerts",          key: "feature_sos",            enforced: "✅ API + Client", inverted: false },
+      { label: "Weather widget",     key: "feature_weather",        enforced: "📱 Client" },
     ] as { label: string; key: string; enforced: string; inverted?: boolean }[];
 
     return (
@@ -309,78 +409,41 @@ export function renderSection(
           </div>
         )}
 
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <ShoppingCart size={15} className="text-slate-500" />
+        <details open className="group/core">
+          <summary className="list-none flex items-center gap-2 mb-3 cursor-pointer select-none rounded-lg px-1 py-1 hover:bg-slate-50 transition-colors">
+            <ShoppingCart size={15} className="text-slate-500 shrink-0" />
             <p className="font-semibold text-sm text-slate-700">Core Services</p>
             <span className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">orders / rides / pharmacy / parcel API</span>
-          </div>
-          <div className="space-y-3">
+            <ChevronDown size={13} className="ml-auto text-slate-400 transition-transform group-open/core:rotate-0 -rotate-90" />
+          </summary>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {coreServices.map(f => <FTog key={f.fkey} {...f} />)}
           </div>
-        </div>
+        </details>
 
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <UserPlus size={15} className="text-slate-500" />
-            <p className="font-semibold text-sm text-slate-700">Account & Business</p>
+        <details open className="group/account">
+          <summary className="list-none flex items-center gap-2 mb-3 cursor-pointer select-none rounded-lg px-1 py-1 hover:bg-slate-50 transition-colors">
+            <UserPlus size={15} className="text-slate-500 shrink-0" />
+            <p className="font-semibold text-sm text-slate-700">Account Features</p>
             <span className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">wallet / auth / customer API</span>
-          </div>
-          <div className="space-y-3">
+            <ChevronDown size={13} className="ml-auto text-slate-400 transition-transform group-open/account:rotate-0 -rotate-90" />
+          </summary>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {accountFeatures.map(f => <FTog key={f.fkey} {...f} />)}
           </div>
-        </div>
+        </details>
 
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <MessageSquare size={15} className="text-slate-500" />
+        <details open className="group/experience">
+          <summary className="list-none flex items-center gap-2 mb-3 cursor-pointer select-none rounded-lg px-1 py-1 hover:bg-slate-50 transition-colors">
+            <MessageSquare size={15} className="text-slate-500 shrink-0" />
             <p className="font-semibold text-sm text-slate-700">Experience Features</p>
             <span className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">chat / tracking / reviews API</span>
-          </div>
-          <div className="space-y-3">
+            <ChevronDown size={13} className="ml-auto text-slate-400 transition-transform group-open/experience:rotate-0 -rotate-90" />
+          </summary>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {experienceFeatures.map(f => <FTog key={f.fkey} {...f} />)}
           </div>
-        </div>
-
-        {/* Access Controls */}
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <Shield size={15} className="text-slate-500" />
-            <p className="font-semibold text-sm text-slate-700">Access Controls</p>
-            <span className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">user approval / registration gating</span>
-          </div>
-          <div className={`rounded-xl border p-4 transition-all ${fv("user_require_approval") ? "bg-amber-50 border-amber-200" : "bg-white border-slate-200"}`}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-3 flex-1 min-w-0">
-                <span className="text-2xl mt-0.5 shrink-0">🔒</span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold text-sm text-slate-800">Require Admin Approval for New Users</p>
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700 border border-green-200">
-                      <Server size={9} />API Enforced
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    When ON — new accounts are created as <span className="font-mono font-bold">inactive</span> and cannot log in until an admin approves them from the Users page.
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-1 font-mono">📱 Customer  •  🏪 Vendor  •  🏍️ Rider</p>
-                </div>
-              </div>
-              <div className="shrink-0 flex flex-col items-center gap-1" onClick={() => handleToggle("user_require_approval", !fv("user_require_approval"))}>
-                <div className={`w-11 h-6 rounded-full relative transition-colors cursor-pointer ${fv("user_require_approval") ? "bg-amber-500" : "bg-gray-300"} ${dirtyKeys.has("user_require_approval") ? "ring-2 ring-amber-400" : ""}`}>
-                  <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-transform ${fv("user_require_approval") ? "translate-x-5" : "translate-x-0.5"}`} />
-                </div>
-                <span className={`text-[10px] font-bold ${fv("user_require_approval") ? "text-amber-600" : "text-gray-400"}`}>{fv("user_require_approval") ? "ON" : "OFF"}</span>
-              </div>
-            </div>
-            {fv("user_require_approval") && (
-              <div className="mt-3 pt-3 border-t border-amber-200 flex items-center gap-1.5 text-amber-700">
-                <AlertTriangle size={11} />
-                <span className="text-[11px] font-medium">Approval mode active — new accounts need manual activation from the Users page</span>
-              </div>
-            )}
-          </div>
-        </div>
+        </details>
 
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -443,7 +506,7 @@ export function renderSection(
       const meta      = CONTENT_HINTS[s.key];
       const overLimit = limit ? val.length > limit : false;
       return (
-        <div className={`rounded-xl border p-4 space-y-2.5 transition-all ${isDirty ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+        <CardFrame isDirty={isDirty} className="space-y-2.5">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2 flex-1 min-w-0">
               {isUrl
@@ -481,7 +544,7 @@ export function renderSection(
             </div>
           )}
           <p className="text-[10px] text-muted-foreground/60 font-mono">{s.key}</p>
-        </div>
+        </CardFrame>
       );
     };
 
@@ -508,7 +571,7 @@ export function renderSection(
         {/* ── Tracker Banner Position ── */}
         <div className="border-t border-border/40 pt-5">
           <SLabel icon={ToggleRight}>Tracker Banner Position</SLabel>
-          <div className="rounded-xl border p-4 space-y-2.5 transition-all border-border bg-white">
+          <CardFrame variant="note" className="space-y-2.5">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-foreground">Banner Position</p>
@@ -524,7 +587,7 @@ export function renderSection(
               </select>
             </div>
             <p className="text-[10px] text-muted-foreground/60 font-mono">content_tracker_banner_position</p>
-          </div>
+          </CardFrame>
         </div>
 
         {/* ── App Messaging ── */}
@@ -676,110 +739,6 @@ export function renderSection(
           </div>
         ))}
 
-        {/* ── Language Settings ── */}
-        <div className="space-y-3 border-t border-border/40 pt-6">
-          <SLabel icon={Globe}>Language Settings</SLabel>
-          <p className="text-xs text-muted-foreground -mt-1">
-            Control which language modes are available to users and set the platform default for new accounts.
-          </p>
-          {(() => {
-            const ALL_LANGS = [
-              { code: "en",       label: "English Only",         native: "English",          rtl: false, desc: "Standard English UI throughout" },
-              { code: "ur",       label: "Urdu Only",            native: "اردو",             rtl: true,  desc: "Full Urdu script — RTL layout active" },
-              { code: "roman",    label: "Roman Urdu Only",      native: "Roman Urdu",       rtl: false, desc: "Urdu written in Latin script" },
-              { code: "en_roman", label: "English + Roman Urdu", native: "English + Roman",  rtl: false, desc: "Default — bilingual, widest reach" },
-              { code: "en_ur",    label: "English + Urdu",       native: "English + اردو",   rtl: false, desc: "English with native Urdu below" },
-            ];
-
-            const rawEnabled = localValues["enabled_languages"] ?? '["en"]';
-            let enabledSet: Set<string>;
-            try { enabledSet = new Set(JSON.parse(rawEnabled) as string[]); }
-            catch { enabledSet = new Set(["en"]); }
-
-            const defaultLang = localValues["default_language"] ?? "en";
-
-            const toggleLang = (code: string) => {
-              const next = new Set(enabledSet);
-              if (next.has(code)) {
-                if (next.size <= 1) return;
-                next.delete(code);
-                if (defaultLang === code) {
-                  const firstEnabled = ALL_LANGS.find(l => next.has(l.code))?.code ?? "en";
-                  handleChange("default_language", firstEnabled);
-                }
-              } else {
-                next.add(code);
-              }
-              handleChange("enabled_languages", JSON.stringify([...next]));
-            };
-
-            const enabledLangs = ALL_LANGS.filter(l => enabledSet.has(l.code));
-
-            return (
-              <div className="space-y-4">
-                {/* Per-language enable/disable toggles */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {ALL_LANGS.map(lang => {
-                    const isOn = enabledSet.has(lang.code);
-                    const isDefault = defaultLang === lang.code;
-                    return (
-                      <div key={lang.code} className={`rounded-xl border p-3.5 space-y-2 transition-all ${isOn ? "bg-white border-border" : "bg-muted/30 border-border/50 opacity-60"}`}>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-sm font-semibold text-foreground">{lang.label}</span>
-                              {isDefault && <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.5 rounded-full">DEFAULT</span>}
-                              {lang.rtl && <span className="text-[10px] bg-amber-100 text-amber-600 font-bold px-1.5 py-0.5 rounded-full">RTL</span>}
-                            </div>
-                            <p className="text-sm text-gray-500 mt-0.5">{lang.native}</p>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">{lang.desc}</p>
-                          </div>
-                          <button
-                            onClick={() => toggleLang(lang.code)}
-                            className="shrink-0 flex flex-col items-center gap-0.5"
-                          >
-                            <div className={`w-10 h-5.5 rounded-full relative transition-colors ${isOn ? "bg-green-500" : "bg-gray-300"} ${dirtyKeys.has("enabled_languages") ? "ring-2 ring-amber-400" : ""}`} style={{ width: 44, height: 24 }}>
-                              <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-transform ${isOn ? "translate-x-5" : "translate-x-0.5"}`} />
-                            </div>
-                            <span className={`text-[10px] font-bold ${isOn ? "text-green-600" : "text-gray-400"}`}>{isOn ? "ON" : "OFF"}</span>
-                          </button>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground/50 font-mono">lang={lang.code}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Default Language dropdown */}
-                <div className={`rounded-xl border p-4 space-y-2 transition-all ${dirtyKeys.has("default_language") ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
-                  <div className="flex items-center gap-2">
-                    <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-                    <label className="text-sm font-semibold text-foreground flex-1">Default Language for New Users</label>
-                    {dirtyKeys.has("default_language") && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">CHANGED</Badge>}
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">Applied when a new user registers — only enabled languages are available here.</p>
-                  <select
-                    value={defaultLang}
-                    onChange={e => handleChange("default_language", e.target.value)}
-                    className={`w-full h-10 text-sm rounded-xl border px-3 ${dirtyKeys.has("default_language") ? "border-amber-300 bg-amber-50" : "border-input bg-background"}`}
-                  >
-                    {enabledLangs.map(l => (
-                      <option key={l.code} value={l.code}>{l.label} ({l.native})</option>
-                    ))}
-                  </select>
-                  <p className="text-[10px] text-muted-foreground/60 font-mono">default_language</p>
-                </div>
-
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5 flex gap-2.5">
-                  <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-blue-700 leading-relaxed">
-                    Individual users can still change their own language from their profile — this setting only affects the default shown to new users. RTL layout activates only for <strong>Urdu Only</strong> mode.
-                  </p>
-                </div>
-              </div>
-            );
-          })()}
-        </div>
       </div>
     );
   }
@@ -821,7 +780,7 @@ export function renderSection(
       const sfx = SUFFIX[s.key] ?? "";
       const isPrefix = sfx === "Rs.";
       return (
-        <div className={`rounded-xl border p-4 space-y-2.5 transition-all ${isDirty ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+        <CardFrame isDirty={isDirty} className="space-y-2.5">
           <div className="flex items-start justify-between gap-2">
             <label className="text-sm font-semibold text-foreground leading-snug flex-1">{s.label}</label>
             {isDirty && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold flex-shrink-0">CHANGED</Badge>}
@@ -836,7 +795,7 @@ export function renderSection(
             {!isPrefix && sfx && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">{sfx}</span>}
           </div>
           <p className="text-[10px] text-muted-foreground/50 font-mono">{s.key}</p>
-        </div>
+        </CardFrame>
       );
     };
 
@@ -897,7 +856,7 @@ export function renderSection(
           <p className="text-xs text-muted-foreground -mt-1">Minimum payout thresholds prevent micro-withdrawals. Settlement cycle is configured in Vendor settings.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {/* vendor_min_payout is stored in vendor category — read directly from localValues */}
-            <div className={`rounded-xl border p-4 space-y-2.5 transition-all ${dirtyKeys.has("vendor_min_payout") ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+            <CardFrame isDirty={dirtyKeys.has("vendor_min_payout")} className="space-y-2.5">
               <div className="flex items-start justify-between gap-2">
                 <label className="text-sm font-semibold text-foreground leading-snug flex-1">Vendor Min Payout (Rs.)</label>
                 {dirtyKeys.has("vendor_min_payout") && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold flex-shrink-0">CHANGED</Badge>}
@@ -911,7 +870,7 @@ export function renderSection(
                 />
               </div>
               <p className="text-[10px] text-muted-foreground/50 font-mono">vendor_min_payout</p>
-            </div>
+            </CardFrame>
             <RefInfoCard label="Rider Min Payout" value={`Rs. ${minRiderVal}`} detail="Minimum rider withdrawal request threshold" linkCat="Rider" />
             <RefInfoCard label="Vendor Settlement Cycle" value={`${settleDaysVal} days`} detail="Days after order completion before vendor can settle" linkCat="Vendor" />
           </div>
@@ -969,7 +928,7 @@ export function renderSection(
     const DeliveryNumField = ({ s }: { s: Setting }) => {
       const isDirty = dirtyKeys.has(s.key);
       return (
-        <div className={`rounded-xl border p-4 space-y-2.5 transition-all ${isDirty ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+        <CardFrame isDirty={isDirty} className="space-y-2.5">
           <div className="flex items-start justify-between gap-2">
             <label className="text-sm font-semibold text-foreground leading-snug flex-1">
               {EMOJI[s.key] && <span className="mr-1">{EMOJI[s.key]}</span>}{s.label}
@@ -986,10 +945,9 @@ export function renderSection(
             />
           </div>
           <p className="text-[10px] text-muted-foreground/50 font-mono">{s.key}</p>
-        </div>
+        </CardFrame>
       );
     };
-
     const DeliveryToggle = ({ s }: { s: Setting }) => (
       <Toggle checked={(localValues[s.key] ?? s.value) === "on"}
         onChange={v => handleToggle(s.key, v)} label={s.label} isDirty={dirtyKeys.has(s.key)} />
@@ -1042,7 +1000,7 @@ export function renderSection(
         <div className="space-y-3 border-t border-border/40 pt-6">
           <SLabel icon={BarChart3}>Live Checkout Preview</SLabel>
           <p className="text-xs text-muted-foreground -mt-1">What delivery fee customers see at checkout for different cart subtotals — updates instantly as you change values above.</p>
-          <div className="rounded-xl border border-border bg-white overflow-hidden">
+          <div className="rounded-xl border border-border bg-white overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-sky-50 border-b border-sky-100">
@@ -1129,9 +1087,9 @@ export function renderSection(
       ride_rickshaw_base_fare:       "Fixed starting fare charged on every rickshaw ride, regardless of distance",
       ride_rickshaw_per_km:          "Additional charge per kilometre for rickshaw rides, added on top of base fare",
       ride_rickshaw_min_fare:        "Floor fare for rickshaw rides — short trips will never cost less than this",
-      ride_daba_base_fare:           "Fixed starting fare charged on every daba/van ride, regardless of distance",
-      ride_daba_per_km:              "Additional charge per kilometre for daba/van rides, added on top of base fare",
-      ride_daba_min_fare:            "Floor fare for daba/van rides — short trips will never cost less than this",
+      ride_daba_base_fare:           "Fixed starting fare for on-demand point-to-point Daba rides only. Does NOT apply to Van intercity/route bookings.",
+      ride_daba_per_km:              "Per-kilometre charge for on-demand Daba rides, added on top of base fare. Not used for Van route bookings.",
+      ride_daba_min_fare:            "Floor fare for on-demand Daba rides — short trips will never cost less than this. Not used for Van route bookings.",
       ride_surge_enabled:            "When ON, all ride fares are multiplied by the surge multiplier below. Use during peak hours or high demand",
       ride_surge_multiplier:         "Multiplier applied to the calculated fare when surge is active. 1.5 = 50% premium",
       ride_cancellation_fee:         "Fee charged to the customer if they cancel a ride after a driver has already accepted it",
@@ -1172,7 +1130,7 @@ export function renderSection(
       const sfx = SUFFIX[s.key] ?? "";
       const isPrefix = sfx === "Rs.";
       return (
-        <div className={`rounded-xl border p-4 space-y-2.5 transition-all ${isDirty ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+        <CardFrame isDirty={isDirty} className="space-y-2.5">
           <div className="flex items-start justify-between gap-2">
             <label className="text-sm font-semibold text-foreground leading-snug flex-1">{s.label}</label>
             {isDirty && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold flex-shrink-0">CHANGED</Badge>}
@@ -1188,7 +1146,7 @@ export function renderSection(
             {!isPrefix && sfx && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">{sfx}</span>}
           </div>
           <p className="text-[10px] text-muted-foreground/50 font-mono">{s.key}</p>
-        </div>
+        </CardFrame>
       );
     };
 
@@ -1269,10 +1227,10 @@ export function renderSection(
           )}
         </div>
 
-        {/* ── Group 4: Daba / Van Pricing ── */}
+        {/* ── Group 4: On-Demand Daba Ride Pricing ── */}
         <div className="space-y-3 border-t border-border/40 pt-6">
-          <SLabel>🚐 Daba / Van Pricing</SLabel>
-          <p className="text-xs text-muted-foreground -mt-1">Multi-passenger van/daba fares — school trips, group rides and cargo. Bargaining is allowed. Higher minimum fare than individual rides.</p>
+          <SLabel>🚐 On-Demand Daba Ride Pricing</SLabel>
+          <p className="text-xs text-muted-foreground -mt-1">Fares for <strong>on-demand, point-to-point Daba rides only</strong> — same metered model as Bike/Car/Rickshaw. These settings do <strong>not</strong> affect Van intercity or route-based bookings.</p>
           {dabaFields.length > 0 ? (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1281,12 +1239,20 @@ export function renderSection(
               <div className="bg-purple-50 border border-purple-100 rounded-xl p-3.5 flex gap-2.5">
                 <Info className="w-4 h-4 text-purple-500 flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-purple-700 leading-relaxed">
-                  <strong>Daba fare example:</strong>{" "}
+                  <strong>Daba fare example (on-demand only):</strong>{" "}
                   3 km trip → Rs.{exampleFare(dbBase, dbKm, dbMin, 3)} &nbsp;|&nbsp;
                   5 km → Rs.{exampleFare(dbBase, dbKm, dbMin, 5)} &nbsp;|&nbsp;
                   10 km → Rs.{exampleFare(dbBase, dbKm, dbMin, 10)}
                   {surgeOn && <strong className="text-orange-600"> (surge ×{surge} active)</strong>}
                   &nbsp;· Rider earns {riderKeep}% of each fare
+                </p>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex gap-2.5">
+                <Info className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  <strong>Van / Intercity Pricing is separate.</strong>{" "}
+                  Van bookings use a fixed per-route fare model, not the metered fares above. Van routes and their fares are managed in the{" "}
+                  <a href="/van" className="underline font-semibold hover:text-amber-900">Van Management page</a>.
                 </p>
               </div>
             </>
@@ -1380,31 +1346,35 @@ export function renderSection(
     const AMOUNT_KEYS  = new Set(["min_order_amount","order_max_cart_value"]);
     const TIMING_KEYS  = new Set(["order_cancel_window_min","order_auto_cancel_min","order_refund_days","order_preptime_min","order_rating_window_hours"]);
     const SCHED_KEYS   = new Set(["order_schedule_enabled"]);
+    const ITEM_KEYS    = new Set(["order_max_item_quantity"]);
 
     const amountFields  = catSettings.filter(s => AMOUNT_KEYS.has(s.key));
     const timingFields  = catSettings.filter(s => TIMING_KEYS.has(s.key));
     const schedFields   = catSettings.filter(s => SCHED_KEYS.has(s.key));
+    const itemFields    = catSettings.filter(s => ITEM_KEYS.has(s.key));
 
     const SUFFIX: Record<string,string> = {
       min_order_amount: "Rs.", order_max_cart_value: "Rs.",
       order_cancel_window_min: "min", order_auto_cancel_min: "min",
       order_refund_days: "days", order_preptime_min: "min", order_rating_window_hours: "hrs",
+      order_max_item_quantity: "qty",
     };
     const HINT: Record<string,string> = {
-      min_order_amount:        "Customer cannot checkout below this amount",
-      order_max_cart_value:    "Hard cap — checkout blocked if cart exceeds this",
-      order_cancel_window_min: "Customer can cancel a pending order within this window",
-      order_auto_cancel_min:   "Pending order auto-cancels if vendor does not accept in time",
-      order_refund_days:       "Shown to customer on cancelled non-COD orders",
-      order_preptime_min:      "Estimated prep time shown on tracking screen",
+      min_order_amount:          "Customer cannot checkout below this amount",
+      order_max_cart_value:      "Hard cap — checkout blocked if cart exceeds this",
+      order_cancel_window_min:   "Customer can cancel a pending order within this window",
+      order_auto_cancel_min:     "Pending order auto-cancels if vendor does not accept in time",
+      order_refund_days:         "Shown to customer on cancelled non-COD orders",
+      order_preptime_min:        "Estimated prep time shown on tracking screen",
       order_rating_window_hours: "Rate button disappears after this many hours post-delivery",
+      order_max_item_quantity:   "Maximum units of a single product per order line item",
     };
 
     const OrderNumField = ({ s }: { s: Setting }) => {
       const isDirty = dirtyKeys.has(s.key);
       const sfx = SUFFIX[s.key] ?? "";
       return (
-        <div className={`rounded-xl border p-4 space-y-2.5 transition-all ${isDirty ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+        <CardFrame isDirty={isDirty} className="space-y-2.5">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <label className="text-sm font-semibold text-foreground leading-snug">{s.label}</label>
@@ -1420,7 +1390,7 @@ export function renderSection(
             {sfx && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">{sfx}</span>}
           </div>
           <p className="text-[10px] text-muted-foreground font-mono">{s.key}</p>
-        </div>
+        </CardFrame>
       );
     };
 
@@ -1446,7 +1416,18 @@ export function renderSection(
           </div>
         )}
 
-        {/* Group 3: Scheduling */}
+        {/* Group 3: Item Quantity Limits */}
+        {itemFields.length > 0 && (
+          <div className="space-y-3 border-t border-border/40 pt-5">
+            <SLabel icon={Package}>Item Quantity Limits</SLabel>
+            <p className="text-xs text-muted-foreground -mt-1">Control how many units a customer can order per line item</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {itemFields.map(s => <OrderNumField key={s.key} s={s} />)}
+            </div>
+          </div>
+        )}
+
+        {/* Group 4: Scheduling */}
         {schedFields.length > 0 && (
           <div className="space-y-3 border-t border-border/40 pt-5">
             <SLabel icon={Settings}>Scheduling</SLabel>
@@ -1610,35 +1591,15 @@ export function renderSection(
 
         {/* ── Group 4: Loyalty Program ── */}
         <Group icon={Star} iconCls="bg-amber-100 text-amber-600" title="Loyalty Program" subtitle="Points earned per Rs. 100 spent">
-          <Tog k="customer_loyalty_enabled" label="Loyalty Points Program" sub="Customers earn points with each order" dangerOff />
-          <Field k="customer_loyalty_pts" label="Points Per Rs. 100 Spent" suffix="pts" min={0} disabled={!loyaltyEnabled} />
-          {/* Loyalty Simulation Table */}
-          <div className={loyaltyEnabled ? "" : "opacity-40 pointer-events-none"}>
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Loyalty Simulation</p>
-            <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full text-xs">
-                <thead><tr className="bg-muted/50">
-                  <th className="px-3 py-2 text-left font-bold text-muted-foreground">Order Value</th>
-                  <th className="px-3 py-2 text-right font-bold text-muted-foreground">Points Earned</th>
-                  <th className="px-3 py-2 text-right font-bold text-muted-foreground">Est. Value</th>
-                </tr></thead>
-                <tbody className="divide-y divide-border">
-                  {[100, 500, 1000, 2000, 5000].map(amt => {
-                    const pts = Math.floor(amt / 100 * loyaltyPts);
-                    const val = (pts * 0.1).toFixed(2);
-                    return (
-                      <tr key={amt} className="hover:bg-muted/20">
-                        <td className="px-3 py-2 text-foreground font-medium">Rs. {amt.toLocaleString()}</td>
-                        <td className="px-3 py-2 text-right font-bold text-amber-700">{pts} pts</td>
-                        <td className="px-3 py-2 text-right text-muted-foreground">≈ Rs. {val}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <p className="text-[10px] text-muted-foreground mt-1.5">* 1 point ≈ Rs. 0.10 value. Adjust redemption rate in loyalty engine.</p>
-          </div>
+          {/* Full loyalty tier rules, redemption config and point history live in the dedicated Loyalty page */}
+          <ManageInSettingsLink
+            label="Loyalty Engine"
+            value="Managed in Loyalty"
+            description="Configure point multipliers, tier thresholds, redemption rules, and expiry policy in the dedicated Loyalty page."
+            tone="info"
+            to="/loyalty"
+            linkLabel="Open Loyalty"
+          />
         </Group>
 
         {/* ── Group 5: Cashback Settings ── */}
@@ -1695,7 +1656,7 @@ export function renderSection(
     const RField = ({ k, label, suffix, hint }: { k: string; label: string; suffix?: string; hint?: string }) => {
       const isDirty = d(k);
       return (
-        <div className={`rounded-xl border p-4 space-y-2.5 transition-all ${isDirty ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+        <CardFrame isDirty={isDirty} className="space-y-2.5">
           <div className="flex items-center gap-2">
             <label className="text-sm font-semibold text-foreground">{label}</label>
             {isDirty && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">CHANGED</Badge>}
@@ -1708,7 +1669,7 @@ export function renderSection(
             {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">{suffix}</span>}
           </div>
           <p className="text-[10px] text-muted-foreground font-mono">{k}</p>
-        </div>
+        </CardFrame>
       );
     };
 
@@ -1885,7 +1846,7 @@ export function renderSection(
         <div className="border-t border-border/40 pt-5">
           <SLabel icon={BarChart3}>Rider Earnings Simulation</SLabel>
           <p className="text-xs text-muted-foreground mb-3 -mt-1">Live preview of rider take-home for different delivery fee amounts at current settings</p>
-          <div className="overflow-hidden rounded-xl border border-border bg-white">
+          <div className="overflow-x-auto rounded-xl border border-border bg-white">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-border">
                 <tr>
@@ -1953,7 +1914,7 @@ export function renderSection(
     const VField = ({ k, label, suffix, hint }: { k: string; label: string; suffix?: string; hint?: string }) => {
       const isDirty = d(k);
       return (
-        <div className={`rounded-xl border p-4 space-y-2.5 transition-all ${isDirty ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+        <CardFrame isDirty={isDirty} className="space-y-2.5">
           <div className="flex items-center gap-2">
             <label className="text-sm font-semibold text-foreground">{label}</label>
             {isDirty && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">CHANGED</Badge>}
@@ -1966,7 +1927,7 @@ export function renderSection(
             {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">{suffix}</span>}
           </div>
           <p className="text-[10px] text-muted-foreground font-mono">{k}</p>
-        </div>
+        </CardFrame>
       );
     };
 
@@ -2048,9 +2009,10 @@ export function renderSection(
         <div className="space-y-3 border-t border-border/40 pt-5">
           <SLabel icon={ShoppingCart}>Store Rules</SLabel>
           <p className="text-xs text-muted-foreground -mt-1">Platform-wide limits applied to all vendor stores</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <VField k="vendor_min_order" label="Default Minimum Order (Rs.)" suffix="Rs." hint="Vendors set their own min order — this is the platform floor" />
             <VField k="vendor_max_items" label="Max Menu Items Per Vendor" suffix="items" hint="Product/menu listing cap enforced at API level" />
+            <VField k="low_stock_threshold" label="Low Stock Alert Threshold" suffix="units" hint="Vendor dashboard shows a warning when stock falls below this number" />
           </div>
           <div className="bg-gray-50 rounded-xl p-3 flex items-start gap-2">
             <Package className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
@@ -2093,7 +2055,7 @@ export function renderSection(
         <div className="border-t border-border/40 pt-5">
           <SLabel icon={BarChart3}>Vendor Earnings Summary</SLabel>
           <p className="text-xs text-muted-foreground mb-3 -mt-1">Live preview of what a typical vendor experiences with current settings</p>
-          <div className="overflow-hidden rounded-xl border border-border bg-white">
+          <div className="overflow-x-auto rounded-xl border border-border bg-white">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-border">
                 <tr>
@@ -2129,6 +2091,332 @@ export function renderSection(
           </div>
         </div>
 
+      </div>
+    );
+  }
+
+  if (cat === "notifications") {
+    const v = (k: string) => localValues[k] ?? catSettings.find(s => s.key === k)?.value ?? "";
+    const d = (k: string) => dirtyKeys.has(k);
+    const NField = ({ k, label, hint, rows }: { k: string; label: string; hint?: string; rows?: number }) => {
+      const isDirty = d(k);
+      return (
+        <div className={`rounded-xl border p-4 space-y-2 transition-all ${isDirty ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-semibold text-foreground">{label}</label>
+            {isDirty && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">CHANGED</Badge>}
+          </div>
+          {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+          {rows ? (
+            <textarea value={v(k)} onChange={e => handleChange(k, e.target.value)} rows={rows}
+              className={`w-full rounded-lg border text-sm p-2.5 font-mono ${isDirty ? "border-amber-300 bg-amber-50/50" : "border-gray-200"}`} />
+          ) : (
+            <Input value={v(k)} onChange={e => handleChange(k, e.target.value)}
+              className={`h-9 rounded-lg text-sm ${isDirty ? "border-amber-300 bg-amber-50/50" : ""}`} />
+          )}
+          <p className="text-[10px] text-muted-foreground/60 font-mono">{k}</p>
+        </div>
+      );
+    };
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <SLabel icon={MessageSquare}>Email Templates</SLabel>
+          <p className="text-xs text-muted-foreground mb-3">HTML templates for transactional emails. Use {"{link}"}, {"{otp}"}, {"{userName}"}, {"{appName}"} as placeholders.</p>
+          <div className="space-y-4">
+            <NField k="email_template_verify_html" label="Verification Email HTML" hint="Sent when a user registers — include {link} placeholder" rows={5} />
+            <NField k="email_template_reset_html" label="Password Reset Email HTML" hint="Sent for password reset — include {otp} placeholder" rows={5} />
+            <NField k="email_template_magic_html" label="Magic Link Email HTML" hint="Passwordless login email — include {link} placeholder" rows={5} />
+          </div>
+        </div>
+        <div className="border-t border-border/40 pt-5">
+          <SLabel icon={MessageSquare}>Push Notification Text</SLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <NField k="notif_text_ride_request" label="Ride Request Notification" hint="Sent to rider when a new ride is available" />
+            <NField k="notif_text_order_update" label="Order Status Update" hint="Sent to customer when order status changes" />
+          </div>
+        </div>
+        <div className="border-t border-border/40 pt-5">
+          <SLabel icon={AlertTriangle}>Fraud Alert Thresholds</SLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <NField k="alert_high_value_threshold" label="High Value Order Threshold (Rs.)" hint="Orders above this trigger admin alert" />
+            <NField k="fraud_same_address_limit" label="Same Address Limit" hint="Max orders from same address before flagging" />
+            <NField k="fraud_gps_mismatch_threshold_m" label="GPS Mismatch Threshold (m)" hint="Distance mismatch that triggers GPS fraud flag" />
+            <NField k="fraud_new_account_order_limit" label="New Account Order Limit" hint="Max orders for accounts under 24h old" />
+            <NField k="fraud_daily_order_limit" label="Daily Order Limit" hint="Max orders per user per day before review" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (cat === "uploads") {
+    const v = (k: string) => localValues[k] ?? catSettings.find(s => s.key === k)?.value ?? "";
+    const d = (k: string) => dirtyKeys.has(k);
+    const UField = ({ k, label, suffix, hint }: { k: string; label: string; suffix?: string; hint?: string }) => {
+      const isDirty = d(k);
+      return (
+        <div className={`rounded-xl border p-4 space-y-2 transition-all ${isDirty ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-semibold text-foreground">{label}</label>
+            {isDirty && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">CHANGED</Badge>}
+          </div>
+          {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+          <div className="relative">
+            <Input value={v(k)} onChange={e => handleChange(k, e.target.value)}
+              className={`h-9 rounded-lg text-sm ${suffix ? "pr-14" : ""} ${isDirty ? "border-amber-300 bg-amber-50/50" : ""}`} />
+            {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">{suffix}</span>}
+          </div>
+          <p className="text-[10px] text-muted-foreground/60 font-mono">{k}</p>
+        </div>
+      );
+    };
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <SLabel icon={Package}>File Size Limits</SLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <UField k="upload_max_image_mb" label="Max Image Size" suffix="MB" hint="Maximum file size for image uploads" />
+            <UField k="upload_max_video_mb" label="Max Video Size" suffix="MB" hint="Maximum file size for video uploads" />
+            <UField k="upload_max_video_duration_sec" label="Max Video Duration" suffix="sec" hint="Maximum video length in seconds" />
+          </div>
+        </div>
+        <div className="border-t border-border/40 pt-5">
+          <SLabel icon={FileText}>Allowed Formats</SLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <UField k="upload_allowed_image_formats" label="Image Formats" hint="Comma-separated, e.g. jpg,png,webp" />
+            <UField k="upload_allowed_video_formats" label="Video Formats" hint="Comma-separated, e.g. mp4,mov" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (cat === "pagination") {
+    const v = (k: string) => localValues[k] ?? catSettings.find(s => s.key === k)?.value ?? "";
+    const d = (k: string) => dirtyKeys.has(k);
+    const PField = ({ k, label, hint }: { k: string; label: string; hint?: string }) => {
+      const isDirty = d(k);
+      return (
+        <div className={`rounded-xl border p-4 space-y-2 transition-all ${isDirty ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-semibold text-foreground">{label}</label>
+            {isDirty && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">CHANGED</Badge>}
+          </div>
+          {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+          <Input type="number" min={1} value={v(k)} onChange={e => handleChange(k, e.target.value)}
+            className={`h-9 rounded-lg text-sm ${isDirty ? "border-amber-300 bg-amber-50/50" : ""}`} />
+          <p className="text-[10px] text-muted-foreground/60 font-mono">{k}</p>
+        </div>
+      );
+    };
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <SLabel icon={BarChart3}>Product Listing Limits</SLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <PField k="pagination_products_default" label="Products Per Page (Default)" hint="Default page size for product listings" />
+            <PField k="pagination_products_max" label="Products Per Page (Max)" hint="Maximum page size a client can request" />
+            <PField k="pagination_trending_limit" label="Trending Searches Shown" hint="Number of trending search terms displayed" />
+            <PField k="pagination_flash_deals" label="Flash Deals Per Page" hint="Number of flash deal items shown per page" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (cat === "van") {
+    const v = (k: string) => localValues[k] ?? catSettings.find(s => s.key === k)?.value ?? "";
+    const d = (k: string) => dirtyKeys.has(k);
+    const VField = ({ k, label, suffix, hint }: { k: string; label: string; suffix?: string; hint?: string }) => {
+      const isDirty = d(k);
+      return (
+        <div className={`rounded-xl border p-4 space-y-2 transition-all ${isDirty ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-semibold text-foreground">{label}</label>
+            {isDirty && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">CHANGED</Badge>}
+          </div>
+          {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+          <div className="relative">
+            <Input value={v(k)} onChange={e => handleChange(k, e.target.value)}
+              className={`h-9 rounded-lg text-sm ${suffix ? "pr-14" : ""} ${isDirty ? "border-amber-300 bg-amber-50/50" : ""}`} />
+            {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">{suffix}</span>}
+          </div>
+          <p className="text-[10px] text-muted-foreground/60 font-mono">{k}</p>
+        </div>
+      );
+    };
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <SLabel icon={Car}>Booking Rules</SLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <VField k="van_min_advance_hours" label="Min Advance Booking" suffix="hrs" hint="How many hours before departure a booking must be made" />
+            <VField k="van_max_seats_per_booking" label="Max Seats Per Booking" suffix="seats" hint="Maximum seats one customer can book at once" />
+            <VField k="van_cancellation_window_hours" label="Cancellation Window" suffix="hrs" hint="Hours before departure that free cancellation is allowed" />
+            <VField k="van_seat_hold_minutes" label="Seat Hold Duration" suffix="min" hint="Minutes a seat is held during unpaid checkout" />
+          </div>
+        </div>
+        <div className="border-t border-border/40 pt-5">
+          <SLabel icon={Shield}>Refund & Passenger Rules</SLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <VField k="van_refund_type" label="Refund Type" hint="full or partial — type of refund on cancellation" />
+            <VField k="van_refund_partial_pct" label="Partial Refund %" suffix="%" hint="Percentage refunded if refund type is partial" />
+            <VField k="van_min_passengers" label="Min Passengers to Depart" suffix="pax" hint="Minimum passengers required or trip may be cancelled" />
+            <VField k="van_min_check_hours_before" label="Min Passenger Check Before" suffix="hrs" hint="Hours before departure to check minimum passengers" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+            <Toggle checked={(localValues["van_auto_notify_cancel"] ?? "on") === "on"} isDirty={d("van_auto_notify_cancel")}
+              onChange={val => handleToggle("van_auto_notify_cancel", val)}
+              label="Auto-Notify on Cancel" sub="Notify passengers when trip is cancelled" />
+            <Toggle checked={(localValues["van_require_start_trip"] ?? "on") === "on"} isDirty={d("van_require_start_trip")}
+              onChange={val => handleToggle("van_require_start_trip", val)}
+              label="Require Start Trip" sub="Driver must tap Start before passengers can board" />
+          </div>
+        </div>
+        <div className="border-t border-border/40 pt-5">
+          <SLabel icon={Truck}>Driver Limits</SLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <VField k="van_max_driver_trips_day" label="Max Driver Trips/Day" suffix="trips" hint="Maximum trips a driver can make per day" />
+            <VField k="van_driver_rest_hours" label="Driver Rest Between Trips" suffix="hrs" hint="Mandatory rest period between trips" />
+          </div>
+        </div>
+        <div className="border-t border-border/40 pt-5">
+          <SLabel icon={Percent}>Pricing Surcharges</SLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <VField k="van_peak_surcharge_pct" label="Peak Hours Surcharge" suffix="%" hint="Extra charge during peak hours" />
+            <VField k="van_peak_hours" label="Peak Hours" hint="Comma-separated hours, e.g. 7,8,9,17,18" />
+            <VField k="van_weekend_surcharge_pct" label="Weekend Surcharge" suffix="%" hint="Extra charge on weekends" />
+            <VField k="van_holiday_surcharge_pct" label="Holiday Surcharge" suffix="%" hint="Extra charge on holidays" />
+            <VField k="van_holiday_dates" label="Holiday Dates" hint="Comma-separated YYYY-MM-DD dates" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (cat === "onboarding") {
+    const v = (k: string) => localValues[k] ?? catSettings.find(s => s.key === k)?.value ?? "";
+    const d = (k: string) => dirtyKeys.has(k);
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <SLabel icon={ToggleRight}>Vendor Auto-Schedule</SLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Toggle checked={(localValues["vendor_auto_schedule_enabled"] ?? "off") === "on"} isDirty={d("vendor_auto_schedule_enabled")}
+              onChange={val => handleToggle("vendor_auto_schedule_enabled", val)}
+              label="Enable Auto-Schedule" sub="Automatically open/close vendor stores on a weekly schedule" />
+          </div>
+        </div>
+        <div className="border-t border-border/40 pt-5">
+          <SLabel icon={Settings}>Schedule Hours</SLabel>
+          <p className="text-xs text-muted-foreground mb-2">JSON format: {`{"mon":"09:00-21:00","tue":"09:00-21:00",...}`}</p>
+          <div className={`rounded-xl border p-4 space-y-2 transition-all ${d("vendor_auto_schedule_hours") ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-semibold text-foreground">Weekly Schedule JSON</label>
+              {d("vendor_auto_schedule_hours") && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">CHANGED</Badge>}
+            </div>
+            <textarea value={v("vendor_auto_schedule_hours")} onChange={e => handleChange("vendor_auto_schedule_hours", e.target.value)} rows={4}
+              className={`w-full rounded-lg border text-sm p-2.5 font-mono ${d("vendor_auto_schedule_hours") ? "border-amber-300 bg-amber-50/50" : "border-gray-200"}`} />
+            <p className="text-[10px] text-muted-foreground/60 font-mono">vendor_auto_schedule_hours</p>
+          </div>
+        </div>
+        <div className="border-t border-border/40 pt-5">
+          <SLabel icon={Star}>Onboarding Slides</SLabel>
+          <p className="text-xs text-muted-foreground mb-2">JSON array of slide objects: {`[{"title":"...","subtitle":"...","image":"..."}]`}</p>
+          <div className={`rounded-xl border p-4 space-y-2 transition-all ${d("onboarding_slides") ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-semibold text-foreground">Onboarding Slides JSON</label>
+              {d("onboarding_slides") && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">CHANGED</Badge>}
+            </div>
+            <textarea value={v("onboarding_slides")} onChange={e => handleChange("onboarding_slides", e.target.value)} rows={6}
+              className={`w-full rounded-lg border text-sm p-2.5 font-mono ${d("onboarding_slides") ? "border-amber-300 bg-amber-50/50" : "border-gray-200"}`} />
+            <p className="text-[10px] text-muted-foreground/60 font-mono">onboarding_slides</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (cat === "moderation") {
+    const v = (k: string) => localValues[k] ?? catSettings.find(s => s.key === k)?.value ?? "";
+    const d = (k: string) => dirtyKeys.has(k);
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <SLabel icon={ShieldCheck}>Auto-Masking Rules</SLabel>
+          <p className="text-xs text-muted-foreground mb-3">Toggle which types of personal data are automatically masked in chat and reviews</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Toggle checked={(localValues["comm_hide_phone"] ?? "on") === "on"} isDirty={d("comm_hide_phone")}
+              onChange={val => handleToggle("comm_hide_phone", val)}
+              label="Mask Phone Numbers" sub="Replace phone numbers with asterisks" />
+            <Toggle checked={(localValues["comm_hide_email"] ?? "on") === "on"} isDirty={d("comm_hide_email")}
+              onChange={val => handleToggle("comm_hide_email", val)}
+              label="Mask Email Addresses" sub="Replace emails with masked format" />
+            <Toggle checked={(localValues["comm_hide_cnic"] ?? "on") === "on"} isDirty={d("comm_hide_cnic")}
+              onChange={val => handleToggle("comm_hide_cnic", val)}
+              label="Mask CNIC Numbers" sub="Replace national ID numbers" />
+            <Toggle checked={(localValues["comm_hide_bank"] ?? "on") === "on"} isDirty={d("comm_hide_bank")}
+              onChange={val => handleToggle("comm_hide_bank", val)}
+              label="Mask Bank Accounts" sub="Replace bank account/IBAN numbers" />
+            <Toggle checked={(localValues["comm_hide_address"] ?? "on") === "on"} isDirty={d("comm_hide_address")}
+              onChange={val => handleToggle("comm_hide_address", val)}
+              label="Mask Addresses" sub="Replace street addresses" />
+          </div>
+        </div>
+        <div className="border-t border-border/40 pt-5">
+          <SLabel icon={Settings}>Mask Formats</SLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {[
+              { k: "comm_mask_format_phone", label: "Phone Mask Format", hint: "e.g. 03XX-XXXXXXX" },
+              { k: "comm_mask_format_email", label: "Email Mask Format", hint: "e.g. u***@***.com" },
+              { k: "comm_mask_format_cnic", label: "CNIC Mask Format", hint: "e.g. XXXXX-XXXXXXX-X" },
+            ].map(({ k, label, hint }) => (
+              <div key={k} className={`rounded-xl border p-4 space-y-2 transition-all ${d(k) ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-semibold text-foreground">{label}</label>
+                  {d(k) && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">CHANGED</Badge>}
+                </div>
+                <p className="text-[11px] text-muted-foreground">{hint}</p>
+                <Input value={v(k)} onChange={e => handleChange(k, e.target.value)}
+                  className={`h-9 rounded-lg text-sm ${d(k) ? "border-amber-300 bg-amber-50/50" : ""}`} />
+                <p className="text-[10px] text-muted-foreground/60 font-mono">{k}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="border-t border-border/40 pt-5">
+          <SLabel icon={AlertTriangle}>Flagged Keywords</SLabel>
+          <div className={`rounded-xl border p-4 space-y-2 transition-all ${d("comm_flag_keywords") ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-semibold text-foreground">Flag Keywords</label>
+              {d("comm_flag_keywords") && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">CHANGED</Badge>}
+            </div>
+            <p className="text-[11px] text-muted-foreground">Comma-separated words that trigger content flagging for admin review</p>
+            <textarea value={v("comm_flag_keywords")} onChange={e => handleChange("comm_flag_keywords", e.target.value)} rows={3}
+              className={`w-full rounded-lg border text-sm p-2.5 ${d("comm_flag_keywords") ? "border-amber-300 bg-amber-50/50" : "border-gray-200"}`} />
+            <p className="text-[10px] text-muted-foreground/60 font-mono">comm_flag_keywords</p>
+          </div>
+        </div>
+        <div className="border-t border-border/40 pt-5">
+          <SLabel icon={Shield}>Custom Regex Patterns</SLabel>
+          <p className="text-xs text-muted-foreground mb-2">JSON array: {`[{"pattern":"regex","severity":"low|medium|high","label":"description"}]`}</p>
+          <div className={`rounded-xl border p-4 space-y-2 transition-all ${d("moderation_custom_patterns") ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-semibold text-foreground">Custom Patterns JSON</label>
+              {d("moderation_custom_patterns") && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">CHANGED</Badge>}
+            </div>
+            <textarea value={v("moderation_custom_patterns")} onChange={e => handleChange("moderation_custom_patterns", e.target.value)} rows={5}
+              className={`w-full rounded-lg border text-sm p-2.5 font-mono ${d("moderation_custom_patterns") ? "border-amber-300 bg-amber-50/50" : "border-gray-200"}`} />
+            <p className="text-[10px] text-muted-foreground/60 font-mono">moderation_custom_patterns</p>
+          </div>
+        </div>
       </div>
     );
   }

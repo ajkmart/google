@@ -1,14 +1,16 @@
 import { useState, useCallback, useRef } from "react";
+import { adminFetch, fetchAdminAbsoluteResponse } from "@/lib/adminFetcher";
 import {
   Star, Search, RefreshCw, Download, Upload, CheckCircle2, XCircle,
   ShieldAlert, ShieldCheck, AlertTriangle, MessageSquare, Play,
-  Filter, CalendarDays, ChevronDown, ChevronUp, Eye, EyeOff, Trash2
+  Filter, CalendarDays, ChevronDown, ChevronUp, Eye, EyeOff, Trash2,
+  Store, TrendingDown, TrendingUp, BarChart3, ExternalLink
 } from "lucide-react";
+import { PageHeader, StatCard, FilterBar } from "@/components/shared";
 import {
   useAdminReviews, useModerationQueue, useApproveReview,
   useRejectReview, useRunRatingSuspension
 } from "@/hooks/use-admin";
-import { fetcher, getApiBase, getToken } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,10 +19,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 type Review = {
   id: string;
@@ -218,14 +222,14 @@ function ModerationModal({ onClose, T }: { onClose: () => void; T: (k: Translati
   const approve = (id: string) => {
     approveM.mutate(id, {
       onSuccess: () => toast({ title: "Review approved ✅" }),
-      onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+      onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
     });
   };
 
   const reject = (id: string) => {
     rejectM.mutate(id, {
       onSuccess: () => toast({ title: "Review rejected" }),
-      onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+      onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
     });
   };
 
@@ -303,11 +307,11 @@ function ImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     if (!csvText.trim()) { toast({ title: "Paste or upload a CSV file first", variant: "destructive" }); return; }
     setLoading(true);
     try {
-      const data = await fetcher("/reviews/import", { method: "POST", body: JSON.stringify({ csvData: csvText }) });
+      const data = await adminFetch("/reviews/import", { method: "POST", body: JSON.stringify({ csvData: csvText }) });
       setResult(data);
       onSuccess();
-    } catch (e: any) {
-      toast({ title: "Import failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Import failed", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
     } finally { setLoading(false); }
   };
 
@@ -372,6 +376,7 @@ export default function ReviewsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [searchQ, setSearchQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showModQueue, setShowModQueue] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const limit = 25;
@@ -390,7 +395,7 @@ export default function ReviewsPage() {
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["admin-reviews", page, typeFilter, starsFilter, statusFilter, subjectFilter, dateFrom, dateTo, debouncedQ],
-    queryFn: () => fetcher(`/reviews?${buildQS()}`),
+    queryFn: () => adminFetch(`/reviews?${buildQS()}`),
     staleTime: 10_000,
   });
 
@@ -403,22 +408,22 @@ export default function ReviewsPage() {
   const pendingCount = queueData?.total || 0;
 
   const hideOrder = useMutation({
-    mutationFn: (id: string) => fetcher(`/reviews/${id}/hide`, { method: "PATCH" }),
+    mutationFn: (id: string) => adminFetch(`/reviews/${id}/hide`, { method: "PATCH" }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-reviews"] }); toast({ title: T("visibilityToggled") }); },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
   const deleteOrder = useMutation({
-    mutationFn: (id: string) => fetcher(`/reviews/${id}`, { method: "DELETE" }),
+    mutationFn: (id: string) => adminFetch(`/reviews/${id}`, { method: "DELETE" }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-reviews"] }); toast({ title: T("reviewDeleted") }); },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
   const hideRide = useMutation({
-    mutationFn: (id: string) => fetcher(`/ride-ratings/${id}/hide`, { method: "PATCH" }),
+    mutationFn: (id: string) => adminFetch(`/ride-ratings/${id}/hide`, { method: "PATCH" }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-reviews"] }); toast({ title: T("visibilityToggled") }); },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
   const deleteRide = useMutation({
-    mutationFn: (id: string) => fetcher(`/ride-ratings/${id}`, { method: "DELETE" }),
+    mutationFn: (id: string) => adminFetch(`/ride-ratings/${id}`, { method: "DELETE" }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-reviews"] }); toast({ title: T("reviewDeleted") }); },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -456,8 +461,8 @@ export default function ReviewsPage() {
     const toHide = reviews.filter(r => ids.includes(r.id) && r.type === "order");
     const toHideR = reviews.filter(r => ids.includes(r.id) && r.type === "ride");
     await Promise.all([
-      ...toHide.map(r => fetcher(`/reviews/${r.id}/hide`, { method: "PATCH" })),
-      ...toHideR.map(r => fetcher(`/ride-ratings/${r.id}/hide`, { method: "PATCH" })),
+      ...toHide.map(r => adminFetch(`/reviews/${r.id}/hide`, { method: "PATCH" })),
+      ...toHideR.map(r => adminFetch(`/ride-ratings/${r.id}/hide`, { method: "PATCH" })),
     ]);
     qc.invalidateQueries({ queryKey: ["admin-reviews"] });
     setSelected(new Set());
@@ -471,8 +476,8 @@ export default function ReviewsPage() {
     const orders = reviews.filter(r => ids.includes(r.id) && r.type === "order");
     const rides = reviews.filter(r => ids.includes(r.id) && r.type === "ride");
     await Promise.all([
-      ...orders.map(r => fetcher(`/reviews/${r.id}`, { method: "DELETE" })),
-      ...rides.map(r => fetcher(`/ride-ratings/${r.id}`, { method: "DELETE" })),
+      ...orders.map(r => adminFetch(`/reviews/${r.id}`, { method: "DELETE" })),
+      ...rides.map(r => adminFetch(`/ride-ratings/${r.id}`, { method: "DELETE" })),
     ]);
     qc.invalidateQueries({ queryKey: ["admin-reviews"] });
     setSelected(new Set());
@@ -485,33 +490,38 @@ export default function ReviewsPage() {
 
   const handleSearch = (v: string) => {
     setSearchQ(v);
-    clearTimeout((window as any).__reviewSearchTimeout);
-    (window as any).__reviewSearchTimeout = setTimeout(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    const timer = setTimeout(() => {
       setDebouncedQ(v);
       setPage(1);
     }, 400);
+    searchTimerRef.current = timer;
   };
 
   const handleExport = async () => {
-    const qs = new URLSearchParams();
-    if (statusFilter !== "all") qs.set("status", statusFilter);
-    if (typeFilter !== "all") qs.set("type", typeFilter);
-    const token = getToken();
-    const base = getApiBase();
-    const url = `${base}/reviews/export?${qs.toString()}`;
-    const res = await fetch(url, { headers: token ? { "x-admin-token": token } : {} });
-    if (!res.ok) { toast({ title: "Export failed", variant: "destructive" }); return; }
-    const blob = await res.blob();
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `reviews-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
+    try {
+      const qs = new URLSearchParams();
+      if (statusFilter !== "all") qs.set("status", statusFilter);
+      if (typeFilter !== "all") qs.set("type", typeFilter);
+      const exportUrl = `/api/admin/reviews/export?${qs.toString()}`;
+      const res = await fetchAdminAbsoluteResponse(exportUrl);
+      if (!res.ok) { toast({ title: "Export failed", variant: "destructive" }); return; }
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      const blobUrl = URL.createObjectURL(blob);
+      a.href = blobUrl;
+      a.download = `reviews-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
+    } catch (err: unknown) {
+      toast({ title: "Export failed", description: "Unable to download reviews. Please try again.", variant: "destructive" });
+    }
   };
 
   const runSuspension = () => {
     runSuspensionM.mutate(undefined, {
       onSuccess: (d: any) => toast({ title: "Auto-suspension job ran ✅", description: d.message }),
-      onError: (e: any) => toast({ title: "Job failed", description: e.message, variant: "destructive" }),
+      onError: (e: Error) => toast({ title: "Job failed", description: e.message, variant: "destructive" }),
     });
   };
 
@@ -523,43 +533,52 @@ export default function ReviewsPage() {
   ];
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Reviews page crashed. Please reload.</div>}>
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Star className="h-6 w-6 text-amber-400" />
-            {T("reviewManagement")}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {T("moderateCustomerReviews")} · {total} {T("totalInView")}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowModQueue(true)} className="relative">
-            <ShieldAlert className="w-4 h-4 mr-1 text-amber-500" />
-            Moderation Queue
-            {pendingCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">{pendingCount}</span>
-            )}
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="w-4 h-4 mr-1" /> Export CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
-            <Upload className="w-4 h-4 mr-1" /> Import CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={runSuspension} disabled={runSuspensionM.isPending}>
-            {runSuspensionM.isPending
-              ? <div className="w-4 h-4 border-2 border-foreground border-t-transparent rounded-full animate-spin mr-1" />
-              : <Play className="w-4 h-4 mr-1 text-orange-500" />}
-            Run Auto-Suspend
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
-            <RefreshCw className={`h-4 w-4 mr-1.5 ${isLoading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        icon={Star}
+        title={T("reviewManagement")}
+        subtitle={`${T("moderateCustomerReviews")} · ${total} ${T("totalInView")}`}
+        iconBgClass="bg-amber-100"
+        iconColorClass="text-amber-600"
+      />
+
+      <Tabs defaultValue="reviews">
+        <TabsList className="mb-2">
+          <TabsTrigger value="reviews" className="flex items-center gap-1.5">
+            <MessageSquare className="w-3.5 h-3.5" /> All Reviews
+          </TabsTrigger>
+          <TabsTrigger value="vendor-ratings" className="flex items-center gap-1.5">
+            <BarChart3 className="w-3.5 h-3.5" /> Vendor Ratings
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="reviews" className="space-y-4">
+          <div className="flex flex-wrap gap-2 justify-end">
+            <Button variant="outline" size="sm" onClick={() => setShowModQueue(true)} className="relative">
+              <ShieldAlert className="w-4 h-4 mr-1 text-amber-500" />
+              Moderation Queue
+              {pendingCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">{pendingCount}</span>
+              )}
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Download className="w-4 h-4 mr-1" /> Export CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
+              <Upload className="w-4 h-4 mr-1" /> Import CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={runSuspension} disabled={runSuspensionM.isPending}>
+              {runSuspensionM.isPending
+                ? <div className="w-4 h-4 border-2 border-foreground border-t-transparent rounded-full animate-spin mr-1" />
+                : <Play className="w-4 h-4 mr-1 text-orange-500" />}
+              Run Auto-Suspend
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              <RefreshCw className={`h-4 w-4 mr-1.5 ${isLoading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {statusStats.map(s => (
@@ -571,57 +590,47 @@ export default function ReviewsPage() {
       </div>
 
       <Card className="p-4 space-y-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Search by reviewer or comment..."
-              className="pl-8 h-8 text-xs"
-              value={searchQ}
-              onChange={e => handleSearch(e.target.value)}
-            />
-          </div>
-
-          <Select value={typeFilter} onValueChange={handleFilterChange(setType)}>
-            <SelectTrigger className="w-32 h-8 text-xs"><SelectValue placeholder={T("reviewType")} /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{T("allTypes")}</SelectItem>
-              <SelectItem value="order">{T("orderReviews")}</SelectItem>
-              <SelectItem value="ride">{T("rideReviews")}</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={starsFilter} onValueChange={handleFilterChange(setStars)}>
-            <SelectTrigger className="w-28 h-8 text-xs"><SelectValue placeholder={T("starsFilter")} /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{T("allStars")}</SelectItem>
-              {[5, 4, 3, 2, 1].map(s => <SelectItem key={s} value={String(s)}>{s} ★</SelectItem>)}
-            </SelectContent>
-          </Select>
-
-          <Select value={statusFilter} onValueChange={handleFilterChange(setStatus)}>
-            <SelectTrigger className="w-32 h-8 text-xs"><SelectValue placeholder={T("reviewStatus")} /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{T("allStatus")}</SelectItem>
-              <SelectItem value="visible">{T("visibleLabel")}</SelectItem>
-              <SelectItem value="pending_moderation">Pending</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-              <SelectItem value="hidden">{T("hiddenLabel")}</SelectItem>
-              <SelectItem value="deleted">{T("deletedLabel")}</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={subjectFilter} onValueChange={handleFilterChange(setSubject)}>
-            <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder={T("allSubjects")} /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{T("allSubjects")}</SelectItem>
-              <SelectItem value="vendor">{T("vendorReviews")}</SelectItem>
-              <SelectItem value="rider">{T("riderReviews")}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <FilterBar
+          search={searchQ}
+          onSearch={handleSearch}
+          placeholder="Search by reviewer or comment..."
+          filters={<>
+            <Select value={typeFilter} onValueChange={handleFilterChange(setType)}>
+              <SelectTrigger className="w-32 h-8 text-xs"><SelectValue placeholder={T("reviewType")} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{T("allTypes")}</SelectItem>
+                <SelectItem value="order">{T("orderReviews")}</SelectItem>
+                <SelectItem value="ride">{T("rideReviews")}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={starsFilter} onValueChange={handleFilterChange(setStars)}>
+              <SelectTrigger className="w-28 h-8 text-xs"><SelectValue placeholder={T("starsFilter")} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{T("allStars")}</SelectItem>
+                {[5, 4, 3, 2, 1].map(s => <SelectItem key={s} value={String(s)}>{s} ★</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={handleFilterChange(setStatus)}>
+              <SelectTrigger className="w-32 h-8 text-xs"><SelectValue placeholder={T("reviewStatus")} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{T("allStatus")}</SelectItem>
+                <SelectItem value="visible">{T("visibleLabel")}</SelectItem>
+                <SelectItem value="pending_moderation">Pending</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="hidden">{T("hiddenLabel")}</SelectItem>
+                <SelectItem value="deleted">{T("deletedLabel")}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={subjectFilter} onValueChange={handleFilterChange(setSubject)}>
+              <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder={T("allSubjects")} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{T("allSubjects")}</SelectItem>
+                <SelectItem value="vendor">{T("vendorReviews")}</SelectItem>
+                <SelectItem value="rider">{T("riderReviews")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </>}
+        />
 
         <div className="flex items-center gap-2 flex-wrap">
           <CalendarDays className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -745,8 +754,349 @@ export default function ReviewsPage() {
         </div>
       )}
 
+        </TabsContent>
+
+        <TabsContent value="vendor-ratings">
+          <VendorRatingsTab />
+        </TabsContent>
+      </Tabs>
+
       {showModQueue && <ModerationModal onClose={() => setShowModQueue(false)} T={T} />}
       {showImport && <ImportModal onClose={() => setShowImport(false)} onSuccess={() => refetch()} />}
+    </div>
+    </ErrorBoundary>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────── */
+/* Vendor Ratings Leaderboard Tab                              */
+/* ─────────────────────────────────────────────────────────── */
+
+type VendorRating = {
+  vendorId: string | null;
+  storeName: string;
+  storeType: string | null;
+  isActive: boolean;
+  phone: string | null;
+  avgRating: string | null;
+  totalReviews: number;
+  oneStarCount: number;
+  twoStarCount: number;
+  fiveStarCount: number;
+  pendingCount: number;
+  hiddenCount: number;
+  recentAvg: string | null;
+  recentCount: number;
+  latestReviewAt: string | null;
+};
+
+function StarBar({ rating }: { rating: number }) {
+  const full = Math.floor(rating);
+  const half = rating - full >= 0.5;
+  return (
+    <span className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map(i => (
+        <Star
+          key={i}
+          className={`w-3.5 h-3.5 ${
+            i <= full ? "fill-amber-400 text-amber-400" :
+            i === full + 1 && half ? "fill-amber-400/50 text-amber-400" :
+            "text-muted-foreground/30"
+          }`}
+        />
+      ))}
+    </span>
+  );
+}
+
+function RatingBadge({ rating }: { rating: number }) {
+  const color = rating >= 4 ? "bg-green-100 text-green-700 border-green-200"
+    : rating >= 3 ? "bg-amber-100 text-amber-700 border-amber-200"
+    : "bg-red-100 text-red-700 border-red-200";
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${color}`}>
+      {rating.toFixed(1)}
+    </span>
+  );
+}
+
+function VendorRatingsTab() {
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"rating_asc" | "rating_desc" | "reviews" | "recent">("rating_asc");
+  const [showInactive, setShowInactive] = useState(false);
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["admin-vendor-ratings"],
+    queryFn: () => adminFetch("/vendor-ratings"),
+    staleTime: 30_000,
+  });
+
+  const vendors: VendorRating[] = data?.vendors ?? [];
+
+  const filtered = vendors
+    .filter(v => showInactive ? true : v.isActive !== false)
+    .filter(v => {
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return v.storeName?.toLowerCase().includes(q) || v.phone?.includes(q) || v.vendorId?.includes(q);
+    })
+    .sort((a, b) => {
+      const aR = parseFloat(a.avgRating ?? "5");
+      const bR = parseFloat(b.avgRating ?? "5");
+      if (sortBy === "rating_asc") return aR - bR;
+      if (sortBy === "rating_desc") return bR - aR;
+      if (sortBy === "reviews") return b.totalReviews - a.totalReviews;
+      /* recent: sort by recentAvg ascending (worst recent perf first) */
+      const aRec = parseFloat(a.recentAvg ?? "5");
+      const bRec = parseFloat(b.recentAvg ?? "5");
+      return aRec - bRec;
+    });
+
+  const atRisk = vendors.filter(v => parseFloat(v.avgRating ?? "5") < 3 && v.totalReviews >= 5).length;
+  const needsAttention = vendors.filter(v => parseFloat(v.avgRating ?? "5") < 2 && v.totalReviews >= 5).length;
+  const excellent = vendors.filter(v => parseFloat(v.avgRating ?? "5") >= 4.5 && v.totalReviews >= 5).length;
+
+  return (
+    <div className="space-y-4">
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card className="p-4 text-center">
+          <p className="text-2xl font-black text-blue-600">{vendors.length}</p>
+          <p className="text-xs text-muted-foreground font-medium mt-0.5">Total Vendors Rated</p>
+        </Card>
+        <Card className="p-4 text-center">
+          <p className="text-2xl font-black text-green-600">{excellent}</p>
+          <p className="text-xs text-muted-foreground font-medium mt-0.5">Excellent (≥4.5★)</p>
+        </Card>
+        <Card className="p-4 text-center">
+          <p className="text-2xl font-black text-amber-600">{atRisk}</p>
+          <p className="text-xs text-muted-foreground font-medium mt-0.5">At Risk (&lt;3★)</p>
+        </Card>
+        <Card className="p-4 text-center">
+          <p className="text-2xl font-black text-red-600">{needsAttention}</p>
+          <p className="text-xs text-muted-foreground font-medium mt-0.5">Critical (&lt;2★)</p>
+        </Card>
+      </div>
+
+      {/* Controls */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <input
+            className="w-full pl-8 pr-3 h-8 text-xs rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+            placeholder="Search vendor name or phone..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+        <Select value={sortBy} onValueChange={v => setSortBy(v as typeof sortBy)}>
+          <SelectTrigger className="h-8 text-xs w-[180px]">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="rating_asc">Worst First (↑ Rating)</SelectItem>
+            <SelectItem value="rating_desc">Best First (↓ Rating)</SelectItem>
+            <SelectItem value="reviews">Most Reviews</SelectItem>
+            <SelectItem value="recent">Recent Trend (Worst)</SelectItem>
+          </SelectContent>
+        </Select>
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={showInactive}
+            onChange={e => setShowInactive(e.target.checked)}
+            className="rounded"
+          />
+          Show inactive vendors
+        </label>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
+          <RefreshCw className="w-4 h-4 mr-1.5" /> Refresh
+        </Button>
+      </div>
+
+      {/* Mobile card list — shown below md breakpoint */}
+      <section className="md:hidden space-y-3" aria-label="Vendor reviews">
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="rounded-xl border shadow-sm p-4 animate-pulse">
+              <div className="flex justify-between items-start">
+                <div className="space-y-2">
+                  <div className="h-4 w-32 bg-muted rounded" />
+                  <div className="h-3 w-20 bg-muted rounded" />
+                </div>
+                <div className="h-5 w-12 bg-muted rounded-full" />
+              </div>
+            </Card>
+          ))
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+            <Store className="w-10 h-10 mx-auto mb-2 opacity-20" aria-hidden="true" />
+            <p className="text-sm">{vendors.length === 0 ? "No vendor reviews yet." : "No vendors match your search."}</p>
+          </div>
+        ) : (
+          filtered.map((v, idx) => {
+            const rating = parseFloat(v.avgRating ?? "5");
+            const isCritical = rating < 2 && v.totalReviews >= 5;
+            const isAtRisk = rating < 3 && v.totalReviews >= 5;
+            return (
+              <Card
+                key={v.vendorId ?? idx}
+                className={`rounded-xl border shadow-sm overflow-hidden ${
+                  isCritical ? "border-red-200 bg-red-50/30" : isAtRisk ? "border-amber-200 bg-amber-50/20" : ""
+                }`}
+              >
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm truncate">{v.storeName}</p>
+                      {v.storeType && (
+                        <p className="text-xs text-muted-foreground capitalize">{v.storeType.replace(/_/g, " ")}</p>
+                      )}
+                    </div>
+                    {v.isActive ? (
+                      <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200 shrink-0">Active</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200 shrink-0">Suspended</Badge>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="bg-muted/40 rounded-lg p-2">
+                      <p className="font-bold">{rating.toFixed(1)}★</p>
+                      <p className="text-muted-foreground">Rating</p>
+                    </div>
+                    <div className="bg-muted/40 rounded-lg p-2">
+                      <p className="font-bold">{v.totalReviews}</p>
+                      <p className="text-muted-foreground">Reviews</p>
+                    </div>
+                    <div className={`rounded-lg p-2 ${v.pendingCount > 0 ? "bg-amber-50" : "bg-muted/40"}`}>
+                      <p className={`font-bold ${v.pendingCount > 0 ? "text-amber-700" : ""}`}>{v.pendingCount}</p>
+                      <p className="text-muted-foreground">Pending</p>
+                    </div>
+                  </div>
+                  {v.latestReviewAt && (
+                    <p className="text-xs text-muted-foreground pt-1 border-t border-border/50">
+                      Last review: {formatDate(v.latestReviewAt)}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </section>
+
+      {/* Desktop table — hidden below md breakpoint */}
+      <Card className="hidden md:block">
+        {isLoading ? (
+          <div className="p-12 text-center">
+            <RefreshCw className="h-8 w-8 animate-spin mx-auto text-muted-foreground/20" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground">
+            <Store className="w-10 h-10 mx-auto mb-2 opacity-20" />
+            <p className="text-sm">{vendors.length === 0 ? "No vendor reviews yet." : "No vendors match your search."}</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/30 text-xs text-muted-foreground">
+                  <th className="text-left px-4 py-2.5 font-medium">#</th>
+                  <th className="text-left px-4 py-2.5 font-medium">Vendor</th>
+                  <th className="text-center px-3 py-2.5 font-medium">Rating</th>
+                  <th className="text-center px-3 py-2.5 font-medium">Reviews</th>
+                  <th className="text-center px-3 py-2.5 font-medium">1★ / 5★</th>
+                  <th className="text-center px-3 py-2.5 font-medium">30-day avg</th>
+                  <th className="text-center px-3 py-2.5 font-medium">Pending</th>
+                  <th className="text-center px-3 py-2.5 font-medium">Status</th>
+                  <th className="text-left px-3 py-2.5 font-medium">Last Review</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((v, idx) => {
+                  const rating = parseFloat(v.avgRating ?? "5");
+                  const recentRating = v.recentAvg ? parseFloat(v.recentAvg) : null;
+                  const trend = recentRating !== null
+                    ? recentRating > rating + 0.2 ? "up"
+                    : recentRating < rating - 0.2 ? "down"
+                    : "flat"
+                    : "flat";
+                  const isCritical = rating < 2 && v.totalReviews >= 5;
+                  const isAtRisk = rating < 3 && v.totalReviews >= 5;
+
+                  return (
+                    <tr
+                      key={v.vendorId ?? idx}
+                      className={`border-b last:border-0 hover:bg-muted/20 transition-colors ${
+                        isCritical ? "bg-red-50/50" : isAtRisk ? "bg-amber-50/30" : ""
+                      }`}
+                    >
+                      <td className="px-4 py-3 text-muted-foreground text-xs">{idx + 1}</td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-sm leading-tight">{v.storeName}</div>
+                        {v.storeType && (
+                          <div className="text-xs text-muted-foreground capitalize">{v.storeType.replace(/_/g, " ")}</div>
+                        )}
+                        {v.phone && <div className="text-xs text-muted-foreground">{v.phone}</div>}
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <RatingBadge rating={rating} />
+                          <StarBar rating={rating} />
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <span className="font-semibold">{v.totalReviews}</span>
+                        {v.hiddenCount > 0 && (
+                          <div className="text-xs text-muted-foreground">{v.hiddenCount} hidden</div>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <div className="flex items-center justify-center gap-2 text-xs">
+                          <span className="text-red-600 font-semibold">{v.oneStarCount}★</span>
+                          <span className="text-muted-foreground">/</span>
+                          <span className="text-green-600 font-semibold">{v.fiveStarCount}★</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        {recentRating !== null ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-xs font-medium">{recentRating.toFixed(1)}</span>
+                            {trend === "up" && <TrendingUp className="w-3.5 h-3.5 text-green-500" />}
+                            {trend === "down" && <TrendingDown className="w-3.5 h-3.5 text-red-500" />}
+                            <span className="text-xs text-muted-foreground">({v.recentCount})</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        {v.pendingCount > 0 ? (
+                          <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                            {v.pendingCount} pending
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        {v.isActive ? (
+                          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">Active</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">Suspended</Badge>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                        {v.latestReviewAt ? formatDate(v.latestReviewAt) : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

@@ -107,9 +107,9 @@ export function useAuth() {
            prevents race with proactive refresh in useTokenRefresh hook.
            api.refreshToken() returns a status string ("refreshed"|"transient"|"auth_failed"),
            NOT a token payload — tokens are written directly to storage on success. */
-        api.storeTokens(api.getToken(), storedRefresh);
+        getTokenStorage().setRefreshToken(storedRefresh);
         const status = await api.refreshToken();
-        if (!status) throw new Error(`Biometric login failed — refresh failed`);
+        if (status !== "refreshed") throw new Error(`Biometric login failed — refresh status: ${String(status)}`);
         const token = api.getToken();
         if (!token) throw new Error("Biometric login failed — no token in storage after refresh");
         return { success: true, data: { token, refreshToken: api.getRefreshToken() ?? storedRefresh } };
@@ -125,9 +125,9 @@ export function useAuth() {
       try {
         /* Route through api.refreshToken() — mutex-guarded, single refresh path.
            Returns status string — read updated tokens from storage on success. */
-        api.storeTokens(api.getToken(), storedRefresh);
+        getTokenStorage().setRefreshToken(storedRefresh);
         const status = await api.refreshToken();
-        if (!status) throw new Error(`Token refresh failed`);
+        if (status !== "refreshed") throw new Error(`Token refresh failed — status: ${String(status)}`);
         const token = api.getToken();
         if (!token) throw new Error("Refresh failed — no token in storage after refresh");
         return { success: true, data: { token, refreshToken: api.getRefreshToken() } };

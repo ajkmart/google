@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "../lib/useTheme";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/vendor-auth";
 import { api } from "../lib/api";
-import { usePlatformConfig } from "../lib/useConfig";
+import { usePlatformConfig, useCurrency, useDateFormatter } from "../lib/useConfig";
 import { PageHeader } from "../components/PageHeader";
 import { fc, CARD, INPUT, BTN_PRIMARY, LABEL, errMsg } from "../lib/ui";
 import { useLanguage } from "../lib/useLanguage";
@@ -11,20 +13,20 @@ import { LANGUAGE_OPTIONS, tDual, type Language, type TranslationKey } from "@wo
 import {
   Accordion, AccordionItem, AccordionTrigger, AccordionContent,
 } from "../components/ui/accordion";
+import { registerPush } from "../lib/push";
 
 const CITIES = ["Muzaffarabad","Mirpur","Rawalakot","Bagh","Kotli","Bhimber","Jhelum","Rawalpindi","Islamabad","Lahore","Karachi","Other"];
 const BANKS  = ["EasyPaisa","JazzCash","MCB","HBL","UBL","Meezan Bank","Bank Alfalah","NBP","Allied Bank","Other"];
 const BIZ_TYPES = ["Sole Proprietorship","Partnership","Private Limited","Trust / NGO","Individual / Freelancer"];
-
-function fdLong(d: string | Date) {
-  return new Date(d).toLocaleDateString("en-PK", { day:"numeric", month:"long", year:"numeric" });
-}
 
 type EditSection = "personal" | "bank" | null;
 
 export default function Profile() {
   const { user, logout, refreshUser } = useAuth();
   const { config } = usePlatformConfig();
+  const { symbol: currencySymbol } = useCurrency();
+  const formatDate = useDateFormatter();
+  const fdLong = (d: string | Date) => formatDate(d, { day: "numeric", month: "long", year: "numeric" });
 
   const { data: notifData } = useQuery({
     queryKey: ["vendor-notifs-count"],
@@ -37,9 +39,9 @@ export default function Profile() {
   const [editing, setEditing] = useState<EditSection>(null);
   const [saving, setSaving]   = useState(false);
   const [toast, setToast]     = useState("");
-  const [showLangPicker, setShowLangPicker] = useState(false);
 
   const { language, setLanguage, loading: langLoading } = useLanguage();
+  const { isDark, toggleDark } = useTheme();
   const T = (key: TranslationKey) => tDual(key, language);
 
   // Personal info form state
@@ -55,8 +57,70 @@ export default function Profile() {
   const [bankAccount, setBankAccount]         = useState(user?.bankAccount || "");
   const [bankAccountTitle, setBankAccountTitle] = useState(user?.bankAccountTitle || "");
 
-  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(""), 3500); };
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
+  const showToast = (m: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(m);
+    toastTimerRef.current = setTimeout(() => setToast(""), 3500);
+  };
 
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("unsupported");
+  const [testingNotif, setTestingNotif] = useState(false);
+
+  useEffect(() => {
+    if (typeof Notification !== "undefined") {
+      setNotifPermission(Notification.permission);
+    }
+  }, []);
+
+  const handleTestNotification = useCallback(async () => {
+    setTestingNotif(true);
+    try {
+      /* Ensure push is registered before testing.
+         - permission "default": request it then register.
+         - permission "granted": always attempt re-registration so a stale or
+           missing subscription is healed before the test send — prevents a
+           false noSubscriptions response when the vendor already said "Allow". */
+      if (notifPermission === "default") {
+        const perm = await Notification.requestPermission();
+        setNotifPermission(perm);
+        if (perm !== "granted") {
+          showToast("❌ Notification permission denied. Please allow in browser settings.");
+          return;
+        }
+      }
+      if (Notification.permission === "granted") {
+        await registerPush().catch((err) => { console.warn('[artifacts/vendor-app/src/pages/Profile.tsx]', err); }); // eslint-disable-line no-console
+      }
+      const result = await api.testNotification() as {
+        sent?: boolean;
+        socketEmitted?: boolean;
+        noSubscriptions?: boolean;
+        attempted?: number;
+        delivered?: number;
+        stalePurged?: number;
+        warning?: string;
+        error?: string;
+      };
+      if (result.noSubscriptions) {
+        showToast("⚠️ Not registered yet — allow notifications and reload the app, then try again.");
+      } else if (result.sent) {
+        const extra = result.stalePurged ? ` (${result.stalePurged} stale token(s) cleared)` : "";
+        showToast(`✅ Test notification sent! Check your notifications.${extra}`);
+      } else if (result.warning) {
+        showToast("⚠️ " + result.warning);
+      } else if (result.socketEmitted) {
+        showToast("⚠️ In-app alert sent, but push was not delivered — check VAPID configuration.");
+      } else {
+        showToast("❌ " + (result.error || "Test notification failed."));
+      }
+    } catch (e) {
+      showToast("❌ " + errMsg(e));
+    } finally {
+      setTestingNotif(false);
+    }
+  }, [notifPermission]);
   useEffect(() => {
     if (!user) return;
     setName(user.name || "");
@@ -68,6 +132,7 @@ export default function Profile() {
     setBankName(user.bankName || "");
     setBankAccount(user.bankAccount || "");
     setBankAccountTitle(user.bankAccountTitle || "");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.name, user?.email, user?.cnic, user?.city, user?.address, user?.businessType, user?.bankName, user?.bankAccount, user?.bankAccountTitle]);
 
   const startEdit = (section: EditSection) => {
@@ -140,18 +205,20 @@ export default function Profile() {
           <div className="space-y-4">
             {/* Mobile Quick Links */}
             <div className="md:hidden grid grid-cols-3 gap-3">
-              {[
-                { href: "/store",         icon: "🏪", label: "My Store"      },
-                { href: "/analytics",     icon: "📈", label: "Analytics"     },
-                { href: "/notifications", icon: "🔔", label: "Notifications", badge: unread },
-              ].map(item => (
+              {(
+                [
+                  { href: "/store",         icon: "🏪", label: "My Store"      },
+                  { href: "/analytics",     icon: "📈", label: "Analytics"     },
+                  { href: "/notifications", icon: "🔔", label: "Notifications", badge: unread },
+                ] as { href: string; icon: string; label: string; badge?: number }[]
+              ).map(item => (
                 <Link key={item.href} href={item.href}
                   className="bg-white rounded-2xl shadow-sm p-3 flex flex-col items-center gap-1.5 android-press relative">
                   <span className="text-2xl">{item.icon}</span>
                   <span className="text-[10px] font-bold text-gray-600">{item.label}</span>
-                  {(item as any).badge > 0 && (
+                  {(item.badge ?? 0) > 0 && (
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-extrabold rounded-full w-5 h-5 flex items-center justify-center">
-                      {(item as any).badge > 9 ? "9+" : (item as any).badge}
+                      {(item.badge ?? 0) > 9 ? "9+" : item.badge}
                     </span>
                   )}
                 </Link>
@@ -213,7 +280,7 @@ export default function Profile() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-orange-100 font-medium">Wallet Balance</p>
-                  <p className="text-3xl font-extrabold mt-0.5">{fc(user?.walletBalance || 0)}</p>
+                  <p className="text-3xl font-extrabold mt-0.5">{fc(user?.walletBalance ?? "0")}</p>
                 </div>
                 <div className="text-right bg-white/15 rounded-2xl px-4 py-2.5">
                   <p className="text-xs text-orange-100 font-medium">Commission</p>
@@ -241,50 +308,94 @@ export default function Profile() {
               </div>
             </div>
 
-            {/* Language Picker */}
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <button
-                onClick={() => setShowLangPicker(v => !v)}
-                className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">🌐</span>
-                  <div className="text-left">
-                    <div className="text-sm font-bold text-gray-800">Language / زبان</div>
-                    <div className="text-xs text-gray-400">{LANGUAGE_OPTIONS.find(o => o.value === language)?.label || "Select Language"}</div>
+            {/* Notification Settings & Test */}
+            <div className={CARD}>
+              <div className="px-4 py-3.5 border-b border-gray-100">
+                <p className="font-bold text-gray-800 text-sm">🔔 Order Notifications</p>
+              </div>
+              <div className="px-4 py-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Status</span>
+                  {notifPermission === "granted" ? (
+                    <span className="text-xs bg-green-100 text-green-700 font-bold px-2.5 py-1 rounded-full">✓ Enabled</span>
+                  ) : notifPermission === "denied" ? (
+                    <span className="text-xs bg-red-100 text-red-600 font-bold px-2.5 py-1 rounded-full">✗ Blocked</span>
+                  ) : notifPermission === "default" ? (
+                    <span className="text-xs bg-yellow-100 text-yellow-700 font-bold px-2.5 py-1 rounded-full">⚠ Not set</span>
+                  ) : (
+                    <span className="text-xs bg-gray-100 text-gray-500 font-bold px-2.5 py-1 rounded-full">Unavailable</span>
+                  )}
+                </div>
+                {notifPermission === "denied" && (
+                  <div className="bg-red-50 rounded-xl p-3">
+                    <p className="text-xs text-red-700 font-medium">Notifications are blocked. To re-enable:</p>
+                    <p className="text-xs text-red-600 mt-1">Browser → Settings → Site Settings → Notifications → Allow for this site</p>
+                  </div>
+                )}
+                {notifPermission !== "unsupported" && notifPermission !== "denied" && (
+                  <button
+                    onClick={handleTestNotification}
+                    disabled={testingNotif}
+                    className="w-full h-10 bg-orange-50 text-orange-600 font-bold rounded-xl text-sm border border-orange-200 hover:bg-orange-100 transition-colors disabled:opacity-50"
+                  >
+                    {testingNotif ? "Sending..." : "🧪 Send Test Notification"}
+                  </button>
+                )}
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  Use the test button to confirm you'll receive order alerts. If you don't see a notification, check that your browser allows notifications for this site.
+                </p>
+              </div>
+            </div>
+            <div className={CARD}>
+              <div className="px-4 py-3.5 border-b border-gray-100">
+                <p className="font-bold text-gray-800 text-sm">🎨 Display & Language</p>
+              </div>
+              <div className="px-4 py-3 space-y-4">
+                {/* Dark mode */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isDark ? "bg-indigo-100" : "bg-gray-100"}`}>
+                      {isDark ? <Moon size={16} className="text-indigo-500"/> : <Sun size={16} className="text-gray-500"/>}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">Dark Mode</p>
+                      <p className="text-xs text-gray-400">{isDark ? "Dark theme active" : "Light theme active"}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={toggleDark}
+                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${isDark ? "bg-orange-500" : "bg-gray-300"}`}
+                    aria-label="Toggle dark mode"
+                  >
+                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${isDark ? "translate-x-5" : "translate-x-0.5"}`}/>
+                  </button>
+                </div>
+                {/* Language */}
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-emerald-50 shrink-0 mt-0.5">
+                    <span className="text-base leading-none">🌐</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 mb-2">Language</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {LANGUAGE_OPTIONS.map(opt => (
+                        <button
+                          key={opt.value}
+                          disabled={langLoading}
+                          onClick={() => setLanguage(opt.value as Language)}
+                          className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all ${
+                            language === opt.value
+                              ? "bg-orange-50 border-orange-400 text-orange-700"
+                              : "bg-gray-50 border-gray-200 text-gray-500 hover:border-orange-200"
+                          }`}
+                        >
+                          {opt.nativeLabel}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <span className="text-gray-400 text-sm">{showLangPicker ? "▲" : "▼"}</span>
-              </button>
-              {showLangPicker && (
-                <div className="border-t border-gray-100 p-3 space-y-2">
-                  {LANGUAGE_OPTIONS.map(opt => (
-                    <button
-                      key={opt.value}
-                      disabled={langLoading}
-                      onClick={async () => {
-                        await setLanguage(opt.value as Language);
-                        setShowLangPicker(false);
-                        showToast("Language save ho gayi!");
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border-2 transition-colors text-left ${
-                        language === opt.value
-                          ? "border-orange-400 bg-orange-50"
-                          : "border-gray-100 bg-gray-50 hover:border-orange-200"
-                      }`}
-                    >
-                      <div>
-                        <div className={`text-sm font-semibold ${language === opt.value ? "text-orange-700" : "text-gray-700"}`}>{opt.label}</div>
-                        <div className="text-xs text-gray-400 mt-0.5">{opt.nativeLabel}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {opt.rtl && <span className="text-xs bg-amber-100 text-amber-600 font-bold px-1.5 py-0.5 rounded">RTL</span>}
-                        {language === opt.value && <span className="text-orange-500 text-lg">✓</span>}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
+              </div>
             </div>
 
             <button onClick={logout} className="w-full h-12 border-2 border-red-200 text-red-500 font-bold rounded-2xl hover:bg-red-50 transition-colors text-sm">
@@ -329,7 +440,7 @@ export default function Profile() {
                           <label className={LABEL}>City</label>
                           <select value={city} onChange={e => setCity(e.target.value)} className={SELECT}>
                             <option value="">Select city</option>
-                            {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                            {(config.cities?.length ? config.cities : CITIES).map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
                         </div>
                         <div>
@@ -369,21 +480,23 @@ export default function Profile() {
                 <p className="font-bold text-gray-800 text-sm">⚡ Quick Links</p>
               </div>
               <div className="p-4 space-y-2">
-                {[
-                  { href: "/store",         icon: "🏪", label: "Manage Store Settings" },
-                  { href: "/analytics",     icon: "📈", label: "Business Analytics"    },
-                  { href: "/orders",        icon: "📦", label: "Orders"                },
-                  { href: "/wallet",        icon: "💰", label: "Wallet & Withdrawals"  },
-                  { href: "/notifications", icon: "🔔", label: "Notifications", badge: unread },
-                ].map(item => (
+                {(
+                  [
+                    { href: "/store",         icon: "🏪", label: "Manage Store Settings" },
+                    { href: "/analytics",     icon: "📈", label: "Business Analytics"    },
+                    { href: "/orders",        icon: "📦", label: "Orders"                },
+                    { href: "/wallet",        icon: "💰", label: "Wallet & Withdrawals"  },
+                    { href: "/notifications", icon: "🔔", label: "Notifications", badge: unread },
+                  ] as { href: string; icon: string; label: string; badge?: number }[]
+                ).map(item => (
                   <Link key={item.href} href={item.href}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-orange-50 transition-colors relative">
                     <span className="text-lg">{item.icon}</span>
                     <span className="text-sm font-semibold text-gray-700">{item.label}</span>
                     <span className="flex-1"/>
-                    {(item as any).badge > 0 && (
+                    {(item.badge ?? 0) > 0 && (
                       <span className="bg-red-500 text-white text-[10px] font-extrabold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                        {(item as any).badge}
+                        {item.badge}
                       </span>
                     )}
                     <span className="text-gray-300 text-sm">→</span>
@@ -479,9 +592,9 @@ export default function Profile() {
                 <AccordionContent>
                   <div className="px-4 pb-1 space-y-2">
                     {[
-                      { icon: "✅", text: "85% earnings — 15% platform fee" },
-                      { icon: "💸", text: "Minimum withdrawal: Rs. 500" },
-                      { icon: "⏱️", text: "Processed in 24–48 hours by admin" },
+                      { icon: "✅", text: `${Math.round(100 - (config.finance.vendorCommissionPct ?? 15))}% earnings — ${config.finance.vendorCommissionPct ?? 15}% platform fee` },
+                      { icon: "💸", text: `Minimum withdrawal: ${currencySymbol} ${config.vendor.minPayout}` },
+                      { icon: "⏱️", text: `Processed in ${config.wallet?.withdrawalProcessingDays ? `${config.wallet.withdrawalProcessingDays} business day${config.wallet.withdrawalProcessingDays === 1 ? "" : "s"}` : "24–48 hours"} by admin` },
                       { icon: "🔒", text: "CNIC verification required for large withdrawals" },
                     ].map((p, i) => (
                       <div key={i} className="flex gap-2 text-xs text-orange-700">

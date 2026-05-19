@@ -11,6 +11,7 @@ import { api } from "../lib/api";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PullToRefresh } from "../components/PullToRefresh";
+import { ErrorState } from "../components/ui/ErrorState";
 
 function SkeletonBlock({ className }: { className?: string }) {
   return <div className={`animate-pulse bg-gray-200 rounded-xl ${className || ""}`} />;
@@ -145,13 +146,13 @@ export default function Notifications() {
     return () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); };
   }, []);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["rider-notifications"],
     queryFn: () => api.getNotifications(),
     refetchInterval: 30000,
   });
 
-  const notifs: NotifRecord[] = data?.notifications || [];
+  const notifs: NotifRecord[] = data?.notifications || []; // eslint-disable-line react-hooks/exhaustive-deps
   const unread: number = data?.unread || 0;
 
   const [toast, setToast] = useState("");
@@ -222,13 +223,14 @@ export default function Notifications() {
     for (const n of filtered) {
       const gKey = dateGroupKey(n.createdAt);
       if (!groupMap.has(gKey)) {
-        groupMap.set(gKey, []);
-        groups.push({ key: gKey, label: DATE_GROUP_LABELS[gKey], items: groupMap.get(gKey)! });
+        const items: typeof filtered = [];
+        groupMap.set(gKey, items);
+        groups.push({ key: gKey, label: DATE_GROUP_LABELS[gKey], items });
       }
-      groupMap.get(gKey)!.push(n);
+      groupMap.get(gKey)?.push(n);
     }
     return groups;
-  }, [filtered, language]);
+  }, [filtered, language]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filterCounts = useMemo(() => ({
     all:    notifs.filter(n => !n.isRead).length,
@@ -245,11 +247,28 @@ export default function Notifications() {
     ride:   notifs.filter(n => n.type === "ride").length,
   };
 
-  if (isLoading) return <SkeletonNotifications />;
-
   const handlePullRefresh = useCallback(async () => {
     await qc.invalidateQueries({ queryKey: ["rider-notifications"] });
   }, [qc]);
+
+  if (isLoading) return <SkeletonNotifications />;
+
+  if (isError) return (
+    <div className="min-h-screen bg-[#F5F6F8] flex flex-col">
+      <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 px-5 py-8 rounded-b-[2rem]"
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}>
+        <h1 className="text-2xl font-extrabold text-white tracking-tight">{T("notificationsTitle")}</h1>
+      </div>
+      <div className="flex-1 flex items-center justify-center">
+        <ErrorState
+          title={T("somethingWentWrong")}
+          subtitle={T("checkInternetRetry")}
+          onRetry={() => refetch()}
+          retryLabel={T("retry")}
+        />
+      </div>
+    </div>
+  );
 
   return (
     <PullToRefresh onRefresh={handlePullRefresh} className="min-h-screen bg-[#F5F6F8]">

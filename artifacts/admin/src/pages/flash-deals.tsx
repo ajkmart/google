@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { adminFetch } from "@/lib/adminFetcher";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[flash-deals]");
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Zap, Plus, Pencil, Trash2, Save,
   Clock, Package, ToggleLeft, ToggleRight,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
+import { PageHeader } from "@/components/shared";
 import { useToast } from "@/hooks/use-toast";
-import { fetcher } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +19,9 @@ import {
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { StatusBadge } from "@/components/AdminShared";
+import { SensitiveActionDialog } from "@/components/SensitiveActionDialog";
+import { NavigationGuard } from "@/components/NavigationGuard";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 /* ── Types ── */
 interface Product { id: string; name: string; price: string | number; category: string; image?: string }
@@ -42,55 +49,115 @@ function future8601(hours = 24) {
   return d.toISOString().slice(0,16);
 }
 
+/* ── Server-time offset hook ── */
+function useServerOffset(): number {
+  const [offset, setOffset] = useState(0);
+  useEffect(() => {
+    const start = Date.now();
+    fetch("/api/health")
+      .then(r => r.json())
+      .then((data: any) => {
+        const serverTime = new Date(data?.timestamp ?? data?.data?.timestamp ?? Date.now()).getTime();
+        const rtt = Date.now() - start;
+        setOffset(serverTime - (Date.now() - rtt / 2));
+      })
+      .catch(() => { log.warn("server time fetch failed, using local clock"); });
+  }, []);
+  return offset;
+}
+
+/* ── Countdown component anchored to server time ── */
+function ServerCountdown({ endTime, serverOffset }: { endTime: string; serverOffset: number }) {
+  const [remaining, setRemaining] = useState(0);
+
+  useEffect(() => {
+    const end = new Date(endTime).getTime();
+    const tick = () => {
+      const now = Date.now() + serverOffset;
+      setRemaining(Math.max(0, end - now));
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [endTime, serverOffset]);
+
+  if (remaining <= 0) return <span className="text-xs text-red-500 font-mono">Expired</span>;
+
+  const totalSec = Math.floor(remaining / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const label = h > 0
+    ? `${h}h ${m}m ${s}s`
+    : `${m}m ${s}s`;
+
+  return <span className="text-xs font-mono text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">{label}</span>;
+}
+
 /* ══════════ Main Page ══════════ */
 export default function FlashDealsPage() {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const { toast } = useToast();
   const qc = useQueryClient();
+  const serverOffset = useServerOffset();
 
   /* ── Flash Deals state ── */
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(0);
   const [dealForm, setDealForm] = useState({ ...EMPTY_DEAL });
   const [editingDeal, setEditingDeal] = useState<FlashDeal|null>(null);
   const [dealDialog, setDealDialog] = useState(false);
+  const [deletingDealId, setDeletingDealId] = useState<string | null>(null);
+
+  const isDirty = dealDialog && (
+    dealForm.productId !== EMPTY_DEAL.productId ||
+    dealForm.title !== EMPTY_DEAL.title ||
+    !!dealForm.discountPct || !!dealForm.discountFlat
+  );
 
   /* ── Queries ── */
   const { data: dealsData, isLoading: dealsLoading } = useQuery({
     queryKey: ["admin-flash-deals"],
-    queryFn: () => fetcher("/flash-deals"),
+    queryFn: () => adminFetch("/flash-deals"),
     refetchInterval: 30000,
   });
   const { data: productsData } = useQuery({
     queryKey: ["admin-products-list"],
-    queryFn: () => fetcher("/products"),
+    queryFn: () => adminFetch("/products"),
   });
 
-  const deals: FlashDeal[]   = dealsData?.deals   || [];
+  const deals = useMemo<FlashDeal[]>(() => dealsData?.deals ?? [], [dealsData?.deals]);
   const products: Product[]  = productsData?.products || [];
+  const totalPages = Math.max(1, Math.ceil(deals.length / PAGE_SIZE));
+  const pagedDeals = useMemo(() => deals.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [deals, page]);
+  useEffect(() => { setPage(p => Math.min(p, Math.max(0, totalPages - 1))); }, [totalPages]);
 
   /* ── Flash Deal Mutations ── */
   const saveDeal = useMutation({
     mutationFn: async (body: any) => {
-      if (editingDeal) return fetcher(`/flash-deals/${editingDeal.id}`, { method: "PATCH", body: JSON.stringify(body) });
-      return fetcher("/flash-deals", { method: "POST", body: JSON.stringify(body) });
+      if (editingDeal) return adminFetch(`/flash-deals/${editingDeal.id}`, { method: "PATCH", body: JSON.stringify(body) });
+      return adminFetch("/flash-deals", { method: "POST", body: JSON.stringify(body) });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-flash-deals"] });
       setDealDialog(false); setEditingDeal(null); setDealForm({ ...EMPTY_DEAL });
       toast({ title: editingDeal ? "Deal updated ✅" : "Flash deal created ✅" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const deleteDeal = useMutation({
-    mutationFn: (id: string) => fetcher(`/flash-deals/${id}`, { method: "DELETE" }),
+    mutationFn: (id: string) => adminFetch(`/flash-deals/${id}`, { method: "DELETE" }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-flash-deals"] }); toast({ title: "Deal deleted" }); },
+    onError: (e: Error) => toast({ title: "Delete failed", description: e.message, variant: "destructive" }),
   });
 
   const toggleDeal = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      fetcher(`/flash-deals/${id}`, { method: "PATCH", body: JSON.stringify({ isActive }) }),
+      adminFetch(`/flash-deals/${id}`, { method: "PATCH", body: JSON.stringify({ isActive }) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-flash-deals"] }),
+    onError: (e: Error) => toast({ title: "Toggle failed", description: e.message, variant: "destructive" }),
   });
 
   /* ── Form handlers ── */
@@ -134,26 +201,22 @@ export default function FlashDealsPage() {
   const liveDeals = deals.filter(d => d.status === "live").length;
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Flash Deals page crashed. Please reload.</div>}>
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center">
-            <Zap className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-display font-bold text-foreground">{T("flashDeals")}</h1>
-            <p className="text-muted-foreground text-sm">{liveDeals} live deal{liveDeals!==1?"s":""}</p>
-          </div>
-        </div>
-        <Button
-          onClick={openNewDeal}
-          className="h-10 rounded-xl gap-2 shadow-md"
-        >
-          <Plus className="w-4 h-4" />
-          {T("newFlashDeal")}
-        </Button>
-      </div>
+      <NavigationGuard isDirty={isDirty} />
+      <PageHeader
+        icon={Zap}
+        title={T("flashDeals")}
+        subtitle={`${liveDeals} live deal${liveDeals !== 1 ? "s" : ""}`}
+        iconBgClass="bg-amber-100"
+        iconColorClass="text-amber-600"
+        actions={
+          <Button onClick={openNewDeal} className="h-10 rounded-xl gap-2 shadow-md">
+            <Plus className="w-4 h-4" />
+            {T("newFlashDeal")}
+          </Button>
+        }
+      />
 
       {/* ══ Flash Deals ══ */}
       <div className="space-y-4">
@@ -170,11 +233,12 @@ export default function FlashDealsPage() {
             </Card>
           ) : (
             <div className="grid gap-3">
-              {deals.map(deal => {
+              {pagedDeals.map(deal => {
                 const discountLabel = deal.discountPct
                   ? `${deal.discountPct}% OFF`
                   : deal.discountFlat ? `Rs. ${deal.discountFlat} OFF` : "Deal";
                 const stockPct = deal.dealStock ? Math.round((deal.soldCount / deal.dealStock) * 100) : null;
+                const isLive = deal.status === "live";
                 return (
                   <Card key={deal.id} className="rounded-2xl border-border/50 shadow-sm hover:shadow-md transition-shadow">
                     <CardContent className="p-4">
@@ -188,6 +252,9 @@ export default function FlashDealsPage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-bold text-foreground truncate">{deal.title || deal.product?.name || deal.productId}</p>
                             <StatusBadge status={deal.status} />
+                            {isLive && (
+                              <ServerCountdown endTime={deal.endTime} serverOffset={serverOffset} />
+                            )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">{deal.product?.category || ""} · {deal.product ? `Rs. ${deal.product.price}` : ""}</p>
                           <div className="flex items-center gap-3 mt-2 flex-wrap">
@@ -226,7 +293,7 @@ export default function FlashDealsPage() {
                             <Pencil className="w-4 h-4 text-blue-600"/>
                           </button>
                           <button
-                            onClick={() => deleteDeal.mutate(deal.id)}
+                            onClick={() => setDeletingDealId(deal.id)}
                             disabled={deleteDeal.isPending}
                             className="p-2 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                           >
@@ -238,6 +305,17 @@ export default function FlashDealsPage() {
                   </Card>
                 );
               })}
+            </div>
+          )}
+          {deals.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between pt-2">
+              <Button variant="outline" size="sm" className="rounded-xl gap-1" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>
+                <ChevronLeft className="w-4 h-4" /> Previous
+              </Button>
+              <span className="text-xs text-muted-foreground">Page {page + 1} of {totalPages}</span>
+              <Button variant="outline" size="sm" className="rounded-xl gap-1" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>
+                Next <ChevronRight className="w-4 h-4" />
+              </Button>
             </div>
           )}
         </div>
@@ -380,6 +458,19 @@ export default function FlashDealsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete flash deal — requires password re-entry */}
+      <SensitiveActionDialog
+        open={!!deletingDealId}
+        onClose={() => setDeletingDealId(null)}
+        onConfirm={() => { if (deletingDealId) deleteDeal.mutate(deletingDealId); }}
+        title="Delete Flash Deal"
+        description="This flash deal will be permanently removed. This action cannot be undone."
+        confirmLabel="Delete Deal"
+        actionType="delete_flash_deal"
+        targetId={deletingDealId ?? undefined}
+      />
+
     </div>
+    </ErrorBoundary>
   );
 }

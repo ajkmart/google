@@ -18,4 +18,8 @@ export interface CreateParcelBookingRequest {
   weight?: number;
   description?: string;
   paymentMethod: CreateParcelBookingRequestPaymentMethod;
+  pickupLat?: number;
+  pickupLng?: number;
+  dropLat?: number;
+  dropLng?: number;
 }
