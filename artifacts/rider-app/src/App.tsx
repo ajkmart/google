@@ -55,6 +55,17 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, net
 /* PWA5: Capacitor-aware base resolution. `BASE_URL` may be `./` or a
    `capacitor://` URL on native; resolving against `window.location.origin`
    normalises it to a usable pathname for wouter regardless of platform. */
+/**
+ * RedirectTo — lightweight client-side redirect for legacy / alias routes.
+ * Replaces the current history entry so the back button skips the alias.
+ * Uses wouter's useLocation (already imported at the top of this file).
+ */
+function RedirectTo({ to }: { to: string }) {
+  const [, navigate] = useLocation();
+  useEffect(() => { navigate(to, { replace: true }); }, [to, navigate]);
+  return null;
+}
+
 function getRouterBase(): string {
   try {
     const raw = riderEnv.baseUrl || "/";
@@ -543,13 +554,16 @@ function AppRoutes() {
             <Route path="/notifications">{() => <ErrorBoundary><Notifications /></ErrorBoundary>}</Route>
             <Route path="/profile">{() => <ErrorBoundary><Profile /></ErrorBoundary>}</Route>
             <Route path="/settings/security">{() => <ErrorBoundary><SecuritySettings /></ErrorBoundary>}</Route>
-            <Route path="/security">{() => <ErrorBoundary><SecuritySettings /></ErrorBoundary>}</Route>
+            {/* /security is a legacy alias — canonical path is /settings/security */}
+            <Route path="/security">{() => <RedirectTo to="/settings/security" />}</Route>
             <Route path="/van">{() => <ErrorBoundary><VanDriver /></ErrorBoundary>}</Route>
-            <Route path="/van-driver">{() => <ErrorBoundary><VanDriver /></ErrorBoundary>}</Route>
+            {/* /van-driver is a legacy alias — canonical path is /van */}
+            <Route path="/van-driver">{() => <RedirectTo to="/van" />}</Route>
             <Route path="/chat">{() => <ErrorBoundary><Chat /></ErrorBoundary>}</Route>
             <Route path="/chat/:id">{() => <ErrorBoundary><Chat /></ErrorBoundary>}</Route>
             <Route path="/reviews">{() => <ErrorBoundary><Reviews /></ErrorBoundary>}</Route>
-            <Route path="/dashboard">{() => <ErrorBoundary><Home /></ErrorBoundary>}</Route>
+            {/* /dashboard is a legacy alias — canonical root is / */}
+            <Route path="/dashboard">{() => <RedirectTo to="/" />}</Route>
             <Route component={NotFound} />
           </Switch>
         </Suspense>
