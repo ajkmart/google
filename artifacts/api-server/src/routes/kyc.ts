@@ -858,4 +858,84 @@ router.patch("/admin/:id", adminAuth, validateBody(KycAdminReviewSchema), async 
   }
 });
 
+/* ─── Admin: POST /api/kyc/admin/:id/approve — approve KYC (alias for PATCH with status=approved) ─── */
+router.post("/admin/:id/approve", adminAuth, async (req, res) => {
+  try {
+    const { reason } = req.body ?? {};
+    const [record] = await db
+      .select({ id: kycVerificationsTable.id, userId: kycVerificationsTable.userId, fullName: kycVerificationsTable.fullName })
+      .from(kycVerificationsTable)
+      .where(eq(kycVerificationsTable.id, req.params["id"] as string))
+      .limit(1);
+    if (!record) { res.status(404).json({ error: "KYC record not found" }); return; }
+
+    const now = new Date();
+    const adminId = req.adminId;
+    await db.transaction(async (tx) => {
+      await tx.update(kycVerificationsTable)
+        .set({ status: "approved", rejectionReason: null, reviewedAt: now, reviewedBy: adminId, updatedAt: now })
+        .where(eq(kycVerificationsTable.id, record.id));
+      await tx.update(usersTable)
+        .set({ kycStatus: "verified", updatedAt: now })
+        .where(eq(usersTable.id, record.userId));
+      if (record.fullName) {
+        await tx.update(usersTable)
+          .set({ name: record.fullName })
+          .where(eq(usersTable.id, record.userId));
+      }
+      const notifTitle = "KYC Approved ✅";
+      const notifBody = `Shukriya ${record.fullName || "Customer"}, aapka KYC verify ho gaya hai.`;
+      await tx.insert(notificationsTable).values({
+        id: randomUUID(), userId: record.userId,
+        title: notifTitle, body: notifBody,
+        type: "system", icon: "checkmark-circle",
+      });
+      sendPushToUser(record.userId, { title: notifTitle, body: notifBody, tag: "kyc-update", data: { type: "kyc_status", status: "approved" } }).catch(() => {});
+      void logAdminAudit("kyc_review_approved", { adminId, ip: getClientIp(req), result: "success", metadata: { userId: record.userId, reason: reason || "approved" } });
+    });
+    res.json({ success: true });
+  } catch (err) {
+    logger.error({ err }, "[kyc] approve alias failed");
+    res.status(500).json({ error: "Failed to approve KYC" });
+  }
+});
+
+/* ─── Admin: POST /api/kyc/admin/:id/reject — reject KYC (alias for PATCH with status=rejected) ─── */
+router.post("/admin/:id/reject", adminAuth, async (req, res) => {
+  try {
+    const { reason } = req.body ?? {};
+    if (!reason?.trim()) { res.status(400).json({ error: "Rejection reason is required" }); return; }
+    const [record] = await db
+      .select({ id: kycVerificationsTable.id, userId: kycVerificationsTable.userId, fullName: kycVerificationsTable.fullName })
+      .from(kycVerificationsTable)
+      .where(eq(kycVerificationsTable.id, req.params["id"] as string))
+      .limit(1);
+    if (!record) { res.status(404).json({ error: "KYC record not found" }); return; }
+
+    const now = new Date();
+    const adminId = req.adminId;
+    await db.transaction(async (tx) => {
+      await tx.update(kycVerificationsTable)
+        .set({ status: "rejected", rejectionReason: reason, reviewedAt: now, reviewedBy: adminId, updatedAt: now })
+        .where(eq(kycVerificationsTable.id, record.id));
+      await tx.update(usersTable)
+        .set({ kycStatus: "rejected", updatedAt: now })
+        .where(eq(usersTable.id, record.userId));
+      const notifTitle = "KYC Update Required ⚠️";
+      const notifBody = `Aapka KYC review kiya gaya: ${reason}. Dobara submit karein.`;
+      await tx.insert(notificationsTable).values({
+        id: randomUUID(), userId: record.userId,
+        title: notifTitle, body: notifBody,
+        type: "system", icon: "alert-circle",
+      });
+      sendPushToUser(record.userId, { title: notifTitle, body: notifBody, tag: "kyc-update", data: { type: "kyc_status", status: "rejected" } }).catch(() => {});
+      void logAdminAudit("kyc_review_rejected", { adminId, ip: getClientIp(req), result: "success", metadata: { userId: record.userId, reason } });
+    });
+    res.json({ success: true });
+  } catch (err) {
+    logger.error({ err }, "[kyc] reject alias failed");
+    res.status(500).json({ error: "Failed to reject KYC" });
+  }
+});
+
 export default router;

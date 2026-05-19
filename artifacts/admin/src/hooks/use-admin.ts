@@ -2255,8 +2255,9 @@ export const useAdminViewOtp = (userId: string | null, options?: { enabled?: boo
   useQuery({
     queryKey: ["admin-user-otp", userId],
     queryFn: () => adminFetch(`/users/${userId}/otp`),
-    enabled: options?.enabled === true,
+    enabled: options?.enabled === true && !!userId,
     staleTime: 0,
+    gcTime: 0,
   });
 
 export const useAdminVerifyContact = () => {

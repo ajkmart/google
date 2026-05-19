@@ -186,6 +186,7 @@ router.get("/users", requirePermission("users.view"), async (req, res) => {
       ilike(usersTable.name, `%${search}%`),
       ilike(usersTable.email, `%${search}%`),
       ilike(usersTable.phone, `%${search}%`),
+      ilike(usersTable.username, `%${search}%`),
     )!);
   }
   if (role) {
@@ -479,7 +480,7 @@ router.get("/users/pending", requirePermission("users.view"), async (_req, res) 
       .from(usersTable)
       .leftJoin(vendorProfilesTable, eq(usersTable.id, vendorProfilesTable.userId))
       .leftJoin(riderProfilesTable, eq(usersTable.id, riderProfilesTable.userId))
-      .where(eq(usersTable.approvalStatus, "pending"))
+      .where(and(eq(usersTable.approvalStatus, "pending"), isNull(usersTable.deletedAt)))
       .orderBy(desc(usersTable.createdAt));
 
     sendSuccess(res, {
