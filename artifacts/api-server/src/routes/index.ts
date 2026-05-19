@@ -138,8 +138,8 @@ router.use("/support-chat", supportChatRouter);
 /* Public vendor browsing — GET/HEAD only. Authenticated management routes
    in vendorRouter are guarded by mounting publicVendorsRouter only for read
    methods so it cannot shadow authenticated vendor management GET routes. */
-router.use("/vendors", publicGetLimiter, (req, res, next) => {
-  if (req.method === "GET" || req.method === "HEAD") return publicVendorsRouter(req, res, next);
+router.use("/vendors", publicGetLimiter, (req, res, next): void => {
+  if (req.method === "GET" || req.method === "HEAD") { publicVendorsRouter(req, res, next); return; }
   next();
 });
 router.use("/vendors", vendorRouter);

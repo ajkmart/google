@@ -353,10 +353,10 @@ const toISO = (v: unknown) => v ? (v instanceof Date ? v.toISOString() : v) : nu
 function formatRide(r: Record<string, unknown>) {
   return {
     ...r,
-    fare:          parseFloat(r.fare         ?? "0"),
-    distance:      parseFloat(r.distance     ?? "0"),
-    offeredFare:   r.offeredFare  ? parseFloat(r.offeredFare)  : null,
-    counterFare:   r.counterFare  ? parseFloat(r.counterFare)  : null,
+    fare:          parseFloat(String(r.fare ?? "0")),
+    distance:      parseFloat(String(r.distance ?? "0")),
+    offeredFare:   r.offeredFare  ? parseFloat(String(r.offeredFare))  : null,
+    counterFare:   r.counterFare  ? parseFloat(String(r.counterFare))  : null,
     bargainRounds: r.bargainRounds ?? 0,
     createdAt:     toISO(r.createdAt),
     updatedAt:     toISO(r.updatedAt),

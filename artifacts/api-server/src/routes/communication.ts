@@ -783,7 +783,7 @@ const voiceUpload = multer({
   },
 });
 
-router.post("/voice-notes/upload", voiceUpload.single("audio"), async (req: any, res) => {
+router.post("/voice-notes/upload", voiceUpload.single("audio") as any, async (req: any, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No audio file uploaded" });
 

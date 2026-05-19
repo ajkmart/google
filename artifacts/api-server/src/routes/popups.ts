@@ -16,13 +16,13 @@ import { ai } from "@workspace/integrations-gemini-ai";
 
 const router: IRouter = Router();
 
-function getUserFromRequest(req: Request): { userId: string; role: string } | null {
+function getUserFromRequest(req: Request): { userId: string; roles: string } | null {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return null;
   const token = auth.slice(7);
   const payload = verifyUserJwt(token);
   if (!payload) return null;
-  return { userId: payload.userId, role: payload.role };
+  return { userId: payload.userId, roles: payload.role ?? "customer" };
 }
 
 async function evaluateTargeting(

@@ -202,7 +202,7 @@ router.get("/status", customerAuth, async (req, res) => {
 router.post(
   "/submit",
   customerAuth,
-  kycUpload.fields([
+  (kycUpload.fields([
     { name: "frontIdPhoto", maxCount: 1 },
     { name: "backIdPhoto", maxCount: 1 },
     { name: "selfiePhoto", maxCount: 1 },
@@ -210,7 +210,7 @@ router.post(
     { name: "idBack", maxCount: 1 },
     { name: "selfie", maxCount: 1 },
     { name: "idPhoto", maxCount: 1 },
-  ]),
+  ]) as any) as any,
   validateBody(KycSubmitTextSchema),
   async (req, res) => {
     try {

@@ -58,6 +58,7 @@ function normalizeUsername(raw: string): string {
 router.post("/vendor-register", loginLimiter, sharedValidateBody(VendorRegisterSchema), async (req, res) => {
   try {
   const auth = extractAuthUser(req);
+  const ip = getClientIp(req);
   if (!auth) {
     sendUnauthorized(res, "Authentication required. Please verify your phone via OTP first.");
     return;
@@ -572,7 +573,7 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
   let cleanUsername: string | null = null;
   if (username) {
     cleanUsername = username.toLowerCase().trim().replace(/[^a-z0-9_]/g, "").slice(0, 20);
-    if (cleanUsername.length < 3) cleanUsername = null;
+    if ((cleanUsername as string).length < 3) cleanUsername = null;
   }
 
   const requireApproval = (settings["user_require_approval"] ?? "off") === "on";
@@ -684,7 +685,7 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
        Re-translate them into the proper HTTP 409 response. All other errors are
        genuine server faults and should bubble up to the global error handler.    */
     if (err && typeof err === "object" && "__conflict" in err) {
-      sendError(res, (err as Error).message, 409);
+      sendError(res, (err as unknown as Error).message, 409);
       return;
     }
     throw err;

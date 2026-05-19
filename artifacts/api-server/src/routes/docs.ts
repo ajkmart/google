@@ -78,7 +78,7 @@ const router = Router();
 
 router.use(
   adminAuth,
-  swaggerUi.serve,
+  ...swaggerUi.serve,
   swaggerUi.setup(spec, swaggerUiOptions),
 );
 

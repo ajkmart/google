@@ -71,7 +71,7 @@ router.get("/vendors", async (_req, res) => {
   ).orderBy(desc(usersTable.createdAt));
 
   const vendorIds = vendors.map(v => v.id);
-  let orderStats: unknown[] = [];
+  let orderStats: Array<{ vendorId: string | null; totalOrders: number; totalRevenue: string | null; pendingOrders: number }> = [];
   if (vendorIds.length > 0) {
     orderStats = await db.select({
       vendorId: ordersTable.vendorId,
@@ -88,8 +88,8 @@ router.get("/vendors", async (_req, res) => {
       const stats = statsMap[v.id] || {};
       return {
         id: v.id, phone: v.phone, name: v.name, email: v.email,
-        storeName: v.storeName, storeCategory: v.storeCategory,
-        storeIsOpen: v.storeIsOpen, storeDescription: v.storeDescription,
+        storeName: (v as any).storeName, storeCategory: (v as any).storeCategory,
+        storeIsOpen: (v as any).storeIsOpen, storeDescription: (v as any).storeDescription,
         walletBalance: parseFloat(v.walletBalance ?? "0"),
         isActive: v.isActive, isBanned: v.isBanned,
         approvalStatus: v.approvalStatus, approvalNote: v.approvalNote,
@@ -188,8 +188,8 @@ router.get("/riders", async (_req, res) => {
           .groupBy(rideRatingsTable.riderId)
       : Promise.resolve([]),
   ]);
-  const penaltyMap = new Map(penaltyRows.map((r: Record<string, unknown>) => [r.riderId, parseFloat(String(r.total ?? "0"))]));
-  const ratingMap = new Map(ratingRows.map((r: Record<string, unknown>) => [r.riderId, { avg: parseFloat(String(r.avgRating ?? "0")), count: r.ratingCount as number }]));
+  const penaltyMap = new Map((penaltyRows as Array<{ riderId: string; total: string | null }>).map(r => [r.riderId, parseFloat(String(r.total ?? "0"))]));
+  const ratingMap = new Map((ratingRows as Array<{ riderId: string; avgRating: string; ratingCount: number }>).map(r => [r.riderId, { avg: parseFloat(String(r.avgRating ?? "0")), count: r.ratingCount as number }]));
 
   res.json({
     riders: riders.map(r => ({
@@ -592,7 +592,7 @@ router.post("/deposit-requests/bulk-approve", async (req, res) => {
     const ref = tx.reference ?? "pending";
     const isPending = ref === "pending" || ref.startsWith("pending:");
     if (!isPending) { res.status(409).json({ error: `Deposit ${txId} already processed (${ref})` }); return; }
-    const [user] = await db.select({ role: usersTable.roles }).from(usersTable).where(eq(usersTable.id, tx.userId)).limit(1);
+    const [user] = await db.select({ roles: usersTable.roles }).from(usersTable).where(eq(usersTable.id, tx.userId)).limit(1);
     if (!user) { res.status(400).json({ error: `User not found for deposit ${txId}` }); return; }
     if (user.roles !== "customer") { res.status(400).json({ error: `Deposit ${txId} belongs to a ${user.roles}, not a customer. Bulk actions are for customer deposits only.` }); return; }
     const amt = parseFloat(String(tx.amount));
@@ -654,7 +654,7 @@ router.post("/deposit-requests/bulk-reject", async (req, res) => {
     const ref = tx.reference ?? "pending";
     const isPending = ref === "pending" || ref.startsWith("pending:");
     if (!isPending) { res.status(409).json({ error: `Deposit ${txId} already processed (${ref})` }); return; }
-    const [user] = await db.select({ role: usersTable.roles }).from(usersTable).where(eq(usersTable.id, tx.userId)).limit(1);
+    const [user] = await db.select({ roles: usersTable.roles }).from(usersTable).where(eq(usersTable.id, tx.userId)).limit(1);
     if (!user) { res.status(400).json({ error: `User not found for deposit ${txId}` }); return; }
     if (user.roles !== "customer") { res.status(400).json({ error: `Deposit ${txId} belongs to a ${user.roles}, not a customer. Bulk actions are for customer deposits only.` }); return; }
     const txidSuffix = (tx.reference && tx.reference.includes("txid:")) ? `:${tx.reference.split("txid:").pop()}` : "";
@@ -699,7 +699,7 @@ router.post("/riders/:id/credit", async (req, res) => {
   }
   const [rider] = await db.select().from(usersTable).where(eq(usersTable.id, req.params["id"] as string)).limit(1);
   if (!rider) { res.status(404).json({ error: "Rider not found" }); return; }
-  const roles = (rider.role || rider.roles || "").split(",").map((r: string) => r.trim());
+  const roles = (rider.roles || "").split(",").map((r: string) => r.trim());
   if (!roles.includes("rider")) { res.status(400).json({ error: "User is not a rider" }); return; }
   const amt = Number(amount);
   const txType = type === "bonus" ? "bonus" : "credit";

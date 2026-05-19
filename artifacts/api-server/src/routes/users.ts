@@ -332,7 +332,7 @@ async function saveAvatarBuffer(userId: string, buffer: Buffer, mime: string) {
   return avatarUrl;
 }
 
-router.post("/avatar", avatarUpload.single("avatar"), async (req, res) => {
+router.post("/avatar", avatarUpload.single("avatar") as any, async (req, res) => {
   const userId = req.customerId!;
 
   /* Rate limit: max 10 avatar uploads per minute per user */

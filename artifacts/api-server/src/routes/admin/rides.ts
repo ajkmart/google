@@ -745,7 +745,7 @@ router.get("/rides/:id/detail", async (req, res) => {
   if (!ride) { res.status(404).json({ error: "Ride not found" }); return; }
 
   const [customer] = await db.select({ name: usersTable.name, phone: usersTable.phone, email: usersTable.email }).from(usersTable).where(eq(usersTable.id, ride.userId)).limit(1);
-  let rider = null;
+  let rider: { name: string | null; phone: string | null; email: string | null } | null = null;
   if (ride.riderId) {
     const [r] = await db.select({ name: usersTable.name, phone: usersTable.phone, email: usersTable.email }).from(usersTable).where(eq(usersTable.id, ride.riderId)).limit(1);
     rider = r ?? null;

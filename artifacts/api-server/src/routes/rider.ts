@@ -197,17 +197,17 @@ router.get("/me", async (req, res) => {
     walletBalance: safeNum(user.walletBalance),
     cnic: user.cnic, address: user.address, city: user.city, area: user.area,
     emergencyContact: user.emergencyContact,
-    vehicleType: user.vehicleType, vehiclePlate: user.vehiclePlate,
-    vehicleRegNo: user.vehicleRegNo, drivingLicense: user.drivingLicense,
+    vehicleType: (user as any).vehicleType, vehiclePlate: (user as any).vehiclePlate,
+    vehicleRegNo: (user as any).vehicleRegNo, drivingLicense: (user as any).drivingLicense,
     bankName: user.bankName, bankAccount: user.bankAccount, bankAccountTitle: user.bankAccountTitle,
     twoFactorEnabled: !!user.totpEnabled,
     accountLevel: user.accountLevel, kycStatus: user.kycStatus,
     lastLoginAt: user.lastLoginAt, createdAt: user.createdAt,
-    vehiclePhoto: user.vehiclePhoto,
+    vehiclePhoto: (user as any).vehiclePhoto,
     /* Document photo URLs parsed from the documents JSON column */
     ...(() => {
       try {
-        const docs = JSON.parse(user.documents || "{}");
+        const docs = JSON.parse((user as any).documents || "{}");
         return { cnicDocUrl: docs.cnicDocUrl || null, licenseDocUrl: docs.licenseDocUrl || null, regDocUrl: docs.regDocUrl || null };
       } catch { return { cnicDocUrl: null, licenseDocUrl: null, regDocUrl: null }; }
     })(),
@@ -275,9 +275,9 @@ router.patch("/online", async (req, res) => {
         }).onConflictDoUpdate({
           target: liveLocationsTable.userId,
           set: { onlineSince: now, updatedAt: now },
-        }).catch((e: Record<string, unknown>) => { logger.warn("[rider] live_location seed failed:", e?.message); });
+        }).catch((e: unknown) => { logger.warn("[rider] live_location seed failed:", e instanceof Error ? e.message : String(e)); });
       }
-    } catch (e: unknown) { logger.warn("[rider] live_location seed failed:", e?.message); }
+    } catch (e: unknown) { logger.warn("[rider] live_location seed failed:", e instanceof Error ? e.message : String(e)); }
   }
 
   /* Emit real-time status event to admin-fleet */
@@ -361,7 +361,7 @@ router.patch("/profile", async (req, res) => {
     const [updated] = await db.update(usersTable).set(updates).where(eq(usersTable.id, riderId)).returning();
     user = updated;
   } catch (dbErr: unknown) {
-    const msg = dbErr?.message || "";
+    const msg = dbErr instanceof Error ? dbErr.message : "";
     if (msg.includes("unique") || msg.includes("duplicate")) {
       res.status(409).json({ error: "A profile field conflicts with an existing record (e.g. duplicate CNIC)" });
     } else {
@@ -388,16 +388,16 @@ router.patch("/profile", async (req, res) => {
     approvalStatus: user.approvalStatus,
     cnic: user.cnic, address: user.address, city: user.city, area: user.area,
     emergencyContact: user.emergencyContact,
-    vehicleType: user.vehicleType, vehiclePlate: user.vehiclePlate,
-    vehicleRegNo: user.vehicleRegNo, drivingLicense: user.drivingLicense,
+    vehicleType: (user as any).vehicleType, vehiclePlate: (user as any).vehiclePlate,
+    vehicleRegNo: (user as any).vehicleRegNo, drivingLicense: (user as any).drivingLicense,
     bankName: user.bankName, bankAccount: user.bankAccount, bankAccountTitle: user.bankAccountTitle,
     accountLevel: user.accountLevel, kycStatus: user.kycStatus,
     createdAt: user.createdAt, lastLoginAt: user.lastLoginAt,
-    vehiclePhoto: user.vehiclePhoto,
+    vehiclePhoto: (user as any).vehiclePhoto,
     /* Document photo URLs parsed from the documents JSON column */
     ...(() => {
       try {
-        const docs = JSON.parse(user.documents || "{}");
+        const docs = JSON.parse((user as any).documents || "{}");
         return { cnicDocUrl: docs.cnicDocUrl || null, licenseDocUrl: docs.licenseDocUrl || null, regDocUrl: docs.regDocUrl || null };
       } catch { return { cnicDocUrl: null, licenseDocUrl: null, regDocUrl: null }; }
     })(),
@@ -494,7 +494,7 @@ router.get("/active", async (req, res) => {
   ]);
 
   // Enrich with customer name/phone so rider can call the customer
-  let enrichedRide = null;
+  let enrichedRide: Record<string, unknown> | null = null;
   if (ride[0]) {
     const [customer] = await db.select({ name: usersTable.name, phone: usersTable.phone })
       .from(usersTable).where(eq(usersTable.id, ride[0].userId)).limit(1);
@@ -507,7 +507,7 @@ router.get("/active", async (req, res) => {
     };
   }
 
-  let enrichedOrder = null;
+  let enrichedOrder: Record<string, unknown> | null = null;
   if (order[0]) {
     const promises: [Promise<any>, Promise<any>] = [
       db.select({ name: usersTable.name, phone: usersTable.phone })
@@ -1424,6 +1424,7 @@ router.post("/rides/:id/counter", async (req, res) => {
           fare:       parsedCounter.toFixed(2),
           note:       note ?? null,
           status:     "pending",
+          expiresAt:  new Date(Date.now() + 5 * 60 * 1000),
         }).returning();
         isFirstBid = true;
         return inserted;
@@ -2447,7 +2448,6 @@ router.post("/sos", async (req, res) => {
     phone:     riderUser.phone ?? null,
     latitude:  validCoords ? parsedLat! : null,
     longitude: validCoords ? parsedLng! : null,
-    rideId:    rideId ?? null,
     sentAt:    now.toISOString(),
   });
 

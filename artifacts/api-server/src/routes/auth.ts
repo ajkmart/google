@@ -148,7 +148,7 @@ router.post("/check-identifier", async (req, res) => {
   }
 
   /* ── Build available methods based on admin config + actual role ── */
-  const effectiveCheckRole = user?.role ?? userRole;
+  const effectiveCheckRole = user?.roles ?? userRole;
   const googleEnabled   = isAuthMethodEnabled(settings, "auth_google_enabled", effectiveCheckRole);
   const facebookEnabled = isAuthMethodEnabled(settings, "auth_facebook_enabled", effectiveCheckRole);
   const phoneOtpEnabled = isAuthMethodEnabled(settings, "auth_phone_otp_enabled", effectiveCheckRole);
@@ -394,7 +394,7 @@ router.post("/send-otp", verifyCaptcha, async (req, res) => {
     .where(eq(usersTable.phone, phone))
     .limit(1);
 
-  const effectiveRole = existingUser[0]?.role ?? ((req.body?.role === "rider" || req.body?.role === "vendor") ? req.body.role : "customer");
+  const effectiveRole = existingUser[0]?.roles ?? ((req.body?.role === "rider" || req.body?.role === "vendor") ? req.body.role : "customer");
   const otpEnabledForRole = isAuthMethodEnabled(settings, "auth_phone_otp_enabled", effectiveRole);
 
   if (existingUser.length === 0 && settings["feature_new_users"] === "off") {
@@ -429,7 +429,7 @@ router.post("/send-otp", verifyCaptcha, async (req, res) => {
      If this number is linked to a Google account and Google login is enabled,
      the user MUST log in via Google — not OTP — to prevent account hijacking. ── */
   const existingGoogleId = existingUser[0]?.googleId;
-  if (existingGoogleId && isAuthMethodEnabled(settings, "auth_google_enabled", existingUser[0]?.role ?? effectiveRole)) {
+  if (existingGoogleId && isAuthMethodEnabled(settings, "auth_google_enabled", existingUser[0]?.roles ?? effectiveRole)) {
     addSecurityEvent({ type: "otp_blocked_google_account", ip, details: `OTP attempt on Google-linked account: ${phone}`, severity: "low" });
     res.status(403).json({
       error: "This account is linked to Google. Please sign in with Google.",
@@ -722,7 +722,6 @@ router.post("/verify-otp", verifyCaptcha, async (req, res) => {
     await db.insert(usersTable).values({
       id:             newUserId,
       phone,
-      role:           "customer",
       roles:          "customer",
       walletBalance:  "0",
       phoneVerified:  true,
@@ -871,7 +870,7 @@ router.post("/verify-otp", verifyCaptcha, async (req, res) => {
         const remaining = maxAttempts - updated.attempts;
         addAuditEntry({ action: "verify_otp_failed", ip, details: `Wrong OTP for phone: ${phone}, attempt ${updated.attempts}/${maxAttempts}`, result: "fail" });
         writeAuthAuditLog("otp_failed", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined });
-        if (updated.lockedUntil) {
+        if (updated.locked) {
           addSecurityEvent({ type: "account_locked", ip, userId: user.id, details: `Account locked after ${maxAttempts} failed OTP attempts`, severity: "high" });
           res.status(429).json({ error: `Too many failed attempts. Account locked for ${lockoutMinutes} minutes.`, lockedMinutes: lockoutMinutes });
         } else {
@@ -1030,7 +1029,6 @@ router.post("/vendor-register", async (req, res) => {
 
   await db.update(usersTable).set({
     roles: newRoles.join(","),
-    role: "vendor",
     storeName,
     storeCategory: storeCategory || null,
     name: name || user.name,
@@ -1463,7 +1461,7 @@ router.post("/verify-email-otp", verifyCaptcha, async (req, res) => {
     const updated = await recordFailedAttempt(normalized, maxAttempts, lockoutMinutes);
     const remaining = maxAttempts - updated.attempts;
     addAuditEntry({ action: "email_otp_failed", ip, details: `Wrong email OTP for: ${normalized}`, result: "fail" });
-    if (updated.lockedUntil) {
+    if (updated.locked) {
       res.status(429).json({ error: `Too many failed attempts. Locked for ${lockoutMinutes} minutes.` });
     } else {
       res.status(401).json({ error: `Invalid OTP. ${remaining} attempt(s) remaining.`, attemptsRemaining: remaining });
@@ -1603,7 +1601,7 @@ async function handleUnifiedLogin(req: Request, res: any) {
   if (!passwordOk) {
     const updated = await recordFailedAttempt(lockoutKey, maxAttempts, lockoutMinutes);
     addAuditEntry({ action: "unified_login_failed", ip, details: `Wrong password (${idType}): ${lookupKey}`, result: "fail" });
-    if (updated.lockedUntil) {
+    if (updated.locked) {
       res.status(429).json({ error: `Too many failed attempts. Locked for ${lockoutMinutes} minutes.` });
     } else {
       res.status(401).json({ error: `Invalid credentials. ${maxAttempts - updated.attempts} attempt(s) remaining.` });
@@ -1772,7 +1770,7 @@ router.post("/complete-profile", async (req, res) => {
 
   const [updated] = await db.update(usersTable).set(updates).where(eq(usersTable.id, userId)).returning();
 
-  const accessToken = signAccessToken(updated!.id, updated!.phone ?? "", updated!.role ?? "customer", updated!.roles ?? updated!.role ?? "customer", updated!.tokenVersion ?? 0);
+  const accessToken = signAccessToken(updated!.id, updated!.phone ?? "", updated!.roles ?? "customer", updated!.roles ?? "customer", updated!.tokenVersion ?? 0);
   const { raw: refreshRaw, hash: refreshHash } = generateRefreshToken();
   const refreshExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
 
@@ -1793,7 +1791,7 @@ router.post("/complete-profile", async (req, res) => {
     message: "Profile update ho gaya",
     token: accessToken,
     refreshToken: refreshRaw,
-    user: { id: updated!.id, phone: updated!.phone, name: updated!.name, email: updated!.email, username: updated!.username, role: updated!.role, roles: updated!.roles, avatar: updated!.avatar, cnic: updated!.cnic, city: updated!.city, area: updated!.area, address: updated!.address, latitude: updated!.latitude, longitude: updated!.longitude, kycStatus: updated!.kycStatus, accountLevel: updated!.accountLevel, totpEnabled: updated!.totpEnabled ?? false, emailVerified: updated!.emailVerified, phoneVerified: updated!.phoneVerified, walletBalance: parseFloat(updated!.walletBalance ?? "0"), isActive: updated!.isActive, createdAt: updated!.createdAt.toISOString() },
+    user: { id: updated!.id, phone: updated!.phone, name: updated!.name, email: updated!.email, username: updated!.username, roles: updated!.roles, avatar: updated!.avatar, cnic: updated!.cnic, city: updated!.city, area: updated!.area, address: updated!.address, latitude: updated!.latitude, longitude: updated!.longitude, kycStatus: updated!.kycStatus, accountLevel: updated!.accountLevel, totpEnabled: updated!.totpEnabled ?? false, emailVerified: updated!.emailVerified, phoneVerified: updated!.phoneVerified, walletBalance: parseFloat(updated!.walletBalance ?? "0"), isActive: updated!.isActive, createdAt: updated!.createdAt.toISOString() },
   });
 });
 
@@ -2705,7 +2703,7 @@ router.post("/social/google", async (req, res) => {
 
   const isNewUser = !user;
 
-  const googleEffectiveRole = user?.role ?? ((req.body?.role === "rider" || req.body?.role === "vendor") ? req.body.role : "customer");
+  const googleEffectiveRole = user?.roles ?? ((req.body?.role === "rider" || req.body?.role === "vendor") ? req.body.role : "customer");
   if (!isAuthMethodEnabledStrict(settings, "auth_google_enabled", "auth_social_google", googleEffectiveRole)) {
     res.status(403).json({ error: "Google login is currently disabled for your account type." }); return;
   }
@@ -2718,7 +2716,7 @@ router.post("/social/google", async (req, res) => {
     const id = generateId();
     [user] = await db.insert(usersTable).values({
       id, name, email, avatar, googleId,
-      role: "customer", roles: "customer", walletBalance: "0",
+      roles: "customer", walletBalance: "0",
       emailVerified: !!email,
       isActive: !requireApproval, approvalStatus: requireApproval ? "pending" : "approved",
     }).returning();
@@ -2727,10 +2725,10 @@ router.post("/social/google", async (req, res) => {
   if (user!.isBanned) { res.status(403).json({ error: "Account suspended" }); return; }
   if (!user!.isActive && user!.approvalStatus !== "pending") { res.status(403).json({ error: "Account inactive" }); return; }
 
-  if (user!.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", user!.role ?? undefined)) {
+  if (user!.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", user!.roles ?? undefined)) {
     const trustedDays = parseInt(settings["auth_trusted_device_days"] ?? "30", 10);
     if (!isDeviceTrusted(user!, deviceFingerprint, trustedDays)) {
-      const tempToken = sign2faChallengeToken(user!.id, user!.phone ?? "", user!.role ?? "customer", user!.roles ?? "customer", "social_google");
+      const tempToken = sign2faChallengeToken(user!.id, user!.phone ?? "", user!.roles ?? "customer", user!.roles ?? "customer", "social_google");
       res.json({ requires2FA: true, tempToken, userId: user!.id }); return;
     }
   }
@@ -2785,7 +2783,7 @@ router.post("/social/facebook", async (req, res) => {
 
   const isNewUser = !user;
 
-  const fbEffectiveRole = user?.role ?? ((req.body?.role === "rider" || req.body?.role === "vendor") ? req.body.role : "customer");
+  const fbEffectiveRole = user?.roles ?? ((req.body?.role === "rider" || req.body?.role === "vendor") ? req.body.role : "customer");
   if (!isAuthMethodEnabledStrict(settings, "auth_facebook_enabled", "auth_social_facebook", fbEffectiveRole)) {
     res.status(403).json({ error: "Facebook login is currently disabled for your account type." }); return;
   }
@@ -2798,7 +2796,7 @@ router.post("/social/facebook", async (req, res) => {
     const id = generateId();
     [user] = await db.insert(usersTable).values({
       id, name, email, avatar, facebookId,
-      role: "customer", roles: "customer", walletBalance: "0",
+      roles: "customer", walletBalance: "0",
       emailVerified: !!email,
       isActive: !requireApproval, approvalStatus: requireApproval ? "pending" : "approved",
     }).returning();
@@ -2807,10 +2805,10 @@ router.post("/social/facebook", async (req, res) => {
   if (user!.isBanned) { res.status(403).json({ error: "Account suspended" }); return; }
   if (!user!.isActive && user!.approvalStatus !== "pending") { res.status(403).json({ error: "Account inactive" }); return; }
 
-  if (user!.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", user!.role ?? undefined)) {
+  if (user!.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", user!.roles ?? undefined)) {
     const trustedDays = parseInt(settings["auth_trusted_device_days"] ?? "30", 10);
     if (!isDeviceTrusted(user!, deviceFingerprint, trustedDays)) {
-      const tempToken = sign2faChallengeToken(user!.id, user!.phone ?? "", user!.role ?? "customer", user!.roles ?? "customer", "social_facebook");
+      const tempToken = sign2faChallengeToken(user!.id, user!.phone ?? "", user!.roles ?? "customer", user!.roles ?? "customer", "social_facebook");
       res.json({ requires2FA: true, tempToken, userId: user!.id }); return;
     }
   }

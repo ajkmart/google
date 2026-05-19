@@ -634,7 +634,7 @@ async function loadJson<T>(key: string): Promise<T[]> {
 
 async function saveJson<T>(key: string, data: T[]): Promise<void> {
   const value = JSON.stringify(data);
-  await db.insert(platformSettingsTable).values({ key, value, updatedAt: new Date() })
+  await db.insert(platformSettingsTable).values({ key, value, label: key, updatedAt: new Date() })
     .onConflictDoUpdate({ target: platformSettingsTable.key, set: { value, updatedAt: new Date() } });
 }
 

@@ -4,7 +4,10 @@ import {
   usersTable,
   walletTransactionsTable,
   notificationsTable,
-  
+  ordersTable,
+  ridesTable,
+  pharmacyOrdersTable,
+  parcelBookingsTable,
 } from "@workspace/db/schema";
 import { eq, desc, count, sum, and, gte, lte, sql, or, ilike, asc, isNull, isNotNull, avg, ne } from "drizzle-orm";
 import {
@@ -44,7 +47,7 @@ router.get("/users", async (req, res) => {
 router.patch("/users/:id", async (req, res) => {
   const { role, isActive, walletBalance } = req.body;
   const updates: Partial<typeof usersTable.$inferInsert> & { tokenVersion?: ReturnType<typeof sql> } = {};
-  if (role !== undefined) { updates.role = role; updates.roles = role; }
+  if (role !== undefined) { updates.roles = role; }
   if (isActive !== undefined) updates.isActive = isActive;
   if (walletBalance !== undefined) updates.walletBalance = String(walletBalance);
 
@@ -109,7 +112,7 @@ router.post("/users/:id/approve", async (req, res) => {
 
   if (target.roles === "rider" && !skipDocCheck) {
     const hasCnic = !!target.cnic;
-    const hasLicense = !!target.drivingLicense;
+    const hasLicense = !!(target as any).drivingLicense;
     const missing: string[] = [];
     if (!hasCnic) missing.push("CNIC");
     if (!hasLicense) missing.push("Driving License");
@@ -408,7 +411,7 @@ router.patch("/users/bulk-ban", async (req, res) => {
   if (!ids?.length) { res.status(400).json({ error: "ids required" }); return; }
   const updates = action === "ban"
     ? { isBanned: true, isActive: false, banReason: reason || "Banned by admin", updatedAt: new Date() }
-    : { isBanned: false, isActive: true, banReason: null as unknown, updatedAt: new Date() };
+    : { isBanned: false, isActive: true, banReason: null as string | null, updatedAt: new Date() };
   let affected = 0;
   const failed: string[] = [];
   for (const id of ids) {
@@ -420,7 +423,7 @@ router.patch("/users/bulk-ban", async (req, res) => {
       failed.push(id);
     }
   }
-  addAuditEntry({ action: `bulk_${action}`, ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Bulk ${action}: ${affected} succeeded, ${failed.length} failed`, result: failed.length === 0 ? "success" : "partial" });
+  addAuditEntry({ action: `bulk_${action}`, ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Bulk ${action}: ${affected} succeeded, ${failed.length} failed`, result: failed.length === 0 ? "success" : "fail" });
   res.json({ success: failed.length === 0, affected, action, ...(failed.length > 0 && { failed, error: `${failed.length} user(s) could not be updated` }) });
 });
 
