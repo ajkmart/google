@@ -87,11 +87,21 @@ router.put("/:id", validateBody(updateAddressSchema), async (req, res) => {
     if (!existing) { sendNotFound(res, "Address not found", "پتہ نہیں ملا۔"); return; }
     if (existing.userId !== userId) { sendForbidden(res, "Access denied", "رسائی سے انکار۔"); return; }
 
+    /* Build the update payload only from fields that were explicitly provided in
+       the request body — undefined values are omitted so Drizzle never writes
+       null over an existing value for a field the caller did not touch. */
+    const patch: Record<string, unknown> = {};
+    if (label     !== undefined) patch.label     = label;
+    if (address   !== undefined) patch.address   = address;
+    if (city      !== undefined) patch.city      = city;
+    if (icon      !== undefined) patch.icon      = icon;
+    if (isDefault !== undefined) patch.isDefault = isDefault;
+
     await db.transaction(async (tx) => {
       if (isDefault) {
         await tx.update(savedAddressesTable).set({ isDefault: false }).where(eq(savedAddressesTable.userId, userId));
       }
-      await tx.update(savedAddressesTable).set({ label, address, city, icon, isDefault }).where(eq(savedAddressesTable.id, id!));
+      await tx.update(savedAddressesTable).set(patch).where(eq(savedAddressesTable.id, id!));
     });
 
     sendSuccess(res, null);
@@ -126,12 +136,31 @@ router.patch("/:id/set-default", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const userId = req.customerId!;
+    const addrId = req.params["id"] as string;
 
-    const [existing] = await db.select().from(savedAddressesTable).where(eq(savedAddressesTable.id, req.params["id"] as string)).limit(1);
+    const [existing] = await db.select().from(savedAddressesTable).where(eq(savedAddressesTable.id, addrId)).limit(1);
     if (!existing) { sendNotFound(res, "Address not found", "پتہ نہیں ملا۔"); return; }
     if (existing.userId !== userId) { sendForbidden(res, "Access denied", "رسائی سے انکار۔"); return; }
 
-    await db.delete(savedAddressesTable).where(eq(savedAddressesTable.id, req.params["id"] as string));
+    await db.transaction(async (tx) => {
+      await tx.delete(savedAddressesTable).where(eq(savedAddressesTable.id, addrId));
+
+      /* If the deleted address was the default, promote the most recently
+         created remaining address so there is always at most one default. */
+      if (existing.isDefault) {
+        const remaining = await tx.select({ id: savedAddressesTable.id })
+          .from(savedAddressesTable)
+          .where(eq(savedAddressesTable.userId, userId))
+          .orderBy(savedAddressesTable.createdAt)
+          .limit(1);
+        if (remaining.length > 0) {
+          await tx.update(savedAddressesTable)
+            .set({ isDefault: true })
+            .where(eq(savedAddressesTable.id, remaining[0]!.id));
+        }
+      }
+    });
+
     sendSuccess(res, null);
   } catch (err) {
     sendError(res, "Internal server error", 500);

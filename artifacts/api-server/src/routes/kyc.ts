@@ -89,17 +89,17 @@ const kycUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: KYC_PERMISSIVE_LIMIT },
   fileFilter: (_req, file, cb) => {
-    const allImageTypes = [
+    /* Accept exactly the same set as kycLimits.allowedTypes (jpeg/png/webp) so
+       the later MIME check never fires a 400 after a large buffer has already
+       been loaded into memory with a disallowed type. */
+    const acceptedTypes = [
       "image/jpeg",
+      "image/jpg",
       "image/png",
       "image/webp",
-      "image/jpg",
-      "image/gif",
-      "image/bmp",
-      "image/tiff",
     ];
-    if (allImageTypes.includes(file.mimetype)) cb(null, true);
-    else cb(new Error("Only image files are allowed"));
+    if (acceptedTypes.includes(file.mimetype)) cb(null, true);
+    else cb(new Error("Only JPEG, PNG, and WebP images are allowed for KYC"));
   },
 });
 
@@ -291,6 +291,14 @@ router.post(
             throw Object.assign(new Error("KYC already verified"), {
               statusCode: 400,
             });
+          }
+
+          /* Block re-submission while a review is already pending */
+          if (existing?.status === "pending") {
+            throw Object.assign(
+              new Error("A KYC submission is already under review. Please wait for a decision before submitting again."),
+              { statusCode: 409 },
+            );
           }
 
           /* Block duplicate CNIC across different users */
@@ -491,6 +499,14 @@ router.post("/submit-base64", customerAuth, validateBody(KycSubmitBase64Schema),
           throw Object.assign(new Error("KYC already verified"), {
             statusCode: 400,
           });
+        }
+
+        /* Block re-submission while a review is already pending */
+        if (existing?.status === "pending") {
+          throw Object.assign(
+            new Error("A KYC submission is already under review. Please wait for a decision before submitting again."),
+            { statusCode: 409 },
+          );
         }
 
         /* Block duplicate CNIC across different users */

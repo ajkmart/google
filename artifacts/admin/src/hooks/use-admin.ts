@@ -2231,7 +2231,7 @@ export const useUpdateOtpWhitelist = () => {
 export const useDeleteOtpWhitelist = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => adminFetch(`/admin/whitelist/${id}`, { method: "DELETE" }),
+    mutationFn: (id: string) => adminFetch(`/whitelist/${id}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-otp-whitelist"] }),
   });
 };

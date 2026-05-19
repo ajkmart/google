@@ -89,7 +89,7 @@ router.get("/profile", anyUserAuth, async (req, res) => {
     name: user.name,
     email: user.email,
     username: user.username ?? null,
-    role: user.roles,
+    role: user.roles ?? "customer",
     roles: user.roles ?? "customer",
     avatar: user.avatar,
     walletBalance: parseFloat(user.walletBalance ?? "0"),
@@ -332,7 +332,17 @@ async function saveAvatarBuffer(userId: string, buffer: Buffer, mime: string) {
   return avatarUrl;
 }
 
-router.post("/avatar", avatarUpload.single("avatar") as any, async (req, res) => {
+router.post("/avatar", (req, res, next) => {
+  (avatarUpload.single("avatar") as any)(req, res, (err: unknown) => {
+    if (err) {
+      sendValidationError(res, err instanceof multer.MulterError
+        ? (err.code === "LIMIT_FILE_SIZE" ? `File too large. Maximum ${MAX_AVATAR_SIZE / 1024 / 1024}MB allowed` : err.message)
+        : (err as Error).message || "File upload error");
+      return;
+    }
+    next();
+  });
+}, async (req, res) => {
   const userId = req.customerId!;
 
   /* Rate limit: max 10 avatar uploads per minute per user */
@@ -565,6 +575,10 @@ router.delete("/delete-account", validateBody(DeleteAccountSchema), async (req, 
       .set({ revokedAt: now })
       .where(eq(userSessionsTable.userId, userId));
 
+    /* Anonymise linked PII tables so the account is fully GDPR-clean */
+    await db.delete(loginHistoryTable).where(eq(loginHistoryTable.userId, userId));
+    await db.delete(dataExportLogsTable).where(eq(dataExportLogsTable.userId, userId));
+
     const ip = getClientIp(req);
     writeAuthAuditLog("account_deleted", { userId, ip, userAgent: req.headers["user-agent"] as string });
 
@@ -605,20 +619,41 @@ router.delete("/sessions/all", async (req, res) => {
   const currentToken = authHeader?.replace(/^Bearer\s+/i, "") ?? "";
   const currentTokenHash = currentToken ? createHash("sha256").update(currentToken).digest("hex") : "";
 
-  await db.update(userSessionsTable)
+  /* Revoke all other sessions except the current one (by tokenHash) */
+  const revokedSessions = await db.update(userSessionsTable)
     .set({ revokedAt: new Date() })
     .where(and(
       eq(userSessionsTable.userId, userId),
       isNull(userSessionsTable.revokedAt),
       sql`${userSessionsTable.tokenHash} != ${currentTokenHash}`,
-    ));
+    ))
+    .returning({ refreshTokenId: userSessionsTable.refreshTokenId });
 
-  await db.update(refreshTokensTable)
-    .set({ revokedAt: new Date() })
+  /* Find the refresh token id linked to the CURRENT session so we can exclude it */
+  const [currentSession] = await db.select({ refreshTokenId: userSessionsTable.refreshTokenId })
+    .from(userSessionsTable)
     .where(and(
-      eq(refreshTokensTable.userId, userId),
-      isNull(refreshTokensTable.revokedAt),
-    ));
+      eq(userSessionsTable.userId, userId),
+      sql`${userSessionsTable.tokenHash} = ${currentTokenHash}`,
+    ))
+    .limit(1);
+
+  const currentRefreshTokenId = currentSession?.refreshTokenId ?? null;
+
+  /* Revoke refresh tokens that belong to the revoked sessions only — skip the current session's token */
+  const revokedRefreshIds = revokedSessions
+    .map(s => s.refreshTokenId)
+    .filter((id): id is string => id !== null && id !== currentRefreshTokenId);
+
+  if (revokedRefreshIds.length > 0) {
+    await db.update(refreshTokensTable)
+      .set({ revokedAt: new Date() })
+      .where(and(
+        eq(refreshTokensTable.userId, userId),
+        isNull(refreshTokensTable.revokedAt),
+        sql`${refreshTokensTable.id} = ANY(ARRAY[${sql.join(revokedRefreshIds.map(id => sql`${id}`), sql`, `)}])`,
+      ));
+  }
 
   const ip = getClientIp(req);
   writeAuthAuditLog("sessions_revoked_all", { userId, ip, userAgent: req.headers["user-agent"] as string });
@@ -735,6 +770,11 @@ router.get("/me/loyalty", customerAuth, async (req, res) => {
   const s = await getCachedSettings();
   const loyaltyEnabled = (s["customer_loyalty_enabled"] ?? "on") === "on";
 
+  /* Use the same computeLoyaltyPoints helper as /loyalty/balance so both
+     endpoints always return identical totals. */
+  const { totalEarned, totalRedeemed, available: pointsBalance } = await computeLoyaltyPoints(db, userId);
+
+  /* Fetch history rows separately (loyalty transactions only) for the timeline */
   const txns = await db.select({
     id: walletTransactionsTable.id,
     type: walletTransactionsTable.type,
@@ -755,21 +795,11 @@ router.get("/me/loyalty", customerAuth, async (req, res) => {
     )
     .orderBy(desc(walletTransactionsTable.createdAt));
 
-  let totalEarned  = 0;
-  let totalRedeemed = 0;
-  for (const r of txns) {
-    const amt = parseFloat(r.amount ?? "0");
-    if (r.type === "loyalty" && r.reference !== "admin_loyalty_debit") totalEarned += amt;
-    else if (r.type === "loyalty" && r.reference === "admin_loyalty_debit") totalRedeemed += amt;
-    else if (typeof r.reference === "string" && r.reference.startsWith("loyalty_redeem_")) totalRedeemed += amt;
-  }
-  const pointsBalance = Math.max(0, Math.floor(totalEarned) - Math.floor(totalRedeemed));
-
   sendSuccess(res, {
     loyaltyEnabled,
     pointsBalance,
-    totalEarned:   Math.floor(totalEarned),
-    totalRedeemed: Math.floor(totalRedeemed),
+    totalEarned,
+    totalRedeemed,
     transactions:  txns.map(t => ({
       id:          t.id,
       type:        t.type,
