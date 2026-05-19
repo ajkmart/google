@@ -1,4 +1,4 @@
-import { Router, type IRouter, type Request } from "express";
+import { Router, type IRouter, type Request, type NextFunction } from "express";
 import { z } from "zod";
 import { logger } from "../lib/logger.js";
 import { db } from "@workspace/db";
@@ -91,7 +91,7 @@ function formatUser(user: any) {
 }
 
 /* ── GET /vendor/me ── */
-router.get("/me", async (req, res) => {
+router.get("/me", async (req, res, next) => {
   try {
   /* appRole guard — client must supply ?appRole=vendor so the server can
      reject tokens that belong to a different app context. Returns WRONG_ROLE
@@ -124,13 +124,12 @@ router.get("/me", async (req, res) => {
     },
   });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── PATCH /vendor/profile ── */
-router.patch("/profile", validateBody(patchProfileSchema), async (req, res) => {
+router.patch("/profile", validateBody(patchProfileSchema), async (req, res, next) => {
   try {
   const vendorId = req.vendorId!;
   const { name, email, cnic, address, city, bankName, bankAccount, bankAccountTitle, businessType } = req.body;
@@ -147,13 +146,12 @@ router.patch("/profile", validateBody(patchProfileSchema), async (req, res) => {
   const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, vendorId)).returning();
   sendSuccess(res, formatUser(user));
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── GET /vendor/profile/quick-replies ── */
-router.get("/profile/quick-replies", async (req, res) => {
+router.get("/profile/quick-replies", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const [profile] = await db
@@ -173,8 +171,7 @@ router.get("/profile/quick-replies", async (req, res) => {
     }
     sendSuccess(res, { quickReplies: shortcuts });
   } catch (err) {
-    logger.error({ err }, "[vendor/quick-replies] unexpected error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
@@ -183,7 +180,7 @@ const patchQuickRepliesSchema = z.object({
   quickReplies: z.array(z.string().max(120)).max(8),
 });
 
-router.patch("/profile/quick-replies", validateBody(patchQuickRepliesSchema), async (req, res) => {
+router.patch("/profile/quick-replies", validateBody(patchQuickRepliesSchema), async (req, res, next) => {
   try {
   const vendorId = req.vendorId!;
   const { quickReplies } = req.body as { quickReplies: string[] };
@@ -197,24 +194,22 @@ router.patch("/profile/quick-replies", validateBody(patchQuickRepliesSchema), as
     });
   sendSuccess(res, { quickReplies });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── GET /vendor/store ── */
-router.get("/store", async (req, res) => {
+router.get("/store", async (req, res, next) => {
   try {
   const user = req.vendorUser!;
   sendSuccess(res, formatUser(user));
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── PATCH /vendor/store ── */
-router.patch("/store", validateBody(patchStoreSchema), async (req, res) => {
+router.patch("/store", validateBody(patchStoreSchema), async (req, res, next) => {
   try {
   const vendorId = req.vendorId!;
   const body = req.body;
@@ -229,13 +224,12 @@ router.patch("/store", validateBody(patchStoreSchema), async (req, res) => {
   const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, vendorId)).returning();
   sendSuccess(res, formatUser(user));
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── GET /vendor/stats ── */
-router.get("/stats", async (req, res) => {
+router.get("/stats", async (req, res, next) => {
   try {
   const vendorId = req.vendorId!;
   const today = new Date(); today.setHours(0,0,0,0);
@@ -263,15 +257,14 @@ router.get("/stats", async (req, res) => {
     lowStock: lowStock[0]?.c ?? 0,
   });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── GET /vendors/orders/available-riders ── list online riders ──
    MUST be registered BEFORE /orders/:id so "available-riders" isn't
    swallowed by the parameterised route. ── */
-router.get("/orders/available-riders", async (req, res) => {
+router.get("/orders/available-riders", async (req, res, next) => {
   try {
     const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000);
     const riders = await db.select({
@@ -294,13 +287,12 @@ router.get("/orders/available-riders", async (req, res) => {
       .limit(50);
     sendSuccess(res, { riders });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/available-riders] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── GET /vendors/orders/:id ── single order detail ── */
-router.get("/orders/:id", async (req, res) => {
+router.get("/orders/:id", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const orderId = req.params["id"] as string;
@@ -316,13 +308,12 @@ router.get("/orders/:id", async (req, res) => {
     if (!row) { sendNotFound(res, "Order not found"); return; }
     sendSuccess(res, { order: { ...row.order, total: safeNum(row.order.total), riderName: row.riderName ?? undefined, riderPhone: row.riderPhone ?? undefined } });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/orders/:id] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── GET /vendor/orders ── */
-router.get("/orders", async (req, res) => {
+router.get("/orders", async (req, res, next) => {
   try {
   const vendorId = req.vendorId!;
   const status = req.query["status"] as string | undefined;
@@ -343,13 +334,12 @@ router.get("/orders", async (req, res) => {
     .limit(100);
   sendSuccess(res, { orders: orders.map(row => ({ ...row.order, total: safeNum(row.order.total), riderName: row.riderName ?? undefined, riderPhone: row.riderPhone ?? undefined })) });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── PATCH /vendor/orders/:id/status ── */
-router.patch("/orders/:id/status", async (req, res) => {
+router.patch("/orders/:id/status", async (req, res, next) => {
   try {
   const vendorId = req.vendorId!;
   /* Strict: only status and note accepted — reject price/total etc. explicitly */
@@ -573,13 +563,12 @@ router.patch("/orders/:id/status", async (req, res) => {
   }
   sendSuccess(res, { ...updated, total: safeNum(updated.total) });
   } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── GET /vendor/promos ── list promos owned by vendor ── */
-router.get("/promos", async (req, res) => {
+router.get("/promos", async (req, res, next) => {
   try {
   const vendorId = (req as Request & { vendorId?: string }).vendorId;
   if (!vendorId) { sendForbidden(res, "Vendor auth required"); return; }
@@ -590,13 +579,12 @@ router.get("/promos", async (req, res) => {
     .orderBy(desc(promoCodesTable.createdAt));
   sendSuccess(res, { promos });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── POST /vendor/promos ── create a promo ── */
-router.post("/promos", async (req, res) => {
+router.post("/promos", async (req, res, next) => {
   try {
   const vendorId = (req as Request & { vendorId?: string }).vendorId;
   if (!vendorId) { sendForbidden(res, "Vendor auth required"); return; }
@@ -621,13 +609,12 @@ router.post("/promos", async (req, res) => {
   }).returning();
   sendCreated(res, { promo });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── PATCH /vendor/promos/:id ── update a promo ── */
-router.patch("/promos/:id", async (req, res) => {
+router.patch("/promos/:id", async (req, res, next) => {
   try {
   const vendorId = (req as Request & { vendorId?: string }).vendorId;
   if (!vendorId) { sendForbidden(res, "Vendor auth required"); return; }
@@ -649,13 +636,12 @@ router.patch("/promos/:id", async (req, res) => {
     .where(eq(promoCodesTable.id, existing.id)).returning();
   sendSuccess(res, { promo });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── PATCH /vendor/promos/:id/toggle ── activate / deactivate a promo ── */
-router.patch("/promos/:id/toggle", async (req, res) => {
+router.patch("/promos/:id/toggle", async (req, res, next) => {
   try {
   const vendorId = (req as Request & { vendorId?: string }).vendorId;
   if (!vendorId) { sendForbidden(res, "Vendor auth required"); return; }
@@ -669,13 +655,12 @@ router.patch("/promos/:id/toggle", async (req, res) => {
     .returning();
   sendSuccess(res, { promo });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── DELETE /vendor/promos/:id ── delete a promo ── */
-router.delete("/promos/:id", async (req, res) => {
+router.delete("/promos/:id", async (req, res, next) => {
   try {
   const vendorId = (req as Request & { vendorId?: string }).vendorId;
   if (!vendorId) { sendForbidden(res, "Vendor auth required"); return; }
@@ -686,8 +671,7 @@ router.delete("/promos/:id", async (req, res) => {
   await db.delete(promoCodesTable).where(eq(promoCodesTable.id, existing.id));
   sendSuccess(res, { success: true });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
@@ -696,7 +680,7 @@ router.delete("/promos/:id", async (req, res) => {
 ══════════════════════════════════════════════════════════════ */
 
 /* ── GET /vendors/products ── list vendor's products ── */
-router.get("/products", async (req, res) => {
+router.get("/products", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const { category, search, inStock, page = "1", limit = "50" } = req.query as Record<string, string>;
@@ -724,13 +708,12 @@ router.get("/products", async (req, res) => {
     const total = totalResult[0]?.c ?? 0;
     sendSuccess(res, { products: products.map(p => ({ ...p, price: safeNum(p.price), originalPrice: p.originalPrice ? safeNum(p.originalPrice) : null })), total, page: pageNum, limit: limitNum, pages: Math.ceil(total / limitNum) });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/products] list error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── POST /vendors/products ── create product ── */
-router.post("/products", async (req, res) => {
+router.post("/products", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const user = req.vendorUser!;
@@ -760,13 +743,12 @@ router.post("/products", async (req, res) => {
     }).returning();
     sendCreated(res, { product: { ...product, price: safeNum(product.price), originalPrice: product.originalPrice ? safeNum(product.originalPrice) : null } });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/products] create error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── POST /vendors/products/bulk ── bulk add products ── */
-router.post("/products/bulk", async (req, res) => {
+router.post("/products/bulk", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const user = req.vendorUser!;
@@ -794,13 +776,12 @@ router.post("/products/bulk", async (req, res) => {
     const inserted = await db.insert(productsTable).values(rows).returning({ id: productsTable.id });
     sendCreated(res, { inserted: inserted.length, ids: inserted.map(r => r.id) });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/products/bulk] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── PATCH /vendors/products/bulk ── bulk edit price/stock ── */
-router.patch("/products/bulk", async (req, res) => {
+router.patch("/products/bulk", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const { products: items } = req.body as { products: Array<{ id: string; price?: number; stock?: number | null; inStock?: boolean }> };
@@ -817,13 +798,12 @@ router.patch("/products/bulk", async (req, res) => {
     }
     sendSuccess(res, { updated });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/products/bulk-edit] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── GET /vendors/products/:id/stock-history ── */
-router.get("/products/:id/stock-history", async (req, res) => {
+router.get("/products/:id/stock-history", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const productId = req.params["id"] as string;
@@ -837,13 +817,12 @@ router.get("/products/:id/stock-history", async (req, res) => {
       .limit(100);
     sendSuccess(res, { history });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/products/stock-history] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── PATCH /vendors/products/:id ── update product ── */
-router.patch("/products/:id", async (req, res) => {
+router.patch("/products/:id", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const productId = req.params["id"] as string;
@@ -870,13 +849,12 @@ router.patch("/products/:id", async (req, res) => {
     const [updated] = await db.update(productsTable).set(updates).where(eq(productsTable.id, productId)).returning();
     sendSuccess(res, { product: { ...updated, price: safeNum(updated.price), originalPrice: updated.originalPrice ? safeNum(updated.originalPrice) : null } });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/products/update] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── DELETE /vendors/products/:id ── soft delete ── */
-router.delete("/products/:id", async (req, res) => {
+router.delete("/products/:id", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const productId = req.params["id"] as string;
@@ -887,8 +865,7 @@ router.delete("/products/:id", async (req, res) => {
     await db.update(productsTable).set({ deletedAt: new Date() }).where(eq(productsTable.id, productId));
     sendSuccess(res, { success: true });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/products/delete] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
@@ -897,7 +874,7 @@ router.delete("/products/:id", async (req, res) => {
 ══════════════════════════════════════════════════════════════ */
 
 /* ── GET /vendors/analytics ── sales analytics with optional date range ── */
-router.get("/analytics", async (req, res) => {
+router.get("/analytics", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const { days, from, to } = req.query as Record<string, string>;
@@ -964,8 +941,7 @@ router.get("/analytics", async (req, res) => {
       ordersByStatus: ordersByStatus.reduce((acc: Record<string, number>, row) => { acc[row.status] = Number(row.c); return acc; }, {}),
     });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/analytics] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
@@ -974,7 +950,7 @@ router.get("/analytics", async (req, res) => {
 ══════════════════════════════════════════════════════════════ */
 
 /* ── GET /vendors/wallet/transactions ── */
-router.get("/wallet/transactions", async (req, res) => {
+router.get("/wallet/transactions", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const user = req.vendorUser!;
@@ -997,13 +973,12 @@ router.get("/wallet/transactions", async (req, res) => {
       limit: limitNum,
     });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/wallet] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── POST /vendors/wallet/withdraw ── request a withdrawal ── */
-router.post("/wallet/withdraw", async (req, res) => {
+router.post("/wallet/withdraw", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const user = req.vendorUser!;
@@ -1025,13 +1000,12 @@ router.post("/wallet/withdraw", async (req, res) => {
     });
     sendCreated(res, { success: true, transactionId: id, amount: amt, reference: `WD-${id.slice(-8).toUpperCase()}` });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/wallet/withdraw] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── POST /vendors/wallet/deposit ── report a manual deposit ── */
-router.post("/wallet/deposit", async (req, res) => {
+router.post("/wallet/deposit", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const { amount, method, reference, notes } = req.body as Record<string, unknown>;
@@ -1047,8 +1021,7 @@ router.post("/wallet/deposit", async (req, res) => {
     });
     sendCreated(res, { success: true, transactionId: id, message: "Deposit reported. Admin will verify and credit your account." });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/wallet/deposit] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
@@ -1057,7 +1030,7 @@ router.post("/wallet/deposit", async (req, res) => {
 ══════════════════════════════════════════════════════════════ */
 
 /* ── GET /vendors/schedule ── get weekly schedule ── */
-router.get("/schedule", async (req, res) => {
+router.get("/schedule", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const rows = await db.select().from(vendorSchedulesTable).where(eq(vendorSchedulesTable.vendorId, vendorId)).orderBy(vendorSchedulesTable.dayOfWeek);
@@ -1068,13 +1041,12 @@ router.get("/schedule", async (req, res) => {
       sendSuccess(res, { schedule: rows });
     }
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/schedule] get error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── PUT /vendors/schedule ── update weekly schedule ── */
-router.put("/schedule", async (req, res) => {
+router.put("/schedule", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const { schedule } = req.body as { schedule: Array<{ dayOfWeek: number; openTime: string; closeTime: string; isEnabled: boolean }> };
@@ -1094,8 +1066,7 @@ router.put("/schedule", async (req, res) => {
     const updated = await db.select().from(vendorSchedulesTable).where(eq(vendorSchedulesTable.vendorId, vendorId)).orderBy(vendorSchedulesTable.dayOfWeek);
     sendSuccess(res, { schedule: updated });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/schedule] update error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
@@ -1104,7 +1075,7 @@ router.put("/schedule", async (req, res) => {
 ══════════════════════════════════════════════════════════════ */
 
 /* ── GET /vendors/notifications ── */
-router.get("/notifications", async (req, res) => {
+router.get("/notifications", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const { page = "1", limit = "30" } = req.query as Record<string, string>;
@@ -1117,25 +1088,23 @@ router.get("/notifications", async (req, res) => {
     ]);
     sendSuccess(res, { notifications: notifs, unread: unreadResult[0]?.c ?? 0 });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/notifications] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── PATCH /vendors/notifications/read-all ── */
-router.patch("/notifications/read-all", async (req, res) => {
+router.patch("/notifications/read-all", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     await db.update(notificationsTable).set({ isRead: true }).where(and(eq(notificationsTable.userId, vendorId), eq(notificationsTable.isRead, false)));
     sendSuccess(res, { success: true });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/notifications/read-all] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── PATCH /vendors/notifications/:id/read ── mark single notification read ── */
-router.patch("/notifications/:id/read", async (req, res) => {
+router.patch("/notifications/:id/read", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const notifId = req.params["id"] as string;
@@ -1143,8 +1112,7 @@ router.patch("/notifications/:id/read", async (req, res) => {
       .where(and(eq(notificationsTable.id, notifId), eq(notificationsTable.userId, vendorId)));
     sendSuccess(res, { success: true });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/notifications/:id/read] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
@@ -1153,7 +1121,7 @@ router.patch("/notifications/:id/read", async (req, res) => {
 ══════════════════════════════════════════════════════════════ */
 
 /* ── GET /vendors/delivery-access/status ── */
-router.get("/delivery-access/status", async (req, res) => {
+router.get("/delivery-access/status", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const [whitelist, request] = await Promise.all([
@@ -1174,13 +1142,12 @@ router.get("/delivery-access/status", async (req, res) => {
       requestHistory: request,
     });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/delivery-access/status] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── POST /vendors/delivery-access/request ── */
-router.post("/delivery-access/request", async (req, res) => {
+router.post("/delivery-access/request", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const { serviceType = "all", reason } = req.body as Record<string, unknown>;
@@ -1197,8 +1164,7 @@ router.post("/delivery-access/request", async (req, res) => {
     }).returning();
     sendCreated(res, { request, message: "Delivery access request submitted. Admin will review it shortly." });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/delivery-access/request] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
@@ -1207,7 +1173,7 @@ router.post("/delivery-access/request", async (req, res) => {
 ══════════════════════════════════════════════════════════════ */
 
 /* ── GET /vendors/orders/:id/available-riders ── riders for specific order ── */
-router.get("/orders/:id/available-riders", async (req, res) => {
+router.get("/orders/:id/available-riders", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const orderId = req.params["id"] as string;
@@ -1225,13 +1191,12 @@ router.get("/orders/:id/available-riders", async (req, res) => {
       .limit(20);
     sendSuccess(res, { riders });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/orders/available-riders] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── POST /vendors/orders/:id/assign-rider ── manually assign rider ── */
-router.post("/orders/:id/assign-rider", async (req, res) => {
+router.post("/orders/:id/assign-rider", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const orderId = req.params["id"] as string;
@@ -1251,13 +1216,12 @@ router.post("/orders/:id/assign-rider", async (req, res) => {
     }
     sendSuccess(res, { success: true, riderId, riderName: rider.name, order: { ...updated, total: safeNum(updated.total) } });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/orders/assign-rider] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── POST /vendors/orders/:id/auto-assign ── auto dispatch to nearest rider ── */
-router.post("/orders/:id/auto-assign", async (req, res) => {
+router.post("/orders/:id/auto-assign", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const orderId = req.params["id"] as string;
@@ -1276,8 +1240,7 @@ router.post("/orders/:id/auto-assign", async (req, res) => {
     }
     sendSuccess(res, { success: true, notified: onlineRiders.length, message: `Dispatch request sent to ${onlineRiders.length} nearby rider(s)` });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/orders/auto-assign] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
@@ -1286,7 +1249,7 @@ router.post("/orders/:id/auto-assign", async (req, res) => {
 ══════════════════════════════════════════════════════════════ */
 
 /* ── GET /vendors/reviews ── paginated reviews for this vendor ── */
-router.get("/reviews", async (req, res) => {
+router.get("/reviews", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const { page = "1", limit = "20", rating } = req.query as Record<string, string>;
@@ -1313,8 +1276,7 @@ router.get("/reviews", async (req, res) => {
       limit: limitNum,
     });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/reviews] error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 

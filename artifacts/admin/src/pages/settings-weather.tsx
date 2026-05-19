@@ -52,7 +52,7 @@ export function WeatherSection({
       qc.invalidateQueries({ queryKey: ["admin-weather-config"] });
       toast({ title: "Weather config saved" });
     },
-    onError: (e: any) => toast({ title: "Save failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Save failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
   });
 
   const addCity = () => {
@@ -85,8 +85,8 @@ export function WeatherSection({
       const message = result?.message || result?.data?.message || (ok ? "Open-Meteo reachable" : "Test failed");
       setTestResult({ ok, message });
       toast({ title: ok ? "Weather Test ✅" : "Weather Test Failed", description: message, variant: ok ? "default" : "destructive" });
-    } catch (e: any) {
-      const msg = e?.message || "Failed to reach Open-Meteo";
+    } catch (e: unknown) {
+      const msg = (e instanceof Error ? e.message : null) || "Failed to reach Open-Meteo";
       setTestResult({ ok: false, message: msg });
       toast({ title: "Weather Test Failed", description: msg, variant: "destructive" });
     } finally {

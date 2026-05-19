@@ -200,8 +200,8 @@ export default function AuthMethodsPage() {
       for (const s of arr) map[s.key] = s.value;
       setSavedValues(map);
       setLocalValues(map);
-    } catch (e: any) {
-      toast({ title: "Failed to load settings", description: e?.message || "Try again", variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Failed to load settings", description: (e instanceof Error ? e.message : null) || "Try again", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -251,8 +251,8 @@ export default function AuthMethodsPage() {
         title: "Master secret rotated",
         description: data?.message ?? "New secret is now active. All admins notified.",
       });
-    } catch (e: any) {
-      toast({ title: "Rotation failed", description: e?.message || "Try again", variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Rotation failed", description: (e instanceof Error ? e.message : null) || "Try again", variant: "destructive" });
     } finally {
       setRotatingSecret(false);
     }
@@ -269,8 +269,8 @@ export default function AuthMethodsPage() {
         return updated;
       });
       toast({ title: "Auth methods saved", description: `${changes.length} change(s) applied. Apps refresh on next request.` });
-    } catch (e: any) {
-      toast({ title: "Save failed", description: e?.message || "Try again", variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Save failed", description: (e instanceof Error ? e.message : null) || "Try again", variant: "destructive" });
     } finally {
       setSaving(false);
     }

@@ -340,7 +340,7 @@ export default function AppManagement() {
       toast({ title: editingRn ? "Release note updated" : "Release note created" });
     },
 
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
   });
 
   const deleteRn = useMutation({
@@ -386,7 +386,7 @@ export default function AppManagement() {
       await adminFetch("/platform-settings", { method: "PUT", body: JSON.stringify({ settings: pairs }) });
       qc.invalidateQueries({ queryKey: ["admin-platform-settings"] });
       toast({ title: "Compliance settings saved" });
-    } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+    } catch (e: unknown) { toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }); }
     setComplianceSaving(false);
   };
 
@@ -402,7 +402,7 @@ export default function AppManagement() {
       setAdminDialog(false); setEditingAdmin(null); setAdminForm({ ...EMPTY_ADMIN });
       toast({ title: editingAdmin ? "Admin updated" : "Admin account created" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
   });
 
   const deleteAdmin = useMutation({
@@ -445,7 +445,7 @@ export default function AppManagement() {
       }
     },
     onError: (e: unknown) => {
-      const message = e instanceof Error ? e.message : "Please try again.";
+      const message = e instanceof Error ? (e instanceof Error ? e.message : String(e)) : "Please try again.";
       toast({
         title: "Could not send reset link",
         description: message,

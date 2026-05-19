@@ -293,8 +293,8 @@ function PermissionMatrix({ roles, catalog, loading, canManage, onReload }: {
       });
       toast({ title: "Permissions saved", description: "Role permissions updated successfully." });
       onReload();
-    } catch (e: any) {
-      toast({ title: "Save failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Save failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setSavingRole(null);
   };

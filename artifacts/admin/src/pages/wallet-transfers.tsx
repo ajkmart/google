@@ -151,7 +151,7 @@ function TransactionsPanel() {
       toast({ title: "Approved", description: `Successfully approved ${ids.length} transfers` });
       setSelectedIds(new Set());
       qc.invalidateQueries({ queryKey: ["admin-wallet-transfers"] });
-    } catch (e: any) {
+    } catch (e: unknown) {
       onWalletError(e);
     } finally {
       setBulkProcessing(false);
@@ -562,8 +562,8 @@ function SettingsPanel() {
       qc.invalidateQueries({ queryKey: ["admin-platform-settings"] });
       setFields({});
       toast({ title: "Settings saved" });
-    } catch (e: any) {
-      toast({ title: "Failed to save", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Failed to save", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     } finally {
       setSaving(false);
     }

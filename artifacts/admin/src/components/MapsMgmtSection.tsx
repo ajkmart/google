@@ -70,9 +70,9 @@ function ProviderPanel({ name, label, color, enabledKey, roleKey, apiKeyKey, api
         body: JSON.stringify({ provider, key: keyOverride || undefined }),
       });
       setTestResult(result);
-    } catch (e: any) {
-      setTestResult({ ok: false, latencyMs: 0, error: e.message });
-      toast({ title: "Test failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      setTestResult({ ok: false, latencyMs: 0, error: (e instanceof Error ? e.message : String(e)) });
+      toast({ title: "Test failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     } finally {
       setTesting(false);
     }
@@ -261,8 +261,8 @@ export function MapsMgmtSection({ localValues, dirtyKeys, handleChange, handleTo
       await mapsApiFetch("/maps/admin/cache/clear", { method: "POST" });
       toast({ title: "Cache cleared", description: "Geocoding cache has been flushed." });
       loadMapConfig();
-    } catch (e: any) {
-      toast({ title: "Failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setClearingCache(false);
   };

@@ -27,7 +27,7 @@ import { uploadAdminImageWithProgress } from "@/lib/api";
 import { productSchema, type ProductFormErrors } from "@/lib/validation";
 
 const errMsg = (e: unknown): string =>
-  e instanceof Error ? e.message : typeof e === "string" ? e : "Unknown error";
+  e instanceof Error ? (e instanceof Error ? e.message : String(e)) : typeof e === "string" ? e : "Unknown error";
 const EMPTY_FORM = {
   name: "", description: "", price: "", originalPrice: "",
   category: "", type: "mart", unit: "", vendorName: "",
@@ -337,8 +337,8 @@ export default function Products() {
         body: JSON.stringify({ settings: [{ key: "global_pricing_rules", value: JSON.stringify(pricingRules) }] }),
       });
       toast({ title: "Pricing rules saved", description: "Rules will apply at checkout." });
-    } catch (e: any) {
-      toast({ title: "Save failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Save failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setPricingSaving(false);
   };
@@ -366,8 +366,8 @@ export default function Products() {
     try {
       const result = await adminFetch("/products/bulk", { method: "PATCH", body: JSON.stringify({ ids, update }) }) as { updated: number };
       toast({ title: "Bulk edit applied", description: `${result.updated} of ${ids.length} products updated in one operation.` });
-    } catch (e: any) {
-      toast({ title: "Bulk update failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Bulk update failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setSelectedProductIds(new Set());
     setShowBulkEdit(false);
@@ -1299,7 +1299,7 @@ export default function Products() {
                         toast({ title: `Refill reminder sent to ${result.notified} vendor${result.notified !== 1 ? "s" : ""}` });
                       }
                     } catch (e: unknown) {
-                      toast({ title: "Refill reminder failed", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
+                      toast({ title: "Refill reminder failed", description: e instanceof Error ? (e instanceof Error ? e.message : String(e)) : "Unknown error", variant: "destructive" });
                     } finally {
                       setRefillSending(false);
                     }

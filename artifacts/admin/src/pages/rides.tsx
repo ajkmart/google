@@ -174,7 +174,7 @@ function RideDetailModal({
   const handleCancel = () => {
     cancelMut.mutate({ id: rideId, reason: cancelReason || undefined }, {
       onSuccess: () => { toast({ title: "Ride cancelled" }); onClose(); },
-      onError: (e: unknown) => { toast({ title: "Failed to cancel ride", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" }); },
+      onError: (e: unknown) => { toast({ title: "Failed to cancel ride", description: e instanceof Error ? (e instanceof Error ? e.message : String(e)) : "Unknown error", variant: "destructive" }); },
     });
   };
 
@@ -185,7 +185,7 @@ function RideDetailModal({
     }
     refundMut.mutate({ id: rideId, amount: amt, reason: refundReason || undefined }, {
       onSuccess: (d: any) => { toast({ title: `Refunded ${formatCurrency(Number(d.refundedAmount))}` }); setShowRefund(false); refetch(); },
-      onError: (e: unknown) => { toast({ title: "Refund failed", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" }); },
+      onError: (e: unknown) => { toast({ title: "Refund failed", description: e instanceof Error ? (e instanceof Error ? e.message : String(e)) : "Unknown error", variant: "destructive" }); },
     });
   };
 
@@ -206,7 +206,7 @@ function RideDetailModal({
     }
     reassignMut.mutate({ id: rideId, riderId: selectedRiderId, riderName: assignName.trim(), riderPhone: assignPhone.trim() }, {
       onSuccess: () => { toast({ title: "Rider reassigned" }); setShowReassign(false); refetch(); },
-      onError: (e: unknown) => { toast({ title: "Reassignment failed", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" }); },
+      onError: (e: unknown) => { toast({ title: "Reassignment failed", description: e instanceof Error ? (e instanceof Error ? e.message : String(e)) : "Unknown error", variant: "destructive" }); },
     });
   };
 
@@ -971,7 +971,7 @@ function RideSettings() {
     const settings = allKeys.map(k => ({ key: k.key, value: getVal(k.key) })).filter(s => s.value !== "");
     updateMut.mutate(settings, {
       onSuccess: () => { toast({ title: "Settings saved" }); setDirty(false); setShowConfirm(false); },
-      onError: e => toast({ title: "Failed to save", description: e.message, variant: "destructive" }),
+      onError: e => toast({ title: "Failed to save", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
     });
   };
 
@@ -1172,7 +1172,7 @@ function ServicesManager() {
         toast({ title: "Service created" });
       }
       resetForm();
-    } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+    } catch (e: unknown) { toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }); }
   };
 
   const isPending = createMut.isPending || updateMut.isPending;
@@ -1180,7 +1180,7 @@ function ServicesManager() {
   const toggleEnabled = (svc: any) => {
     updateMut.mutate({ id: svc.id, isEnabled: !svc.isEnabled }, {
       onSuccess: () => toast({ title: svc.isEnabled ? "Disabled" : "Enabled" }),
-      onError: (e: Error) => toast({ title: "Toggle failed", description: e.message, variant: "destructive" }),
+      onError: (e: Error) => toast({ title: "Toggle failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
     });
   };
 
@@ -1193,14 +1193,14 @@ function ServicesManager() {
     try {
       await updateMut.mutateAsync({ id: svc.id, sortOrder: other.sortOrder });
       await updateMut.mutateAsync({ id: other.id, sortOrder: svc.sortOrder });
-    } catch (e: any) {
-      toast({ title: "Reorder failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Reorder failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
   };
 
   const handleDelete = async (id: string) => {
     try { await deleteMut.mutateAsync(id); toast({ title: "Service deleted" }); setDelConfirm(null); }
-    catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+    catch (e: unknown) { toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }); }
   };
 
   const sorted = [...services].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -1300,9 +1300,9 @@ function LocationsManager() {
     if (!form.name || !form.lat || !form.lng) { toast({ title: "Name, Lat & Lng required", variant: "destructive" }); return; }
     const payload = { ...form, sortOrder: Number(form.sortOrder), lat: parseFloat(form.lat), lng: parseFloat(form.lng) };
     if (editing) {
-      updateMut.mutate({ id: editing.id, ...payload }, { onSuccess: () => { toast({ title: "Location updated" }); setShowForm(false); }, onError: e => toast({ title: "Error", description: e.message, variant: "destructive" }) });
+      updateMut.mutate({ id: editing.id, ...payload }, { onSuccess: () => { toast({ title: "Location updated" }); setShowForm(false); }, onError: e => toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }) });
     } else {
-      createMut.mutate(payload, { onSuccess: () => { toast({ title: "Location added" }); setShowForm(false); }, onError: e => toast({ title: "Error", description: e.message, variant: "destructive" }) });
+      createMut.mutate(payload, { onSuccess: () => { toast({ title: "Location added" }); setShowForm(false); }, onError: e => toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }) });
     }
   };
 
@@ -1377,7 +1377,7 @@ function LocationsManager() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { deleteMut.mutate(deleteTarget.id, { onError: (e: Error) => toast({ title: "Delete failed", description: e.message, variant: "destructive" }) }); setDeleteTarget(null); }} className="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialogAction>
+            <AlertDialogAction onClick={() => { deleteMut.mutate(deleteTarget.id, { onError: (e: Error) => toast({ title: "Delete failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }) }); setDeleteTarget(null); }} className="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1403,9 +1403,9 @@ function SchoolRoutesManager() {
     if (!form.routeName || !form.schoolName || !form.fromArea || !form.toAddress || !form.monthlyPrice) { toast({ title: "Fill required fields", variant: "destructive" }); return; }
     const payload = { ...form, sortOrder: Number(form.sortOrder), capacity: Number(form.capacity), monthlyPrice: parseFloat(form.monthlyPrice) };
     if (editing) {
-      updateMut.mutate({ id: editing.id, ...payload }, { onSuccess: () => { toast({ title: "Route updated" }); setShowForm(false); }, onError: e => toast({ title: "Error", description: e.message, variant: "destructive" }) });
+      updateMut.mutate({ id: editing.id, ...payload }, { onSuccess: () => { toast({ title: "Route updated" }); setShowForm(false); }, onError: e => toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }) });
     } else {
-      createMut.mutate(payload, { onSuccess: () => { toast({ title: "Route added" }); setShowForm(false); }, onError: e => toast({ title: "Error", description: e.message, variant: "destructive" }) });
+      createMut.mutate(payload, { onSuccess: () => { toast({ title: "Route added" }); setShowForm(false); }, onError: e => toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }) });
     }
   };
 
@@ -1475,7 +1475,7 @@ function SchoolRoutesManager() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { deleteMut.mutate(deleteTarget.id, { onError: (e: Error) => toast({ title: "Delete failed", description: e.message, variant: "destructive" }) }); setDeleteTarget(null); }} className="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialogAction>
+            <AlertDialogAction onClick={() => { deleteMut.mutate(deleteTarget.id, { onError: (e: Error) => toast({ title: "Delete failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }) }); setDeleteTarget(null); }} className="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

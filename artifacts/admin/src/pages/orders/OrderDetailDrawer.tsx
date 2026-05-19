@@ -47,8 +47,8 @@ function ReturnPanel({ order, onRefundOrder }: { order: any; onRefundOrder?: (am
       toast({ title: "Return request created", description: "Return request logged." });
       setReason("");
       await loadRequests();
-    } catch (e: any) {
-      toast({ title: "Failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setSubmitting(false);
   };
@@ -66,9 +66,9 @@ function ReturnPanel({ order, onRefundOrder }: { order: any; onRefundOrder?: (am
         const approvedReq = prevRequests.find(r => r.id === returnId);
         onRefundOrder(approvedReq?.amount ?? order.total, approvedReq?.reason ?? "Return approved by admin");
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       setRequests(prevRequests);
-      toast({ title: "Action failed", description: e.message, variant: "destructive" });
+      toast({ title: "Action failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setActioning(null);
   };
@@ -187,8 +187,8 @@ function DisputePanel({ order }: { order: any }) {
       toast({ title: "Dispute logged", description: "Order flagged for investigation." });
       setNote("");
       await loadDisputes();
-    } catch (e: any) {
-      toast({ title: "Failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setSubmitting(false);
   };
@@ -201,9 +201,9 @@ function DisputePanel({ order }: { order: any }) {
       await adminFetch(`/orders/${order.id}/disputes/${disputeId}`, { method: "PATCH", body: JSON.stringify({ status: resolution }) });
       toast({ title: resolution === "resolved" ? "Dispute resolved" : "Dispute dismissed" });
       void loadDisputes();
-    } catch (e: any) {
+    } catch (e: unknown) {
       setDisputes(prevDisputes);
-      toast({ title: "Action failed", description: e.message, variant: "destructive" });
+      toast({ title: "Action failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setActioning(null);
   };

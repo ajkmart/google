@@ -83,8 +83,8 @@ export function SystemSection({
     try {
       const data = await apiFetch("/stats");
       setStats(data.stats);
-    } catch (e: any) {
-      toast({ title: "Failed to load DB stats", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Failed to load DB stats", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setStatsLoading(false);
   };
@@ -120,8 +120,8 @@ export function SystemSection({
       toast({ title: "All data removed", description: "You have 30 minutes to undo this action." });
       addUndoFromResponse(data, "Remove All Data");
       await loadStats();
-    } catch (e: any) {
-      toast({ title: "Remove failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Remove failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setActionLoading(null);
     setConfirmDialog(null);
@@ -135,8 +135,8 @@ export function SystemSection({
       toast({ title: "Demo data loaded!", description: "Full realistic demo content populated." });
       addUndoFromResponse(data, "Load Demo Data");
       await loadStats();
-    } catch (e: any) {
-      toast({ title: "Seed failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Seed failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setActionLoading(null);
     setConfirmDialog(null);
@@ -150,8 +150,8 @@ export function SystemSection({
       toast({ title: "Undo complete", description: data.message });
       setPendingUndos(prev => prev.filter(u => u.id !== undo.id));
       await loadStats();
-    } catch (e: any) {
-      toast({ title: "Undo failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Undo failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
       setPendingUndos(prev => prev.filter(u => u.id !== undo.id));
     }
     setUndoLoading(null);
@@ -178,8 +178,8 @@ export function SystemSection({
       a.click();
       URL.revokeObjectURL(url);
       toast({ title: "Backup downloaded", description: "Full database exported as JSON" });
-    } catch (e: any) {
-      toast({ title: "Backup failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Backup failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setActionLoading(null);
   };
@@ -195,9 +195,9 @@ export function SystemSection({
       toast({ title: "Restore complete", description: "You have 30 minutes to undo this." });
       addUndoFromResponse(data, "Import Restore");
       await loadStats();
-    } catch (e: any) {
-      setRestoreError(e.message);
-      toast({ title: "Restore failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      setRestoreError((e instanceof Error ? e.message : String(e)));
+      toast({ title: "Restore failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setActionLoading(null);
   };
@@ -222,8 +222,8 @@ export function SystemSection({
       toast({ title: "Demo backup saved!", description: `"${label}" saved to server.` });
       setNewBackupLabel("");
       await loadDemoBackups();
-    } catch (e: any) {
-      toast({ title: "Backup failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Backup failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setDemoSaving(false);
   };
@@ -236,8 +236,8 @@ export function SystemSection({
       toast({ title: "Restored!", description: `"${backup.label}" restored. Undo available for 30 min.` });
       addUndoFromResponse(data, `Demo Restore: ${backup.label}`);
       await loadStats();
-    } catch (e: any) {
-      toast({ title: "Restore failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Restore failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setDemoRestoring(null);
   };
@@ -248,8 +248,8 @@ export function SystemSection({
       await apiFetch(`/demo-backups/${id}`, { method: "DELETE" });
       toast({ title: "Deleted", description: `"${label}" deleted.` });
       setDemoBackups(prev => prev.filter(b => b.id !== id));
-    } catch (e: any) {
-      toast({ title: "Delete failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Delete failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setDemoDeleting(null);
   };
@@ -261,8 +261,8 @@ export function SystemSection({
       toast({ title: `${label} — done`, description: "You have 30 minutes to undo this action." });
       addUndoFromResponse(data, label);
       await loadStats();
-    } catch (e: any) {
-      toast({ title: `${label} failed`, description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: `${label} failed`, description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setActionLoading(null);
   };
@@ -374,8 +374,8 @@ export function SystemSection({
       setCustomFormOpen(null);
       setFormData({});
       await loadStats();
-    } catch (e: any) {
-      toast({ title: "Creation failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Creation failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setFormLoading(false);
   };
@@ -1005,8 +1005,8 @@ function MaintenanceScheduleSection({ apiFetch, toast }: { apiFetch: (path: stri
     try {
       await apiFetch("/maintenance-schedule", { method: "PUT", body: JSON.stringify({ scheduledStart: start || null, scheduledEnd: end || null, scheduledMsg: msg }) });
       toast({ title: "Maintenance schedule saved" });
-    } catch (e: any) {
-      toast({ title: "Failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setSaving(false);
   };
@@ -1017,8 +1017,8 @@ function MaintenanceScheduleSection({ apiFetch, toast }: { apiFetch: (path: stri
       await apiFetch("/maintenance-schedule", { method: "PUT", body: JSON.stringify({ scheduledStart: null, scheduledEnd: null }) });
       setStart(""); setEnd("");
       toast({ title: "Maintenance schedule cleared" });
-    } catch (e: any) {
-      toast({ title: "Failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setSaving(false);
   };
@@ -1097,8 +1097,8 @@ function DataRetentionSection({ apiFetch, toast }: { apiFetch: (path: string, op
       const data = d.data ?? d;
       setPolicies({ locationDays: data.locationDays, chatDays: data.chatDays, auditDays: data.auditDays, notificationsDays: data.notificationsDays, lastCleanup: data.lastCleanup });
       toast({ title: "Retention policies saved" });
-    } catch (e: any) {
-      toast({ title: "Failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setSaving(false);
   };
@@ -1112,8 +1112,8 @@ function DataRetentionSection({ apiFetch, toast }: { apiFetch: (path: string, op
       setCleanupResult({ totalDeleted: data.totalDeleted, deleted: data.deleted });
       setPolicies(p => ({ ...p, lastCleanup: data.lastCleanup }));
       toast({ title: `Cleanup complete: ${data.totalDeleted} records purged` });
-    } catch (e: any) {
-      toast({ title: "Cleanup failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Cleanup failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setCleaning(false);
   };
@@ -1191,8 +1191,8 @@ function CSVExportSection({ toast }: { toast: any }) {
       a.click();
       URL.revokeObjectURL(url);
       toast({ title: `Exported ${endpoint}`, description: `Downloaded ${filename}` });
-    } catch (e: any) {
-      toast({ title: "Export failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Export failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setDownloading(null);
   };

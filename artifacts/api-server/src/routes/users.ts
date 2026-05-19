@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type NextFunction } from "express";
 import { db } from "@workspace/db";
 import { usersTable, ordersTable, walletTransactionsTable, ridesTable, savedAddressesTable, userSessionsTable, loginHistoryTable, refreshTokensTable, pharmacyOrdersTable, parcelBookingsTable, dataExportLogsTable } from "@workspace/db/schema";
 import { eq, desc, and, count, sql, isNull, ne, gte, or } from "drizzle-orm";
@@ -68,7 +68,7 @@ const router: IRouter = Router();
  *   Client apps can use this as a server-side gate to confirm the token belongs to
  *   the correct app before navigating to the dashboard — client-side role checks are
  *   then a secondary UX guard only. */
-router.get("/profile", anyUserAuth, async (req, res) => {
+router.get("/profile", anyUserAuth, async (req, res, next) => {
   try {
   const userId = req.customerId!;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
@@ -115,15 +115,14 @@ router.get("/profile", anyUserAuth, async (req, res) => {
     createdAt: user.createdAt.toISOString(),
   });
   } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* POST /users/add-role
    Lets an authenticated user (any role) add "customer" to their roles field.
    Idempotent — if they already have the role, returns success immediately. */
-router.post("/add-role", anyUserAuth, validateBody(AddRoleSchema), async (req, res) => {
+router.post("/add-role", anyUserAuth, validateBody(AddRoleSchema), async (req, res, next) => {
   try {
   const userId = req.customerId!;
   const { role } = req.body;
@@ -158,14 +157,13 @@ router.post("/add-role", anyUserAuth, validateBody(AddRoleSchema), async (req, r
     roles: newRoles,
   }, "Customer access added to your account successfully.");
   } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 router.use(customerAuth);
 
-router.get("/:id/debt", async (req, res) => {
+router.get("/:id/debt", async (req, res, next) => {
   try {
   const userId = req.customerId!;
   if (req.params["id"] as string !== userId) {
@@ -179,12 +177,11 @@ router.get("/:id/debt", async (req, res) => {
   }
   sendSuccess(res, { debtBalance: parseFloat(user.cancellationDebt ?? "0") });
   } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
-router.post("/export-data", exportDataLimiter, validateBody(ExportDataSchema), async (req, res) => {
+router.post("/export-data", exportDataLimiter, validateBody(ExportDataSchema), async (req, res, next) => {
   const userId = req.customerId!;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!user) {
@@ -369,7 +366,7 @@ router.post("/avatar", (req, res, next) => {
     }
     next();
   });
-}, async (req, res) => {
+}, async (req, res, next) => {
   const userId = req.customerId!;
 
   /* Rate limit: max 10 avatar uploads per minute per user */
@@ -412,7 +409,7 @@ router.post("/avatar", (req, res, next) => {
   }
 });
 
-router.put("/profile", validateBody(ProfileUpdateSchema), async (req, res) => {
+router.put("/profile", validateBody(ProfileUpdateSchema), async (req, res, next) => {
   const userId = req.customerId!;
 
   /* Rate limit: max 10 profile updates per minute per user */
@@ -520,7 +517,7 @@ router.put("/profile", validateBody(ProfileUpdateSchema), async (req, res) => {
   }, "پروفائل کامیابی سے اپ ڈیٹ ہو گیا۔");
 });
 
-router.delete("/delete-account", validateBody(DeleteAccountSchema), async (req, res) => {
+router.delete("/delete-account", validateBody(DeleteAccountSchema), async (req, res, next) => {
   const userId = req.customerId!;
 
   try {
@@ -615,7 +612,7 @@ router.delete("/delete-account", validateBody(DeleteAccountSchema), async (req, 
   }
 });
 
-router.get("/sessions", async (req, res) => {
+router.get("/sessions", async (req, res, next) => {
   const userId = req.customerId!;
   const sessions = await db.select().from(userSessionsTable)
     .where(and(eq(userSessionsTable.userId, userId), isNull(userSessionsTable.revokedAt)))
@@ -640,7 +637,7 @@ router.get("/sessions", async (req, res) => {
   });
 });
 
-router.delete("/sessions/all", async (req, res) => {
+router.delete("/sessions/all", async (req, res, next) => {
   const userId = req.customerId!;
   const authHeader = req.headers["authorization"] as string | undefined;
   const currentToken = authHeader?.replace(/^Bearer\s+/i, "") ?? "";
@@ -688,7 +685,7 @@ router.delete("/sessions/all", async (req, res) => {
   sendSuccess(res, null, "تمام دیگر سیشنز سے سائن آؤٹ ہو گیا۔");
 });
 
-router.delete("/sessions/:sessionId", async (req, res) => {
+router.delete("/sessions/:sessionId", async (req, res, next) => {
   const userId = req.customerId!;
   const sessionId = req.params["sessionId"] as string;
 
@@ -726,7 +723,7 @@ router.delete("/sessions/:sessionId", async (req, res) => {
   sendSuccess(res, null, "سیشن منسوخ ہو گیا۔");
 });
 
-router.get("/login-history", async (req, res) => {
+router.get("/login-history", async (req, res, next) => {
   const userId = req.customerId!;
   const history = await db.select().from(loginHistoryTable)
     .where(eq(loginHistoryTable.userId, userId))
@@ -770,7 +767,7 @@ async function computeLoyaltyPoints(tx: DbOrTx, userId: string): Promise<{ total
   return { totalEarned: Math.floor(totalEarned), totalRedeemed: Math.floor(totalRedeemed), available };
 }
 
-router.get("/loyalty/balance", async (req, res) => {
+router.get("/loyalty/balance", async (req, res, next) => {
   const userId = req.customerId!;
 
   const s = await getCachedSettings();
@@ -791,7 +788,7 @@ router.get("/loyalty/balance", async (req, res) => {
 });
 
 /* ── GET /users/me/loyalty — loyalty points balance + transaction history ─── */
-router.get("/me/loyalty", customerAuth, async (req, res) => {
+router.get("/me/loyalty", customerAuth, async (req, res, next) => {
   const userId = req.customerId!;
 
   const s = await getCachedSettings();
@@ -838,7 +835,7 @@ router.get("/me/loyalty", customerAuth, async (req, res) => {
   });
 });
 
-router.post("/loyalty/redeem", paymentLimiter, validateBody(LoyaltyRedeemSchema), async (req, res) => {
+router.post("/loyalty/redeem", paymentLimiter, validateBody(LoyaltyRedeemSchema), async (req, res, next) => {
   const userId = req.customerId!;
 
   const s = await getCachedSettings();

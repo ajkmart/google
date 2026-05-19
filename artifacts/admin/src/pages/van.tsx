@@ -110,13 +110,13 @@ function RoutesTab() {
         : vanFetch("/admin/routes", { method: "POST", body: JSON.stringify(payload) });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["van-admin-routes"] }); setEditRoute(null); setNewRouteOpen(false); toast({ title: "Route saved" }); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
   });
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => vanFetch(`/admin/routes/${id}`, { method: "DELETE" }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["van-admin-routes"] }); toast({ title: "Route deactivated" }); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
   });
 
   function openNew() {
@@ -318,7 +318,7 @@ function VehiclesTab() {
         : vanFetch("/admin/vehicles", { method: "POST", body: JSON.stringify(payload) });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["van-admin-vehicles"] }); setEditVehicle(null); setNewOpen(false); toast({ title: "Vehicle saved" }); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
   });
 
   function openNew() {
@@ -648,7 +648,7 @@ function SchedulesTab() {
       }),
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["van-admin-schedules"] }); setNewOpen(false); toast({ title: "Schedule created" }); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
   });
 
   const editMut = useMutation({
@@ -660,7 +660,7 @@ function SchedulesTab() {
       }),
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["van-admin-schedules"] }); setEditSchedule(null); toast({ title: "Schedule updated" }); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
   });
 
   const deleteMut = useMutation({
@@ -895,14 +895,14 @@ function DriversTab() {
       body: JSON.stringify({ userId: form.userId, approvalStatus: "approved", notes: form.notes || undefined }),
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["van-admin-drivers"] }); setNewOpen(false); toast({ title: "Van driver created" }); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
   });
 
   const statusMut = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       vanFetch(`/admin/drivers/${id}`, { method: "PATCH", body: JSON.stringify({ approvalStatus: status }) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["van-admin-drivers"] }); toast({ title: "Status updated" }); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
   });
 
   const deactivateMut = useMutation({
@@ -1046,7 +1046,7 @@ function BookingsTab() {
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       vanFetch(`/admin/bookings/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["van-admin-bookings"] }); toast({ title: "Status updated" }); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
   });
 
   const totalRevenue = bookings.filter(b => b.status !== "cancelled").reduce((s, b) => s + parseFloat(b.fare), 0);
@@ -1312,8 +1312,8 @@ function RulesTab() {
       await adminFetch(`/platform-settings/${key}`, { method: "PATCH", body: JSON.stringify({ value }) });
       toast({ title: "Setting saved" });
       qc.invalidateQueries({ queryKey: ["van-admin-rules"] });
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setSaving(null);
   };
@@ -1332,8 +1332,8 @@ function RulesTab() {
       setCustomDialogOpen(false);
       setCustomForm({ key: "", label: "", type: "number", value: "", description: "" });
       qc.invalidateQueries({ queryKey: ["van-admin-rules"] });
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
   };
 

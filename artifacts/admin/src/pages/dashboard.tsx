@@ -185,8 +185,8 @@ function LiveMetricsStrip() {
       toast({ title: "Thresholds saved", description: "Alert thresholds updated." });
       setEditingThresholds(false);
       void refetchSettings();
-    } catch (e: any) {
-      toast({ title: "Save failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Save failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setSavingTh(false);
   };

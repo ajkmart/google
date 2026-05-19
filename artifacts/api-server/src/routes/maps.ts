@@ -1,4 +1,4 @@
-import { Router, type IRouter, type Request } from "express";
+import { Router, type IRouter, type Request, type NextFunction } from "express";
 import { db } from "@workspace/db";
 import { popularLocationsTable, mapApiUsageLogTable, platformSettingsTable } from "@workspace/db/schema";
 import { eq, asc, and, sql } from "drizzle-orm";
@@ -181,7 +181,7 @@ async function getFallbackPredictions(input: string) {
   );
 }
 
-router.get("/autocomplete", async (req, res) => {
+router.get("/autocomplete", async (req, res, next) => {
   try {
   const input = String(req.query.input ?? "").trim();
   if (!input) {
@@ -259,8 +259,7 @@ router.get("/autocomplete", async (req, res) => {
     res.status(503).json({ predictions: filtered, source: "fallback", approximate: true, warning: "Maps service temporarily unavailable. Results are limited to pre-defined AJK locations." });
   }
   } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ predictions: [], source: "fallback", error: "Internal server error" });
+    next(err);
   }
 });
 
@@ -269,7 +268,7 @@ router.get("/autocomplete", async (req, res) => {
    Resolves a place ID or address to lat/lng.
    Falls back to AJK_FALLBACK lookup by placeId.
 ══════════════════════════════════════════════════════════ */
-router.get("/geocode", async (req, res) => {
+router.get("/geocode", async (req, res, next) => {
   try {
   const placeId = String(req.query.place_id ?? "").trim();
   const address = String(req.query.address ?? "").trim();
@@ -405,8 +404,7 @@ router.get("/geocode", async (req, res) => {
     res.status(500).json({ error: "Maps geocode request failed" });
   }
   } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ error: "Internal server error" });
+    next(err);
   }
 });
 
@@ -416,7 +414,7 @@ router.get("/geocode", async (req, res) => {
    Uses street-level component extraction + in-process cache to avoid
    redundant API calls on minor coordinate drift.
 ══════════════════════════════════════════════════════════ */
-router.get("/reverse-geocode", async (req, res) => {
+router.get("/reverse-geocode", async (req, res, next) => {
   try {
   const lat = parseFloat(String(req.query.lat ?? ""));
   const lng = parseFloat(String(req.query.lng ?? ""));
@@ -577,8 +575,7 @@ router.get("/reverse-geocode", async (req, res) => {
     res.status(500).json({ error: "Reverse geocode request failed" });
   }
   } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ error: "Internal server error" });
+    next(err);
   }
 });
 
@@ -593,7 +590,7 @@ router.get("/reverse-geocode", async (req, res) => {
      • mapbox  — Mapbox Directions API (requires mapbox_api_key)
    Falls back to Haversine + speed estimate when no engine is available.
 ══════════════════════════════════════════════════════════ */
-router.get("/directions", async (req, res) => {
+router.get("/directions", async (req, res, next) => {
   const oLat = parseFloat(String(req.query.origin_lat ?? ""));
   const oLng = parseFloat(String(req.query.origin_lng ?? ""));
   const dLat = parseFloat(String(req.query.dest_lat   ?? ""));
@@ -713,7 +710,7 @@ router.get("/directions", async (req, res) => {
    GET /api/maps/status
    Returns whether Maps is configured and active.
 ══════════════════════════════════════════════════════════ */
-router.get("/status", async (_req, res) => {
+router.get("/status", async (_req, res, next) => {
   try {
   const { key, enabled, provider, locationiqKey } = await getKey();
   const providerKeyConfigured = provider === "locationiq" ? !!locationiqKey : !!key;
@@ -724,8 +721,7 @@ router.get("/status", async (_req, res) => {
     fallbackActive:  !enabled || !providerKeyConfigured,
   });
   } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ error: "Internal server error" });
+    next(err);
   }
 });
 
@@ -753,7 +749,7 @@ function isRequestAuthenticated(req: Request): boolean {
    token to only the effective provider for that app (reduces over-exposure).
    When ?app is absent the token for the global primary provider is returned.
 ── */
-router.get("/config", async (req, res) => {
+router.get("/config", async (req, res, next) => {
   try {
   const authenticated = isRequestAuthenticated(req);
   const settings = await getCachedSettings();
@@ -873,8 +869,7 @@ router.get("/config", async (req, res) => {
     geocodeCacheCurrentSize: _revGeoCache.size,
   });
   } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ error: "Internal server error" });
+    next(err);
   }
 });
 
@@ -1307,7 +1302,7 @@ adminMapsRouter.post("/test",        adminAuth, handleMapsTest);
 adminMapsRouter.get("/usage",        adminAuth, handleMapsUsage);
 adminMapsRouter.post("/cache/clear", adminAuth, handleMapsCacheClear);
 
-router.get("/default-center", async (_req, res) => {
+router.get("/default-center", async (_req, res, next) => {
   try {
     const s = await getCachedSettings() as Record<string, string>;
     sendSuccess(res, {
@@ -1324,7 +1319,7 @@ router.get("/default-center", async (_req, res) => {
    Returns active popular locations from the admin-managed table.
    Falls back to a hardcoded AJK city list if the DB query fails. */
 const FALLBACK_CITIES = ["Muzaffarabad","Mirpur","Rawalakot","Bagh","Kotli","Bhimber","Jhelum","Rawalpindi","Islamabad","Other"];
-router.get("/popular-cities", async (_req, res) => {
+router.get("/popular-cities", async (_req, res, next) => {
   try {
     const rows = await db
       .select({ name: popularLocationsTable.name })

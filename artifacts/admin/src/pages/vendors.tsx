@@ -47,7 +47,7 @@ function SuspendModal({ vendor, onClose }: { vendor: any; onClose: () => void })
       banReason: action === "banned" ? reason : null,
     }, {
       onSuccess: () => { toast({ title: "Vendor status updated" }); onClose(); },
-      onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+      onError: (e: any) => toast({ title: "Failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
     });
   };
 
@@ -99,7 +99,7 @@ function CommissionModal({ vendor, defaultPct, onClose }: { vendor: any; default
     if (isNaN(v) || v < 0 || v > 100) { toast({ title: "Invalid %", variant: "destructive" }); return; }
     overrideMutation.mutate({ id: vendor.id, commissionPct: v }, {
       onSuccess: () => { toast({ title: "Commission override saved" }); onClose(); },
-      onError: e => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+      onError: e => toast({ title: "Failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
     });
   };
 
@@ -187,7 +187,7 @@ function VendorVerificationDrawer({ vendor, onClose }: { vendor: any; onClose: (
   const handleApprove = () => {
     statusMutation.mutate({ id: vendor.id, isActive: true, isBanned: false, banReason: null }, {
       onSuccess: () => { toast({ title: "Vendor approved", description: `${vendor.storeName || vendor.name} is now active.` }); onClose(); },
-      onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+      onError: (e: any) => toast({ title: "Failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
     });
   };
 
@@ -195,7 +195,7 @@ function VendorVerificationDrawer({ vendor, onClose }: { vendor: any; onClose: (
     if (!note.trim()) { toast({ title: "Rejection note required", variant: "destructive" }); return; }
     statusMutation.mutate({ id: vendor.id, isActive: false, isBanned: false, banReason: note.trim() }, {
       onSuccess: () => { toast({ title: "Vendor rejected", description: "Vendor has been notified." }); onClose(); },
-      onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+      onError: (e: any) => toast({ title: "Failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
     });
   };
 
@@ -514,8 +514,8 @@ export default function Vendors() {
       await adminFetch(`/vendors/${vendorId}/tier`, { method: "PATCH", body: JSON.stringify({ tier }) });
       await qc.invalidateQueries({ queryKey: ["admin-vendors"] });
       toast({ title: "Tier updated", description: `Vendor tier set to ${tier}.` });
-    } catch (e: any) {
-      toast({ title: "Failed to update tier", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Failed to update tier", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     }
     setTierUpdating(null);
   }, [qc, toast]);
@@ -810,7 +810,7 @@ export default function Vendors() {
                       <Button size="sm" variant="outline" onClick={() => {
                         overrideSuspM.mutate(v.id, {
                           onSuccess: () => toast({ title: "Suspension overridden", description: "Vendor is now active again." }),
-                          onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+                          onError: (e: any) => toast({ title: "Failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
                         });
                       }} disabled={overrideSuspM.isPending}
                         className="h-9 rounded-xl gap-1.5 text-xs border-purple-200 text-purple-700 hover:bg-purple-50">

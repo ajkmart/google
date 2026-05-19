@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type NextFunction } from "express";
 import { db } from "@workspace/db";
 import { verifyOwnership } from "../middleware/verifyOwnership.js";
 import { notificationsTable, parcelBookingsTable, usersTable, walletTransactionsTable } from "@workspace/db/schema";
@@ -78,7 +78,7 @@ function mapBooking(b: typeof parcelBookingsTable.$inferSelect) {
   };
 }
 
-router.post("/estimate", publicLimiter, async (req, res) => {
+router.post("/estimate", publicLimiter, async (req, res, next) => {
   try {
   const p = parcelEstimateSchema.safeParse(req.body ?? {});
   if (!p.success) {
@@ -99,12 +99,11 @@ router.post("/estimate", publicLimiter, async (req, res) => {
   const estimatedTime = `${preptimeMin + 30}–${preptimeMin + 60} min`;
   sendSuccess(res, { fare, estimatedTime, parcelType, baseFee, perKgRate, weightKg: cappedWeight ?? 0 });
   } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
-router.get("/", customerAuth, async (req, res) => {
+router.get("/", customerAuth, async (req, res, next) => {
   try {
   const userId = req.customerId!;
   const bookings = await db
@@ -114,12 +113,11 @@ router.get("/", customerAuth, async (req, res) => {
     .orderBy(parcelBookingsTable.createdAt);
   sendSuccess(res, { bookings: bookings.map(mapBooking).reverse(), total: bookings.length });
   } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
-router.get("/:id", customerAuth, verifyOwnership("parcel_booking"), async (req, res) => {
+router.get("/:id", customerAuth, verifyOwnership("parcel_booking"), async (req, res, next) => {
   try {
   const userId = req.customerId!;
   const [booking] = await db
@@ -134,12 +132,11 @@ router.get("/:id", customerAuth, verifyOwnership("parcel_booking"), async (req, 
   /* Ownership already enforced by verifyOwnership("parcel_booking") middleware */
   sendSuccess(res, mapBooking(booking));
   } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
-router.post("/", customerAuth, async (req, res) => {
+router.post("/", customerAuth, async (req, res, next) => {
   try {
   const userId = req.customerId!;
 
@@ -353,12 +350,11 @@ router.post("/", customerAuth, async (req, res) => {
 
   sendCreated(res, { ...mapBooking(booking!), gstAmount });
   } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
-router.patch("/:id/cancel", customerAuth, verifyOwnership("parcel_booking"), async (req, res) => {
+router.patch("/:id/cancel", customerAuth, verifyOwnership("parcel_booking"), async (req, res, next) => {
   try {
   const userId = req.customerId!;
   const bookingId = String(req.params["id"] as string);
@@ -454,12 +450,11 @@ router.patch("/:id/cancel", customerAuth, verifyOwnership("parcel_booking"), asy
   if (!cancelled) { sendError(res, "Parcel cannot be cancelled at this stage", 409); return; }
   sendSuccess(res, { ...mapBooking(cancelled), refundAmount });
   } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
-router.patch("/:id/status", riderAuth, async (req, res) => {
+router.patch("/:id/status", riderAuth, async (req, res, next) => {
   try {
   const riderId = req.riderId!;
   const { status } = req.body;
@@ -522,8 +517,7 @@ router.patch("/:id/status", riderAuth, async (req, res) => {
     sendSuccess(res, mapBooking(updated));
   }
   } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
@@ -536,7 +530,7 @@ router.patch("/:id/status", riderAuth, async (req, res) => {
 
    Body: { latitude, longitude, accuracy?, mockProvider? }
 ══════════════════════════════════════════════════════════════ */
-router.patch("/:id/location", riderAuth, gpsAntiSpoofMiddleware, async (req, res) => {
+router.patch("/:id/location", riderAuth, gpsAntiSpoofMiddleware, async (req, res, next) => {
   try {
   const riderId = req.riderId!;
   const bookingId = String(req.params["id"] as string);
@@ -573,8 +567,7 @@ router.patch("/:id/location", riderAuth, gpsAntiSpoofMiddleware, async (req, res
 
   sendSuccess(res, { bookingId, latitude, longitude, timestamp: new Date().toISOString() });
   } catch (err) {
-    logger.error({ err }, "[route] unhandled error");
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 

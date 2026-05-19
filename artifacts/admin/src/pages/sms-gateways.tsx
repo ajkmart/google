@@ -79,20 +79,20 @@ export default function SmsGateways() {
         toast({ title: "Gateway updated" });
       }
       setModal(null);
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" });
     } finally { setSaving(false); }
   }
 
   async function handleDelete(id: string, name: string) {
     if (!confirm(`Delete gateway "${name}"?`)) return;
     try { await deleteGw.mutateAsync(id); toast({ title: "Gateway deleted" }); }
-    catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+    catch (e: unknown) { toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }); }
   }
 
   async function handleToggle(id: string) {
     try { await toggleGw.mutateAsync(id); }
-    catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
+    catch (e: unknown) { toast({ title: "Error", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }); }
   }
 
   const fields = PROVIDER_FIELDS[form.provider] ?? [];
