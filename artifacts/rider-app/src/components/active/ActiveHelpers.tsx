@@ -39,8 +39,10 @@ function useRiderTileConfig() {
   const [tile, setTile] = useState({ url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', provider: "osm" });
   const [tileConfigError, setTileConfigError] = useState(false);
   useEffect(() => {
-    apiFetch(`/maps/config?app=rider`)
+    const abortCtrl = new AbortController();
+    apiFetch(`/maps/config?app=rider`, { signal: abortCtrl.signal })
       .then((d: unknown) => {
+        if (abortCtrl.signal.aborted) return;
         const raw = d as { data?: { provider?: string; token?: string }; provider?: string; token?: string } | null;
         const cfg = raw?.data ?? raw;
         const prov = cfg?.provider ?? "osm";
@@ -54,9 +56,11 @@ function useRiderTileConfig() {
         }
       })
       .catch((e: unknown) => {
+        if (abortCtrl.signal.aborted) return;
         log.error("Map config fetch failed — falling back to OSM:", e);
         setTileConfigError(true);
       });
+    return () => { abortCtrl.abort(); };
   }, []);
   return { ...tile, hasError: tileConfigError };
 }

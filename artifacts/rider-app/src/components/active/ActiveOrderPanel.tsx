@@ -42,6 +42,7 @@ export interface ActiveOrderPanelProps {
   proofFile: File | null;
   proofFileName: string;
   proofUploading: boolean;
+  proofStagedForRetry?: boolean;
   setProofPhoto: (v: string | null) => void;
   setProofFile: (v: File | null) => void;
   setProofFileName: (v: string) => void;
@@ -60,7 +61,7 @@ export function ActiveOrderPanel({
   order, orderStep, ORDER_LABELS, riderPos, currency,
   deliveryFeeConfig, riderEarningPct,
   updateOrderMut, proofPhoto, proofFile: _proofFile, proofFileName: _pFN,
-  proofUploading, setProofPhoto, setProofFile, setProofFileName,
+  proofUploading, proofStagedForRetry = false, setProofPhoto, setProofFile, setProofFileName,
   setShowNoPhotoWarning, photoInputRef, handlePhotoCapture,
   handleMarkDelivered, setCancelTarget, setShowCancelConfirm,
   pressedBtn, setPressedBtn, T,
@@ -336,6 +337,15 @@ export function ActiveOrderPanel({
                 </div>
               )}
             </div>
+
+            {proofStagedForRetry && (
+              <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-300 rounded-xl p-3 text-amber-800">
+                <span className="text-amber-500 mt-0.5 shrink-0">⚠</span>
+                <p className="text-xs font-semibold leading-snug">
+                  Photo upload failed — your photo is held locally. Tap <strong>Mark Delivered</strong> to retry the upload.
+                </p>
+              </div>
+            )}
 
             <button
               onClick={() => handleMarkDelivered(id)}

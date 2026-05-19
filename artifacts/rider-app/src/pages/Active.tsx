@@ -41,6 +41,7 @@ export default function Active() {
   const [proofFile, setProofFile]                  = useState<File | null>(null);
   const [proofFileName, setProofFileName]          = useState<string>("");
   const [proofUploading, setProofUploading]        = useState(false);
+  const [proofStagedForRetry, setProofStagedForRetry] = useState(false);
   const [showNoPhotoWarning, setShowNoPhotoWarning] = useState(false);
   const photoInputRef                              = useRef<HTMLInputElement>(null);
   const toastTimerRef                              = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -90,11 +91,16 @@ export default function Active() {
     if (!sharedSocket) return;
     const onRideOtp = (data: { rideId: string; otp: string }) => {
       if (!isMountedRef.current) return;
-      qc.setQueryData(["rider-active"], (old: any) => {
+      /* The real shape returned by api.getActive() and cached under
+         ["rider-active"] is: { order?: {...}, ride?: {...} }
+         Update ride.otp in-place so the OTP button gate becomes active
+         without waiting for the next polling interval. */
+      type ActiveCache = { order?: Record<string, unknown>; ride?: Record<string, unknown> } | null | undefined;
+      qc.setQueryData(["rider-active"], (old: ActiveCache) => {
         if (!old) return old;
-        const rides = Array.isArray(old?.rides) ? old.rides : Array.isArray(old) ? old : [];
-        const updated = rides.map((r: any) => r.id === data.rideId ? { ...r, otp: data.otp } : r);
-        return Array.isArray(old) ? updated : { ...old, rides: updated };
+        const ride = old.ride;
+        if (!ride || ride["id"] !== data.rideId) return old;
+        return { ...old, ride: { ...ride, tripOtp: data.otp, otpVerified: false } };
       });
     };
     sharedSocket.on("ride:otp", onRideOtp);
@@ -211,6 +217,10 @@ export default function Active() {
   const batteryRef = useRef<number | undefined>(undefined);
   const minGpsIntervalMsRef = useRef(5_000);
   const activeDataRef = useRef(data);
+  /** Stable GPS options object — extracted to a ref so the watchPosition call
+   *  never sees a new object reference between renders, preventing unnecessary
+   *  watcher teardown/restart while an active ride is in progress. */
+  const gpsOptionsRef = useRef<PositionOptions>({ enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 });
   activeDataRef.current = data;
 
   useEffect(() => {
@@ -287,7 +297,7 @@ export default function Active() {
           if (isMountedRef.current) setGpsWarningWithRef("Suspicious GPS accuracy detected. Please disable mock location apps.");
           return;
         }
-        const gpsPayload = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy ?? undefined, speed: pos.coords.speed ?? undefined, heading: pos.coords.heading ?? undefined, rideId: data?.ride?.id ?? undefined };
+        const gpsPayload = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy ?? undefined, speed: pos.coords.speed ?? undefined, heading: pos.coords.heading ?? undefined, rideId: activeDataRef.current?.ride?.id ?? undefined };
         const queuedPing = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, timestamp: new Date().toISOString(), latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy ?? undefined, speed: pos.coords.speed ?? undefined, heading: pos.coords.heading ?? undefined };
         const doUpdate = () => api.updateLocation(gpsPayload).then(() => {
           if (isMountedRef.current && gpsWarningRef.current) setGpsWarningWithRef(null);
@@ -313,7 +323,7 @@ export default function Active() {
         if (!isMountedRef.current) return;
         setGpsWarningWithRef(TRef.current?.("gpsNotAvailable") ?? "GPS not available — please enable location in Settings");
       },
-      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 },
+      gpsOptionsRef.current,
     );
     return () => navigator.geolocation.clearWatch(watchId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -354,6 +364,7 @@ export default function Active() {
       if (!raw) return;
       const preview = await compressForPreview(raw);
       setProofPhoto(preview);
+      setProofStagedForRetry(false);
     };
     reader.onerror = () => { setProofFileName(""); setProofFile(null); };
     reader.readAsDataURL(file);
@@ -362,7 +373,15 @@ export default function Active() {
   const handleMarkDelivered = async (id: string, forceNoPhoto = false) => {
     if (!proofPhoto && !forceNoPhoto) { setShowNoPhotoWarning(true); return; }
     setShowNoPhotoWarning(false);
-    if (proofPhoto && !navigator.onLine) { showToast("Cannot upload photo while offline — please reconnect and try again.", true); return; }
+    if (proofPhoto && !navigator.onLine) {
+      /* Offline with a photo already in state as a base64 DataURL.
+         The backend accepts proofPhoto as a base64 DataURL directly (not just a
+         server URL), so we can enqueue the full delivery payload right now without
+         uploading to the server first. The queue will replay it when reconnected. */
+      showToast("You're offline — delivery queued with photo for retry.", true);
+      enqueueAction("update_order", id, { status: "delivered", proofPhoto }).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
+      return;
+    }
     let photoUrl: string | undefined;
     if (proofFile) {
       setProofUploading(true);
@@ -373,7 +392,15 @@ export default function Active() {
       } catch (e: unknown) {
         const status = (e as { status?: number })?.status;
         if (status === 400 || status === 413) { showToast("Photo too large, please try again.", true); }
-        else { showToast(e instanceof Error ? e.message : "Photo upload failed. Please try again.", true); }
+        else {
+          const isNetworkErr = !status;
+          if (isNetworkErr) {
+            setProofStagedForRetry(true);
+            showToast("Photo upload failed — file is held, tap 'Mark Delivered' again to retry.", true);
+          } else {
+            showToast(e instanceof Error ? e.message : "Photo upload failed. Please try again.", true);
+          }
+        }
         setProofUploading(false);
         return;
       }
@@ -395,26 +422,26 @@ export default function Active() {
   };
 
   const updateOrderMut = useMutation({
-    mutationFn: ({ id, status, photoUrl }: { id: string; status: string; photoUrl?: string }) => api.updateOrder(id, status, photoUrl),
-    onMutate: (vars) => {
-      if (!navigator.onLine) {
-        showToast("You're offline — update queued for retry", true);
-        enqueueAction("update_order", vars.id, { status: vars.status, ...(vars.photoUrl ? { proofPhoto: vars.photoUrl } : {}) }).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
-        return { enqueued: true };
-      }
-      return { enqueued: false };
-    },
+    /* NOTE: The offline guard lives in handleMarkDelivered (which returns early
+       and enqueues there). This mutationFn is therefore only reached when
+       navigator.onLine was true at call-time. If the network drops mid-flight,
+       onError's network-error branch enqueues the action (single enqueue,
+       guarded by context.enqueued). No synthetic-success path needed here. */
+    mutationFn: ({ id, status, photoUrl }: { id: string; status: string; photoUrl?: string }) =>
+      api.updateOrder(id, status, photoUrl),
+    onMutate: () => ({ enqueued: false }),
+
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["rider-active"] });
       qc.invalidateQueries({ queryKey: ["rider-history"] });
       qc.invalidateQueries({ queryKey: ["rider-earnings"] });
       qc.invalidateQueries({ queryKey: ["rider-requests"] });
       if (vars.status === "delivered") {
-        setProofPhoto(null); setProofFileName(""); setProofFile(null);
+        setProofPhoto(null); setProofFileName(""); setProofFile(null); setProofStagedForRetry(false);
         if (photoInputRef.current) photoInputRef.current.value = "";
         showToast(T("orderDeliveredEarnings"));
       } else if (vars.status === "cancelled") {
-        setProofPhoto(null); setProofFile(null); setProofFileName("");
+        setProofPhoto(null); setProofFile(null); setProofFileName(""); setProofStagedForRetry(false);
         showToast(T("orderCancelledMsg"));
       } else {
         showToast(T("statusUpdated"));
@@ -433,15 +460,7 @@ export default function Active() {
       const loc = lat != null && lng != null ? { lat, lng } : undefined;
       return api.updateRide(id, status, loc);
     },
-    onMutate: (vars) => {
-      if (!navigator.onLine) {
-        showToast("You're offline — update queued for retry", true);
-        const loc = vars.lat != null && vars.lng != null ? { lat: vars.lat, lng: vars.lng } : undefined;
-        enqueueAction("update_ride", vars.id, { status: vars.status, ...(loc ?? {}) }).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
-        return { enqueued: true };
-      }
-      return { enqueued: false };
-    },
+    onMutate: () => ({ enqueued: false }),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["rider-active"] });
       qc.invalidateQueries({ queryKey: ["rider-history"] });
@@ -605,6 +624,7 @@ export default function Active() {
             proofFile={proofFile}
             proofFileName={proofFileName}
             proofUploading={proofUploading}
+            proofStagedForRetry={proofStagedForRetry}
             setProofPhoto={setProofPhoto}
             setProofFile={setProofFile}
             setProofFileName={setProofFileName}

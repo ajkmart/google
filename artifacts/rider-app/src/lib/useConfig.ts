@@ -56,6 +56,7 @@ export interface PlatformConfig {
     liveTracking: boolean;
     reviews: boolean;
     sos: boolean;
+    van?: boolean;
   };
   content: {
     trackerBannerEnabled: boolean;

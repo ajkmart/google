@@ -1295,4 +1295,24 @@ router.get("/default-center", async (_req, res) => {
   }
 });
 
+/* ── GET /maps/popular-cities — Public list of city names for profile/registration forms ──
+   Returns active popular locations from the admin-managed table.
+   Falls back to a hardcoded AJK city list if the DB query fails. */
+const FALLBACK_CITIES = ["Muzaffarabad","Mirpur","Rawalakot","Bagh","Kotli","Bhimber","Jhelum","Rawalpindi","Islamabad","Other"];
+router.get("/popular-cities", async (_req, res) => {
+  try {
+    const rows = await db
+      .select({ name: popularLocationsTable.name })
+      .from(popularLocationsTable)
+      .where(eq(popularLocationsTable.isActive, true))
+      .orderBy(asc(popularLocationsTable.sortOrder));
+    const cities = rows.length > 0
+      ? rows.map(r => r.name).filter(Boolean)
+      : FALLBACK_CITIES;
+    sendSuccess(res, { cities });
+  } catch {
+    sendSuccess(res, { cities: FALLBACK_CITIES });
+  }
+});
+
 export default router;

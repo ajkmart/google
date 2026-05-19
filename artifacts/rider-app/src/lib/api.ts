@@ -447,16 +447,34 @@ export const api = {
   uploadRegistrationDoc: async (file: File) => {
     /* Obtain a short-lived upload session token (required by the server
        to bind the upload to an active onboarding flow). */
-    const tokenRes = await apiFetch("/uploads/register-token", { method: "POST" });
-    const uploadToken: string = tokenRes?.token ?? "";
-    if (!uploadToken) throw new Error("Failed to obtain upload session token");
-    const form = new FormData();
-    form.append("file", file, file.name || "document.jpg");
-    return apiFetch("/uploads/register", {
-      method: "POST",
-      body: form,
-      headers: { "x-upload-token": uploadToken },
-    });
+    const fetchToken = async () => {
+      const tokenRes = await apiFetch("/uploads/register-token", { method: "POST" });
+      const token: string = tokenRes?.token ?? "";
+      if (!token) throw new Error("Failed to obtain upload session token");
+      return token;
+    };
+    const doUpload = async (uploadToken: string) => {
+      const form = new FormData();
+      form.append("file", file, file.name || "document.jpg");
+      return apiFetch("/uploads/register", {
+        method: "POST",
+        body: form,
+        headers: { "x-upload-token": uploadToken },
+      });
+    };
+    const firstToken = await fetchToken();
+    try {
+      return await doUpload(firstToken);
+    } catch (e: unknown) {
+      /* Token may have expired during a slow onboarding step (e.g., the
+         rider spent > 60 s on a form page). Retry once with a fresh token. */
+      const status = (e as { status?: number })?.status;
+      if (status === 401) {
+        const freshToken = await fetchToken();
+        return doUpload(freshToken);
+      }
+      throw e;
+    }
   },
   forgotPassword: (data: { method: "phone" | "email"; phone?: string; email?: string; captchaToken?: string }) =>
     apiFetch("/auth/forgot-password", { method: "POST", body: JSON.stringify(data) }),
@@ -548,8 +566,8 @@ export const api = {
      next page. Pass `limit` (1–200) to control page size; default 50. */
   getWalletPage:  (opts: { cursor?: string | null; limit?: number } = {}): Promise<{ balance: number; items: Array<{ id: string; type: string; amount: number; description?: string | null; reference?: string | null; createdAt: string; [k: string]: unknown }>; nextCursor: string | null; limit: number }> => {
     const params = new URLSearchParams();
-    if (opts.limit) params.set("limit", String(opts.limit));
-    if (opts.cursor) params.set("cursor", opts.cursor);
+    if (opts.limit != null) params.set("limit", String(opts.limit));
+    if (opts.cursor != null) params.set("cursor", opts.cursor);
     const qs = params.toString();
     return apiFetch(`/riders/wallet/transactions${qs ? `?${qs}` : ""}`);
   },
@@ -561,6 +579,7 @@ export const api = {
   getDeposits:    () => apiFetch("/riders/wallet/deposits"),
 
   /* COD Remittance */
+  getPopularCities:    (): Promise<{ cities: string[] }> => apiFetch("/maps/popular-cities"),
   getCodSummary:       () => apiFetch("/riders/cod-summary"),
   submitCodRemittance: (data: { amount: number; paymentMethod: string; accountNumber: string; transactionId?: string; note?: string }) =>
     apiFetch("/riders/cod/remit", { method: "POST", body: JSON.stringify(data) }),

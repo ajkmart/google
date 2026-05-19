@@ -254,7 +254,7 @@ async function riderAuth(req: Request, res: Response, next: NextFunction) {
       sendErrorWithData(res, "Session revoked. Please log in again.", { code: "TOKEN_EXPIRED" }, 401); return;
     }
 
-    const dbRoles = (user.roles || user.roles || "").split(",").map((r: string) => r.trim());
+    const dbRoles = (user.roles || "").split(",").map((r: string) => r.trim());
     const jwtRoles = (payload.roles || payload.role || "").split(",").map((r: string) => r.trim());
     if (!dbRoles.includes("rider") || !jwtRoles.includes("rider")) {
       sendErrorWithData(res, "Access denied. This portal is for riders only.", { code: "ROLE_DENIED" }, 403); return;
@@ -397,7 +397,9 @@ router.patch("/online", async (req, res) => {
 
   await db.update(usersTable).set({ isOnline: !!isOnline, updatedAt: new Date() }).where(eq(usersTable.id, riderId));
 
-  /* Reset spoof hit counter when going offline so the next session starts clean */
+  /* Reset spoof hit counter when going offline so the next session starts clean.
+     clearSpoofHits is defined later in this file as a hoisted function declaration
+     (line ~2557) — no import needed since it lives in the same module. */
   if (!isOnline) {
     clearSpoofHits(riderId);
   }

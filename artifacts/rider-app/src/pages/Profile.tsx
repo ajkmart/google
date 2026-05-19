@@ -24,9 +24,9 @@ import { tDual, type TranslationKey } from "@workspace/i18n";
 
 const fc = (n: string | number | null | undefined, currencySymbol = "Rs.") => _sharedFcP(n != null ? String(n) : (n as null | undefined), currencySymbol);
 
-const CITIES   = ["Muzaffarabad","Mirpur","Rawalakot","Bagh","Kotli","Bhimber","Jhelum","Rawalpindi","Islamabad","Other"];
+const CITIES_FALLBACK = ["Muzaffarabad","Mirpur","Rawalakot","Bagh","Kotli","Bhimber","Jhelum","Rawalpindi","Islamabad","Other"];
 const BANKS    = ["EasyPaisa","JazzCash","MCB","HBL","UBL","Meezan Bank","Bank Alfalah","NBP","Allied Bank","Other"];
-const VEHICLES = ["bike","car","rickshaw","bicycle","on_foot"];
+const VEHICLES = ["bike","car","van","rickshaw","bicycle","on_foot"];
 const VEHICLE_LABELS: Record<string, string> = { bike: "Bike / Motorcycle", car: "Car", rickshaw: "Rickshaw / QingQi", bicycle: "Bicycle", on_foot: "On Foot", van: "Van" };
 
 const INPUT  = "w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-200 focus:bg-white transition-all";
@@ -57,6 +57,13 @@ export default function Profile() {
     staleTime: 30000,
   });
   const unread: number = notifData?.unread || 0;
+
+  const { data: citiesData } = useQuery({
+    queryKey: ["popular-cities"],
+    queryFn: () => api.getPopularCities(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const CITIES: string[] = citiesData?.cities?.length ? citiesData.cities : CITIES_FALLBACK;
 
   const [editing, setEditing]   = useState<EditSection>(null);
   const [saving, setSaving]     = useState(false);

@@ -36,7 +36,7 @@ export function ActiveRidePanel({
   const id = ride.id as string;
   const type = ride.type as string | undefined;
   const status = ride.status as string;
-  const riderEarning = (ride.fare as number) * (riderEarningPct / 100);
+  const riderEarning = parseFloat(String(ride.fare ?? 0)) * (riderEarningPct / 100);
 
   return (
     <div className="bg-white rounded-3xl shadow-lg shadow-gray-200/50 border border-gray-100 overflow-hidden animate-[slideUp_0.4s_ease-out]">
@@ -56,7 +56,7 @@ export function ActiveRidePanel({
               </span>
             )}
           </div>
-          <p className="text-purple-200 text-xs font-mono mt-0.5">#{id.slice(-6).toUpperCase()} · {ride.distance as string}km</p>
+          <p className="text-purple-200 text-xs font-mono mt-0.5">#{id.slice(-6).toUpperCase()} · {String(ride.distance ?? "")}km</p>
         </div>
         <div className="relative text-right">
           <p className="font-black text-white text-xl tracking-tight">{formatCurrency(ride.fare as number, currency)}</p>

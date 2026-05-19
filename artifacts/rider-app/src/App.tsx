@@ -157,6 +157,8 @@ function AppRoutes() {
           break;
         case "update_order": {
           const { status, proofPhoto } = action.payload as { status: string; proofPhoto?: string };
+          /* proofPhoto may be either a server URL (online upload) or a base64 DataURL
+             (queued offline); the backend accepts both forms. */
           await run(() => apiFetch(`/riders/orders/${action.entityId}/status`, { method: "PATCH", body: JSON.stringify({ status, ...(proofPhoto ? { proofPhoto } : {}) }), headers: idemHdr }));
           break;
         }

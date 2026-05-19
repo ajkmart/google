@@ -214,7 +214,7 @@ export default function Home() {
   const { data: requestsData, isLoading: requestsLoading, isError: requestsError } = useQuery({
     queryKey: ["rider-requests"],
     queryFn: () => api.getRequests(),
-    refetchInterval: tabVisible && user?.isOnline ? getPollingIntervalForTier(networkTier) : 60_000,
+    refetchInterval: tabVisible && effectiveOnline ? getPollingIntervalForTier(networkTier) : 60_000,
     enabled: effectiveOnline,
 
   });
@@ -590,7 +590,15 @@ export default function Home() {
        navigated to /active and saw a 404. */
   const acceptOrderMut = useMutation({
     mutationFn: (id: string) => api.acceptOrder(id),
-    onSuccess: () => {
+    onSuccess: (_: unknown, id: string) => {
+      /* Accepted items should NOT be added to the dismissed set (dismissed = rejected by rider).
+         Remove the id from dismissed persistence if it was there, and prune cache directly. */
+      removeDismissed(id).catch(() => { /* non-critical */ });
+      setDismissed((prev) => { const next = new Set([...prev]); next.delete(id); return next; });
+      qc.setQueryData(["rider-requests"], (old: { orders?: { id: string }[]; rides?: { id: string }[] } | undefined) => {
+        if (!old) return old;
+        return { ...old, orders: (old.orders ?? []).filter((o) => o.id !== id) };
+      });
       stopRequestSoundIfEmpty();
       qc.invalidateQueries({ queryKey: ["rider-active"] });
       showToast("Order accepted! Check Active tab.", "success");
@@ -631,6 +639,14 @@ export default function Home() {
   const acceptRideMut = useMutation({
     mutationFn: (id: string) => api.acceptRide(id),
     onSuccess: (_: unknown, id: string) => {
+      /* Accepted items should NOT be added to the dismissed set (dismissed = rejected by rider).
+         Remove the id from dismissed persistence if it was there, and prune cache directly. */
+      removeDismissed(id).catch(() => { /* non-critical */ });
+      setDismissed((prev) => { const next = new Set([...prev]); next.delete(id); return next; });
+      qc.setQueryData(["rider-requests"], (old: { orders?: { id: string }[]; rides?: { id: string }[] } | undefined) => {
+        if (!old) return old;
+        return { ...old, rides: (old.rides ?? []).filter((r) => r.id !== id) };
+      });
       stopRequestSoundIfEmpty();
       qc.invalidateQueries({ queryKey: ["rider-active"] });
       logRideEvent(id, "accepted", (msg, isErr) =>

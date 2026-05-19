@@ -6,6 +6,7 @@ import { enqueueAction, subscribeActionSuccess } from "../lib/offline/queueManag
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../lib/rider-auth";
+import { usePlatformConfig } from "../lib/useConfig";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -135,7 +136,13 @@ const riderMarkerIcon = L.divIcon({
 
 export default function VanDriver() {
   const { user } = useAuth();
+  const { config } = usePlatformConfig();
   const qc = useQueryClient();
+
+  /* Feature flag — checked during render (not as early return) so all hooks below
+     are always called unconditionally, satisfying React Rules of Hooks. */
+  const vanEnabled = config.features?.van === true;
+
   const [selectedSchedule, setSelectedSchedule] = useState<VanSchedule | null>(null);
   const [error, setError] = useState("");
   const [broadcasting, setBroadcasting] = useState(false);
@@ -322,6 +329,19 @@ export default function VanDriver() {
   const boardedCount = passengers.filter(p => p.status === "boarded" || p.status === "completed").length;
   const confirmedCount = passengers.filter(p => p.status === "confirmed").length;
   const isTripInProgress = selectedSchedule?.tripStatus === "in_progress" || broadcasting;
+
+  /* Gate: van service must be explicitly enabled by admin. */
+  if (!vanEnabled) return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+      <div className="text-center space-y-3 max-w-xs">
+        <div className="w-16 h-16 rounded-2xl bg-gray-200 flex items-center justify-center mx-auto">
+          <Bus size={32} className="text-gray-400" />
+        </div>
+        <h2 className="text-lg font-black text-gray-800">Van Service Unavailable</h2>
+        <p className="text-sm text-gray-500">Van/commuter service is not enabled on this platform. Contact your administrator.</p>
+      </div>
+    </div>
+  );
 
   if (schedulesError) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
