@@ -18,8 +18,6 @@ export const useAdminLogin = () => {
         body: JSON.stringify({
           username: creds.username,
           password: creds.password,
-          /* legacy field kept so older API builds still work */
-          secret: creds.password,
         }),
       }),
   });
