@@ -11,7 +11,7 @@ import {
 } from "./ActiveHelpers";
 import { SafeImage } from "../../components/ui/SafeImage";
 
-export function orderTypeGradient(type?: string | null): string {
+function orderTypeGradient(type?: string | null): string {
   const t = (type || "").toLowerCase();
   if (t === "food") return "from-orange-500 via-red-500 to-pink-600";
   if (t === "pharmacy") return "from-teal-500 via-green-500 to-emerald-600";
