@@ -7,7 +7,7 @@ import {
   ordersTable, pharmacyOrdersTable, parcelBookingsTable, ridesTable, rideBidsTable,
   platformSettingsTable,
 } from "@workspace/db/schema";
-import { eq, desc, count, sum, and, gte, lte, sql, or, ilike, asc, isNull, isNotNull, avg, ne } from "drizzle-orm";
+import { eq, desc, count, sum, and, gte, lte, sql, or, ilike, asc, isNull, isNotNull, avg, ne, inArray } from "drizzle-orm";
 import {
   stripUser, generateId, getUserLanguage, t,
   sendUserNotification, logger,
@@ -572,6 +572,109 @@ router.get("/parcel-enriched", wrapAsync(async (_req, res) => {
     })),
     total: bookings.length,
   });
+}));
+
+/* ── GET /admin/orders-enriched — paginated, filtered, user-enriched order list ── */
+router.get("/orders-enriched", wrapAsync(async (req, res) => {
+  const q = req.query as Record<string, string | undefined>;
+  const page      = Math.max(1, parseInt(q["page"]  ?? "1",  10) || 1);
+  const pageLimit = Math.min(200, Math.max(1, parseInt(q["limit"] ?? "50", 10) || 50));
+  const sortBy    = q["sortBy"] ?? "date";
+  const sortDir   = (q["sortDir"] ?? "desc") === "asc" ? "asc" : "desc";
+  const search    = q["search"]?.trim().toLowerCase() ?? "";
+
+  const filterConds = buildOrderFilters(q);
+  const whereCond   = filterConds
+    ? and(isNull(ordersTable.deletedAt), filterConds)
+    : isNull(ordersTable.deletedAt);
+
+  const orderCol =
+    sortBy === "total"  ? ordersTable.total  :
+    sortBy === "status" ? ordersTable.status :
+    ordersTable.createdAt;
+  const orderExpr = sortDir === "asc" ? asc(orderCol) : desc(orderCol);
+
+  const rows = await db
+    .select()
+    .from(ordersTable)
+    .where(whereCond)
+    .orderBy(orderExpr)
+    .limit(2000);
+
+  const uniqueUserIds = [...new Set(rows.map(r => r.userId).filter(Boolean))] as string[];
+  const users = uniqueUserIds.length
+    ? await db
+        .select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone })
+        .from(usersTable)
+        .where(inArray(usersTable.id, uniqueUserIds))
+    : [];
+  const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+
+  const enriched = rows.map(o => ({
+    ...o,
+    total:     parseFloat(String(o.total)),
+    createdAt: (o.createdAt instanceof Date ? o.createdAt : new Date(String(o.createdAt))).toISOString(),
+    updatedAt: (o.updatedAt instanceof Date ? o.updatedAt : new Date(String(o.updatedAt))).toISOString(),
+    userName:  userMap[o.userId]?.name  ?? null,
+    userPhone: userMap[o.userId]?.phone ?? null,
+  }));
+
+  const filtered = search
+    ? enriched.filter(o =>
+        o.id.toLowerCase().includes(search) ||
+        (o.userName   ?? "").toLowerCase().includes(search) ||
+        (o.userPhone  ?? "").includes(search) ||
+        (o.riderName  ?? "").toLowerCase().includes(search)
+      )
+    : enriched;
+
+  const total    = filtered.length;
+  const offset   = (page - 1) * pageLimit;
+  const pageData = filtered.slice(offset, offset + pageLimit);
+
+  sendSuccess(res, {
+    orders:     pageData,
+    total,
+    page,
+    totalPages: Math.ceil(total / pageLimit) || 1,
+    hasMore:    page * pageLimit < total,
+  });
+}));
+
+/* ── GET /admin/orders-export — full filtered list for CSV download ── */
+router.get("/orders-export", wrapAsync(async (req, res) => {
+  const q = req.query as Record<string, string | undefined>;
+  const filterConds = buildOrderFilters(q);
+  const whereCond   = filterConds
+    ? and(isNull(ordersTable.deletedAt), filterConds)
+    : isNull(ordersTable.deletedAt);
+
+  const rows = await db
+    .select()
+    .from(ordersTable)
+    .where(whereCond)
+    .orderBy(desc(ordersTable.createdAt))
+    .limit(5000);
+
+  const uniqueUserIds = [...new Set(rows.map(r => r.userId).filter(Boolean))] as string[];
+  const users = uniqueUserIds.length
+    ? await db
+        .select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone })
+        .from(usersTable)
+        .where(inArray(usersTable.id, uniqueUserIds))
+    : [];
+  const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+
+  const orders = rows.map(o => ({
+    ...o,
+    total:     parseFloat(String(o.total)),
+    createdAt: (o.createdAt instanceof Date ? o.createdAt : new Date(String(o.createdAt))).toISOString(),
+    updatedAt: (o.updatedAt instanceof Date ? o.updatedAt : new Date(String(o.updatedAt))).toISOString(),
+    userName:  userMap[o.userId]?.name  ?? null,
+    userPhone: userMap[o.userId]?.phone ?? null,
+  }));
+
+  sendSuccess(res, { orders, total: orders.length });
 }));
 
 /* ── Delete User ── */

@@ -13,7 +13,7 @@ const RIDES_REFETCH_INTERVAL = 5_000;
 export const useAdminLogin = () => {
   return useMutation({
     mutationFn: (creds: { username: string; password: string }) =>
-      adminFetch("/auth", {
+      adminFetch("/auth/login", {
         method: "POST",
         body: JSON.stringify({
           username: creds.username,

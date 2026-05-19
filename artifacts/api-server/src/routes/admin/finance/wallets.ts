@@ -326,6 +326,60 @@ router.get("/vendors", requirePermission("vendors.view"), async (_req, res) => {
   }
 });
 
+/* ── POST /admin/vendors/:id/payout — deduct from vendor wallet ── */
+router.post("/vendors/:id/payout", requirePermission("finance.payouts.release"), async (req, res) => {
+  const { amount, description } = req.body as { amount?: unknown; description?: string };
+  if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+    res.status(400).json({ error: "Valid amount required" }); return;
+  }
+  const vendorId = req.params["id"] as string;
+  const [vendor] = await db.select().from(usersTable).where(eq(usersTable.id, vendorId)).limit(1);
+  if (!vendor) { res.status(404).json({ error: "Vendor not found" }); return; }
+  const amt = Number(amount);
+  const currentBal = parseFloat(vendor.walletBalance ?? "0");
+  if (currentBal < amt) {
+    res.status(400).json({ error: `Insufficient wallet balance (Rs. ${currentBal.toFixed(0)})` }); return;
+  }
+  const [updated] = await db.update(usersTable)
+    .set({ walletBalance: sql`wallet_balance - ${amt}`, updatedAt: new Date() })
+    .where(and(eq(usersTable.id, vendorId), sql`CAST(wallet_balance AS NUMERIC) >= ${amt}`))
+    .returning();
+  if (!updated) {
+    res.status(400).json({ error: "Payout failed: insufficient balance at time of processing (possible concurrent request)." }); return;
+  }
+  const newBal = parseFloat(updated.walletBalance ?? "0");
+  await db.insert(walletTransactionsTable).values({
+    id: generateId(), userId: vendorId, type: "debit", amount: String(amt),
+    description: description || `Admin payout processed: Rs. ${amt}`, reference: "admin_payout",
+  });
+  await sendUserNotification(vendorId, "Payout Processed 💰", `Rs. ${amt} has been paid out from your vendor wallet.`, "system", "cash-outline");
+  res.json({ success: true, amount: amt, newBalance: newBal, vendor: { ...stripUser(updated), walletBalance: newBal } });
+});
+
+/* ── POST /admin/vendors/:id/credit — credit vendor wallet ── */
+router.post("/vendors/:id/credit", requirePermission("finance.wallet.adjust"), async (req, res) => {
+  const { amount, description } = req.body as { amount?: unknown; description?: string };
+  if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+    res.status(400).json({ error: "Valid amount required" }); return;
+  }
+  const vendorId = req.params["id"] as string;
+  const [vendor] = await db.select().from(usersTable).where(eq(usersTable.id, vendorId)).limit(1);
+  if (!vendor) { res.status(404).json({ error: "Vendor not found" }); return; }
+  const amt = Number(amount);
+  const [updated] = await db.update(usersTable)
+    .set({ walletBalance: sql`wallet_balance + ${amt}`, updatedAt: new Date() })
+    .where(eq(usersTable.id, vendorId))
+    .returning();
+  if (!updated) { res.status(404).json({ error: "Vendor not found" }); return; }
+  const newBal = parseFloat(updated.walletBalance ?? "0");
+  await db.insert(walletTransactionsTable).values({
+    id: generateId(), userId: vendorId, type: "credit", amount: String(amt),
+    description: description || `Admin credit: Rs. ${amt}`, reference: "admin_credit",
+  });
+  await sendUserNotification(vendorId, "Wallet Credited 💰", `Rs. ${amt} has been credited to your vendor wallet.`, "system", "wallet-outline");
+  res.json({ success: true, amount: amt, newBalance: newBal, vendor: { ...stripUser(updated), walletBalance: newBal } });
+});
+
 const vendorStatusSchema = z.object({
   isActive: z.boolean().optional(),
   isBanned: z.boolean().optional(),
