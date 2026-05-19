@@ -128,14 +128,49 @@
 }
 
 @layer base {
-  * {
+  *, *::before, *::after {
+    box-sizing: border-box;
     @apply border-border;
     -webkit-tap-highlight-color: transparent;
+  }
+  html {
+    height: 100%;
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
   body {
     @apply bg-background text-foreground antialiased font-sans;
     background-color: #F8FAFC;
     overscroll-behavior: none;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+  }
+  #root {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  /* Autofill override — light mode */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+    -webkit-text-fill-color: #111827;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+  /* Dark mode autofill */
+  .dark input:-webkit-autofill,
+  .dark input:-webkit-autofill:hover,
+  .dark input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #0d1117 inset;
+    -webkit-text-fill-color: #e2e8f0;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+  /* Font size 16px prevents iOS zoom on focus */
+  input, textarea, select {
+    font-size: 16px;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);

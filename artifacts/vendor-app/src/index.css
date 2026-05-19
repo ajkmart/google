@@ -163,12 +163,21 @@
   ::-webkit-scrollbar { display: none; width: 0; }
   * { scrollbar-width: none; -ms-overflow-style: none; }
 
-  /* Remove autofill yellow in Android Chrome */
+  /* Remove autofill yellow in Android Chrome — light mode */
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus {
-    -webkit-box-shadow: 0 0 0 1000px white inset;
+    -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
     -webkit-text-fill-color: #111827;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
+  /* Dark mode autofill override */
+  .dark input:-webkit-autofill,
+  .dark input:-webkit-autofill:hover,
+  .dark input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #0f1729 inset;
+    -webkit-text-fill-color: #eff3f9;
     transition: background-color 5000s ease-in-out 0s;
   }
 
@@ -267,6 +276,21 @@ input:focus:not(:focus-visible), textarea:focus:not(:focus-visible), select:focu
 }
 .toast-in { animation: toastIn 0.25s cubic-bezier(0.32, 0.72, 0, 1); }
 
+/* Z-index token scale */
+:root {
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-sidebar: 20;
+  --z-dropdown: 30;
+  --z-overlay: 40;
+  --z-drawer: 50;
+  --z-modal: 60;
+  --z-popover: 70;
+  --z-tooltip: 80;
+  --z-toast: 90;
+  --z-banner: 95;
+}
+
 .tab-indicator {
   transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -278,8 +302,6 @@ input:focus:not(:focus-visible), textarea:focus:not(:focus-visible), select:focu
   .min-h-13 { min-height: 3.25rem; }
 }
 
-body { background-color: #f3f4f6; }
-
 input, textarea, select {
   font-size: 16px; /* Tailwind class selectors (higher specificity) will override */
 }
@@ -287,4 +309,14 @@ input, textarea, select {
 input:focus-visible, textarea:focus-visible, select:focus-visible {
   box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.3);
   border-color: #f97316 !important;
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

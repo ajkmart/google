@@ -160,11 +160,21 @@
   ::-webkit-scrollbar { display: none; width: 0; }
   * { scrollbar-width: none; -ms-overflow-style: none; }
 
+  /* Autofill override — light mode */
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus {
-    -webkit-box-shadow: 0 0 0 1000px white inset;
+    -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
     -webkit-text-fill-color: #111827;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
+  /* Dark mode autofill */
+  .dark input:-webkit-autofill,
+  .dark input:-webkit-autofill:hover,
+  .dark input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #0f1729 inset;
+    -webkit-text-fill-color: #eff3f9;
     transition: background-color 5000s ease-in-out 0s;
   }
 
@@ -243,4 +253,44 @@
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
+}
+
+/* Ripple press effect */
+.ripple-container { position: relative; overflow: hidden; }
+.ripple-effect {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(0);
+  animation: ripple 0.5s linear;
+  pointer-events: none;
+}
+@keyframes ripple {
+  to { transform: scale(4); opacity: 0; }
+}
+
+/* Header gradient safe-area utility */
+.header-gradient {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 2.5rem);
+}
+
+/* Card shadow utilities */
+.card-3 { box-shadow: 0 10px 15px rgba(0,0,0,0.08), 0 4px 6px rgba(0,0,0,0.04); }
+
+/* Toast animation */
+@keyframes toastIn {
+  from { transform: translateY(-100%) scale(0.95); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+.toast-in { animation: toastIn 0.25s cubic-bezier(0.32, 0.72, 0, 1); }
+
+/* Input focus ring */
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+  border-color: #10b981 !important;
+}
+
+/* Font size 16px prevents iOS zoom on focus */
+input, textarea, select {
+  font-size: 16px;
 }

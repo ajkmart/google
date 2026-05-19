@@ -56,6 +56,7 @@ export const PERMISSIONS = [
 
   // ── Orders ────────────────────────────────────────────────────────
   { id: "orders.view",     label: "View orders", category: "orders" },
+  { id: "orders.create",   label: "Create orders manually", category: "orders" },
   { id: "orders.edit",     label: "Edit orders", category: "orders" },
   { id: "orders.cancel",   label: "Cancel orders", category: "orders" },
   { id: "orders.refund",   label: "Issue refunds", category: "orders" },
