@@ -402,7 +402,7 @@ router.post("/firebase-verify", sharedValidateBody(FirebaseVerifySchema), async 
   }
 
   /* Find user by firebaseUid, then by phone, then by email */
-  let user: any = null;
+  let user: typeof usersTable.$inferSelect | undefined;
 
   const [byUid] = await db
     .select()

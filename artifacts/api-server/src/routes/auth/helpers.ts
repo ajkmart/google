@@ -363,7 +363,7 @@ export async function issueTokensForUser(user: typeof usersTable.$inferSelect, i
   };
 }
 
-export function isDeviceTrusted(user: any, deviceFingerprint: string, trustedDays: number): boolean {
+export function isDeviceTrusted(user: typeof usersTable.$inferSelect, deviceFingerprint: string, trustedDays: number): boolean {
   if (!user.trustedDevices || !deviceFingerprint) return false;
   try {
     const devices: Array<{ fp: string; expiresAt: number }> = JSON.parse(user.trustedDevices);
