@@ -288,7 +288,7 @@ router.patch("/online", async (req, res) => {
       name: riderUser.name ?? undefined,
       updatedAt: new Date().toISOString(),
     });
-  } catch { /* non-critical */ }
+  } catch (e: unknown) { logger.warn({ err: e }, "non-critical: failed to emit rider location on toggle"); }
 
   res.json({ success: true, isOnline: !!isOnline });
 });
@@ -334,7 +334,7 @@ router.patch("/profile", async (req, res) => {
       res.status(400).json({ error: "regDocUrl must be an uploaded file URL" }); return;
     }
     let existingDocs: Record<string, string> = {};
-    try { existingDocs = JSON.parse(currentUser.documents || "{}"); } catch { /* ignore */ }
+    try { existingDocs = JSON.parse(currentUser.documents || "{}"); } catch (e: unknown) { logger.warn({ err: e }, "failed to parse existing rider documents JSON, resetting to empty"); }
     if (cnicDocUrl !== undefined) existingDocs.cnicDocUrl = cnicDocUrl;
     if (licenseDocUrl !== undefined) existingDocs.licenseDocUrl = licenseDocUrl;
     if (regDocUrl !== undefined) existingDocs.regDocUrl = regDocUrl;
@@ -1998,7 +1998,7 @@ router.patch("/location", async (req, res) => {
             await db.update(usersTable)
               .set({ isOnline: false, updatedAt: new Date() })
               .where(eq(usersTable.id, riderId));
-          } catch {}
+          } catch (e: unknown) { logger.warn({ err: e, riderId }, "failed to mark rider offline after spoof detection"); }
           const io = getIO();
           if (io) {
             io.to("admin-fleet").emit("rider:spoof-alert", {
@@ -2075,7 +2075,7 @@ router.patch("/location", async (req, res) => {
       .orderBy(desc(ridesTable.updatedAt))
       .limit(1);
     rideId = activeRide?.id ?? null;
-  } catch {}
+  } catch (e: unknown) { logger.warn({ err: e, riderId }, "failed to look up active ride for location broadcast"); }
 
   /* Look up vendor and orderId for active delivery order */
   let orderId: string | null = null;
@@ -2092,7 +2092,7 @@ router.patch("/location", async (req, res) => {
       .limit(1);
     vendorId = activeOrder?.vendorId ?? null;
     orderId = activeOrder?.id ?? null;
-  } catch {}
+  } catch (e: unknown) { logger.warn({ err: e, riderId }, "failed to look up active delivery order for location broadcast"); }
 
   const updatedAt = nowDate.toISOString();
 
@@ -2198,7 +2198,7 @@ router.post("/location/batch", async (req, res) => {
       prevBatchLng = loc.longitude;
       prevBatchTs  = ts;
       inserted++;
-    } catch { /* skip invalid DB entries */ }
+    } catch (e: unknown) { logger.warn({ err: e }, "skipping invalid location log DB entry"); }
   }
 
   /* Only update live location and emit if at least one clean ping was inserted.

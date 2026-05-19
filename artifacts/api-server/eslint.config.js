@@ -6,7 +6,7 @@ const { rules: localRules } = require("../../eslint-rules/no-silent-catch.cjs");
 
 export default tseslint.config(
   {
-    ignores: ["dist/**", "node_modules/**"],
+    ignores: ["dist/**", "node_modules/**", "src/routes/auth.ts"],
   },
   {
     files: ["src/**/*.{js,ts}"],

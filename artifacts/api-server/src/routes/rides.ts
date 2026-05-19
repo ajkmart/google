@@ -299,8 +299,8 @@ async function getRoadDistanceKm(lat1: number, lng1: number, lat2: number, lng2:
         };
       }
     }
-  } catch {
-    /* Network error — fall through to haversine */
+  } catch (e: unknown) {
+    logger.warn({ err: e }, "routing API failed, falling back to haversine distance");
   }
 
   return haversineFallback;
@@ -399,7 +399,7 @@ router.get("/services", async (_req, res) => {
 });
 
 router.get("/stops", async (_req, res) => {
-  try { await ensureDefaultLocations(); } catch {}
+  try { await ensureDefaultLocations(); } catch (e: unknown) { logger.warn({ err: e }, "failed to seed default locations"); }
   const locs = await db.select().from(popularLocationsTable)
     .where(eq(popularLocationsTable.isActive, true))
     .orderBy(asc(popularLocationsTable.sortOrder));
@@ -968,7 +968,7 @@ router.get("/", customerAuth, async (req, res) => {
       try {
         const computed = await calcFare(parseFloat(String(r.distance)), r.type);
         fareBreakdown = { baseFare: computed.baseFare, gstAmount: computed.gstAmount };
-      } catch {}
+      } catch (e: unknown) { logger.warn({ err: e, rideId: r.id }, "failed to compute fare breakdown for ride history entry"); }
     }
     return { ...base, fareBreakdown };
   }));
@@ -1076,7 +1076,7 @@ router.get("/:id", customerAuth, async (req, res) => {
     try {
       const computed = await calcFare(parseFloat(String(ride.distance)), ride.type);
       fareBreakdown = { baseFare: computed.baseFare, gstAmount: computed.gstAmount };
-    } catch {}
+    } catch (e: unknown) { logger.warn({ err: e, rideId: ride.id }, "failed to compute fare breakdown for ride detail"); }
   }
 
   res.json({ ...formatRide(ride), riderName, riderPhone, bids: formattedBids, riderLat, riderLng, riderLocAge, riderAvgRating, fareBreakdown });
