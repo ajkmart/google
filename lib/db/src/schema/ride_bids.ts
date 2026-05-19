@@ -14,6 +14,8 @@ export const rideBidsTable = pgTable("ride_bids", {
   fare:       decimal("fare", { precision: 10, scale: 2 }).notNull(),
   note:       text("note"),
   status:     text("status").notNull().default("pending"),
+  /* expires_at added by migration 0021 */
+  expiresAt:  timestamp("expires_at").notNull(),
   createdAt:  timestamp("created_at").notNull().defaultNow(),
   updatedAt:  timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [

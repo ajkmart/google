@@ -1,7 +1,7 @@
 import { logger } from "../lib/logger.js";
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { ordersTable, pharmacyOrdersTable, parcelBookingsTable, productsTable, reviewsTable, rideRatingsTable, ridesTable, usersTable } from "@workspace/db/schema";
+import { ordersTable, pharmacyOrdersTable, parcelBookingsTable, productsTable, reviewsTable, rideRatingsTable, ridesTable, usersTable, vendorProfilesTable } from "@workspace/db/schema";
 import { eq, and, desc, isNull, sql } from "drizzle-orm";
 import { generateId } from "../lib/id.js";
 import { getPlatformSettings } from "./admin.js";
@@ -24,7 +24,7 @@ async function vendorAuth(req: Request, res: Response, next: NextFunction) {
   }
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, payload.userId)).limit(1);
   if (!user || !user.isActive || user.isBanned) { res.status(403).json({ error: "Access denied" }); return; }
-  const dbRoles = (user.roles || user.role || "").split(",").map((r: string) => r.trim());
+  const dbRoles = (user.roles || "").split(",").map((r: string) => r.trim());
   if (!dbRoles.includes("vendor")) { res.status(403).json({ error: "Vendor role required" }); return; }
   req.vendorId = user.id;
   req.vendorUser = user;
@@ -475,10 +475,11 @@ router.get("/my", customerAuth, async (req, res) => {
         riderRating: reviewsTable.riderRating,
         comment: reviewsTable.comment,
         createdAt: reviewsTable.createdAt,
-        vendorName: usersTable.storeName,
+        vendorName: vendorProfilesTable.storeName,
       })
       .from(reviewsTable)
       .leftJoin(usersTable, eq(reviewsTable.vendorId, usersTable.id))
+      .leftJoin(vendorProfilesTable, eq(reviewsTable.vendorId, vendorProfilesTable.userId))
       .where(and(eq(reviewsTable.userId, userId), isNull(reviewsTable.deletedAt)))
       .orderBy(desc(reviewsTable.createdAt)),
 
@@ -498,7 +499,7 @@ router.get("/my", customerAuth, async (req, res) => {
         vendorName: sql<string | null>`null`,
       })
       .from(rideRatingsTable)
-      .where(and(eq(rideRatingsTable.customerId, userId), isNull(rideRatingsTable.deletedAt)))
+      .where(and(eq(rideRatingsTable.userId, userId), isNull(rideRatingsTable.deletedAt)))
       .orderBy(desc(rideRatingsTable.createdAt)),
   ]);
 

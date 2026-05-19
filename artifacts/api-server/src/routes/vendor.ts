@@ -1,6 +1,6 @@
-import { Router, type IRouter, type Request } from "express";
+import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { usersTable, ordersTable, productsTable, promoCodesTable, walletTransactionsTable, notificationsTable, reviewsTable, liveLocationsTable } from "@workspace/db/schema";
+import { usersTable, ordersTable, productsTable, promoCodesTable, walletTransactionsTable, notificationsTable, reviewsTable, liveLocationsTable, vendorProfilesTable, riderProfilesTable } from "@workspace/db/schema";
 import { eq, desc, and, sql, count, sum, gte, or, ilike, isNull, avg } from "drizzle-orm";
 import { generateId } from "../lib/id.js";
 import { getPlatformSettings } from "./admin.js";
@@ -15,22 +15,34 @@ const router: IRouter = Router();
 router.use(requireRole("vendor", { vendorApprovalCheck: true }));
 
 function safeNum(v: any, def = 0) { return parseFloat(String(v ?? def)) || def; }
-function formatUser(user: any) {
+
+async function fetchVendorData(vendorId: string) {
+  const [[user], [profile]] = await Promise.all([
+    db.select().from(usersTable).where(eq(usersTable.id, vendorId)).limit(1),
+    db.select().from(vendorProfilesTable).where(eq(vendorProfilesTable.userId, vendorId)).limit(1),
+  ]);
+  return { user, profile };
+}
+
+function formatUser(user: any, profile: any) {
+  const storeHoursRaw = profile?.storeHours;
   return {
     id: user.id, phone: user.phone, name: user.name, email: user.email,
     username: user.username,
     avatar: user.avatar,
-    storeName: user.storeName, storeCategory: user.storeCategory,
-    storeBanner: user.storeBanner, storeDescription: user.storeDescription,
-    storeHours: user.storeHours ? (typeof user.storeHours === "string" ? (() => { try { return JSON.parse(user.storeHours); } catch { return null; } })() : user.storeHours) : null,
-    storeAnnouncement: user.storeAnnouncement,
-    storeMinOrder: safeNum(user.storeMinOrder),
-    storeDeliveryTime: user.storeDeliveryTime,
-    storeIsOpen: user.storeIsOpen ?? true,
+    storeName: profile?.storeName ?? null,
+    storeCategory: profile?.storeCategory ?? null,
+    storeBanner: profile?.storeBanner ?? null,
+    storeDescription: profile?.storeDescription ?? null,
+    storeHours: storeHoursRaw ? (typeof storeHoursRaw === "string" ? (() => { try { return JSON.parse(storeHoursRaw); } catch { return null; } })() : storeHoursRaw) : null,
+    storeAnnouncement: profile?.storeAnnouncement ?? null,
+    storeMinOrder: safeNum(profile?.storeMinOrder),
+    storeDeliveryTime: profile?.storeDeliveryTime ?? null,
+    storeIsOpen: profile?.storeIsOpen ?? true,
     walletBalance: safeNum(user.walletBalance),
     cnic: user.cnic, address: user.address, city: user.city, area: user.area,
     bankName: user.bankName, bankAccount: user.bankAccount, bankAccountTitle: user.bankAccountTitle,
-    businessType: user.businessType,
+    businessType: profile?.businessType ?? null,
     accountLevel: user.accountLevel, kycStatus: user.kycStatus,
     lastLoginAt: user.lastLoginAt,
     createdAt: user.createdAt,
@@ -39,21 +51,21 @@ function formatUser(user: any) {
 
 /* ── GET /vendor/me ── */
 router.get("/me", async (req, res) => {
-  const user = req.vendorUser!;
-  const vendorId = user.id;
+  const vendorId = req.vendorId!;
   const today = new Date(); today.setHours(0,0,0,0);
 
-  const s = await getPlatformSettings();
-  const vendorShare = 1 - (parseFloat(s["vendor_commission_pct"] ?? "15") / 100);
-
-  const [todayOrders, todayRev, totalOrders, totalRev] = await Promise.all([
+  const [{ user, profile }, s, todayOrders, todayRev, totalOrders, totalRev] = await Promise.all([
+    fetchVendorData(vendorId),
+    getPlatformSettings(),
     db.select({ c: count() }).from(ordersTable).where(and(eq(ordersTable.vendorId, vendorId), gte(ordersTable.createdAt, today))),
     db.select({ s: sum(ordersTable.total) }).from(ordersTable).where(and(eq(ordersTable.vendorId, vendorId), gte(ordersTable.createdAt, today), or(eq(ordersTable.status, "delivered"), eq(ordersTable.status, "completed")))),
     db.select({ c: count() }).from(ordersTable).where(eq(ordersTable.vendorId, vendorId)),
     db.select({ s: sum(ordersTable.total) }).from(ordersTable).where(and(eq(ordersTable.vendorId, vendorId), or(eq(ordersTable.status, "delivered"), eq(ordersTable.status, "completed")))),
   ]);
+  if (!user) { res.status(404).json({ error: "Vendor not found" }); return; }
+  const vendorShare = 1 - (parseFloat(s["vendor_commission_pct"] ?? "15") / 100);
   res.json({
-    ...formatUser(user),
+    ...formatUser(user, profile),
     stats: {
       todayOrders:  todayOrders[0]?.c ?? 0,
       todayRevenue: parseFloat((safeNum(todayRev[0]?.s) * vendorShare).toFixed(2)),
@@ -67,38 +79,47 @@ router.get("/me", async (req, res) => {
 router.patch("/profile", async (req, res) => {
   const vendorId = req.vendorId!;
   const { name, email, cnic, address, city, bankName, bankAccount, bankAccountTitle, businessType } = req.body;
-  const updates: Record<string, unknown> = { updatedAt: new Date() };
-  if (name             !== undefined) updates.name             = name;
-  if (email            !== undefined) updates.email            = email;
-  if (cnic             !== undefined) updates.cnic             = cnic;
-  if (address          !== undefined) updates.address          = address;
-  if (city             !== undefined) updates.city             = city;
-  if (bankName         !== undefined) updates.bankName         = bankName;
-  if (bankAccount      !== undefined) updates.bankAccount      = bankAccount;
-  if (bankAccountTitle !== undefined) updates.bankAccountTitle = bankAccountTitle;
-  if (businessType     !== undefined) updates.businessType     = businessType;
-  const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, vendorId)).returning();
-  res.json(formatUser(user));
+  const userUpdates: Record<string, unknown> = { updatedAt: new Date() };
+  if (name             !== undefined) userUpdates.name             = name;
+  if (email            !== undefined) userUpdates.email            = email;
+  if (cnic             !== undefined) userUpdates.cnic             = cnic;
+  if (address          !== undefined) userUpdates.address          = address;
+  if (city             !== undefined) userUpdates.city             = city;
+  if (bankName         !== undefined) userUpdates.bankName         = bankName;
+  if (bankAccount      !== undefined) userUpdates.bankAccount      = bankAccount;
+  if (bankAccountTitle !== undefined) userUpdates.bankAccountTitle = bankAccountTitle;
+  const [user] = await db.update(usersTable).set(userUpdates).where(eq(usersTable.id, vendorId)).returning();
+  if (businessType !== undefined) {
+    await db.insert(vendorProfilesTable).values({ userId: vendorId, businessType })
+      .onConflictDoUpdate({ target: vendorProfilesTable.userId, set: { businessType, updatedAt: new Date() } });
+  }
+  const [profile] = await db.select().from(vendorProfilesTable).where(eq(vendorProfilesTable.userId, vendorId)).limit(1);
+  res.json(formatUser(user, profile));
 });
 
 /* ── GET /vendor/store ── */
 router.get("/store", async (req, res) => {
-  const user = req.vendorUser!;
-  res.json(formatUser(user));
+  const vendorId = req.vendorId!;
+  const { user, profile } = await fetchVendorData(vendorId);
+  if (!user) { res.status(404).json({ error: "Vendor not found" }); return; }
+  res.json(formatUser(user, profile));
 });
 
 /* ── PATCH /vendor/store ── */
 router.patch("/store", async (req, res) => {
   const vendorId = req.vendorId!;
   const body = req.body;
-  const updates: Record<string, unknown> = { updatedAt: new Date() };
+  const profileUpdates: Record<string, unknown> = { updatedAt: new Date() };
   const fields = ["storeName","storeCategory","storeBanner","storeDescription","storeAnnouncement","storeDeliveryTime","storeIsOpen","storeMinOrder"];
   for (const f of fields) {
-    if (body[f] !== undefined) updates[f] = body[f];
+    if (body[f] !== undefined) profileUpdates[f] = body[f];
   }
-  if (body.storeHours !== undefined) updates.storeHours = typeof body.storeHours === "string" ? body.storeHours : JSON.stringify(body.storeHours);
-  const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, vendorId)).returning();
-  res.json(formatUser(user));
+  if (body.storeHours !== undefined) profileUpdates.storeHours = typeof body.storeHours === "string" ? body.storeHours : JSON.stringify(body.storeHours);
+  await db.insert(vendorProfilesTable).values({ userId: vendorId, ...profileUpdates as any })
+    .onConflictDoUpdate({ target: vendorProfilesTable.userId, set: profileUpdates as any });
+  const { user, profile } = await fetchVendorData(vendorId);
+  if (!user) { res.status(404).json({ error: "Vendor not found" }); return; }
+  res.json(formatUser(user, profile));
 });
 
 /* ── GET /vendor/stats ── */
@@ -240,7 +261,7 @@ router.patch("/orders/:id/status", async (req, res) => {
           .select({ id: usersTable.id })
           .from(usersTable)
           .where(and(
-            eq(usersTable.role, "rider"),
+            eq(usersTable.roles, "rider"),
             eq(usersTable.isOnline, true),
           ));
         for (const { id: riderId } of onlineRiders) {
@@ -268,7 +289,6 @@ router.get("/products", async (req, res) => {
 /* ── POST /vendor/products ── Add single product ── */
 router.post("/products", async (req, res) => {
   const vendorId = req.vendorId!;
-  const user = req.vendorUser!;
   const body = req.body;
   if (!body.name || !body.price) { res.status(400).json({ error: "name and price required" }); return; }
   if (!isFinite(Number(body.price)) || Number(body.price) <= 0) {
@@ -276,15 +296,19 @@ router.post("/products", async (req, res) => {
   }
 
   // Enforce max items limit
-  const s = await getPlatformSettings();
+  const [{ user, profile }, s, countRow0] = await Promise.all([
+    fetchVendorData(vendorId),
+    getPlatformSettings(),
+    db.select({ c: count() }).from(productsTable).where(eq(productsTable.vendorId, vendorId)),
+  ]);
   const maxItems = parseInt(s["vendor_max_items"] ?? "100");
-  const [countRow] = await db.select({ c: count() }).from(productsTable).where(eq(productsTable.vendorId, vendorId));
+  const [countRow] = [countRow0[0]];
   if ((countRow?.c ?? 0) >= maxItems) {
     res.status(400).json({ error: `Product limit reached. Maximum ${maxItems} items allowed per vendor.` }); return;
   }
 
   const [product] = await db.insert(productsTable).values({
-    id: generateId(), vendorId, vendorName: user.storeName || user.name,
+    id: generateId(), vendorId, vendorName: profile?.storeName || user?.name || "",
     name: body.name, description: body.description || null,
     price: String(body.price), originalPrice: body.originalPrice ? String(body.originalPrice) : null,
     category: body.category || "general", type: body.type || "mart",
@@ -299,24 +323,27 @@ router.post("/products", async (req, res) => {
 /* ── POST /vendor/products/bulk ── Bulk add products ── */
 router.post("/products/bulk", async (req, res) => {
   const vendorId = req.vendorId!;
-  const user = req.vendorUser!;
   const { products } = req.body;
   if (!Array.isArray(products) || products.length === 0) { res.status(400).json({ error: "products array required" }); return; }
   if (products.length > 50) { res.status(400).json({ error: "Max 50 products at a time" }); return; }
 
   // Enforce max items limit (check current count + new items)
-  const s2 = await getPlatformSettings();
+  const [{ user, profile }, s2, countRow2] = await Promise.all([
+    fetchVendorData(vendorId),
+    getPlatformSettings(),
+    db.select({ c: count() }).from(productsTable).where(eq(productsTable.vendorId, vendorId)),
+  ]);
   const maxItems2 = parseInt(s2["vendor_max_items"] ?? "100");
-  const [countRow2] = await db.select({ c: count() }).from(productsTable).where(eq(productsTable.vendorId, vendorId));
-  const currentCount = countRow2?.c ?? 0;
+  const currentCount = countRow2[0]?.c ?? 0;
   if (currentCount + products.length > maxItems2) {
     res.status(400).json({ error: `Product limit exceeded. You have ${currentCount}/${maxItems2} items. Can only add ${Math.max(0, maxItems2 - currentCount)} more.` }); return;
   }
   const invalid = products.filter(p => !p.name || !p.price || !isFinite(Number(p.price)) || Number(p.price) <= 0);
   if (invalid.length > 0) { res.status(400).json({ error: `${invalid.length} product(s) missing name, or have an invalid/non-positive price` }); return; }
+  const vendorName = profile?.storeName || user?.name || "";
   const inserted = await db.insert(productsTable).values(
     products.map(p => ({
-      id: generateId(), vendorId, vendorName: user.storeName || user.name,
+      id: generateId(), vendorId, vendorName,
       name: p.name, description: p.description || null,
       price: String(p.price), originalPrice: p.originalPrice ? String(p.originalPrice) : null,
       category: p.category || "general", type: p.type || "mart",
@@ -415,13 +442,15 @@ router.delete("/promos/:id", async (req, res) => {
 router.get("/wallet/transactions", async (req, res) => {
   const vendorId = req.vendorId!;
   const limit = Math.min(parseInt(String(req.query["limit"] || "50")), 100);
-  const txns = await db.select().from(walletTransactionsTable)
-    .where(eq(walletTransactionsTable.userId, vendorId))
-    .orderBy(desc(walletTransactionsTable.createdAt))
-    .limit(limit);
-  const user = req.vendorUser!;
+  const [txns, [userRow]] = await Promise.all([
+    db.select().from(walletTransactionsTable)
+      .where(eq(walletTransactionsTable.userId, vendorId))
+      .orderBy(desc(walletTransactionsTable.createdAt))
+      .limit(limit),
+    db.select({ walletBalance: usersTable.walletBalance }).from(usersTable).where(eq(usersTable.id, vendorId)).limit(1),
+  ]);
   res.json({
-    balance: safeNum(user.walletBalance),
+    balance: safeNum(userRow?.walletBalance),
     transactions: txns.map(t => ({
       ...t,
       amount: safeNum(t.amount),
@@ -651,9 +680,10 @@ router.get("/orders/available-riders", requireRole("vendor"), async (req, res) =
   const maxKm = parseFloat(String(req.query["maxKm"] ?? "10"));
 
   const riders = await db
-    .select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone, vehicleType: usersTable.vehicleType, walletBalance: usersTable.walletBalance })
+    .select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone, vehicleType: riderProfilesTable.vehicleType, walletBalance: usersTable.walletBalance })
     .from(usersTable)
-    .where(and(eq(usersTable.role, "rider"), eq(usersTable.isOnline, true)));
+    .leftJoin(riderProfilesTable, eq(usersTable.id, riderProfilesTable.userId))
+    .where(and(eq(usersTable.roles, "rider"), eq(usersTable.isOnline, true)));
 
   const locs = await db.select().from(liveLocationsTable);
   const locMap = new Map(locs.map(l => [l.userId, l]));
@@ -682,7 +712,7 @@ router.post("/orders/:id/assign-rider", requireRole("vendor"), async (req, res) 
   if (!riderId) { res.status(400).json({ error: "riderId required" }); return; }
 
   const [rider] = await db.select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone })
-    .from(usersTable).where(and(eq(usersTable.id, riderId), eq(usersTable.role, "rider"))).limit(1);
+    .from(usersTable).where(and(eq(usersTable.id, riderId), eq(usersTable.roles, "rider"))).limit(1);
   if (!rider) { res.status(404).json({ error: "Rider not found" }); return; }
 
   const [updated] = await db.update(ordersTable)
@@ -715,7 +745,7 @@ router.post("/orders/:id/auto-assign", requireRole("vendor"), async (req, res) =
   const riders = await db
     .select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone })
     .from(usersTable)
-    .where(and(eq(usersTable.role, "rider"), eq(usersTable.isOnline, true)));
+    .where(and(eq(usersTable.roles, "rider"), eq(usersTable.isOnline, true)));
 
   if (riders.length === 0) { res.status(404).json({ error: "No riders online" }); return; }
 

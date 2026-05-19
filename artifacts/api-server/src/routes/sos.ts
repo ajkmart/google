@@ -22,7 +22,7 @@ router.post("/", customerAuth, async (req, res) => {
   const userId = req.customerId!;
   const { rideId, lat, lng, message } = req.body;
 
-  const [user] = await db.select({ name: usersTable.name, phone: usersTable.phone, role: usersTable.role })
+  const [user] = await db.select({ name: usersTable.name, phone: usersTable.phone, roles: usersTable.roles })
     .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
 
   const locationStr = (lat && lng) ? ` · Location: ${parseFloat(lat).toFixed(5)},${parseFloat(lng).toFixed(5)}` : "";
@@ -33,7 +33,7 @@ router.post("/", customerAuth, async (req, res) => {
   const sosLang = await getUserLanguage(userId);
 
   const now = new Date();
-  const title = `🆘 ${t("sosAlert", sosLang)} — ${user?.name || "Unknown"} (${user?.role || "user"})`;
+  const title = `🆘 ${t("sosAlert", sosLang)} — ${user?.name || "Unknown"} (${user?.roles || "user"})`;
   const body  = `Phone: ${user?.phone || "N/A"}${rideStr}${locationStr}${msgStr}`;
   const link  = rideId ? `/rides/${rideId}` : `/users/${userId}`;
 

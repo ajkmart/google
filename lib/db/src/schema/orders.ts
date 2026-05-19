@@ -1,4 +1,4 @@
-import { check, decimal, index, json, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, check, decimal, doublePrecision, index, json, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -26,6 +26,17 @@ export const ordersTable = pgTable("orders", {
   refundedAmount: decimal("refunded_amount", { precision: 10, scale: 2 }),
   assignedRiderId: text("assigned_rider_id").references(() => usersTable.id, { onDelete: "set null" }),
   assignedAt: timestamp("assigned_at"),
+  /* ── Rider acceptance timestamp ── */
+  acceptedAt: timestamp("accepted_at"),
+  /* ── GPS fraud-stamp columns (added by migration 0022) ── */
+  customerLat:  decimal("customer_lat",  { precision: 10, scale: 7 }),
+  customerLng:  decimal("customer_lng",  { precision: 10, scale: 7 }),
+  gpsAccuracy:  doublePrecision("gps_accuracy"),
+  gpsMismatch:  boolean("gps_mismatch").default(false),
+  deliveryLat:  decimal("delivery_lat",  { precision: 10, scale: 7 }),
+  deliveryLng:  decimal("delivery_lng",  { precision: 10, scale: 7 }),
+  /* ── Soft delete ── */
+  deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [

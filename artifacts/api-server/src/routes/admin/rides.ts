@@ -5,6 +5,7 @@ import {
   walletTransactionsTable,
   notificationsTable,
   ordersTable, ridesTable, rideBidsTable, rideServiceTypesTable, popularLocationsTable, schoolRoutesTable, schoolSubscriptionsTable, liveLocationsTable, rideEventLogsTable, rideNotifiedRidersTable, locationLogsTable,
+  riderProfilesTable, vendorProfilesTable,
 } from "@workspace/db/schema";
 import { eq, desc, count, sum, and, gte, lte, sql, or, ilike, asc, isNull, isNotNull, avg, ne } from "drizzle-orm";
 import {
@@ -398,12 +399,13 @@ router.get("/live-riders", async (_req, res) => {
       name:         usersTable.name,
       phone:        usersTable.phone,
       isOnline:     usersTable.isOnline,
-      vehicleType:  usersTable.vehicleType,
+      vehicleType:  riderProfilesTable.vehicleType,
       city:         usersTable.city,
-      role:         usersTable.role,
+      role:         usersTable.roles,
     })
     .from(liveLocationsTable)
     .leftJoin(usersTable, eq(liveLocationsTable.userId, usersTable.id))
+    .leftJoin(riderProfilesTable, eq(liveLocationsTable.userId, riderProfilesTable.userId))
     .where(or(eq(liveLocationsTable.role, "rider"), eq(liveLocationsTable.role, "service_provider")));
 
   const enriched = locs.map(loc => {
@@ -535,15 +537,16 @@ router.get("/revenue-trend", async (_req, res) => {
 router.get("/leaderboard", async (_req, res) => {
   const vendors = await db.select({
     id:     usersTable.id,
-    name:   usersTable.storeName,
+    name:   vendorProfilesTable.storeName,
     phone:  usersTable.phone,
     totalOrders: sql<number>`count(${ordersTable.id})`,
     totalRevenue: sql<number>`coalesce(sum(${ordersTable.total}),0)`,
   })
   .from(usersTable)
+  .leftJoin(vendorProfilesTable, eq(usersTable.id, vendorProfilesTable.userId))
   .leftJoin(ordersTable, and(eq(ordersTable.vendorId, usersTable.id), eq(ordersTable.status, "delivered")))
-  .where(eq(usersTable.role, "vendor"))
-  .groupBy(usersTable.id)
+  .where(eq(usersTable.roles, "vendor"))
+  .groupBy(usersTable.id, vendorProfilesTable.storeName)
   .orderBy(sql`coalesce(sum(${ordersTable.total}),0) desc`)
   .limit(5);
 
@@ -556,7 +559,7 @@ router.get("/leaderboard", async (_req, res) => {
   })
   .from(usersTable)
   .leftJoin(ridesTable, and(eq(ridesTable.riderId, usersTable.id), eq(ridesTable.status, "completed")))
-  .where(eq(usersTable.role, "rider"))
+  .where(eq(usersTable.roles, "rider"))
   .groupBy(usersTable.id)
   .orderBy(sql`count(${ridesTable.id}) desc`)
   .limit(5);
@@ -688,10 +691,10 @@ router.post("/rides/:id/reassign", async (req, res) => {
 
   if (!riderId) { res.status(400).json({ error: "riderId is required to reassign" }); return; }
 
-  const [riderUser] = await db.select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone, role: usersTable.role })
+  const [riderUser] = await db.select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone, roles: usersTable.roles })
     .from(usersTable).where(eq(usersTable.id, riderId)).limit(1);
   if (!riderUser) { res.status(404).json({ error: "Rider not found" }); return; }
-  if (riderUser.role !== "rider") { res.status(400).json({ error: "Selected user is not a rider" }); return; }
+  if (riderUser.roles !== "rider") { res.status(400).json({ error: "Selected user is not a rider" }); return; }
 
   const oldRiderId = ride.riderId;
   const resolvedName = riderName || riderUser.name;

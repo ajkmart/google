@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, index } from "drizzle-orm/pg-core";
+import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
 export const userSessionsTable = pgTable("user_sessions", {
@@ -10,6 +10,8 @@ export const userSessionsTable = pgTable("user_sessions", {
   os:          text("os"),
   ip:          text("ip"),
   location:    text("location"),
+  /* link back to the refresh-token that created this session */
+  refreshTokenId: text("refresh_token_id"),
   lastActiveAt: timestamp("last_active_at").notNull().defaultNow(),
   revokedAt:   timestamp("revoked_at"),
   createdAt:   timestamp("created_at").notNull().defaultNow(),

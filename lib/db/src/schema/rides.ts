@@ -1,4 +1,4 @@
-import { boolean, decimal, index, integer, pgTable, text, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { boolean, decimal, index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -37,11 +37,20 @@ export const ridesTable = pgTable("rides", {
   receiverName:  text("receiver_name"),
   receiverPhone: text("receiver_phone"),
   packageType:   text("package_type"),
+  /* ── Scheduled ride ── */
+  isScheduled: boolean("is_scheduled").notNull().default(false),
+  scheduledAt: timestamp("scheduled_at"),
+  /* ── Multi-stop / pool ride ── */
+  stops:      jsonb("stops").default(null),
+  isPoolRide: boolean("is_pool_ride").notNull().default(false),
+  poolGroupId: text("pool_group_id"),
+  /* ── Lifecycle timestamps ── */
   acceptedAt:   timestamp("accepted_at"),
   arrivedAt:    timestamp("arrived_at"),
   startedAt:    timestamp("started_at"),
   completedAt:  timestamp("completed_at"),
   cancelledAt:  timestamp("cancelled_at"),
+  refundedAt:   timestamp("refunded_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [

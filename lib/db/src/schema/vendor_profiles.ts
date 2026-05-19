@@ -15,9 +15,14 @@ export const vendorProfilesTable = pgTable("vendor_profiles", {
   storeDeliveryTime: text("store_delivery_time"),
   storeIsOpen:       boolean("store_is_open").notNull().default(true),
   storeAddress:      text("store_address"),
+  /* geo-coordinates for the store front */
+  storeLat:          decimal("store_lat", { precision: 10, scale: 7 }),
+  storeLng:          decimal("store_lng", { precision: 10, scale: 7 }),
   businessType:      text("business_type"),
   businessName:      text("business_name"),
   ntn:               text("ntn"),
+  /* quick reply templates (added by drizzle migration 0003) */
+  quickReplies:      text("quick_replies"),
   createdAt:         timestamp("created_at").notNull().defaultNow(),
   updatedAt:         timestamp("updated_at").notNull().defaultNow(),
 });

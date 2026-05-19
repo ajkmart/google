@@ -56,7 +56,7 @@ router.get("/profile", async (req, res) => {
     name: user.name,
     email: user.email,
     username: user.username ?? null,
-    role: user.role,
+    role: user.roles,
     avatar: user.avatar,
     walletBalance: parseFloat(user.walletBalance ?? "0"),
     isActive: user.isActive,
@@ -197,7 +197,7 @@ router.post("/avatar", avatarUpload.single("avatar"), async (req, res) => {
     if (!user) { res.status(404).json({ error: "User not found" }); return; }
     res.json({ success: true, avatarUrl, user: {
       id: user.id, phone: user.phone, name: user.name, email: user.email,
-      role: user.role, avatar: user.avatar, walletBalance: parseFloat(user.walletBalance ?? "0"),
+      role: user.roles, avatar: user.avatar, walletBalance: parseFloat(user.walletBalance ?? "0"),
     }});
   } catch (e: unknown) {
     res.status(500).json({ error: e?.message || "Avatar upload failed" });
@@ -256,7 +256,7 @@ router.put("/profile", async (req, res) => {
       name: user.name,
       email: user.email,
       username: user.username,
-      role: user.role,
+      role: user.roles,
       avatar: user.avatar,
       walletBalance: parseFloat(user.walletBalance ?? "0"),
       cnic: user.cnic,

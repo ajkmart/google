@@ -6,6 +6,7 @@ import {
   rideServiceTypesTable, ridesTable, rideRatingsTable,
   usersTable, walletTransactionsTable,
   popularLocationsTable, rideEventLogsTable, rideNotifiedRidersTable,
+  riderProfilesTable,
 } from "@workspace/db/schema";
 import { and, asc, eq, ne, sql, or, isNull, gte, count } from "drizzle-orm";
 import { z } from "zod";
@@ -140,11 +141,15 @@ async function broadcastRide(rideId: string) {
       const dist = calcDistance(pickupLat, pickupLng, rLat, rLng);
       if (dist > radiusKm) continue;
 
-      const [user] = await db.select({ isActive: usersTable.isActive, isBanned: usersTable.isBanned, isRestricted: usersTable.isRestricted, vehicleType: usersTable.vehicleType })
-        .from(usersTable).where(eq(usersTable.id, r.userId)).limit(1);
+      const [[user], [riderProf]] = await Promise.all([
+        db.select({ isActive: usersTable.isActive, isBanned: usersTable.isBanned, isRestricted: usersTable.isRestricted })
+          .from(usersTable).where(eq(usersTable.id, r.userId)).limit(1),
+        db.select({ vehicleType: riderProfilesTable.vehicleType })
+          .from(riderProfilesTable).where(eq(riderProfilesTable.userId, r.userId)).limit(1),
+      ]);
       if (!user || !user.isActive || user.isBanned || user.isRestricted) continue;
       if (ride.type) {
-        const vt = (user.vehicleType ?? "").trim();
+        const vt = (riderProf?.vehicleType ?? "").trim();
         if (!vt || vt !== ride.type) continue;
       }
 
@@ -1016,9 +1021,9 @@ router.get("/:id", customerAuth, async (req, res) => {
 
   const formattedBids = await Promise.all(bids.map(async (b) => {
     const [riderUser] = await db.select({
-      vehiclePlate: usersTable.vehiclePlate,
-      vehicleType:  usersTable.vehicleType,
-    }).from(usersTable).where(eq(usersTable.id, b.riderId)).limit(1);
+      vehiclePlate: riderProfilesTable.vehiclePlate,
+      vehicleType:  riderProfilesTable.vehicleType,
+    }).from(riderProfilesTable).where(eq(riderProfilesTable.userId, b.riderId)).limit(1);
 
     const ratingRows = await db.select({
       starsAvg: sql<string>`AVG(stars)`,

@@ -67,7 +67,7 @@ router.get("/transactions-enriched", async (_req, res) => {
 /* ── Delete User ── */
 router.get("/vendors", async (_req, res) => {
   const vendors = await db.select().from(usersTable).where(
-    or(ilike(usersTable.roles, "%vendor%"), eq(usersTable.role, "vendor"))
+    or(ilike(usersTable.roles, "%vendor%"), eq(usersTable.roles, "vendor"))
   ).orderBy(desc(usersTable.createdAt));
 
   const vendorIds = vendors.map(v => v.id);
@@ -168,7 +168,7 @@ router.post("/vendors/:id/credit", async (req, res) => {
 ══════════════════════════════════════ */
 router.get("/riders", async (_req, res) => {
   const riders = await db.select().from(usersTable).where(
-    or(ilike(usersTable.roles, "%rider%"), eq(usersTable.role, "rider"))
+    or(ilike(usersTable.roles, "%rider%"), eq(usersTable.roles, "rider"))
   ).orderBy(desc(usersTable.createdAt));
 
   const riderIds = riders.map(r => r.id);
@@ -341,7 +341,7 @@ router.get("/withdrawal-requests", async (req, res) => {
     .orderBy(desc(walletTransactionsTable.createdAt))
     .limit(300);
   const enriched = await Promise.all(txns.map(async t => {
-    const [user] = await db.select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone, role: usersTable.role })
+    const [user] = await db.select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone, role: usersTable.roles })
       .from(usersTable).where(eq(usersTable.id, t.userId)).limit(1);
     const ref = t.reference ?? "pending";
     const status = ref === "pending" ? "pending" : ref.startsWith("paid:") ? "paid" : ref.startsWith("rejected:") ? "rejected" : ref;
@@ -464,7 +464,7 @@ router.get("/deposit-requests", async (req, res) => {
     .orderBy(desc(walletTransactionsTable.createdAt))
     .limit(200);
   const enriched = await Promise.all(txns.map(async t => {
-    const [user] = await db.select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone, role: usersTable.role })
+    const [user] = await db.select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone, role: usersTable.roles })
       .from(usersTable).where(eq(usersTable.id, t.userId)).limit(1);
     const ref = t.reference ?? "pending";
     const isPending = ref === "pending" || ref.startsWith("pending:");
@@ -588,7 +588,7 @@ router.post("/deposit-requests/bulk-approve", async (req, res) => {
     const ref = tx.reference ?? "pending";
     const isPending = ref === "pending" || ref.startsWith("pending:");
     if (!isPending) { res.status(409).json({ error: `Deposit ${txId} already processed (${ref})` }); return; }
-    const [user] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, tx.userId)).limit(1);
+    const [user] = await db.select({ role: usersTable.roles }).from(usersTable).where(eq(usersTable.id, tx.userId)).limit(1);
     if (!user) { res.status(400).json({ error: `User not found for deposit ${txId}` }); return; }
     if (user.role !== "customer") { res.status(400).json({ error: `Deposit ${txId} belongs to a ${user.role}, not a customer. Bulk actions are for customer deposits only.` }); return; }
     const amt = parseFloat(String(tx.amount));
@@ -650,7 +650,7 @@ router.post("/deposit-requests/bulk-reject", async (req, res) => {
     const ref = tx.reference ?? "pending";
     const isPending = ref === "pending" || ref.startsWith("pending:");
     if (!isPending) { res.status(409).json({ error: `Deposit ${txId} already processed (${ref})` }); return; }
-    const [user] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, tx.userId)).limit(1);
+    const [user] = await db.select({ role: usersTable.roles }).from(usersTable).where(eq(usersTable.id, tx.userId)).limit(1);
     if (!user) { res.status(400).json({ error: `User not found for deposit ${txId}` }); return; }
     if (user.role !== "customer") { res.status(400).json({ error: `Deposit ${txId} belongs to a ${user.role}, not a customer. Bulk actions are for customer deposits only.` }); return; }
     const txidSuffix = (tx.reference && tx.reference.includes("txid:")) ? `:${tx.reference.split("txid:").pop()}` : "";

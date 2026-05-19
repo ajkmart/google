@@ -1,7 +1,7 @@
 import { logger } from "../lib/logger.js";
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { usersTable, ordersTable, rideBidsTable, ridesTable, riderPenaltiesTable, walletTransactionsTable, notificationsTable, liveLocationsTable, reviewsTable, rideRatingsTable, locationLogsTable } from "@workspace/db/schema";
+import { usersTable, ordersTable, rideBidsTable, ridesTable, riderPenaltiesTable, walletTransactionsTable, notificationsTable, liveLocationsTable, reviewsTable, rideRatingsTable, locationLogsTable, vendorProfilesTable, riderProfilesTable } from "@workspace/db/schema";
 import { eq, desc, and, or, sql, count, sum, avg, gte, isNull, type InferSelectModel } from "drizzle-orm";
 import { generateId } from "../lib/id.js";
 import { getPlatformSettings } from "./admin.js";
@@ -513,8 +513,10 @@ router.get("/active", async (req, res) => {
       db.select({ name: usersTable.name, phone: usersTable.phone })
         .from(usersTable).where(eq(usersTable.id, order[0].userId)).limit(1),
       order[0].vendorId
-        ? db.select({ storeName: usersTable.storeName, phone: usersTable.phone })
-            .from(usersTable).where(eq(usersTable.id, order[0].vendorId)).limit(1)
+        ? db.select({ storeName: vendorProfilesTable.storeName, phone: usersTable.phone })
+            .from(usersTable)
+            .leftJoin(vendorProfilesTable, eq(usersTable.id, vendorProfilesTable.userId))
+            .where(eq(usersTable.id, order[0].vendorId)).limit(1)
         : Promise.resolve([]),
     ];
     const [customerRows, vendorRows] = await Promise.all(promises);
@@ -1600,7 +1602,7 @@ router.get("/reviews", async (req, res) => {
         customerName: usersTable.name,
       })
       .from(rideRatingsTable)
-      .leftJoin(usersTable, eq(rideRatingsTable.customerId, usersTable.id))
+      .leftJoin(usersTable, eq(rideRatingsTable.userId, usersTable.id))
       .where(legacyConditions)
       .orderBy(desc(rideRatingsTable.createdAt))
       .limit(pageLimit),

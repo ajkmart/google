@@ -8,7 +8,7 @@ export const usersTable = pgTable("users", {
   phone:           text("phone").unique(),
   name:            text("name"),
   email:           text("email").unique(),
-  role:            text("role").notNull().default("customer"),
+  /* roles is the canonical field (role was dropped in migration 0025) */
   roles:           text("roles").notNull().default("customer"),
   avatar:          text("avatar"),
   walletBalance:   decimal("wallet_balance", { precision: 10, scale: 2 }).notNull().default("0"),
@@ -19,14 +19,16 @@ export const usersTable = pgTable("users", {
   /* ── Email OTP (separate from phone OTP) ── */
   emailOtpCode:    text("email_otp_code"),
   emailOtpExpiry:  timestamp("email_otp_expiry"),
+  emailOtpUsed:    boolean("email_otp_used").notNull().default(false),
   /* ── Username + password login ── */
   username:        text("username").unique(),
   passwordHash:    text("password_hash"),
+  requirePasswordChange: boolean("require_password_change").notNull().default(false),
   /* ── Verification status ── */
   phoneVerified:   boolean("phone_verified").notNull().default(false),
   emailVerified:   boolean("email_verified").notNull().default(false),
   /* ── Admin approval ── */
-  approvalStatus:  text("approval_status").notNull().default("approved"), /* pending | approved | rejected */
+  approvalStatus:  text("approval_status").notNull().default("approved"),
   approvalNote:    text("approval_note"),
   /* ── Account status ── */
   isActive:        boolean("is_active").notNull().default(true),
@@ -34,8 +36,8 @@ export const usersTable = pgTable("users", {
   banReason:       text("ban_reason"),
   blockedServices: text("blocked_services").notNull().default(""),
   securityNote:    text("security_note"),
-  isOnline:          boolean("is_online").notNull().default(false),
-  /* ── Extended profile fields (shared across roles) ── */
+  isOnline:        boolean("is_online").notNull().default(false),
+  /* ── Extended profile fields ── */
   cnic:              text("cnic"),
   address:           text("address"),
   city:              text("city"),
@@ -49,42 +51,21 @@ export const usersTable = pgTable("users", {
   bankAccount:       text("bank_account"),
   bankAccountTitle:  text("bank_account_title"),
   nationalId:        text("national_id"),
-  /* ── DEPRECATED: Vendor store fields ────────────────────────────────────────
-     These columns have been migrated to the vendor_profiles table.
-     They are kept here for backward compatibility during migration only.
-     New code should JOIN vendor_profiles. Phase 3 will DROP these columns.
-  ── */
-  storeName:         text("store_name"),
-  storeCategory:     text("store_category"),
-  storeBanner:       text("store_banner"),
-  storeDescription:  text("store_description"),
-  storeHours:        text("store_hours"),
-  storeAnnouncement: text("store_announcement"),
-  storeMinOrder:     decimal("store_min_order", { precision: 10, scale: 2 }).default("0"),
-  storeDeliveryTime: text("store_delivery_time"),
-  storeIsOpen:       boolean("store_is_open").notNull().default(true),
-  storeAddress:      text("store_address"),
-  businessType:      text("business_type"),
-  businessName:      text("business_name"),
-  ntn:               text("ntn"),
-  /* ── DEPRECATED: Rider vehicle fields ───────────────────────────────────────
-     These columns have been migrated to the rider_profiles table.
-     They are kept here for backward compatibility during migration only.
-     New code should JOIN rider_profiles. Phase 3 will DROP these columns.
-  ── */
-  vehicleType:       text("vehicle_type"),
-  vehiclePlate:      text("vehicle_plate"),
-  vehicleRegNo:      text("vehicle_reg_no"),
-  drivingLicense:    text("driving_license"),
-  vehiclePhoto:      text("vehicle_photo"),
-  documents:         text("documents"),
-  biometricEnabled:  boolean("biometric_enabled").notNull().default(false),
+  /* ── Wallet PIN / MPIN ── */
+  walletPinHash:           text("wallet_pin_hash"),
+  walletPinAttempts:       integer("wallet_pin_attempts").notNull().default(0),
+  walletPinLockedUntil:    timestamp("wallet_pin_locked_until"),
+  walletHidden:            boolean("wallet_hidden").notNull().default(false),
+  mpinResetPendingAt:      timestamp("mpin_reset_pending_at"),
+  mpinResetNewHashPending: text("mpin_reset_new_hash_pending"),
   /* ── 2FA / TOTP fields ── */
+  biometricEnabled:  boolean("biometric_enabled").notNull().default(false),
   totpSecret:        text("totp_secret"),
   totpEnabled:       boolean("totp_enabled").notNull().default(false),
   backupCodes:       text("backup_codes"),
   trustedDevices:    text("trusted_devices"),
-  /* ── Social login fields ── */
+  /* ── Social / federated login ── */
+  firebaseUid:       text("firebase_uid").unique(),
   googleId:          text("google_id").unique(),
   facebookId:        text("facebook_id").unique(),
   /* ── Dispatch tracking ── */
@@ -92,27 +73,48 @@ export const usersTable = pgTable("users", {
   ignoreCount:     integer("ignore_count").notNull().default(0),
   isRestricted:    boolean("is_restricted").notNull().default(false),
   cancellationDebt: decimal("cancellation_debt", { precision: 10, scale: 2 }).notNull().default("0"),
+  /* ── OTP bypass (admin-controlled per-user) ── */
+  otpBypassUntil:  timestamp("otp_bypass_until"),
+  /* ── Behavioural / metrics columns (for admin condition engine) ── */
+  cancellationRate:    decimal("cancellation_rate",    { precision: 5, scale: 2 }).notNull().default("0"),
+  fraudIncidents:      integer("fraud_incidents").notNull().default(0),
+  abuseReports:        integer("abuse_reports").notNull().default(0),
+  missIgnoreRate:      decimal("miss_ignore_rate",     { precision: 5, scale: 2 }).notNull().default("0"),
+  orderCompletionRate: decimal("order_completion_rate",{ precision: 5, scale: 2 }).notNull().default("100"),
+  avgRating:           decimal("avg_rating",           { precision: 3, scale: 2 }),
+  /* ── Commission override (set per-vendor by admin) ── */
+  commissionOverride: text("commission_override"),
+  /* ── AJK platform identifiers & communication flags ── */
+  ajkId:           text("ajk_id").unique(),
+  chatMuted:       boolean("chat_muted").notNull().default(false),
+  commBlocked:     boolean("comm_blocked").notNull().default(false),
   /* ── Merge OTP fields (separate from login OTP to avoid race conditions) ── */
   mergeOtpCode:    text("merge_otp_code"),
   mergeOtpExpiry:  timestamp("merge_otp_expiry"),
-  /* ── Pending merge identifier — binds merge-OTP to a specific identifier ── */
+  /* ── Pending merge identifier ── */
   pendingMergeIdentifier: text("pending_merge_identifier"),
-  /* ── Device fingerprinting — for multi-account abuse detection ── */
+  /* ── Device fingerprinting ── */
   deviceId:        text("device_id"),
-  /* ── Token version — incremented on logout/ban/role change to invalidate access JWTs ── */
+  /* ── Token version — incremented on logout/ban/role change ── */
   tokenVersion:    integer("token_version").notNull().default(0),
-  /* ── Dev OTP mode — admin-controlled per-user OTP display in response ── */
+  /* ── Dev OTP mode ── */
   devOtpEnabled:   boolean("dev_otp_enabled").notNull().default(false),
   /* ── Auto-suspension tracking ── */
   autoSuspendedAt: timestamp("auto_suspended_at"),
   autoSuspendReason: text("auto_suspend_reason"),
   adminOverrideSuspension: boolean("admin_override_suspension").notNull().default(false),
-  lastLoginAt:       timestamp("last_login_at"),
+  /* ── Activity tracking ── */
+  lastLoginAt:     timestamp("last_login_at"),
+  lastActive:      timestamp("last_active"),
+  acceptedTermsVersion: text("accepted_terms_version"),
+  /* ── Soft delete ── */
+  deletedAt:       timestamp("deleted_at"),
+  /* ── PII encryption (dual-write pattern) ── */
+  encryptedPhone:  text("encrypted_phone"),
+  encryptedEmail:  text("encrypted_email"),
   createdAt:       timestamp("created_at").notNull().defaultNow(),
   updatedAt:       timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [
-  /* DB-level floor: wallet can never go below zero.
-     Application layer already enforces this; the DB constraint is the final guard. */
   check("users_wallet_non_negative", sql`${t.walletBalance} >= 0`),
 ]);
 

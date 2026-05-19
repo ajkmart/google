@@ -63,7 +63,7 @@ async function notifyOnlineRidersOfOrder(orderId: string, orderType: string): Pr
       .innerJoin(usersTable, eq(liveLocationsTable.userId, usersTable.id))
       .where(and(
         eq(liveLocationsTable.role, "rider"),
-        eq(usersTable.role, "rider"),
+        eq(usersTable.roles, "rider"),
         eq(usersTable.isOnline, true),
         gte(liveLocationsTable.updatedAt, tenMinAgo),
       ));

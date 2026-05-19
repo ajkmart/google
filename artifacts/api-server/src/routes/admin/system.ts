@@ -5,6 +5,7 @@ import {
   walletTransactionsTable,
   notificationsTable,
   ordersTable, ridesTable, pharmacyOrdersTable, parcelBookingsTable, productsTable, platformSettingsTable, adminAccountsTable, authAuditLogTable, refreshTokensTable, rideRatingsTable, riderPenaltiesTable, reviewsTable,
+  vendorProfilesTable,
 } from "@workspace/db/schema";
 import { eq, desc, count, sum, and, gte, lte, sql, or, ilike, asc, isNull, isNotNull, avg, ne } from "drizzle-orm";
 import {
@@ -247,7 +248,7 @@ router.get("/all-notifications", async (req, res) => {
   const limit = Math.min(parseInt(String(req.query["limit"] || "100")), 300);
   let userIds: string[] = [];
   if (role) {
-    const users = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.role as any, role));
+    const users = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.roles as any, role));
     userIds = users.map(u => u.id);
     if (userIds.length === 0) { res.json({ notifications: [] }); return; }
   }
@@ -256,7 +257,7 @@ router.get("/all-notifications", async (req, res) => {
     .limit(limit);
   const filtered = role ? notifs.filter(n => userIds.includes(n.userId)) : notifs;
   const enriched = await Promise.all(filtered.slice(0, 200).map(async n => {
-    const [user] = await db.select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone, role: usersTable.role })
+    const [user] = await db.select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone, role: usersTable.roles })
       .from(usersTable).where(eq(usersTable.id, n.userId)).limit(1);
     return { ...n, user: user || null };
   }));
@@ -494,7 +495,7 @@ router.get("/search", async (req, res) => {
         name:  usersTable.name,
         phone: usersTable.phone,
         email: usersTable.email,
-        role:  usersTable.role,
+        role:  usersTable.roles,
         createdAt: usersTable.createdAt,
       })
       .from(usersTable)
@@ -579,15 +580,16 @@ router.get("/search", async (req, res) => {
 router.get("/leaderboard", async (_req, res) => {
   const vendors = await db.select({
     id:     usersTable.id,
-    name:   usersTable.storeName,
+    name:   vendorProfilesTable.storeName,
     phone:  usersTable.phone,
     totalOrders: sql<number>`count(${ordersTable.id})`,
     totalRevenue: sql<number>`coalesce(sum(${ordersTable.total}),0)`,
   })
   .from(usersTable)
+  .leftJoin(vendorProfilesTable, eq(usersTable.id, vendorProfilesTable.userId))
   .leftJoin(ordersTable, and(eq(ordersTable.vendorId, usersTable.id), eq(ordersTable.status, "delivered")))
-  .where(eq(usersTable.role, "vendor"))
-  .groupBy(usersTable.id)
+  .where(eq(usersTable.roles, "vendor"))
+  .groupBy(usersTable.id, vendorProfilesTable.storeName)
   .orderBy(sql`coalesce(sum(${ordersTable.total}),0) desc`)
   .limit(5);
 
@@ -600,7 +602,7 @@ router.get("/leaderboard", async (_req, res) => {
   })
   .from(usersTable)
   .leftJoin(ridesTable, and(eq(ridesTable.riderId, usersTable.id), eq(ridesTable.status, "completed")))
-  .where(eq(usersTable.role, "rider"))
+  .where(eq(usersTable.roles, "rider"))
   .groupBy(usersTable.id)
   .orderBy(sql`count(${ridesTable.id}) desc`)
   .limit(5);
@@ -706,14 +708,14 @@ router.get("/reviews", adminAuth, async (req, res) => {
         hidden: rideRatingsTable.hidden,
         deletedAt: rideRatingsTable.deletedAt,
         createdAt: rideRatingsTable.createdAt,
-        reviewerId: rideRatingsTable.customerId,
+        reviewerId: rideRatingsTable.userId,
         subjectId: rideRatingsTable.riderId,
         subjectRiderId: rideRatingsTable.riderId,
         reviewerName: usersTable.name,
         reviewerPhone: usersTable.phone,
       })
       .from(rideRatingsTable)
-      .leftJoin(usersTable, eq(rideRatingsTable.customerId, usersTable.id))
+      .leftJoin(usersTable, eq(rideRatingsTable.userId, usersTable.id))
       .where(rideConditions.length > 0 ? and(...rideConditions) : undefined)
       .orderBy(desc(rideRatingsTable.createdAt)),
   ]);
@@ -728,8 +730,10 @@ router.get("/reviews", adminAuth, async (req, res) => {
   /* Enrich with subject names */
   const subjectIds = [...new Set(paginated.map(r => r.subjectId).filter(Boolean))];
   const subjectUsers = subjectIds.length > 0
-    ? await db.select({ id: usersTable.id, name: usersTable.name, storeName: usersTable.storeName, phone: usersTable.phone })
-        .from(usersTable).where(sql`${usersTable.id} = ANY(${subjectIds})`)
+    ? await db.select({ id: usersTable.id, name: usersTable.name, storeName: vendorProfilesTable.storeName, phone: usersTable.phone })
+        .from(usersTable)
+        .leftJoin(vendorProfilesTable, eq(usersTable.id, vendorProfilesTable.userId))
+        .where(sql`${usersTable.id} = ANY(${subjectIds})`)
     : [];
   const subjectMap = new Map(subjectUsers.map(u => [u.id, u]));
 

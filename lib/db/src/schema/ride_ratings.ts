@@ -7,7 +7,8 @@ import { usersTable } from "./users";
 export const rideRatingsTable = pgTable("ride_ratings", {
   id: text("id").primaryKey(),
   rideId: text("ride_id").notNull().references(() => ridesTable.id, { onDelete: "cascade" }),
-  customerId: text("customer_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  /* user_id is the canonical column name (renamed from customer_id in migration 0025) */
+  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   riderId: text("rider_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   stars: integer("stars").notNull(),
   comment: text("comment"),
@@ -18,7 +19,7 @@ export const rideRatingsTable = pgTable("ride_ratings", {
 }, (t) => [
   uniqueIndex("ride_ratings_ride_id_uidx").on(t.rideId),
   index("ride_ratings_rider_id_idx").on(t.riderId),
-  index("ride_ratings_customer_id_idx").on(t.customerId),
+  index("ride_ratings_user_id_idx").on(t.userId),
 ]);
 
 export const insertRideRatingSchema = createInsertSchema(rideRatingsTable).omit({ createdAt: true });
