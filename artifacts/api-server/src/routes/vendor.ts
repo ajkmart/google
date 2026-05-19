@@ -109,14 +109,19 @@ router.get("/store", async (req, res) => {
 router.patch("/store", async (req, res) => {
   const vendorId = req.vendorId!;
   const body = req.body;
-  const profileUpdates: Record<string, unknown> = { updatedAt: new Date() };
-  const fields = ["storeName","storeCategory","storeBanner","storeDescription","storeAnnouncement","storeDeliveryTime","storeIsOpen","storeMinOrder"];
-  for (const f of fields) {
-    if (body[f] !== undefined) profileUpdates[f] = body[f];
-  }
-  if (body.storeHours !== undefined) profileUpdates.storeHours = typeof body.storeHours === "string" ? body.storeHours : JSON.stringify(body.storeHours);
-  await db.insert(vendorProfilesTable).values({ userId: vendorId, ...profileUpdates as any })
-    .onConflictDoUpdate({ target: vendorProfilesTable.userId, set: profileUpdates as any });
+  type VendorProfileSet = Partial<Omit<typeof vendorProfilesTable.$inferInsert, "userId">>;
+  const profileSet: VendorProfileSet = { updatedAt: new Date() };
+  if (body.storeName        !== undefined) profileSet.storeName        = body.storeName;
+  if (body.storeCategory    !== undefined) profileSet.storeCategory    = body.storeCategory;
+  if (body.storeBanner      !== undefined) profileSet.storeBanner      = body.storeBanner;
+  if (body.storeDescription !== undefined) profileSet.storeDescription = body.storeDescription;
+  if (body.storeAnnouncement!== undefined) profileSet.storeAnnouncement= body.storeAnnouncement;
+  if (body.storeDeliveryTime!== undefined) profileSet.storeDeliveryTime= body.storeDeliveryTime;
+  if (body.storeIsOpen      !== undefined) profileSet.storeIsOpen      = body.storeIsOpen;
+  if (body.storeMinOrder    !== undefined) profileSet.storeMinOrder    = String(body.storeMinOrder);
+  if (body.storeHours       !== undefined) profileSet.storeHours       = typeof body.storeHours === "string" ? body.storeHours : JSON.stringify(body.storeHours);
+  await db.insert(vendorProfilesTable).values({ userId: vendorId, ...profileSet })
+    .onConflictDoUpdate({ target: vendorProfilesTable.userId, set: profileSet });
   const { user, profile } = await fetchVendorData(vendorId);
   if (!user) { res.status(404).json({ error: "Vendor not found" }); return; }
   res.json(formatUser(user, profile));
