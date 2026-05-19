@@ -1793,5 +1793,4 @@ export const en = {
     otpCode: "OTP Code",
     successIcon: "🎉",
     vendorReviewMsg: "Your vendor application is under review. We'll notify you once approved.",
-  },
-
+};
