@@ -238,6 +238,7 @@ AJKMart is a full-stack "Super App" designed for Azad Jammu & Kashmir (AJK), Pak
 
 #### Important Environment Variables Added
 - `ALLOW_DEV_OTP=true` — must be explicitly set alongside `NODE_ENV=development` for dev OTP mode to expose codes in API responses. Default: not set (production-safe).
+- `TOKEN_HASH_SECRET` — dedicated HMAC key for generating magic-link and email-verification tokens. Falls back to `JWT_SECRET` with a startup warning if not set. Set a separate value in production to enforce key separation.
 
 ### System Architecture
 

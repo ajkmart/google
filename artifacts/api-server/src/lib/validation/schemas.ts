@@ -28,7 +28,7 @@ const positiveAmount = z
 export const UserRegistrationSchema = z
   .object({
     phone: PhoneSchema,
-    password: z.string().min(8, "Password must be at least 8 characters"),
+    password: z.string().min(8, "Password must be at least 8 characters").max(128, "Password must not exceed 128 characters"),
     name: z.string().max(80).optional(),
     role: z.enum(["customer", "rider", "vendor"]).optional(),
     email: z.string().email().optional().or(z.literal("")),
@@ -451,7 +451,7 @@ export const CompleteProfileSchema = z
     name: z.string().max(100).optional(),
     email: z.string().email().max(255).optional().or(z.literal("")),
     username: z.string().min(3).max(20).optional().or(z.literal("")),
-    password: z.string().min(8).optional(),
+    password: z.string().min(8).max(128, "Password must not exceed 128 characters").optional(),
     currentPassword: z.string().optional(),
     cnic: z.string().max(20).optional().or(z.literal("")),
     address: z.string().max(255).optional(),
@@ -467,7 +467,7 @@ export const CompleteProfileSchema = z
 export const SetPasswordSchema = z
   .object({
     token: z.string().optional(),
-    password: z.string().min(1, "Password is required"),
+    password: z.string().min(1, "Password is required").max(128, "Password must not exceed 128 characters"),
     currentPassword: z.string().optional(),
   })
   .strip();
@@ -572,7 +572,7 @@ export const ResetPasswordSchema = z
 export const EmailRegisterSchema = z
   .object({
     email: z.string().email("Valid email address required").max(255),
-    password: z.string().min(1, "Password is required"),
+    password: z.string().min(1, "Password is required").max(128, "Password must not exceed 128 characters"),
     name: z.string().max(100).optional(),
     role: z.enum(["customer", "rider", "vendor"]).optional(),
     phone: z.string().optional(),

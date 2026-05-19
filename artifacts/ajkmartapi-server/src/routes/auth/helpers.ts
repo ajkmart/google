@@ -1,7 +1,7 @@
 import { logger } from "../../lib/logger.js";
 import { Router, type IRouter, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
-import crypto, { createHash, randomBytes } from "crypto";
+import crypto, { createHash, createHmac, randomBytes } from "crypto";
 import { z } from "zod";
 import { encrypt, decrypt, isEncryptionAvailable } from "../../lib/crypto/encryption.js";
 import { db } from "@workspace/db";
@@ -32,8 +32,10 @@ export const VENDOR_REFRESH_COOKIE_PATH = "/api/auth";
 import { CNIC_REGEX, PHONE_REGEX, isValidCnic, isValidPhone } from "@workspace/phone-utils";
 export { CNIC_REGEX, PHONE_REGEX, isValidCnic, isValidPhone };
 
-export function hashOtp(otp: string): string {
-  return createHash("sha256").update(otp).digest("hex");
+export function hashOtp(otp: string, key?: string): string {
+  const secret = key ?? process.env["JWT_SECRET"];
+  if (!secret) throw new Error("[FATAL] JWT_SECRET is not set — cannot hash OTP");
+  return createHmac("sha256", secret).update(otp).digest("hex");
 }
 
 export { normalizeVehicleType as normalizeVehicleTypeForStorage } from "@workspace/service-constants";

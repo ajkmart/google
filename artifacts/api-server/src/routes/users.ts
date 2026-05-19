@@ -50,6 +50,13 @@ function profileRateLimit(userId: string, maxPerMin = 10): boolean {
   if (entry.count > maxPerMin) return false;
   return true;
 }
+const _profileRateMapCleanup = setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of profileRateMap) {
+    if (entry.resetAt < now) profileRateMap.delete(key);
+  }
+}, 5 * 60 * 1000);
+process.on("exit", () => clearInterval(_profileRateMapCleanup));
 
 const router: IRouter = Router();
 

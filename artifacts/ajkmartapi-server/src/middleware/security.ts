@@ -88,10 +88,10 @@ const _adminAccessTokenSecret = (() => {
   const val = process.env["ADMIN_ACCESS_TOKEN_SECRET"];
   if (!val || val.length < 32) {
     const msg = !val
-      ? "[AUTH] ADMIN_ACCESS_TOKEN_SECRET is not set. Using unsafe dev fallback."
-      : `[AUTH] ADMIN_ACCESS_TOKEN_SECRET too short (${val.length} chars, need ≥32). Using dev fallback.`;
-    logger.warn(msg);
-    return (val ?? "") + "dev_fallback_pad_to_32_chars_min!!";
+      ? "[FATAL] ADMIN_ACCESS_TOKEN_SECRET is not set. Set a secret of at least 32 characters before starting the server."
+      : `[FATAL] ADMIN_ACCESS_TOKEN_SECRET too short (${val.length} chars, need ≥32). Set a longer secret before starting the server.`;
+    logger.error(msg);
+    process.exit(1);
   }
   return val;
 })();

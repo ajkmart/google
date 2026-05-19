@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes, randomInt, scryptSync, timingSafeEqual } from "crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomInt, scryptSync, timingSafeEqual } from "crypto";
 import bcrypt from "bcryptjs";
 import { logger } from '../lib/logger.js';
 
@@ -26,6 +26,7 @@ export function verifyPassword(password: string, stored: string): boolean {
 }
 
 export function validatePasswordStrength(password: string): { ok: boolean; message: string } {
+  if (password.length > 128) return { ok: false, message: "Password must not exceed 128 characters" };
   if (password.length < 8) return { ok: false, message: "Password must be at least 8 characters" };
   if (!/[A-Z]/.test(password)) return { ok: false, message: "Password must contain at least 1 uppercase letter" };
   if (!/[0-9]/.test(password)) return { ok: false, message: "Password must contain at least 1 number" };
@@ -70,9 +71,16 @@ function resolveRequiredSecret(envKey: string, fallbackEnvKey?: string): string 
   return val;
 }
 
-/* Simple hash for token generation (non-crypto-sensitive) */
+function warnTokenHashSecretOnce(): void {
+  if (!process.env["TOKEN_HASH_SECRET"] && process.env["JWT_SECRET"]) {
+    logger.warn("TOKEN_HASH_SECRET not set — using JWT_SECRET as fallback. Set a dedicated secret in production.");
+  }
+}
+warnTokenHashSecretOnce();
+
+/* Simple hash for token generation (magic links, email verification) */
 export function makeTokenHash(value: string): string {
-  const secret = resolveRequiredSecret("JWT_SECRET");
+  const secret = process.env["TOKEN_HASH_SECRET"] ?? resolveRequiredSecret("JWT_SECRET");
   return createHash("sha256").update(value + secret).digest("hex").slice(0, 32);
 }
 
@@ -97,7 +105,8 @@ export function encryptTotpSecret(plainSecret: string): string {
 export function decryptTotpSecret(encryptedSecret: string): string {
   const parts = encryptedSecret.split(":");
   if (parts.length !== 3) {
-    return encryptedSecret;
+    logger.error({ timestamp: new Date().toISOString() }, "TOTP secret format invalid — expected encrypted 3-part value");
+    throw new Error("TOTP secret format invalid — expected encrypted 3-part value");
   }
   try {
     const key = getTotpEncryptionKey();
@@ -131,7 +140,6 @@ function base32Decode(encoded: string): Buffer {
 
 export function verifyTotpCode(secret: string, code: string): boolean {
   try {
-    const { createHmac } = require("crypto");
     const timeStep = 30;
     const now = Math.floor(Date.now() / 1000);
     const window = 1;
