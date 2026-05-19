@@ -197,7 +197,12 @@ router.post("/export-data", exportDataLimiter, validateBody(ExportDataSchema), a
     maskedPhone,
   }).catch((e: Error) => logger.warn({ err: e.message }, "[data-export] Failed to insert export log"));
 
-  let orders: any[], rides: any[], walletHistory: any[], addresses: any[], pharmacyOrders: any[], parcelBookings: any[];
+  let orders: (typeof ordersTable.$inferSelect)[];
+  let rides: (typeof ridesTable.$inferSelect)[];
+  let walletHistory: (typeof walletTransactionsTable.$inferSelect)[];
+  let addresses: (typeof savedAddressesTable.$inferSelect)[];
+  let pharmacyOrders: (typeof pharmacyOrdersTable.$inferSelect)[];
+  let parcelBookings: (typeof parcelBookingsTable.$inferSelect)[];
   try {
     [orders, rides, walletHistory, addresses, pharmacyOrders, parcelBookings] = await Promise.all([
       db.select().from(ordersTable).where(eq(ordersTable.userId, userId)).orderBy(desc(ordersTable.createdAt)),
@@ -225,7 +230,7 @@ router.post("/export-data", exportDataLimiter, validateBody(ExportDataSchema), a
       walletBalance: parseFloat(user.walletBalance ?? "0"),
       createdAt: user.createdAt.toISOString(),
     },
-    orders: orders.map((o: any) => ({
+    orders: orders.map((o) => ({
       id: o.id,
       type: o.type,
       status: o.status,
@@ -235,7 +240,7 @@ router.post("/export-data", exportDataLimiter, validateBody(ExportDataSchema), a
       items: o.items,
       createdAt: o.createdAt.toISOString(),
     })),
-    rides: rides.map((r: any) => ({
+    rides: rides.map((r) => ({
       id: r.id,
       type: r.type,
       status: r.status,
@@ -245,7 +250,7 @@ router.post("/export-data", exportDataLimiter, validateBody(ExportDataSchema), a
       paymentMethod: r.paymentMethod,
       createdAt: r.createdAt.toISOString(),
     })),
-    pharmacyOrders: pharmacyOrders.map((o: any) => ({
+    pharmacyOrders: pharmacyOrders.map((o) => ({
       id: o.id,
       status: o.status,
       total: parseFloat(o.total ?? "0"),
@@ -253,7 +258,7 @@ router.post("/export-data", exportDataLimiter, validateBody(ExportDataSchema), a
       prescriptionNote: o.prescriptionNote,
       createdAt: o.createdAt.toISOString(),
     })),
-    parcelBookings: parcelBookings.map((b: any) => ({
+    parcelBookings: parcelBookings.map((b) => ({
       id: b.id,
       status: b.status,
       parcelType: b.parcelType,
@@ -262,14 +267,14 @@ router.post("/export-data", exportDataLimiter, validateBody(ExportDataSchema), a
       fare: parseFloat(b.fare ?? "0"),
       createdAt: b.createdAt.toISOString(),
     })),
-    walletHistory: walletHistory.map((t: any) => ({
+    walletHistory: walletHistory.map((t) => ({
       id: t.id,
       type: t.type,
       amount: parseFloat(t.amount),
       description: t.description,
       createdAt: t.createdAt.toISOString(),
     })),
-    addresses: addresses.map((a: any) => ({
+    addresses: addresses.map((a) => ({
       id: a.id,
       label: a.label,
       address: a.address,

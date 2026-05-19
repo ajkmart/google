@@ -29,14 +29,20 @@ export function encryptTotpSecret(plaintext: string): string {
 
 export function decryptTotpSecret(ciphertext: string): string {
   const parts = ciphertext.split(":");
-  if (parts.length !== 3) return ciphertext;
+  if (parts.length !== 3) {
+    throw new Error("TOTP_DECRYPT_FAILED: Invalid TOTP secret format — expected 3-part encrypted value. Check TOTP_ENCRYPTION_KEY configuration.");
+  }
   const [ivHex, tagHex, encrypted] = parts;
-  const key = getEncryptionKey();
-  const decipher = crypto.createDecipheriv(ENCRYPTION_ALGO, key, Buffer.from(ivHex!, "hex"));
-  decipher.setAuthTag(Buffer.from(tagHex!, "hex"));
-  let decrypted = decipher.update(encrypted!, "hex", "utf8");
-  decrypted += decipher.final("utf8");
-  return decrypted;
+  try {
+    const key = getEncryptionKey();
+    const decipher = crypto.createDecipheriv(ENCRYPTION_ALGO, key, Buffer.from(ivHex!, "hex"));
+    decipher.setAuthTag(Buffer.from(tagHex!, "hex"));
+    let decrypted = decipher.update(encrypted!, "hex", "utf8");
+    decrypted += decipher.final("utf8");
+    return decrypted;
+  } catch (err) {
+    throw new Error(`TOTP_DECRYPT_FAILED: Unable to decrypt TOTP secret — ${err instanceof Error ? err.message : String(err)}. Check TOTP_ENCRYPTION_KEY configuration.`);
+  }
 }
 
 /* ── Base32 alphabet (RFC 4648) ── */

@@ -167,8 +167,14 @@ router.post("/magic-link/verify", sharedValidateBody(MagicLinkVerifySchema), asy
         const tempToken = sign2faChallengeToken(user.id, user.phone ?? "", user.roles ?? "customer", user.roles ?? "customer", "magic_link");
         sendSuccess(res, { requires2FA: true, tempToken, userId: user.id }); return;
       }
-      const secret = decryptTotpSecret(user.totpSecret!);
-      if (!verifyTotpToken(totpCode, secret)) {
+      let mlSecret: string;
+      try {
+        mlSecret = decryptTotpSecret(user.totpSecret!);
+      } catch (decryptErr) {
+        logger.error({ error: decryptErr instanceof Error ? decryptErr.message : String(decryptErr), userId: user.id }, "[magic-link] TOTP secret decryption failed");
+        sendUnauthorized(res, "Two-factor authentication is not properly configured. Please contact support."); return;
+      }
+      if (!verifyTotpToken(totpCode, mlSecret)) {
         sendUnauthorized(res, "Invalid 2FA code"); return;
       }
     }

@@ -756,7 +756,14 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
         sendErrorWithData(res, "Authenticator app is not set up for this account. Please contact your administrator.", { code: "TOTP_NOT_ENROLLED" }, 400);
         return;
       }
-      const totpSecret = decryptTotpSecret(user.totpSecret);
+      let totpSecret: string;
+      try {
+        totpSecret = decryptTotpSecret(user.totpSecret);
+      } catch (decryptErr) {
+        logger.error({ error: decryptErr instanceof Error ? decryptErr.message : String(decryptErr), userId: user.id }, "[otp/verify] TOTP secret decryption failed");
+        sendUnauthorized(res, "Two-factor authentication is not properly configured. Please contact support.");
+        return;
+      }
       if (!verifyTotpToken(otp, totpSecret)) {
         const updated = await recordFailedAttempt(phone, maxAttempts, lockoutMinutes);
         const remaining = maxAttempts - updated.attempts;

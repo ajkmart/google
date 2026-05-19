@@ -267,7 +267,13 @@ router.post("/2fa/verify", sharedValidateBody(TwoFaVerifySchema), async (req, re
 
   if (!user.totpEnabled || !user.totpSecret) { sendError(res, "2FA is not enabled", 400); return; }
 
-  const secret = decryptTotpSecret(user.totpSecret);
+  let secret: string;
+  try {
+    secret = decryptTotpSecret(user.totpSecret);
+  } catch (decryptErr) {
+    logger.error({ error: decryptErr instanceof Error ? decryptErr.message : String(decryptErr), userId: user.id }, "[2fa/verify] TOTP secret decryption failed");
+    sendUnauthorized(res, "Two-factor authentication is not properly configured. Please contact support."); return;
+  }
   if (!verifyTotpToken(code, secret)) {
     addSecurityEvent({ type: "2fa_verify_failed", ip, userId: user.id, details: "Invalid 2FA code on login", severity: "medium" });
     sendUnauthorized(res, "Invalid 2FA code"); return;
@@ -307,8 +313,14 @@ router.post("/2fa/disable", sharedValidateBody(TotpCodeSchema), async (req, res)
 
   if (!user.totpEnabled || !user.totpSecret) { sendError(res, "2FA is not enabled", 400); return; }
 
-  const secret = decryptTotpSecret(user.totpSecret);
-  if (!verifyTotpToken(code, secret)) {
+  let disableSecret: string;
+  try {
+    disableSecret = decryptTotpSecret(user.totpSecret);
+  } catch (decryptErr) {
+    logger.error({ error: decryptErr instanceof Error ? decryptErr.message : String(decryptErr), userId: user.id }, "[2fa/disable] TOTP secret decryption failed");
+    sendUnauthorized(res, "Two-factor authentication is not properly configured. Please contact support."); return;
+  }
+  if (!verifyTotpToken(code, disableSecret)) {
     sendUnauthorized(res, "Invalid TOTP code"); return;
   }
 

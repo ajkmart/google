@@ -30,6 +30,7 @@ export function validatePasswordStrength(password: string): { ok: boolean; messa
   if (password.length < 8) return { ok: false, message: "Password must be at least 8 characters" };
   if (!/[A-Z]/.test(password)) return { ok: false, message: "Password must contain at least 1 uppercase letter" };
   if (!/[0-9]/.test(password)) return { ok: false, message: "Password must contain at least 1 number" };
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) return { ok: false, message: "Password must contain at least 1 special character (e.g. !@#$%^&*)" };
   return { ok: true, message: "ok" };
 }
 
@@ -117,8 +118,8 @@ export function decryptTotpSecret(encryptedSecret: string): string {
     decipher.setAuthTag(tag);
     return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    return encryptedSecret;
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[totp] decryptTotpSecret failed — TOTP misconfiguration or wrong encryption key');
+    throw new Error("TOTP_DECRYPT_FAILED: Unable to decrypt TOTP secret. Check TOTP_ENCRYPTION_KEY configuration.");
   }
 }
 

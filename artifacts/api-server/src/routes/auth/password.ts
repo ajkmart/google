@@ -111,9 +111,10 @@ router.post("/login", loginLimiter, verifyCaptcha, sharedValidateBody(UserLoginS
 
 router.post("/set-password", loginLimiter, sharedValidateBody(SetPasswordSchema), async (req, res) => {
   try {
-  /* Accept token from body OR Authorization: Bearer header */
+  /* Accept token ONLY from Authorization: Bearer header — body token is rejected
+     to prevent token leakage via request logging, proxies, or CSRF-style attacks. */
   const authHeader = req.headers["authorization"] as string | undefined;
-  const rawToken = req.body?.token || (authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null);
+  const rawToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   const { password, currentPassword } = req.body;
   if (!rawToken || !password) { sendError(res, "Token and password required", 400); return; }
 
@@ -271,7 +272,7 @@ router.post("/forgot-password", verifyCaptcha, sharedValidateBody(forgotPassword
     }
   } else {
     await db.update(usersTable)
-      .set({ emailOtpCode: hashOtp(otp), emailOtpExpiry: otpExpiry, updatedAt: new Date() })
+      .set({ emailOtpCode: hashOtp(otp), emailOtpExpiry: otpExpiry, emailOtpUsed: false, updatedAt: new Date() })
       .where(eq(usersTable.id, user.id));
 
     await sendPasswordResetEmail(email!, otp, user.name ?? undefined, forgotLang);
@@ -460,7 +461,7 @@ router.post("/reset-password", verifyCaptcha, sharedValidateBody(ResetPasswordSc
   if (phone) {
     otpValid = user.otpCode === hashOtp(otp) && !user.otpUsed && user.otpExpiry != null && new Date() < user.otpExpiry;
   } else {
-    otpValid = user.emailOtpCode === hashOtp(otp) && user.emailOtpExpiry != null && new Date() < user.emailOtpExpiry;
+    otpValid = user.emailOtpCode === hashOtp(otp) && !user.emailOtpUsed && user.emailOtpExpiry != null && new Date() < user.emailOtpExpiry;
   }
 
   if (!otpValid) {
@@ -493,7 +494,14 @@ router.post("/reset-password", verifyCaptcha, sharedValidateBody(ResetPasswordSc
       return;
     }
     const { verifyTotpCode } = await import("../../services/password.js");
-    const decryptedSecret = decryptTotpSecret(user.totpSecret);
+    let decryptedSecret: string;
+    try {
+      decryptedSecret = decryptTotpSecret(user.totpSecret);
+    } catch (decryptErr) {
+      logger.error({ error: decryptErr instanceof Error ? decryptErr.message : String(decryptErr), userId: user.id }, "[reset-password] TOTP secret decryption failed");
+      sendUnauthorized(res, "Two-factor authentication is not properly configured. Please contact support.");
+      return;
+    }
     if (!verifyTotpCode(decryptedSecret, totpCode)) {
       await recordFailedAttempt(lockoutKey, maxAttempts, lockoutMinutes);
       AuditService.log({ action: "reset_password_2fa_failed", ip, details: `Invalid TOTP for password reset: ${user.id}`, result: "fail" });

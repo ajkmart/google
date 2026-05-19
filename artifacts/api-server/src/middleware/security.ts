@@ -79,8 +79,6 @@ export function getAccessTokenTtlSec(): number {
 /* ══════════════════════════════════════════════════════════════
    ADMIN JWT CONFIGURATION — v2 system uses ADMIN_ACCESS_TOKEN_SECRET
    ══════════════════════════════════════════════════════════════ */
-// Legacy ADMIN_JWT_SECRET kept only for backward-compat env-var checks — not used for signing.
-export const ADMIN_JWT_SECRET: string = process.env["ADMIN_JWT_SECRET"] ?? "";
 export const ADMIN_TOKEN_TTL_HRS = 24;
 
 // v2 secret used for all admin token operations
