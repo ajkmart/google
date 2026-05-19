@@ -48,9 +48,21 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
+    "@workspace/admin-timing-shared": "workspace:*",
     "@workspace/api-client-react": "workspace:*",
+    "@workspace/api-zod": "workspace:*",
+    "@workspace/auth-react": "workspace:*",
     "@workspace/auth-utils": "workspace:*",
     "@workspace/i18n": "workspace:*",
+    "@workspace/logger": "workspace:*",
+    "@workspace/phone-utils": "workspace:*",
+    "@workspace/service-constants": "workspace:*",
+    "@workspace/ui": "workspace:*",
+    "@eslint/js": "^9.0.0",
+    "@types/papaparse": "^5.5.2",
+    "eslint": "^9.0.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "typescript-eslint": "^8.59.2",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
     "cmdk": "^1.1.1",
@@ -77,6 +89,11 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "@sentry/react": "^10.47.0",
+    "firebase": "^12.12.0",
+    "leaflet": "^1.9.4",
+    "papaparse": "^5.5.3",
+    "react-leaflet": "^5.0.0",
     "socket.io-client": "^4.8.3"
   }
 }

@@ -1,0 +1,35 @@
+#2 - Migrate API Server Features from GitHub
+What & Why
+The GitHub repo at /tmp/github-repo has a significantly more complete API server than the current project. Missing pieces include: full auth route splitting, 30+ new admin routes (webhooks, broadcasts, experiments, loyalty, RBAC, etc.), security middleware (rate limiting, idempotency, suspicious pattern detection), encryption utilities, Redis integration, geofencing, Swagger docs, and build/startup scripts.
+
+The cloned repo is at /tmp/github-repo — use it as the source. Do NOT re-clone.
+
+Done looks like
+All missing files from /tmp/github-repo/artifacts/api-server/ are added to artifacts/api-server/ at the same relative paths
+Auth routes are split into src/routes/auth/ subdirectory (index, config, email-otp, helpers, identifier, auth-common)
+All new admin sub-routes exist under src/routes/admin/ (broadcasts, business-rules, chat-monitor, communication, conditions, deep-links, delivery-access, experiments, faq, finance/wallets, fleet/rides, fleet/zones, inventory-settings, launch, loyalty, otp, popups, qr-codes, release-notes, search-analytics, security, sms-gateways, support-chat, system/rbac, system/users, user-addresses, weather-config, webhook-registrations, whatsapp-delivery, whitelist, wishlist-analytics)
+All middleware files are present (admin-audit, admin-auth, auth, gpsSpoof, idempotency, rate-limit, require-permission, requireRole, suspiciousPatternDetector, validate, verifyOwnership)
+All lib utilities are present (db.ts, redis.ts, response.ts, rideEvents.ts, runtime-config, seedDefaults, storage, geofence, error-capture, fcm, fireAndForget, demo-snapshot, delivery-access, cleanupIdempotencyKeys, auth-otp-bypass, crypto/encryption, metrics/responseTime, pagination/cursor, validation/auth-schemas, validation/schemas, webhook-emitter, webhook-url-validator)
+drizzle.config.ts and build/startup scripts are present
+Swagger docs are set up at src/docs/swagger.ts
+Import paths adjusted to match the current project's structure
+The API server starts without errors
+Out of scope
+Database schema changes (lib/db handles that)
+Frontend apps
+Steps
+Copy configuration files — Copy drizzle.config.ts, eslint.config.js, and all files in scripts/ from the GitHub source to artifacts/api-server/.
+Copy middleware layer — Copy all files from /tmp/github-repo/artifacts/api-server/src/middleware/ to artifacts/api-server/src/middleware/. Adjust imports to match current project structure.
+Copy lib utilities — Copy all missing files from /tmp/github-repo/artifacts/api-server/src/lib/ including subdirectories (crypto/, metrics/, pagination/, validation/). Fix any import paths.
+Copy auth routes — Copy the entire src/routes/auth/ subdirectory. If an existing monolithic auth route file exists, wire the new split routes into the main router and remove duplicate logic.
+Copy admin routes — Copy all missing files from src/routes/admin/ and its subdirectories (finance/, fleet/, system/). Register new routes in the main router file.
+Copy Swagger docs — Copy src/docs/swagger.ts and wire it into the server entry point if not already present.
+Install dependencies and verify — Check if new packages (Redis client, swagger libs, etc.) are needed, install via pnpm --filter @workspace/api-server add ..., and confirm the server starts cleanly.
+Relevant files
+artifacts/api-server/src/index.ts
+artifacts/api-server/src/routes/
+artifacts/api-server/package.json
+artifacts/api-server/drizzle.config.ts
+Dependencies
+
+Migrate shared lib packages from GitHub
