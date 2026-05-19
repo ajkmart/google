@@ -17,7 +17,7 @@ import {
   signAdminJwt, verifyAdminJwt, invalidateSettingsCache, getCachedSettings,
   ADMIN_TOKEN_TTL_HRS, verifyTotpToken, verifyAdminSecret,
   ensureDefaultRideServices, ensureDefaultLocations, formatSvc,
-  type AdminRequest, revokeAllUserSessions, serializeSosAlert,
+  type AdminRequest, type TranslationKey, revokeAllUserSessions, serializeSosAlert,
 } from "../admin-shared.js";
 
 
@@ -188,8 +188,8 @@ router.get("/riders", async (_req, res) => {
           .groupBy(rideRatingsTable.riderId)
       : Promise.resolve([]),
   ]);
-  const penaltyMap = new Map(penaltyRows.map((r: Record<string, unknown>) => [r.riderId, parseFloat(r.total ?? "0")]));
-  const ratingMap = new Map(ratingRows.map((r: Record<string, unknown>) => [r.riderId, { avg: parseFloat(r.avgRating ?? "0"), count: r.ratingCount }]));
+  const penaltyMap = new Map(penaltyRows.map((r: Record<string, unknown>) => [r.riderId, parseFloat(String(r.total ?? "0"))]));
+  const ratingMap = new Map(ratingRows.map((r: Record<string, unknown>) => [r.riderId, { avg: parseFloat(String(r.avgRating ?? "0")), count: r.ratingCount as number }]));
 
   res.json({
     riders: riders.map(r => ({

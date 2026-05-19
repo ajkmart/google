@@ -669,6 +669,7 @@ export async function createServer() {
   /* ── HTTP response compression (gzip/brotli) ──────────────────────────────
      Applied after cookieParser and before the API router. Skipped for
      health and proxy paths so they are not affected. */
+  // @ts-expect-error -- compression types don't fully align with Express 5 overloads at compile time; runtime behavior is correct
   app.use(compression({
     filter: (req, res) => {
       const url = req.originalUrl ?? req.url ?? "";
@@ -742,6 +743,7 @@ export async function createServer() {
      The admin-gated /api/docs (docs.ts YAML route) is left untouched. */
   app.use(
     "/api-docs",
+    // @ts-expect-error -- swagger-ui-express array type doesn't satisfy Express 5 overloads; runtime behavior is correct
     swaggerUi.serve,
     swaggerUi.setup(swaggerSpec, {
       customSiteTitle: "AJKMart API Docs",

@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u = await api.getMe();
       setUser(u);
     } catch (e) {
-      console.error("refreshUser failed:", e);
+      console.warn("[vendor-auth] refreshUser failed (non-critical):", (e as Error)?.message ?? e);
     }
   };
 

@@ -1,5 +1,6 @@
 packages:
   - artifacts/*
+  - '!artifacts/ajkmartapi-server'
   - lib/*
   - lib/integrations/*
   - scripts

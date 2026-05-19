@@ -139,7 +139,7 @@ router.get("/products", async (req, res) => {
     const page = buildCursorPage({
       data: rows,
       limit,
-      getCursorValue: (p) => p.createdAt.toISOString(),
+      getCursorValue: (p: (typeof rows)[0]) => p.createdAt.toISOString(),
     });
 
     const mapP = (p: typeof productsTable.$inferSelect) => ({

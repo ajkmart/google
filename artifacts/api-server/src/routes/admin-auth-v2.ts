@@ -958,7 +958,7 @@ router.delete(
   async (req: Request, res: Response) => {
     try {
     const adminId = req.admin?.sub;
-    const sessionId = req.params.sessionId;
+    const sessionId = req.params.sessionId as string;
 
     if (!adminId) {
       res.status(401).json({ error: 'Unauthorized' }); return;
@@ -1101,7 +1101,7 @@ router.post(
         res.status(400).json({ success: false, error: 'targetAdminId or targetUserId is required' });
         return;
       }
-      logger.info({ actor: (req as AdminRequest).admin?.id, targetAdminId, targetUserId, action, reason }, '[admin-recovery] account recovery action');
+      logger.info({ actor: (req as AdminRequest).adminId, targetAdminId, targetUserId, action, reason }, '[admin-recovery] account recovery action');
       // Record recovery action
       res.json({ success: true, message: `Recovery action '${action}' applied successfully`, reason });
     } catch (err) {
@@ -1409,7 +1409,7 @@ router.delete("/mfa/disable", adminAuth, csrfProtection, async (req, res) => {
     ip: adminReq.adminIp ?? getClientIp(req),
     adminId,
     details: `MFA disabled for ${adminName}`,
-    result: "warn",
+    result: "fail",
   });
 
   res.json({

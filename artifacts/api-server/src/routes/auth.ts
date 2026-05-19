@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
+import { logger } from "../lib/logger.js";
 import crypto from "crypto";
 import { db } from "@workspace/db";
 import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, pendingOtpsTable, userSessionsTable, loginHistoryTable } from "@workspace/db/schema";
@@ -794,7 +795,7 @@ router.post("/verify-otp", verifyCaptcha, async (req, res) => {
   const phoneVerifyRequired = settings["security_phone_verify"] === "on";
   const otpBypass = isExplicitlyDev && settings["security_otp_bypass"] === "on" && !phoneVerifyRequired;
   if (otpBypass) {
-    console.warn("[SECURITY] OTP bypass is ENABLED for phone verify-otp. This must NOT be used in production.");
+    logger.warn("[SECURITY] OTP bypass is ENABLED for phone verify-otp. This must NOT be used in production.");
   }
 
   /* ── Atomic OTP consumption via a single conditional UPDATE ──
@@ -941,7 +942,7 @@ router.post("/verify-otp", verifyCaptcha, async (req, res) => {
   /* Clean up expired refresh tokens for this user (housekeeping) */
   db.delete(refreshTokensTable)
     .where(and(eq(refreshTokensTable.userId, u.id), lt(refreshTokensTable.expiresAt, new Date())))
-    .catch((e: Error) => { console.warn("[auth] expired token cleanup failed:", e.message); });
+    .catch((e: Error) => { logger.warn({ err: e.message }, "[auth] expired token cleanup failed"); });
 
   res.json({
     token:        accessToken,
@@ -1054,7 +1055,7 @@ router.post("/vendor-register", async (req, res) => {
       : "Your vendor registration is pending admin approval. We'll notify you once approved.",
     type: "system",
     icon: autoApprove ? "checkmark-circle-outline" : "time-outline",
-  }).catch((e: Error) => { console.warn("[auth] vendor registration notification insert failed:", e.message); });
+  }).catch((e: Error) => { logger.warn({ err: e.message }, "[auth] vendor registration notification insert failed"); });
 
   if (!autoApprove) {
     const admins = await db.select({ id: usersTable.id }).from(usersTable)
@@ -1068,7 +1069,7 @@ router.post("/vendor-register", async (req, res) => {
       icon: "storefront-outline",
     }));
     if (adminNotifs.length) {
-      db.insert(notificationsTable).values(adminNotifs).catch((e: Error) => { console.warn("[auth] admin vendor-pending notification insert failed:", e.message); });
+      db.insert(notificationsTable).values(adminNotifs).catch((e: Error) => { logger.warn({ err: e.message }, "[auth] admin vendor-pending notification insert failed"); });
     }
   }
 
@@ -1249,7 +1250,7 @@ router.post("/logout", async (req, res) => {
   if (refreshToken) {
     const tokenHash = hashRefreshToken(refreshToken);
     await revokeRefreshToken(tokenHash).catch((e: Error) => {
-      console.warn("[auth] refresh token revocation failed during logout — token may remain active:", e.message);
+      logger.warn({ err: e.message }, "[auth] refresh token revocation failed during logout — token may remain active");
     });
     writeAuthAuditLog("token_revoked", { ip });
   }
@@ -1388,10 +1389,10 @@ router.post("/send-email-otp", verifyCaptcha, async (req, res) => {
   if (!emailResult.sent) {
     if (isDev) {
       /* In development, log OTP to console so developers can see it */
-      console.log(`[EMAIL-OTP DEV] Email OTP for ${normalized}: ${otp} (SMTP not configured: ${emailResult.reason ?? "unknown"})`);
+      logger.debug({ email: normalized, reason: emailResult.reason ?? "unknown" }, "[EMAIL-OTP DEV] Email OTP generated (SMTP not configured)");
     } else {
       /* In production, log a warning but still issue the OTP (client won't see it) */
-      console.warn(`[EMAIL-OTP] Failed to send OTP email to ${normalized}: ${emailResult.reason ?? "SMTP not configured"}`);
+      logger.warn({ email: normalized, reason: emailResult.reason ?? "SMTP not configured" }, "[EMAIL-OTP] Failed to send OTP email");
     }
   }
 
@@ -1449,7 +1450,7 @@ router.post("/verify-email-otp", verifyCaptcha, async (req, res) => {
   const emailIsExplicitlyDev = emailNodeEnv === "development" || emailNodeEnv === "test";
   const otpBypass = emailIsExplicitlyDev && settings["security_otp_bypass"] === "on" && !phoneVerifyRequired;
   if (otpBypass) {
-    console.warn("[SECURITY] OTP bypass is ENABLED for email verify-otp. This must NOT be used in production.");
+    logger.warn("[SECURITY] OTP bypass is ENABLED for email verify-otp. This must NOT be used in production.");
   }
 
   /* Check expiry FIRST — prevents timing oracle (attacker learning that an
@@ -1512,7 +1513,7 @@ router.post("/verify-email-otp", verifyCaptcha, async (req, res) => {
   const { raw: refreshRaw, hash: refreshHash } = generateRefreshToken();
   const refreshExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
   await db.insert(refreshTokensTable).values({ id: generateId(), userId: user.id, tokenHash: refreshHash, authMethod: "email_otp", expiresAt: refreshExpiresAt });
-  db.delete(refreshTokensTable).where(and(eq(refreshTokensTable.userId, user.id), lt(refreshTokensTable.expiresAt, new Date()))).catch((e: Error) => { console.warn("[auth] expired token cleanup failed:", e.message); });
+  db.delete(refreshTokensTable).where(and(eq(refreshTokensTable.userId, user.id), lt(refreshTokensTable.expiresAt, new Date()))).catch((e: Error) => { logger.warn({ err: e.message }, "[auth] expired token cleanup failed"); });
 
   writeAuthAuditLog("login_success", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { method: "email_otp" } });
 
@@ -1642,7 +1643,7 @@ async function handleUnifiedLogin(req: Request, res: any) {
   const { raw: refreshRaw, hash: refreshHash } = generateRefreshToken();
   const refreshExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
   await db.insert(refreshTokensTable).values({ id: generateId(), userId: user.id, tokenHash: refreshHash, authMethod: "password", expiresAt: refreshExpiresAt });
-  db.delete(refreshTokensTable).where(and(eq(refreshTokensTable.userId, user.id), lt(refreshTokensTable.expiresAt, new Date()))).catch((e: Error) => { console.warn("[auth] expired token cleanup failed:", e.message); });
+  db.delete(refreshTokensTable).where(and(eq(refreshTokensTable.userId, user.id), lt(refreshTokensTable.expiresAt, new Date()))).catch((e: Error) => { logger.warn({ err: e.message }, "[auth] expired token cleanup failed"); });
 
   writeAuthAuditLog("login_success", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { method: `password_${idType}`, identifier: lookupKey } });
 
@@ -1785,7 +1786,7 @@ router.post("/complete-profile", async (req, res) => {
 
   db.delete(refreshTokensTable)
     .where(and(eq(refreshTokensTable.userId, updated!.id), lt(refreshTokensTable.expiresAt, new Date())))
-    .catch((e: Error) => { console.warn("[auth] expired token cleanup failed:", e.message); });
+    .catch((e: Error) => { logger.warn({ err: e.message }, "[auth] expired token cleanup failed"); });
 
   res.json({
     success: true,
@@ -2169,7 +2170,7 @@ router.post("/forgot-password", verifyCaptcha, async (req, res) => {
     const targetPhone = canonicalizePhone(phone);
     await sendOtpSMS(targetPhone, otp, settings, forgotLang);
     if (settings["integration_whatsapp"] === "on") {
-      sendWhatsAppOTP(targetPhone, otp, settings, forgotLang).catch((e: Error) => { console.warn("[auth] WhatsApp OTP send failed:", e.message); });
+      sendWhatsAppOTP(targetPhone, otp, settings, forgotLang).catch((e: Error) => { logger.warn({ err: e.message }, "[auth] WhatsApp OTP send failed"); });
     }
   } else {
     await db.update(usersTable)
@@ -2597,7 +2598,7 @@ async function issueTokensForUser(user: any, ip: string, method: string, userAge
   const refreshExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
 
   await db.insert(refreshTokensTable).values({ id: generateId(), userId: user.id, tokenHash: refreshHash, authMethod: method, expiresAt: refreshExpiresAt });
-  db.delete(refreshTokensTable).where(and(eq(refreshTokensTable.userId, user.id), lt(refreshTokensTable.expiresAt, new Date()))).catch((e: Error) => { console.warn("[auth] expired token cleanup failed:", e.message); });
+  db.delete(refreshTokensTable).where(and(eq(refreshTokensTable.userId, user.id), lt(refreshTokensTable.expiresAt, new Date()))).catch((e: Error) => { logger.warn({ err: e.message }, "[auth] expired token cleanup failed"); });
   await db.update(usersTable).set({ lastLoginAt: new Date() }).where(eq(usersTable.id, user.id));
   writeAuthAuditLog("login_success", { userId: user.id, ip, userAgent, metadata: { method } });
 

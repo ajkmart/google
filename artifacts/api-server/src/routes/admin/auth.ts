@@ -15,24 +15,24 @@ import {
   checkAdminLoginLockout, recordAdminLoginFailure, resetAdminLoginAttempts,
   addAuditEntry, addSecurityEvent, getClientIp,
   signAdminJwt, verifyAdminJwt, invalidateSettingsCache, getCachedSettings,
-  ADMIN_TOKEN_TTL_HRS, verifyTotpToken, verifyAdminSecret,
+  ADMIN_TOKEN_TTL_HRS, ADMIN_LOCKOUT_TIME, verifyTotpToken,
   ensureDefaultRideServices, ensureDefaultLocations, formatSvc,
   type AdminRequest, adminLoginAttempts, ADMIN_MAX_ATTEMPTS,
 } from "../admin-shared.js";
-import { hashAdminSecret } from "../../services/password.js";
+import { hashAdminSecret, verifyAdminSecret } from "../../services/password.js";
 import { generateTotpSecret, verifyTotpToken as verifyTotp, generateQRCodeDataURL, getTotpUri } from "../../services/totp.js";
-import { writeAuthAuditLog } from "../../middleware/security.js";
+import { writeAuthAuditLog, securityEvents, blockIP, getBlockedIPList } from "../../middleware/security.js";
 
 const router = Router();
 router.post("/auth", async (req, res) => {
   const { secret } = req.body;
   const ip = getClientIp(req);
-  const ADMIN_SECRET = getAdminSecret();
+  const ADMIN_SECRET = await getAdminSecret();
 
-  const lockout = checkAdminLoginLockout(ip);
-  if (lockout.locked) {
+  const isLocked = await checkAdminLoginLockout(ip);
+  if (isLocked) {
     addSecurityEvent({ type: "admin_login_locked", ip, details: `Locked admin login attempt from ${ip}`, severity: "high" });
-    res.status(429).json({ error: `Too many failed attempts. Try again in ${lockout.minutesLeft} minute(s).` });
+    res.status(429).json({ error: `Too many failed attempts. Try again in ${ADMIN_LOCKOUT_TIME} minute(s).` });
     return;
   }
 
@@ -49,7 +49,7 @@ router.post("/auth", async (req, res) => {
   /* ── Attempt sub-admin login via stored secret (bcrypt, legacy scrypt, or plaintext fallback) ── */
   const activeSubs2 = await db.select().from(adminAccountsTable)
     .where(eq(adminAccountsTable.isActive, true));
-  const sub = activeSubs2.find(s => verifyAdminSecret(secret || "", s.secret));
+  const sub = activeSubs2.find(s => verifyAdminSecret(secret || "", s.secret as string));
 
   if (sub) {
     resetAdminLoginAttempts(ip);
@@ -101,14 +101,14 @@ router.post("/admin-accounts", async (req, res) => {
     const [account] = await db.insert(adminAccountsTable).values({
       id:          generateId(),
       name:        body.name,
-      secret:      hashAdminSecret(body.secret),
+      secret:      hashAdminSecret(body.secret as string),
       role:        body.role        || "manager",
       permissions: body.permissions || "",
       isActive:    body.isActive !== false,
     }).returning();
     res.status(201).json({ ...account, secret: "••••••", createdAt: account.createdAt.toISOString() });
   } catch (e: unknown) {
-    if (e.code === "23505") { res.status(409).json({ error: "Secret already in use" }); return; }
+    if ((e as { code?: string }).code === "23505") { res.status(409).json({ error: "Secret already in use" }); return; }
     throw e;
   }
 });
@@ -121,8 +121,8 @@ router.patch("/admin-accounts/:id", async (req, res) => {
   if (body.permissions !== undefined) updates.permissions = body.permissions;
   if (body.isActive    !== undefined) updates.isActive    = body.isActive;
   if (body.secret      !== undefined) {
-    if (body.secret === getAdminSecret()) { res.status(400).json({ error: "Cannot use the master secret" }); return; }
-    updates.secret = hashAdminSecret(body.secret);
+    if (body.secret === await getAdminSecret()) { res.status(400).json({ error: "Cannot use the master secret" }); return; }
+    updates.secret = hashAdminSecret(body.secret as string);
   }
   const [account] = await db.update(adminAccountsTable).set(updates).where(eq(adminAccountsTable.id, req.params["id"]!)).returning();
   if (!account) { res.status(404).json({ error: "Admin account not found" }); return; }

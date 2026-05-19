@@ -105,15 +105,15 @@ router.get("/transactions", async (req, res) => {
     const page = buildCursorPage({
       data: rows,
       limit,
-      getCursorValue: (t) => t.createdAt.toISOString(),
+      getCursorValue: (t: (typeof rows)[0]) => t.createdAt.toISOString(),
     });
 
     const totalCredit = page.data
-      .filter((t) => t.type === "credit")
-      .reduce((s, t) => s + parseFloat(t.amount), 0);
+      .filter((t: (typeof rows)[0]) => t.type === "credit")
+      .reduce((s: number, t: (typeof rows)[0]) => s + parseFloat(t.amount), 0);
     const totalDebit = page.data
-      .filter((t) => t.type === "debit")
-      .reduce((s, t) => s + parseFloat(t.amount), 0);
+      .filter((t: (typeof rows)[0]) => t.type === "debit")
+      .reduce((s: number, t: (typeof rows)[0]) => s + parseFloat(t.amount), 0);
 
     sendSuccess(res, {
       transactions: page.data.map((t) => ({
