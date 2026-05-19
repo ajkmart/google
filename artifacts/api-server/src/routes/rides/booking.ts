@@ -294,7 +294,7 @@ router.post("/", customerAuth, bookRideLimiter, async (req, res) => {
         ))
         .limit(1);
       if (existing) {
-        const cached = (() => { try { return JSON.parse(existing.responseData); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback return"); return null; } })();
+        const cached = (() => { try { return JSON.parse(existing.responseData); } catch (err) { logger.warn({ err }, "[fn] idempotency key response cache parse failed — proceeding without cache"); return null; } })();
         if (cached && cached.id) { sendSuccess(res, cached); return; }
       }
       sendError(res, "Your previous ride request is still being processed. Please wait a moment.", 409);
@@ -304,6 +304,7 @@ router.post("/", customerAuth, bookRideLimiter, async (req, res) => {
   }
 
   try {
+
     let rideRecord: typeof ridesTable.$inferSelect;
 
     if (paymentMethod === "wallet" && !isBargaining) {

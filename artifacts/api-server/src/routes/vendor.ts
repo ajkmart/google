@@ -350,6 +350,7 @@ router.get("/orders", async (req, res) => {
 
 /* ── PATCH /vendor/orders/:id/status ── */
 router.patch("/orders/:id/status", async (req, res) => {
+  try {
   const vendorId = req.vendorId!;
   /* Strict: only status and note accepted — reject price/total etc. explicitly */
   const allowedKeys = new Set(["status", "note"]);
@@ -571,6 +572,10 @@ router.patch("/orders/:id/status", async (req, res) => {
     })();
   }
   sendSuccess(res, { ...updated, total: safeNum(updated.total) });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* ── GET /vendor/promos ── list promos owned by vendor ── */

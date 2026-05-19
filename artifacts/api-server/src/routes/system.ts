@@ -345,6 +345,7 @@ router.get("/stats", async (_req, res) => {
 
 /* GET /admin/system/snapshots — list active (non-expired) snapshots */
 router.get("/snapshots", async (_req, res) => {
+  try {
   const rows = await db.select({
     id:        systemSnapshotsTable.id,
     label:     systemSnapshotsTable.label,
@@ -360,6 +361,10 @@ router.get("/snapshots", async (_req, res) => {
       expiresAt: r.expiresAt.toISOString(),
     })),
   });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -368,6 +373,7 @@ router.get("/snapshots", async (_req, res) => {
 
 /* POST /admin/system/reset-demo */
 router.post("/reset-demo", async (_req, res) => {
+  try {
   const snap = await snapshotBefore("Reset Demo Content", "reset-demo", [
     "orders", "rides", "pharmacy_orders", "parcel_bookings",
     "wallet_transactions", "reviews", "notifications", "flash_deals",
@@ -393,10 +399,15 @@ router.post("/reset-demo", async (_req, res) => {
     walletReset: `All wallets reset to Rs. ${DEMO_WALLET_BALANCE}`,
     ...snap,
   });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* POST /admin/system/reset-transactional */
 router.post("/reset-transactional", async (_req, res) => {
+  try {
   const snap = await snapshotBefore("Clear Transactional Data", "reset-transactional", [
     "orders", "rides", "pharmacy_orders", "parcel_bookings",
     "wallet_transactions", "reviews", "notifications", "flash_deals",
@@ -417,10 +428,15 @@ router.post("/reset-transactional", async (_req, res) => {
     message: "All transactional data cleared. Users, products and settings preserved.",
     ...snap,
   });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* POST /admin/system/reset-products */
 router.post("/reset-products", async (_req, res) => {
+  try {
   const snap = await snapshotBefore("Reseed Products", "reset-products", ["products"]);
   const { mart, food } = await reseedProducts();
   res.json({
@@ -429,10 +445,15 @@ router.post("/reset-products", async (_req, res) => {
     seeded: { mart, food },
     ...snap,
   });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* POST /admin/system/reset-all */
 router.post("/reset-all", async (_req, res) => {
+  try {
   const snap = await snapshotBefore("Full Database Reset", "reset-all", [
     "users", "orders", "rides", "pharmacy_orders", "parcel_bookings",
     "wallet_transactions", "reviews", "notifications", "flash_deals",
@@ -461,10 +482,15 @@ router.post("/reset-all", async (_req, res) => {
     reseeded: { mart_products: mart, food_products: food },
     ...snap,
   });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* POST /admin/system/reset-settings */
 router.post("/reset-settings", async (_req, res) => {
+  try {
   const snap = await snapshotBefore("Reset Platform Settings", "reset-settings", ["platform_settings"]);
   await db.delete(platformSettingsTable);
   invalidateSettingsCache();
@@ -473,6 +499,10 @@ router.post("/reset-settings", async (_req, res) => {
     message: "All platform settings deleted. Settings will be reseeded to defaults on next admin panel visit.",
     ...snap,
   });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1030,6 +1060,7 @@ router.delete("/snapshots/:id", async (req, res) => {
 
 /* GET /admin/system/demo-backups — list all saved demo backups */
 router.get("/demo-backups", async (_req, res) => {
+  try {
   const rows = await db.select({
     id: demoBackupsTable.id,
     label: demoBackupsTable.label,
@@ -1038,10 +1069,15 @@ router.get("/demo-backups", async (_req, res) => {
     createdAt: demoBackupsTable.createdAt,
   }).from(demoBackupsTable).orderBy(demoBackupsTable.createdAt);
   sendSuccess(res, rows);
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* POST /admin/system/demo-backups — create a new demo backup */
 router.post("/demo-backups", async (req, res) => {
+  try {
   const label = (req.body?.label as string | undefined)?.trim() || `Demo Backup ${new Date().toLocaleDateString("ur-PK")}`;
 
   const [
@@ -1095,10 +1131,15 @@ router.post("/demo-backups", async (req, res) => {
   await db.insert(demoBackupsTable).values({ id, label, tablesJson, rowsTotal, sizeKb });
 
   sendSuccess(res, { id, label, rowsTotal, sizeKb, createdAt: new Date().toISOString() });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* POST /admin/system/demo-backups/:id/restore — restore from a demo backup */
 router.post("/demo-backups/:id/restore", async (req, res) => {
+  try {
   const { id } = req.params as Record<string, string>;
   const row = await db.select().from(demoBackupsTable).where(eq(demoBackupsTable.id, id)).limit(1);
   if (!row[0]) { sendNotFound(res, "Demo backup not found"); return; }
@@ -1106,8 +1147,8 @@ router.post("/demo-backups/:id/restore", async (req, res) => {
   let tables: Record<string, any[]>;
   try {
     tables = JSON.parse(row[0].tablesJson) as Record<string, any[]>;
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), code: "DEMO_BACKUP_PARSE_FAILED", timestamp: new Date().toISOString() }, "[system] Demo backup JSON parse failed — data corrupted");
+  } catch (parseErr) {
+    logger.error({ err: parseErr, code: "DEMO_BACKUP_PARSE_FAILED" }, "[system] Demo backup JSON parse failed — data corrupted");
     sendError(res, "Demo backup data is corrupted and cannot be parsed", 500);
     return;
   }
@@ -1124,17 +1165,27 @@ router.post("/demo-backups/:id/restore", async (req, res) => {
     errors: errors.length > 0 ? errors : undefined,
     ...snap,
   });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* DELETE /admin/system/demo-backups/:id — delete a demo backup */
 router.delete("/demo-backups/:id", async (req, res) => {
+  try {
   const { id } = req.params as Record<string, string>;
   await db.delete(demoBackupsTable).where(eq(demoBackupsTable.id, id));
   sendSuccess(res, { deleted: id });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* GET /admin/system/backup — full database export as JSON file */
 router.get("/backup", async (_req, res) => {
+  try {
   const [
     users, orders, rides, pharmacy, parcel, products,
     walletTx, notifications, reviews, promos, flashDeals,
@@ -1189,10 +1240,15 @@ router.get("/backup", async (_req, res) => {
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
   res.json(backup);
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* POST /admin/system/restore */
 router.post("/restore", async (req, res) => {
+  try {
   const body = req.body as { tables?: Record<string, unknown[]> };
   if (!body?.tables) {
     res.status(400).json({ error: "Invalid backup format. Expected { tables: { ... } }." });
@@ -1211,6 +1267,10 @@ router.post("/restore", async (req, res) => {
     errors: errors.length > 0 ? errors : undefined,
     ...snap,
   });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 export default router;

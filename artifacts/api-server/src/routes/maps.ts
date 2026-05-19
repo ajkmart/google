@@ -182,6 +182,7 @@ async function getFallbackPredictions(input: string) {
 }
 
 router.get("/autocomplete", async (req, res) => {
+  try {
   const input = String(req.query.input ?? "").trim();
   if (!input) {
     const all = await getFallbackPredictions("");
@@ -257,6 +258,10 @@ router.get("/autocomplete", async (req, res) => {
     const filtered = AJK_FALLBACK.filter(l => l.description.toLowerCase().includes(input.toLowerCase()));
     res.status(503).json({ predictions: filtered, source: "fallback", approximate: true, warning: "Maps service temporarily unavailable. Results are limited to pre-defined AJK locations." });
   }
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ predictions: [], source: "fallback", error: "Internal server error" });
+  }
 });
 
 /* ══════════════════════════════════════════════════════════
@@ -265,6 +270,7 @@ router.get("/autocomplete", async (req, res) => {
    Falls back to AJK_FALLBACK lookup by placeId.
 ══════════════════════════════════════════════════════════ */
 router.get("/geocode", async (req, res) => {
+  try {
   const placeId = String(req.query.place_id ?? "").trim();
   const address = String(req.query.address ?? "").trim();
 
@@ -394,9 +400,13 @@ router.get("/geocode", async (req, res) => {
       try {
         const nom = await nominatimForwardGeocode(address);
         if (nom) { void trackMapUsage("osm", "geocode"); res.json({ ...nom, source: "nominatim" }); return; }
-      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] Nominatim unavailable`); }
+      } catch (err) { logger.warn({ err }, "[maps] Nominatim fallback unavailable during geocode"); }
     }
     res.status(500).json({ error: "Maps geocode request failed" });
+  }
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -407,6 +417,7 @@ router.get("/geocode", async (req, res) => {
    redundant API calls on minor coordinate drift.
 ══════════════════════════════════════════════════════════ */
 router.get("/reverse-geocode", async (req, res) => {
+  try {
   const lat = parseFloat(String(req.query.lat ?? ""));
   const lng = parseFloat(String(req.query.lng ?? ""));
 
@@ -565,6 +576,10 @@ router.get("/reverse-geocode", async (req, res) => {
     } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] Nominatim also unavailable`); }
     res.status(500).json({ error: "Reverse geocode request failed" });
   }
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 /* ══════════════════════════════════════════════════════════
@@ -699,6 +714,7 @@ router.get("/directions", async (req, res) => {
    Returns whether Maps is configured and active.
 ══════════════════════════════════════════════════════════ */
 router.get("/status", async (_req, res) => {
+  try {
   const { key, enabled, provider, locationiqKey } = await getKey();
   const providerKeyConfigured = provider === "locationiq" ? !!locationiqKey : !!key;
   res.json({
@@ -707,6 +723,10 @@ router.get("/status", async (_req, res) => {
     apisAvailable:   ["autocomplete", "directions", "geocode"],
     fallbackActive:  !enabled || !providerKeyConfigured,
   });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 /* ── Helper: extract and verify Bearer token from Authorization header or socket auth ── */
@@ -734,6 +754,7 @@ function isRequestAuthenticated(req: Request): boolean {
    When ?app is absent the token for the global primary provider is returned.
 ── */
 router.get("/config", async (req, res) => {
+  try {
   const authenticated = isRequestAuthenticated(req);
   const settings = await getCachedSettings();
   const s = settings as Record<string, string>;
@@ -851,6 +872,10 @@ router.get("/config", async (req, res) => {
     geocodeCacheMaxSize,
     geocodeCacheCurrentSize: _revGeoCache.size,
   });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 /* ══════════════════════════════════════════════════════════

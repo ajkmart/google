@@ -843,7 +843,7 @@ router.post(
         const payload = verifyRefreshToken(refreshTokenCookie);
         keepSessionId = payload.sessionId;
       } catch (err) {
-        logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] refresh token invalid — proceed without keeping any session`);
+        logger.warn({ err }, `[fn] refresh token invalid — proceed without keeping any session`);
       }
     }
 

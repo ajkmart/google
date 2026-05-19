@@ -69,6 +69,7 @@ const router: IRouter = Router();
  *   the correct app before navigating to the dashboard — client-side role checks are
  *   then a secondary UX guard only. */
 router.get("/profile", anyUserAuth, async (req, res) => {
+  try {
   const userId = req.customerId!;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!user) {
@@ -113,12 +114,17 @@ router.get("/profile", anyUserAuth, async (req, res) => {
     hasPassword: !!user.passwordHash,
     createdAt: user.createdAt.toISOString(),
   });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* POST /users/add-role
    Lets an authenticated user (any role) add "customer" to their roles field.
    Idempotent — if they already have the role, returns success immediately. */
 router.post("/add-role", anyUserAuth, validateBody(AddRoleSchema), async (req, res) => {
+  try {
   const userId = req.customerId!;
   const { role } = req.body;
 
@@ -151,11 +157,16 @@ router.post("/add-role", anyUserAuth, validateBody(AddRoleSchema), async (req, r
     role: user.roles,
     roles: newRoles,
   }, "Customer access added to your account successfully.");
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 router.use(customerAuth);
 
 router.get("/:id/debt", async (req, res) => {
+  try {
   const userId = req.customerId!;
   if (req.params["id"] as string !== userId) {
     sendForbidden(res, "Access denied");
@@ -167,6 +178,10 @@ router.get("/:id/debt", async (req, res) => {
     return;
   }
   sendSuccess(res, { debtBalance: parseFloat(user.cancellationDebt ?? "0") });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 router.post("/export-data", exportDataLimiter, validateBody(ExportDataSchema), async (req, res) => {

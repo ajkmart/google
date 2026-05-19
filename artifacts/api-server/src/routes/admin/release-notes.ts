@@ -20,7 +20,7 @@ router.get("/release-notes", async (_req, res) => {
         id:          r.id,
         version:     r.version,
         releaseDate: r.release_date,
-        notes:       (() => { try { return JSON.parse(r.notes as string); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback"); return [r.notes]; } })(),
+        notes:       (() => { try { return JSON.parse(r.notes as string); } catch (err) { logger.warn({ err }, "[fn] release note JSON parse failed — falling back to raw string"); return [r.notes]; } })(),
         sortOrder:   r.sort_order,
         createdAt:   r.created_at,
       })),

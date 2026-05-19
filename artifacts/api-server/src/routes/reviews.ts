@@ -82,6 +82,7 @@ async function moderateComment(comment: string): Promise<{ flagged: boolean; rea
 
 /* ── GET /reviews/product/:productId — public paginated reviews for a product ── */
 router.get("/product/:productId", async (req, res) => {
+  try {
   const productId = req.params["productId"] as string;
   const page = Math.max(1, parseInt(String(req.query["page"] || "1")));
   const limit = Math.min(parseInt(String(req.query["limit"] || "10")), 50);
@@ -144,10 +145,15 @@ router.get("/product/:productId", async (req, res) => {
     page,
     pages: Math.ceil(total / limit),
   });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* ── GET /reviews/product/:productId/summary — rating distribution stats ── */
 router.get("/product/:productId/summary", async (req, res) => {
+  try {
   const productId = req.params["productId"] as string;
 
   const rows = await db
@@ -175,10 +181,15 @@ router.get("/product/:productId/summary", async (req, res) => {
   const average = total > 0 ? parseFloat((sum / total).toFixed(1)) : 0;
 
   sendSuccess(res, { average, total, distribution });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* ── GET /reviews/can-review/:productId — check if user can review a product ── */
 router.get("/can-review/:productId", customerAuth, async (req, res) => {
+  try {
   const userId = req.customerId!;
   const productId = req.params["productId"] as string;
 
@@ -219,10 +230,15 @@ router.get("/can-review/:productId", customerAuth, async (req, res) => {
   const alreadyReviewed = existing.length > 0;
 
   sendSuccess(res, { canReview: hasPurchased && !alreadyReviewed, hasPurchased, alreadyReviewed });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* ── POST /reviews — submit a review ─────────────────────────────────────── */
 router.post("/", customerAuth, async (req, res) => {
+  try {
   const userId = req.customerId!;
   const { orderId, vendorId, riderId, orderType, rating, riderRating, productId, photos } = req.body;
   const comment = typeof req.body.comment === "string" ? stripHtml(req.body.comment) : req.body.comment;
@@ -477,10 +493,15 @@ router.post("/", customerAuth, async (req, res) => {
   } else {
     sendCreated(res, review);
   }
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* ── GET /reviews?orderId= — check if reviewed (IDOR-protected) ── */
 router.get("/", customerAuth, async (req, res) => {
+  try {
   const userId  = req.customerId!;
   const orderId = req.query["orderId"] as string;
   const type    = (req.query["type"] as string) ?? "order"; // "ride" | "order"
@@ -515,10 +536,15 @@ router.get("/", customerAuth, async (req, res) => {
     .limit(1);
 
   sendSuccess(res, { reviewed: rows.length > 0, review: rows[0] ?? null });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* ── GET /reviews/my — list all reviews submitted by the logged-in customer ── */
 router.get("/my", customerAuth, async (req, res) => {
+  try {
   const userId     = req.customerId!;
   const pageParam  = Math.max(1, parseInt(String(req.query["page"] || "1")));
   const limitParam = Math.min(parseInt(String(req.query["limit"] || "50")), 100);
@@ -597,10 +623,15 @@ router.get("/my", customerAuth, async (req, res) => {
   }));
 
   sendSuccess(res, { reviews, total, page: pageParam, pages: Math.ceil(total / limitParam) });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* ── GET /reviews/vendor/:vendorId — all visible reviews for a vendor (public) ── */
 router.get("/vendor/:vendorId", async (req, res) => {
+  try {
   const rows = await db
     .select({
       id: reviewsTable.id,
@@ -626,10 +657,15 @@ router.get("/vendor/:vendorId", async (req, res) => {
     : null;
 
   sendSuccess(res, { reviews: rows, avgRating: avg ? parseFloat(avg) : null, total: rows.length });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* ── POST /reviews/:id/vendor-reply — vendor reply ─────────────────────── */
 router.post("/:id/vendor-reply", vendorAuth, async (req, res) => {
+  try {
   const vendorId = req.vendorId!;
   const reviewId = String(req.params["id"] as string);
   const { reply } = req.body;
@@ -659,10 +695,15 @@ router.post("/:id/vendor-reply", vendorAuth, async (req, res) => {
     .returning();
 
   sendCreated(res, updated);
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* ── PUT /reviews/:id/vendor-reply — edit vendor reply ──────────────────── */
 router.put("/:id/vendor-reply", vendorAuth, async (req, res) => {
+  try {
   const vendorId = req.vendorId!;
   const reviewId = String(req.params["id"] as string);
   const { reply } = req.body;
@@ -692,10 +733,15 @@ router.put("/:id/vendor-reply", vendorAuth, async (req, res) => {
     .returning();
 
   sendSuccess(res, updated);
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* ── DELETE /reviews/:id/vendor-reply — delete vendor reply ─────────────── */
 router.delete("/:id/vendor-reply", vendorAuth, async (req, res) => {
+  try {
   const vendorId = req.vendorId!;
   const reviewId = String(req.params["id"] as string);
 
@@ -719,6 +765,10 @@ router.delete("/:id/vendor-reply", vendorAuth, async (req, res) => {
     .returning();
 
   sendSuccess(res, updated);
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 export default router;

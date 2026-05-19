@@ -110,7 +110,7 @@ async function acquireWalletIdempotency(
       .limit(1);
 
     if (!fresh || fresh.responseData === "{}") return { acquired: false, action: "in_flight" };
-    const parsedFresh = (() => { try { return JSON.parse(fresh.responseData); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback return"); return null; } })();
+    const parsedFresh = (() => { try { return JSON.parse(fresh.responseData); } catch (err) { logger.warn({ err }, "[fn] idempotency key response cache parse failed — proceeding without cache"); return null; } })();
     if (parsedFresh) {
       const { _sc, ...body } = parsedFresh as { _sc?: number; [k: string]: unknown };
       return { acquired: false, action: "replay", statusCode: _sc ?? 200, body };
@@ -123,7 +123,7 @@ async function acquireWalletIdempotency(
     return { acquired: false, action: "in_flight" };
   }
 
-  const parsed = (() => { try { return JSON.parse(existing.responseData); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback return"); return null; } })();
+  const parsed = (() => { try { return JSON.parse(existing.responseData); } catch (err) { logger.warn({ err }, "[fn] idempotency key response cache parse failed — proceeding without cache"); return null; } })();
   if (parsed) {
     const { _sc, ...body } = parsed as { _sc?: number; [k: string]: unknown };
     return { acquired: false, action: "replay", statusCode: _sc ?? 200, body };

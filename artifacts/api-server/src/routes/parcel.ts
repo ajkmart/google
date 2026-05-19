@@ -79,6 +79,7 @@ function mapBooking(b: typeof parcelBookingsTable.$inferSelect) {
 }
 
 router.post("/estimate", publicLimiter, async (req, res) => {
+  try {
   const p = parcelEstimateSchema.safeParse(req.body ?? {});
   if (!p.success) {
     sendValidationError(res, p.error.errors.map(e => e.message).join("; "));
@@ -97,9 +98,14 @@ router.post("/estimate", publicLimiter, async (req, res) => {
   const fare = calcParcelFare(baseFee, perKgRate, cappedWeight);
   const estimatedTime = `${preptimeMin + 30}–${preptimeMin + 60} min`;
   sendSuccess(res, { fare, estimatedTime, parcelType, baseFee, perKgRate, weightKg: cappedWeight ?? 0 });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 router.get("/", customerAuth, async (req, res) => {
+  try {
   const userId = req.customerId!;
   const bookings = await db
     .select()
@@ -107,9 +113,14 @@ router.get("/", customerAuth, async (req, res) => {
     .where(eq(parcelBookingsTable.userId, userId))
     .orderBy(parcelBookingsTable.createdAt);
   sendSuccess(res, { bookings: bookings.map(mapBooking).reverse(), total: bookings.length });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 router.get("/:id", customerAuth, verifyOwnership("parcel_booking"), async (req, res) => {
+  try {
   const userId = req.customerId!;
   const [booking] = await db
     .select()
@@ -122,9 +133,14 @@ router.get("/:id", customerAuth, verifyOwnership("parcel_booking"), async (req, 
   }
   /* Ownership already enforced by verifyOwnership("parcel_booking") middleware */
   sendSuccess(res, mapBooking(booking));
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 router.post("/", customerAuth, async (req, res) => {
+  try {
   const userId = req.customerId!;
 
   const parsed = createParcelSchema.safeParse(req.body);
@@ -336,9 +352,14 @@ router.post("/", customerAuth, async (req, res) => {
   });
 
   sendCreated(res, { ...mapBooking(booking!), gstAmount });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 router.patch("/:id/cancel", customerAuth, verifyOwnership("parcel_booking"), async (req, res) => {
+  try {
   const userId = req.customerId!;
   const bookingId = String(req.params["id"] as string);
 
@@ -432,9 +453,14 @@ router.patch("/:id/cancel", customerAuth, verifyOwnership("parcel_booking"), asy
 
   if (!cancelled) { sendError(res, "Parcel cannot be cancelled at this stage", 409); return; }
   sendSuccess(res, { ...mapBooking(cancelled), refundAmount });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 router.patch("/:id/status", riderAuth, async (req, res) => {
+  try {
   const riderId = req.riderId!;
   const { status } = req.body;
 
@@ -495,6 +521,10 @@ router.patch("/:id/status", riderAuth, async (req, res) => {
     }
     sendSuccess(res, mapBooking(updated));
   }
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 /* ══════════════════════════════════════════════════════════════
@@ -507,6 +537,7 @@ router.patch("/:id/status", riderAuth, async (req, res) => {
    Body: { latitude, longitude, accuracy?, mockProvider? }
 ══════════════════════════════════════════════════════════════ */
 router.patch("/:id/location", riderAuth, gpsAntiSpoofMiddleware, async (req, res) => {
+  try {
   const riderId = req.riderId!;
   const bookingId = String(req.params["id"] as string);
   const { latitude, longitude, accuracy } = req.body as {
@@ -541,6 +572,10 @@ router.patch("/:id/location", riderAuth, gpsAntiSpoofMiddleware, async (req, res
   }
 
   sendSuccess(res, { bookingId, latitude, longitude, timestamp: new Date().toISOString() });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 export default router;

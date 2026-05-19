@@ -165,6 +165,7 @@ router.get("/:id/stream", customerAuth, async (req, res) => {
 });
 
 router.get("/:id", customerAuth, verifyOwnership("ride"), async (req, res) => {
+  try {
   const callerId = req.customerId!;
 
   const rideId = String(req.params["id"] as string);
@@ -256,9 +257,14 @@ router.get("/:id", customerAuth, verifyOwnership("ride"), async (req, res) => {
   }
 
   sendSuccess(res, { ...formatRide(ride), riderName, riderPhone, bids: formattedBids, riderLat, riderLng, riderLocAge, riderAvgRating, fareBreakdown });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 router.get("/:id/track", customerAuth, async (req, res) => {
+  try {
   const callerId = req.customerId!;
 
   const rideId = String(req.params["id"] as string);
@@ -332,9 +338,14 @@ router.get("/:id/track", customerAuth, async (req, res) => {
     etaMinutes,
     trackable: TRACKABLE.includes(ride.status),
   });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 router.post("/:id/event-log", riderAuth, loadRide(), requireRideOwner("riderId"), async (req, res) => {
+  try {
   const parsed = eventLogSchema.safeParse(req.body);
   if (!parsed.success) {
     sendValidationError(res, parsed.error.issues[0]?.message || "event is required");
@@ -359,9 +370,14 @@ router.post("/:id/event-log", riderAuth, loadRide(), requireRideOwner("riderId")
   });
 
   sendSuccess(res, { id });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 router.get("/:id/event-logs", adminAuth, async (req, res) => {
+  try {
   const logs = await db.select().from(rideEventLogsTable)
     .where(eq(rideEventLogsTable.rideId, String(req.params["id"] as string)))
     .orderBy(asc(rideEventLogsTable.createdAt));
@@ -378,9 +394,14 @@ router.get("/:id/event-logs", adminAuth, async (req, res) => {
   }));
 
   sendSuccess(res, { logs: formatted, total: formatted.length });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 router.post("/:id/rate", customerAuth, requireRideState(["completed"]), requireRideOwner("userId"), async (req, res) => {
+  try {
   const parsed = rateRideSchema.safeParse(req.body);
   if (!parsed.success) {
     sendError(res, parsed.error.issues[0]?.message || "stars must be between 1 and 5", 422); return;
@@ -419,9 +440,14 @@ router.post("/:id/rate", customerAuth, requireRideState(["completed"]), requireR
   }).catch((e: Error) => logger.warn({ rideId: ride.id, riderId: ride.riderId, err: e.message }, "[rides/rate] rating notification insert failed"));
 
   sendSuccess(res, { rating });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 router.get("/:id/status", customerAuth, loadRide(), requireRideOwner("userId"), async (req, res) => {
+  try {
   const ride = req.ride!;
   const rideId = ride.id;
 
@@ -442,9 +468,14 @@ router.get("/:id/status", customerAuth, loadRide(), requireRideOwner("userId"), 
     distance: parseFloat(ride.distance),
     hasRating: hasRating.length > 0,
   });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 router.get("/:id/dispatch-status", customerAuth, loadRide(), requireRideOwner("userId"), async (req, res) => {
+  try {
   const ride = req.ride!;
   const rideId = ride.id;
 
@@ -472,9 +503,14 @@ router.get("/:id/dispatch-status", customerAuth, loadRide(), requireRideOwner("u
     dispatchLoopCount: ride.dispatchLoopCount ?? 0,
     maxLoops,
   });
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 router.post("/:id/retry", customerAuth, requireRideState(["no_riders", "no_riders_found", "expired", "bargaining", "searching"]), requireRideOwner("userId"), async (req, res) => {
+  try {
   const ride = req.ride!;
   const rideId = ride.id;
 
@@ -495,6 +531,10 @@ router.post("/:id/retry", customerAuth, requireRideState(["no_riders", "no_rider
   emitRideUpdate(rideId);
 
   sendSuccess(res, undefined, "Dispatch restarted");
+  } catch (err) {
+    logger.error({ err }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
 });
 
 export default router;
