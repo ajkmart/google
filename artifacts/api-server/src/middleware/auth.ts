@@ -90,7 +90,7 @@ export async function verifyTokenFamily(req: Request, res: Response, next: NextF
       return;
     }
 
-    const tokenFamilyId = (payload as JwtPayloadExtended).tokenFamilyId;
+    const tokenFamilyId = (payload as unknown as JwtPayloadExtended).tokenFamilyId;
 
     if (!tokenFamilyId) {
       next();

@@ -264,6 +264,104 @@ export const SERVICE_REGISTRY: Record<ServiceKey, ServiceDefinition> = {
     adminIcon: "💊",
   },
 
+  van: {
+    key: "van",
+    featureFlag: "feature_van",
+    label: "Van Service",
+    description: "Intercity shared van booking across AJK",
+    icon: "bus-outline",
+    iconFocused: "bus",
+    route: "/van" as Href,
+    color: C.brandBlue,
+    colorLight: C.brandBlueSoft,
+    gradient: [C.brandBlueSoft, "#CCE0FF"],
+    cardGradient: [C.brandBlueSoft, "#CCE0FF"],
+    iconGradient: [C.brandBlue, "#5599FF"],
+    textColor: "#003380",
+    tagColor: "#003380",
+    tagBg: "#99BBFF",
+    tag: "Intercity",
+    tagIcon: "bus-outline",
+    heroConfig: {
+      badgeIcon: "bus",
+      badgeLabel: "Van Service",
+      title: "Van",
+      subtitle: "Intercity shared van booking\nacross AJK",
+      stats: [
+        { icon: "bus-outline", label: "Shared seats" },
+        { icon: "map-outline", label: "Intercity routes" },
+      ],
+      cta: "Book Seat",
+      gradient: [C.brandBlueDark, C.brandBlue, "#5599FF"],
+    },
+    banners: [
+      {
+        title: "Van Service",
+        desc: "Book shared van seats for intercity travel across AJK!",
+        tag: "Intercity",
+        c1: C.brandBlueDark,
+        c2: C.brandBlue,
+        icon: "bus-outline",
+        cta: "Book Seat",
+      },
+    ],
+    quickActions: [
+      { icon: "bus-outline", label: "Van", color: C.brandBlue, bg: C.brandBlueSoft, route: "/van" as Href },
+    ],
+    tabLabel: "Van",
+    adminDescription: "Intercity shared van booking service across AJK",
+    adminIcon: "🚌",
+  },
+
+  school: {
+    key: "school",
+    featureFlag: "feature_school",
+    label: "School Transport",
+    description: "Safe & scheduled school transport for students",
+    icon: "school-outline",
+    iconFocused: "school",
+    route: "/school" as Href,
+    color: C.emerald,
+    colorLight: C.emeraldSoft,
+    gradient: [C.emeraldSoft, "#CCFFE8"],
+    cardGradient: [C.emeraldSoft, "#CCFFE8"],
+    iconGradient: [C.emerald, "#33E8A0"],
+    textColor: "#003D22",
+    tagColor: "#003D22",
+    tagBg: "#99FFCC",
+    tag: "Scheduled",
+    tagIcon: "school-outline",
+    heroConfig: {
+      badgeIcon: "school",
+      badgeLabel: "School Transport",
+      title: "School",
+      subtitle: "Safe & scheduled transport\nfor students",
+      stats: [
+        { icon: "school-outline", label: "Safe for kids" },
+        { icon: "time-outline", label: "On schedule" },
+      ],
+      cta: "Subscribe",
+      gradient: [C.emeraldDark, C.emerald, "#33E8A0"],
+    },
+    banners: [
+      {
+        title: "School Transport",
+        desc: "Safe & scheduled school transport for your children!",
+        tag: "Safe Rides",
+        c1: C.emeraldDark,
+        c2: C.emerald,
+        icon: "school-outline",
+        cta: "Subscribe",
+      },
+    ],
+    quickActions: [
+      { icon: "school-outline", label: "School", color: C.emerald, bg: C.emeraldSoft, route: "/school" as Href },
+    ],
+    tabLabel: "School",
+    adminDescription: "Scheduled school transport subscription service",
+    adminIcon: "🏫",
+  },
+
   parcel: {
     key: "parcel",
     featureFlag: "feature_parcel",
@@ -327,12 +425,12 @@ export const GLOBAL_QUICK_ACTIONS: Array<{
 ];
 
 export function getActiveServices(
-  features: Record<string, boolean>,
+  features: Record<string, boolean | undefined>,
 ): ServiceDefinition[] {
   return SERVICE_KEYS.filter((k) => features[k]).map((k) => SERVICE_REGISTRY[k]);
 }
 
-export function getActiveBanners(features: Record<string, boolean>) {
+export function getActiveBanners(features: Record<string, boolean | undefined>) {
   const active = getActiveServices(features);
   return active.flatMap((svc) =>
     svc.banners.map((b) => ({

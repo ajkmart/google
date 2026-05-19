@@ -434,7 +434,7 @@ function PharmacyScreenInner() {
       return;
     }
     if (!validatePhone(phone.trim())) {
-      showToast(`Please enter a valid phone number (e.g. ${config.regional?.phoneHint ?? "03XXXXXXXXX"})`, "error");
+      showToast(`Please enter a valid phone number (e.g. ${(config.regional as any)?.phoneHint ?? config.regional?.phoneFormat ?? "03XXXXXXXXX"})`, "error");
       return;
     }
     if (cartItems.length === 0) {
@@ -514,7 +514,7 @@ function PharmacyScreenInner() {
       if (payMethod === "wallet" && user) {
         const dataAny = data as typeof data & { total?: number | string };
         const serverTotal = typeof dataAny.total === "number" ? dataAny.total : parseFloat(String(dataAny.total ?? ""));
-        updateUser({ walletBalance: String(Number(user?.walletBalance ?? 0) - (Number.isFinite(serverTotal) ? serverTotal : cartTotal)) });
+        updateUser({ walletBalance: Number(user?.walletBalance ?? 0) - (Number.isFinite(serverTotal) ? serverTotal : cartTotal) });
       }
       setConfirmedOrderId(data.id);
       setConfirmed(true);

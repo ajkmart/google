@@ -403,8 +403,8 @@ export default function ProductDetailScreen() {
 
   const productType = product?.type || "mart";
   const { data: relatedData } = useGetProducts(
-    { type: productType, category: product?.category },
-    { query: { enabled: !!product } }
+    { type: productType as import("@workspace/api-client-react").GetProductsType, category: product?.category },
+    { query: { enabled: !!product, queryKey: ["related", id] } }
   );
   const relatedProducts = (relatedData?.products || [])
     .filter((p: Product) => p.id !== id)
@@ -450,7 +450,7 @@ export default function ProductDetailScreen() {
   }, []);
 
   const origPrice = Number(product?.originalPrice) || 0;
-  const price = product?.price || 0;
+  const price = Number(product?.price) || 0;
   const discount = origPrice > 0 && origPrice > price
     ? Math.round(((origPrice - price) / origPrice) * 100)
     : 0;
@@ -466,8 +466,9 @@ export default function ProductDetailScreen() {
   const doAdd = useCallback(() => {
     if (!product) return;
     const type = productType === "food" ? "food" : productType === "pharmacy" ? "pharmacy" : "mart";
-    const variantPrice = selectedVariant ? selectedVariant.price : product.price;
-    const variantLabel = selectedVariant ? ` (${selectedVariant.label})` : "";
+    const variantObj = selectedVariant ? (product.variants as Array<{id: string; price: number; label?: string}> | undefined)?.find(v => v.id === selectedVariant) ?? null : null;
+    const variantPrice = variantObj ? variantObj.price : Number(product.price);
+    const variantLabel = variantObj ? ` (${variantObj.label ?? variantObj.id})` : "";
     addItem({
       productId: product.id,
       name: product.name + variantLabel,
@@ -873,7 +874,8 @@ export default function ProductDetailScreen() {
                 <View style={styles.relatedGrid}>
                   {relatedProducts.map(rp => {
                     const rpOrig = Number(rp.originalPrice) || 0;
-                    const rpDiscount = rpOrig > rp.price ? Math.round(((rpOrig - rp.price) / rpOrig) * 100) : 0;
+                    const rpPrice = Number(rp.price) || 0;
+                    const rpDiscount = rpOrig > rpPrice ? Math.round(((rpOrig - rpPrice) / rpOrig) * 100) : 0;
                     return (
                       <Pressable
                         key={rp.id}

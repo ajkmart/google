@@ -237,7 +237,7 @@ function MartScreenInner() {
 
   const categories = catData?.categories || [];
   const products   = data?.products   || [];
-  const flashDeals = products.filter(p => Number(p.originalPrice) > p.price);
+  const flashDeals = products.filter(p => Number(p.originalPrice) > Number(p.price));
   const allProducts = products;
 
   return (

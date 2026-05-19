@@ -28,8 +28,9 @@ const CARD_W = (width - 16 * 2 - 12) / 2;
 
 function WishlistCard({ item, onRemove }: { item: WishlistItem; onRemove: (productId: string) => void }) {
   const p = item.product;
-  const origPrice = p.originalPrice || 0;
-  const discount = origPrice > p.price ? Math.round(((origPrice - p.price) / origPrice) * 100) : 0;
+  const origPrice = Number(p.originalPrice) || 0;
+  const numPrice = Number(p.price) || 0;
+  const discount = origPrice > numPrice ? Math.round(((origPrice - numPrice) / origPrice) * 100) : 0;
   const removeScale = useRef(new Animated.Value(1)).current;
 
   const handleRemove = () => {
@@ -64,11 +65,11 @@ function WishlistCard({ item, onRemove }: { item: WishlistItem; onRemove: (produ
         </View>
         <View style={styles.cardBody}>
           <Text style={styles.cardName} numberOfLines={2}>{p.name}</Text>
-          {p.unit && <Text style={styles.cardUnit}>{p.unit}</Text>}
+          {(p as any).unit && <Text style={styles.cardUnit}>{(p as any).unit}</Text>}
           <View style={styles.cardFooter}>
             <View>
               <Text style={styles.cardPrice}>Rs. {p.price.toLocaleString()}</Text>
-              {origPrice > p.price && (
+              {origPrice > numPrice && (
                 <Text style={styles.cardOrigPrice}>Rs. {origPrice.toLocaleString()}</Text>
               )}
             </View>
@@ -79,7 +80,7 @@ function WishlistCard({ item, onRemove }: { item: WishlistItem; onRemove: (produ
               </View>
             )}
           </View>
-          {!p.inStock && (
+          {(p as any).inStock === false && (
             <View style={styles.oosBadge}>
               <Text style={styles.oosTxt}>Out of Stock</Text>
             </View>

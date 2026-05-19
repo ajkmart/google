@@ -35,7 +35,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const { config } = usePlatformConfig();
   const auth = useAuthConfig();
   const { language } = useLanguage();
-  const T = (k: TranslationKey) => tDual(k, language);
+  const T = (k: string) => tDual(k as TranslationKey, language);
 
   const [overlay, setOverlay] = useState<"pending" | "rejected" | "biometric" | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
@@ -151,7 +151,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   if (overlay === "biometric") return <BiometricPromptOverlay onAccept={() => void confirmBiometric(true)} onDecline={() => void confirmBiometric(false)} />;
 
   /* ── Main login ── */
-  const hasSocial = auth.googleEnabled || auth.facebookEnabled;
+  const hasSocial = auth.allowGoogle || auth.allowFacebook;
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {biometricError && (
@@ -167,9 +167,9 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
         onSuccess={(user, token) => { setBiometricError(null); void handleSuccess(user, token); }}
         onRegisterPress={() => router.push("/auth/register")}
         enableSocial={false}
-        enableMagicLink={auth.magicLinkEnabled}
-        onMagicLink={auth.magicLinkEnabled ? handleMagicLink : undefined}
-        title={T("loginTitle") as string}
+        enableMagicLink={auth.allowMagicLink}
+        onMagicLink={auth.allowMagicLink ? handleMagicLink : undefined}
+        title={T("loginTitle" as import("@workspace/i18n").TranslationKey) as string}
       />
       {/* ── Coming-soon social placeholder (non-interactive) ── */}
       {hasSocial && (
@@ -177,12 +177,12 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
           <Text style={[styles.socialComingSoonLabel, { color: theme.textMuted }]}>
             Social sign-in
           </Text>
-          {auth.googleEnabled && (
+          {auth.allowGoogle && (
             <View style={[styles.socialDisabledBtn, { borderColor: theme.border, backgroundColor: theme.surface }]}>
               <Text style={[styles.socialDisabledText, { color: theme.textMuted }]}>Google  •  Coming Soon</Text>
             </View>
           )}
-          {auth.facebookEnabled && (
+          {auth.allowFacebook && (
             <View style={[styles.socialDisabledBtn, { borderColor: theme.border, backgroundColor: theme.surface }]}>
               <Text style={[styles.socialDisabledText, { color: theme.textMuted }]}>Facebook  •  Coming Soon</Text>
             </View>

@@ -19,7 +19,7 @@ export function useAppStatus(): AppStatus {
   const { config } = usePlatformConfig();
 
   return {
-    maintenance: config?.platform?.appStatus === "maintenance",
+    maintenance: config?.appStatus === "maintenance",
     maintenanceMsg: config?.content?.maintenanceMsg,
     supportPhone: config?.platform?.supportPhone,
     supportEmail: config?.platform?.supportEmail,

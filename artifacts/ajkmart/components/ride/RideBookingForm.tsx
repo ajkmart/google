@@ -51,6 +51,8 @@ type SchoolSubscribeRequestWithNotes = SchoolSubscribeRequest & {
   shift?: "morning" | "afternoon" | "both";
   startDate?: string;
   recurring?: boolean;
+  studentClass?: string;
+  paymentMethod?: string;
 };
 
 const C = Colors.light;
@@ -284,9 +286,21 @@ export function RideBookingForm({ onBooked, prefillPickup, prefillDrop, prefillT
     getRideServices()
       .then((data) => {
         if (!data?.services?.length) return;
-        setServices(data.services);
+        setServices(data.services.map((s: import("@workspace/api-client-react").RideService) => ({
+          key: s.key,
+          name: s.name,
+          nameUrdu: s.nameUrdu,
+          icon: s.icon,
+          color: s.color ?? "",
+          baseFare: Number(s.baseFare),
+          perKm: Number(s.perKm),
+          minFare: Number(s.minFare),
+          maxPassengers: s.maxPassengers,
+          description: s.description,
+          allowBargaining: s.allowBargaining,
+        })));
         setRideType((prev) =>
-          data.services.find((s: ServiceType) => s.key === prev)
+          data.services.find((s: import("@workspace/api-client-react").RideService) => s.key === prev)
             ? prev
             : data.services[0]!.key,
         );
@@ -362,13 +376,13 @@ export function RideBookingForm({ onBooked, prefillPickup, prefillDrop, prefillT
             setEstimateAt(Date.now());
             setEstimateAgeMinutes(0);
             setEstimate({
-              fare: data.fare,
+              fare: Number(data.fare),
               dist: data.distance,
               dur: data.duration,
-              baseFare: ext.baseFare ?? data.fare,
+              baseFare: ext.baseFare ?? Number(data.fare),
               gstAmount: ext.gstAmount ?? 0,
               bargainEnabled: ext.bargainEnabled ?? false,
-              minOffer: ext.minOffer ?? data.fare,
+              minOffer: ext.minOffer ?? Number(data.fare),
             });
           },
         )
@@ -580,7 +594,7 @@ export function RideBookingForm({ onBooked, prefillPickup, prefillDrop, prefillT
         ...(parsedOffer !== undefined && { offeredFare: parsedOffer }),
         ...(bargainNote && { bargainNote }),
       } as BookRideRequest);
-      const bookedRide = rideData as BookedRide;
+      const bookedRide = rideData as unknown as BookedRide;
       if (payMethod === "wallet" && !bookedRide.isBargaining) {
         updateUser({
           walletBalance:

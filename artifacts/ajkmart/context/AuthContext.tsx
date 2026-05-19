@@ -19,6 +19,7 @@ export interface AppUser {
   email?: string;
   username?: string;
   role: UserRole;
+  roles?: string[];
   avatar?: string;
   walletBalance: number;
   isActive: boolean;
@@ -42,6 +43,7 @@ interface TwoFactorPending {
 interface AuthContextType {
   user: AppUser | null;
   token: string | null;
+  refreshToken: () => Promise<string | null>;
   isLoading: boolean;
   isSuspended: boolean;
   suspendedMessage: string;
@@ -107,7 +109,7 @@ function decodeJwtExp(tok: string): number | null {
     if (typeof atob === "function") {
       jsonStr = atob(b64);
     } else {
-      jsonStr = Buffer.from(b64, "base64").toString("binary");
+      jsonStr = (globalThis as unknown as { Buffer?: { from: (s: string, e: string) => { toString: (e: string) => string } } }).Buffer?.from(b64, "base64")?.toString("binary") ?? "";
     }
     const payload = JSON.parse(jsonStr);
     return typeof payload.exp === "number" ? payload.exp : null;
@@ -308,6 +310,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   };
 
+  const doRefreshToken = async (): Promise<string | null> => {
+    try {
+      const stored = await secureGet(REFRESH_TOKEN_KEY);
+      if (!stored) return null;
+      const base = `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}`;
+      const res = await fetch(`${base}/api/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken: stored }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json() as { token?: string };
+      if (data.token) {
+        setToken(data.token);
+        await secureSet(TOKEN_KEY, data.token);
+        setAuthTokenGetter(() => data.token!);
+        return data.token;
+      }
+      return null;
+    } catch { return null; }
+  };
+
   const login = async (userData: AppUser, userToken: string, refreshToken?: string) => {
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
     await secureSet(TOKEN_KEY, userToken);
@@ -469,7 +493,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      user, token, isLoading, isSuspended, suspendedMessage,
+      user, token, refreshToken: doRefreshToken, isLoading, isSuspended, suspendedMessage,
       biometricEnabled, twoFactorPending,
       login, logout, updateUser, clearSuspended,
       setBiometricEnabled, setTwoFactorPending,
@@ -485,4 +509,13 @@ export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
+}
+
+export function hasRole(user: AppUser | null | undefined, role: UserRole): boolean {
+  if (!user) return false;
+  if (Array.isArray((user as unknown as { roles?: unknown[] }).roles)) {
+    return (user as unknown as { roles: string[] }).roles.includes(role);
+  }
+  const rolesStr = String((user as unknown as { roles?: unknown }).roles ?? user.role ?? "");
+  return rolesStr.split(",").map((r) => r.trim()).includes(role);
 }

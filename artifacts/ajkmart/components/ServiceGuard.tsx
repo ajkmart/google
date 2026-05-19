@@ -10,7 +10,7 @@ export type { ServiceKey };
 
 export function useServiceEnabled(serviceKey: ServiceKey): boolean {
   const { config } = usePlatformConfig();
-  return config.features[serviceKey];
+  return config.features[serviceKey] ?? false;
 }
 
 function ServiceUnavailableScreen({ serviceKey }: { serviceKey: ServiceKey }) {

@@ -119,7 +119,7 @@ export default function PharmacyStoresScreen() {
   });
 
   const stores: PharmacyStore[] = useMemo(() => {
-    const raw = data?.vendors || data?.users || data || [];
+    const raw = (data as any)?.vendors || (data as any)?.users || data || [];
     return Array.isArray(raw) ? raw : [];
   }, [data]);
 

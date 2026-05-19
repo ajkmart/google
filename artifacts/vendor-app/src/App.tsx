@@ -90,6 +90,14 @@ function AppRoutes() {
     };
   }, []);
 
+  const prevUserRef = React.useRef(user);
+  useEffect(() => {
+    if (prevUserRef.current !== null && user === null) {
+      queryClient.clear();
+    }
+    prevUserRef.current = user;
+  }, [user]);
+
   /* ── Apply network/retry settings from platform config on startup ── */
   useEffect(() => {
     const net = config?.network;

@@ -993,7 +993,7 @@ export default function OrdersScreen() {
 
   const { data: ordersData, isLoading: ordersLoading, refetch: refetchOrders } = useGetOrders(
     { userId: user?.id || "" },
-    { query: { enabled: !!user?.id && anyMartFood, refetchInterval: pollInterval } }
+    { query: { queryKey: ["orders", user?.id], enabled: !!user?.id && anyMartFood, refetchInterval: pollInterval } }
   );
 
   const [ridesData, setRidesData] = useState<any>(null);

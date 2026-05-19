@@ -30,7 +30,8 @@ function networkError(err: unknown): string {
 
 async function captureException(err: unknown) {
   try {
-    const Sentry = await import("@sentry/react-native");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const Sentry = await import("@sentry/react-native" as string) as any;
     Sentry.captureException(err);
   } catch { /* Sentry not installed */ }
 }
@@ -106,7 +107,7 @@ export function useAuth() {
   async function biometricLogin(): Promise<AuthResult<TokenPair>> {
     return wrap(async () => {
       try {
-        const { getBiometricToken } = await import("@/lib/biometric").catch(() => ({} as never));
+        const { getBiometricToken } = await (import("@/lib/biometric" as string) as Promise<{getBiometricToken?: () => Promise<string>}>).catch(() => ({} as never));
         if (!getBiometricToken) throw new Error("Biometric not available");
         const refreshToken = await getBiometricToken();
         const data = await apiPost<Record<string, unknown>>("/auth/refresh", { refreshToken });

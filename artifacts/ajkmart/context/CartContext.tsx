@@ -29,6 +29,7 @@ interface CartContextType {
   total: number;
   cartType: "mart" | "food" | "pharmacy" | "mixed" | "none";
   addItem: (item: CartItem) => void;
+  clearCartAndAdd: (item: CartItem) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, qty: number) => void;
   clearCart: () => void;
@@ -258,6 +259,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     save([...items, item]);
   };
 
+  const clearCartAndAdd = (item: CartItem) => {
+    resetAckState();
+    save([item]);
+  };
+
   const removeItem = (productId: string) => save(items.filter(i => i.productId !== productId));
 
   const updateQuantity = (productId: string, qty: number) => {
@@ -366,7 +372,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   return (
     <CartContext.Provider value={{
       items, itemCount, total, cartType,
-      addItem, removeItem, updateQuantity,
+      addItem, clearCartAndAdd, removeItem, updateQuantity,
       clearCart, clearCartOnAck, restoreCart, validateCart, isValidating,
       pendingAck, setPendingAck,
       ackStuck,

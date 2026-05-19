@@ -411,7 +411,7 @@ function ParcelScreenInner() {
       };
       const data = await createParcelBooking(payload);
       if (payMethod === "wallet" && user) {
-        updateUser({ walletBalance: String(Number(user.walletBalance ?? 0) - Number(data.fare)) });
+        updateUser({ walletBalance: Number(user.walletBalance ?? 0) - Number(data.fare) });
       }
       setConfirmedId(data.id);
       setConfirmedFare(Number(data.fare));

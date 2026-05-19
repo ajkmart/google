@@ -13,7 +13,8 @@ export function DeepLinkHandler() {
 
         if (path === "magic-link" || path === "auth") return;
 
-        const params = Object.fromEntries(Array.from(parsed.searchParams.entries()));
+        const params: Record<string, string> = {};
+        parsed.searchParams.forEach((value, key) => { params[key] = value; });
 
         const routeMap: Record<string, string> = {
           product: "/product/{id}",

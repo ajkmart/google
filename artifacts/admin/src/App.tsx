@@ -329,7 +329,7 @@ function Router() {
   return (
     <Switch>
       {/* Public Routes */}
-      <Route path="/login" component={Login} />
+      <Route path="/login">{() => <Login />}</Route>
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
       {/* Optional voluntary password-change screen. Reachable any time
@@ -510,7 +510,9 @@ function AdminMaintenanceGuard() {
           setMsg((content?.maintenanceMsg as string | undefined) || 'The platform is currently under maintenance.');
         }
       })
-      .catch(() => {});
+      .catch((err: unknown) => {
+        console.warn("[AdminMaintenanceGuard] Platform config fetch failed:", err instanceof Error ? err.message : String(err));
+      });
   }, [state.accessToken]);
 
   if (!msg || dismissed) return null;

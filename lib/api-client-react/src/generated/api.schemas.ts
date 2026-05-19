@@ -285,6 +285,7 @@ export interface Product {
   inStock: boolean;
   unit?: string;
   deliveryTime?: string;
+  variants?: Array<{ id: string; price: number; label?: string; stock?: number }>;
 }
 
 export interface ProductListResponse {
@@ -323,7 +324,9 @@ export interface Category {
   name: string;
   type: CategoryType;
   image?: string;
+  icon?: string;
   parentId?: string | null;
+  children?: Category[];
 }
 
 export interface CategoryListResponse {
@@ -948,9 +951,15 @@ export interface Banner {
   title?: string;
   imageUrl: string;
   linkUrl?: string;
+  linkType?: string;
+  linkValue?: string;
   type?: string;
   position?: number;
   isActive: boolean;
+  gradient1?: string;
+  gradient2?: string;
+  subtitle?: string;
+  icon?: string;
 }
 
 export interface BannersResponse {
@@ -1175,6 +1184,12 @@ export interface SchoolSubscribeRequest {
   studentName: string;
   grade?: string;
   parentPhone?: string;
+  studentClass?: string;
+  shift?: string;
+  startDate?: string;
+  recurring?: boolean;
+  notes?: string;
+  paymentMethod?: string;
 }
 
 export interface VendorProfile {

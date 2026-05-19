@@ -119,8 +119,8 @@ export function AuthConfigProvider({ children }: { children: React.ReactNode }) 
       captchaSiteKey: auth.captchaSiteKey,
       googleClientId: auth.googleClientId,
       facebookAppId: auth.facebookAppId,
-      authMode: auth.authMode,
-      firebaseEnabled: auth.firebaseEnabled,
+      authMode: auth.authMode ?? "OTP",
+      firebaseEnabled: auth.firebaseEnabled ?? false,
       hasAnyMethod,
       otpProvider: (auth as Record<string, unknown>).otpProvider as string ?? "twilio",
     };

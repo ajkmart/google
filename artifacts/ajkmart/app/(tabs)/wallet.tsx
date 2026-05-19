@@ -770,7 +770,7 @@ export default function WalletScreen() {
 
   const { data, isLoading, isError: walletError, error: walletErrorObj, refetch } = useGetWallet(
     { userId: user?.id || "" },
-    { query: { enabled: !!user?.id, retry: 2, retryDelay: (attempt: number) => Math.floor(1500 * Math.pow(1.5, attempt - 1)) } }
+    { query: { queryKey: ["wallet", user?.id], enabled: !!user?.id, retry: 2, retryDelay: (attempt: number) => Math.floor(1500 * Math.pow(1.5, attempt - 1)) } }
   );
 
   useEffect(() => {

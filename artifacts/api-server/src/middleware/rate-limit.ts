@@ -23,7 +23,7 @@ import rateLimit, { type Options, type Store } from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 import { redisClient } from "../lib/redis.js";
 import { logger } from "../lib/logger.js";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 
 function makeStore(prefix: string): Store | undefined {
   if (!redisClient) return undefined;
@@ -95,7 +95,7 @@ export const publicLimiter = rateLimit(makeOptions("public", 60, WINDOW_15_MIN))
  * Apply to POST /api/auth/login and similar credential-checking endpoints.
  */
 export const loginLimiter = rateLimit(makeOptions("login", 5, WINDOW_1_MIN, {
-  keyGenerator: (req: Request) =>
+  keyGenerator: (req: Request, _res: Response) =>
     ((req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
      req.socket?.remoteAddress ||
      "unknown"),
@@ -106,7 +106,7 @@ export const loginLimiter = rateLimit(makeOptions("login", 5, WINDOW_1_MIN, {
  * Apply to POST /api/auth/send-otp and POST /api/auth/verify-otp.
  */
 export const otpLimiter = rateLimit(makeOptions("otp", 3, WINDOW_1_MIN, {
-  keyGenerator: (req: Request) => {
+  keyGenerator: (req: Request, _res: Response) => {
     const phone = req.body?.phone ?? req.body?.identifier;
     if (phone && typeof phone === "string" && phone.length > 0) {
       return `phone:${phone.replace(/\s/g, "")}`;
@@ -124,7 +124,7 @@ export const otpLimiter = rateLimit(makeOptions("otp", 3, WINDOW_1_MIN, {
  * Apply to POST /api/loyalty/redeem to prevent rapid point farming.
  */
 export const redeemLimiter = rateLimit(makeOptions("redeem", 5, WINDOW_15_MIN, {
-  keyGenerator: (req: Request) => {
+  keyGenerator: (req: Request, _res: Response) => {
     const userId =
       req.userId ??
       req.customerId ??
@@ -144,7 +144,7 @@ export const redeemLimiter = rateLimit(makeOptions("redeem", 5, WINDOW_15_MIN, {
  * Apply to POST /api/users/export-data to prevent bulk personal data extraction.
  */
 export const exportDataLimiter = rateLimit(makeOptions("export-data", 3, WINDOW_15_MIN, {
-  keyGenerator: (req: Request) => {
+  keyGenerator: (req: Request, _res: Response) => {
     const userId =
       req.userId ??
       req.customerId ??
@@ -165,7 +165,7 @@ export const exportDataLimiter = rateLimit(makeOptions("export-data", 3, WINDOW_
  * Prevents storage/bandwidth exhaustion by anonymous callers.
  */
 export const registerUploadLimiter = rateLimit(makeOptions("register-upload", 10, 60 * 60 * 1000, {
-  keyGenerator: (req: Request) =>
+  keyGenerator: (req: Request, _res: Response) =>
     ((req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
      req.socket?.remoteAddress ||
      "unknown"),
@@ -176,7 +176,7 @@ export const registerUploadLimiter = rateLimit(makeOptions("register-upload", 10
  * Apply to authenticated /api/* routes that should be throttled per-user.
  */
 export const userApiLimiter = rateLimit(makeOptions("user-api", 100, WINDOW_1_MIN, {
-  keyGenerator: (req: Request) => {
+  keyGenerator: (req: Request, _res: Response) => {
     const userId =
       req.userId ??
       req.customerId ??
@@ -189,7 +189,7 @@ export const userApiLimiter = rateLimit(makeOptions("user-api", 100, WINDOW_1_MI
       "unknown"
     );
   },
-  skip: (req: Request) => {
+  skip: (req: Request, _res: Response) => {
     return req.method === "OPTIONS";
   },
 }));

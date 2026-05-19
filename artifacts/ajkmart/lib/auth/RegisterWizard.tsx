@@ -39,7 +39,7 @@ function isValidPakistaniPhone(phone: string): boolean {
 /* ── Step 1: Phone ───────────────────────────────────────────────────────── */
 function PhoneStep({ data, onChange, onError }: StepComponentProps) {
   const { language } = useLanguage();
-  const T = (key: TranslationKey) => tDual(key, language);
+  const T = (key: string) => tDual(key as TranslationKey, language);
   const theme = useTheme();
 
   /* Validate on blur so errors appear immediately when focus leaves the field */
@@ -71,7 +71,7 @@ function PhoneStep({ data, onChange, onError }: StepComponentProps) {
 /* ── Step 2: OTP ─────────────────────────────────────────────────────────── */
 function OtpStep({ data, onChange, onError, onComplete }: StepComponentProps & { onComplete?: (otp: string) => void }) {
   const { language } = useLanguage();
-  const T = (key: TranslationKey) => tDual(key, language);
+  const T = (key: string) => tDual(key as TranslationKey, language);
   const { sendOtp } = useAuth();
   const theme = useTheme();
   const [otp, setOtp] = useState("");
@@ -152,7 +152,7 @@ function OtpStep({ data, onChange, onError, onComplete }: StepComponentProps & {
 /* ── Step 3: Full Name ────────────────────────────────────────────── */
 function NameStep({ data, onChange, onError }: StepComponentProps) {
   const { language } = useLanguage();
-  const T = (key: TranslationKey) => tDual(key, language);
+  const T = (key: string) => tDual(key as TranslationKey, language);
   const theme = useTheme();
 
   const handleBlur = () => {
@@ -181,7 +181,7 @@ function NameStep({ data, onChange, onError }: StepComponentProps) {
 /* ── Step 4: City ─────────────────────────────────────────────────────────── */
 function CityStep({ data, onChange, onError }: StepComponentProps) {
   const { language } = useLanguage();
-  const T = (key: TranslationKey) => tDual(key, language);
+  const T = (key: string) => tDual(key as TranslationKey, language);
   const theme = useTheme();
 
   return (
@@ -206,7 +206,7 @@ function CityStep({ data, onChange, onError }: StepComponentProps) {
 /* ── Step 5: Password ──────────────────────────────────────────────────────── */
 function PasswordStep({ data, onChange, onError }: StepComponentProps) {
   const { language } = useLanguage();
-  const T = (key: TranslationKey) => tDual(key, language);
+  const T = (key: string) => tDual(key as TranslationKey, language);
   const theme = useTheme();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -277,7 +277,7 @@ function PasswordStep({ data, onChange, onError }: StepComponentProps) {
 /* ── Step 6: Success ──────────────────────────────────────────────────────── */
 function SuccessStep() {
   const { language } = useLanguage();
-  const T = (key: TranslationKey) => tDual(key, language);
+  const T = (key: string) => tDual(key as TranslationKey, language);
   const theme = useTheme();
 
   return (
@@ -348,7 +348,7 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
   const { sendOtp, verifyOtp } = useAuth();
   const { login } = useAuthContext();
   const { language } = useLanguage();
-  const T = (key: TranslationKey) => tDual(key, language);
+  const T = (key: string) => tDual(key as TranslationKey, language);
 
   const [draft, setDraft] = useState<Record<string, unknown>>({});
 

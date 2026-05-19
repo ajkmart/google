@@ -50,7 +50,7 @@ export default function CategoriesBrowseScreen() {
   const subCategories = selectedCat?.children ?? [];
 
   const { data: productsData, isLoading: productsLoading } = useGetProducts({
-    type: serviceType,
+    type: serviceType as import("@workspace/api-client-react").GetProductsType,
     category: selectedId || undefined,
   });
 

@@ -204,7 +204,7 @@ export function NegotiationScreen({
     setUpdateOfferLoading(true);
     setOfferError("");
     try {
-      const d = await customerCounterOfferApi(rideId, { offeredFare: amt });
+      const d = await customerCounterOfferApi(rideId, { offeredFare: String(amt) });
       setRide(() => d as any);
       setUpdateOfferInput("");
       setShowUpdateOffer(false);

@@ -30,3 +30,13 @@ export function normalizePhone(raw: string): string {
 export function isValidPakistaniPhone(raw: string): boolean {
   return /^3\d{9}$/.test(normalizePhone(raw));
 }
+
+export function buildPhoneValidator(
+  _format?: string,
+): (raw: string) => string | null {
+  return (raw: string) => {
+    if (!raw || raw.trim() === "") return "Phone number is required";
+    if (!isValidPakistaniPhone(raw)) return "Enter a valid Pakistani mobile number (e.g. 03001234567)";
+    return null;
+  };
+}

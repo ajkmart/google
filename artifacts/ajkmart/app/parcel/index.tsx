@@ -252,7 +252,7 @@ function ParcelScreenInner() {
     if (!parcelType) { setEstimatedFare(0); return; }
     setFareLoading(true);
     estimateParcel({ parcelType, weight: chargeableWeight > 0 ? chargeableWeight : undefined })
-      .then(data => { if (data.fare) setEstimatedFare(data.fare); })
+      .then(data => { if (data.fare) setEstimatedFare(Number(data.fare)); })
       .catch((err) => console.warn("[Parcel] Fare estimate failed:", err instanceof Error ? err.message : String(err)))
       .finally(() => setFareLoading(false));
   }, [parcelType, chargeableWeight]);
@@ -333,10 +333,10 @@ function ParcelScreenInner() {
       };
       const data = await createParcelBooking(payload as CreateParcelBookingRequest);
       if (payMethod === "wallet" && user) {
-        updateUser({ walletBalance: (user.walletBalance ?? 0) - data.fare });
+        updateUser({ walletBalance: (user.walletBalance ?? 0) - Number(data.fare) });
       }
       setConfirmedId(data.id);
-      setConfirmedFare(data.fare);
+      setConfirmedFare(Number(data.fare));
       setConfirmed(true);
     } catch (err: unknown) {
       const errMsg = (err as { message?: string })?.message;

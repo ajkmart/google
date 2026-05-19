@@ -1,4 +1,5 @@
-import type { ExpoConfig } from "@expo/config";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+type ExpoConfig = Record<string, unknown>;
 
 const config: ExpoConfig = {
   name: "AJKMart Super App",

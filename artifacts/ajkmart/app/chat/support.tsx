@@ -78,8 +78,11 @@ export default function SupportChatScreen() {
   const { goBack } = useSmartBack();
   const { config } = usePlatformConfig();
 
+  const scheduleRecord = config.supportHoursSchedule
+    ? Object.fromEntries(config.supportHoursSchedule.map(({ day, open, close }) => [day, { open, close }]))
+    : null;
   const { withinHours, label: hoursLabel } = isWithinSupportHours(
-    config.supportHoursSchedule,
+    scheduleRecord,
     config.platform.supportHours,
   );
 

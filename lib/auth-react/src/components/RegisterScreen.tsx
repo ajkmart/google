@@ -579,7 +579,7 @@ export function RegisterScreen({
   );
 
   /* ── Bare mode: caller owns the container ── */
-  const isDev = typeof import.meta !== 'undefined' ? !import.meta.env?.PROD : process.env.NODE_ENV !== 'production';
+  const isDev = typeof import.meta !== 'undefined' ? !(import.meta as unknown as Record<string, Record<string,unknown>>).env?.['PROD'] : process.env.NODE_ENV !== 'production';
 
   if (bare) {
     return (

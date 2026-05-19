@@ -64,7 +64,8 @@ export function verifyOwnership(resourceType: OwnershipResourceType) {
       return;
     }
 
-    const resourceId = req.params["id"];
+    const rawId = req.params["id"];
+    const resourceId = Array.isArray(rawId) ? rawId[0] : rawId;
     if (!resourceId) {
       res.status(400).json({ success: false, error: "Resource ID is required" });
       return;

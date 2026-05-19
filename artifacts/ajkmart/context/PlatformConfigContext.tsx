@@ -12,6 +12,8 @@ export interface PlatformConfig {
     rides: boolean;
     pharmacy: boolean;
     parcel: boolean;
+    van?: boolean;
+    school?: boolean;
     wallet: boolean;
     referral: boolean;
     newUsers: boolean;
@@ -19,6 +21,7 @@ export interface PlatformConfig {
     liveTracking: boolean;
     reviews: boolean;
     sos: boolean;
+    [key: string]: boolean | undefined;
   };
   content: {
     trackerBannerEnabled: boolean;
@@ -157,12 +160,29 @@ export interface PlatformConfig {
     captchaSiteKey: string;
     googleClientId: string;
     facebookAppId: string;
+    authMode?: "OTP" | "EMAIL" | "FIREBASE" | "HYBRID";
+    firebaseEnabled?: boolean;
   };
   language: {
     defaultLanguage: string;
     enabledLanguages: string[];
   };
   cities: string[];
+  regional?: {
+    phoneFormat?: string;
+    currency?: string;
+    timezone?: string;
+  };
+  supportHoursSchedule?: Array<{ day: string; open: string; close: string }>;
+  pagination?: {
+    flashDealsLimit?: number;
+    productsPerPage?: number;
+    ordersPerPage?: number;
+  };
+  onboarding?: {
+    slides?: Array<{ title: string; subtitle?: string; image?: string }>;
+    skipEnabled?: boolean;
+  };
 }
 
 const DEFAULT: PlatformConfig = {

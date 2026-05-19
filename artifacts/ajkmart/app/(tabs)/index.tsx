@@ -41,7 +41,16 @@ import {
   CountdownTimer,
 } from "@/components/user-shared";
 import { WishlistHeart } from "@/components/WishlistHeart";
-import { getBanners, getTrending, getFlashDeals, type Banner } from "@workspace/api-client-react";
+import { getBanners, getTrending, getFlashDeals, type Banner as ApiBanner } from "@workspace/api-client-react";
+
+type Banner = ApiBanner & {
+  linkType?: string;
+  linkValue?: string;
+  gradient1?: string;
+  gradient2?: string;
+  subtitle?: string;
+  icon?: string;
+};
 
 const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`;
 
@@ -287,7 +296,7 @@ function DynamicBannerCarousel() {
   const BANNER_W = windowWidth - H_PAD * 2;
   const autoScrollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const items = banners ?? [];
+  const items: Banner[] = (banners ?? []) as Banner[];
 
   useEffect(() => {
     if (items.length <= 1) return;
@@ -575,9 +584,9 @@ function FlashDealsSection({ T }: { T: (key: Parameters<typeof tDual>[0]) => str
               <View style={fd.cardInfo}>
                 <Text style={fd.name} numberOfLines={2}>{item.name}</Text>
                 <View style={fd.priceRow}>
-                  <Text style={fd.dealPrice}>Rs.{Math.round(item.price).toLocaleString()}</Text>
-                  {item.originalPrice > item.price && (
-                    <Text style={fd.origPrice}>Rs.{Math.round(item.originalPrice).toLocaleString()}</Text>
+                  <Text style={fd.dealPrice}>Rs.{Math.round(Number(item.price)).toLocaleString()}</Text>
+                  {Number(item.originalPrice) > Number(item.price) && (
+                    <Text style={fd.origPrice}>Rs.{Math.round(Number(item.originalPrice)).toLocaleString()}</Text>
                   )}
                 </View>
                 {soldPct > 0 && (

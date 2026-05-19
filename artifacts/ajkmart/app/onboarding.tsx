@@ -117,7 +117,7 @@ export default function OnboardingScreen() {
   const [activeIndex, setActiveIndex] = useState(0);
 
   const rawSlides = config.onboarding?.slides;
-  const slides: Slide[] = rawSlides && rawSlides.length > 0 ? rawSlides : DEFAULT_SLIDES;
+  const slides: Slide[] = rawSlides && rawSlides.length > 0 ? (rawSlides as Slide[]) : DEFAULT_SLIDES;
 
   const handleFinish = async () => {
     await markOnboardingSeen();

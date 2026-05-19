@@ -16,4 +16,6 @@ export interface RecommendationProduct {
   rating: number | null;
   vendorName: string | null;
   type: string | null;
+  unit?: string;
+  inStock?: boolean;
 }
