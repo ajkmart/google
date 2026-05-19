@@ -10,7 +10,7 @@ import { useAuth } from "../lib/rider-auth";
 import { useLanguage } from "../lib/useLanguage";
 import { useSocket } from "../lib/socket";
 import { tDual, type TranslationKey } from "@workspace/i18n";
-import { enqueue, registerDrainHandler, type QueuedPing } from "../lib/gpsQueue";
+import { enqueue, type QueuedPing } from "../lib/gpsQueue";
 import { enqueueAction } from "../lib/offline/queueManager";
 
 import {
@@ -274,7 +274,11 @@ export default function Active() {
         const now = Date.now();
         if (now - lastSentTime < minGpsIntervalMsRef.current) return;
         lastSentTime = now;
-        const isMockGps = pos.coords.accuracy !== null && pos.coords.accuracy === 0;
+        /* Heuristic mock-GPS check: real devices rarely have accuracy=0 AND
+           speed=0 AND heading=null simultaneously. A single zero is not enough
+           to trigger because some chipsets legitimately return accuracy=0 on a
+           perfect fix. Server-side spoof detection is the authoritative gate. */
+        const isMockGps = pos.coords.accuracy === 0 && pos.coords.speed === 0 && pos.coords.heading === null;
         if (isMockGps) {
           if (isMountedRef.current) setGpsWarningWithRef("Suspicious GPS accuracy detected. Please disable mock location apps.");
           return;
@@ -311,13 +315,9 @@ export default function Active() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!data?.order, !!data?.ride, user?.id]);
 
-  useEffect(() => {
-    if (!user?.id) return;
-    const unregister = registerDrainHandler(async (pings: QueuedPing[]) => {
-      await api.batchLocation(pings.map(p => ({ timestamp: p.timestamp, latitude: p.latitude, longitude: p.longitude, accuracy: p.accuracy, speed: p.speed, heading: p.heading, batteryLevel: p.batteryLevel, mockProvider: p.mockProvider, action: p.action })));
-    });
-    return unregister;
-  }, [user?.id]);
+  /* GPS drain handler is registered globally in App.tsx for the full session
+     lifetime — registering a second one here would overwrite it and nullify it
+     when this component unmounts, breaking batch uploads on other pages. */
 
   const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

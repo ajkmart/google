@@ -714,7 +714,7 @@ router.get("/active", async (req, res) => {
   try {
   const riderId = req.riderId!;
   const [order, ride] = await Promise.all([
-    db.select().from(ordersTable).where(and(eq(ordersTable.riderId, riderId), or(eq(ordersTable.status, "out_for_delivery"), eq(ordersTable.status, "picked_up")))).orderBy(desc(ordersTable.updatedAt)).limit(1),
+    db.select().from(ordersTable).where(and(eq(ordersTable.riderId, riderId), or(eq(ordersTable.status, "confirmed"), eq(ordersTable.status, "preparing"), eq(ordersTable.status, "ready"), eq(ordersTable.status, "picked_up"), eq(ordersTable.status, "out_for_delivery")))).orderBy(desc(ordersTable.updatedAt)).limit(1),
     db.select().from(ridesTable).where(and(eq(ridesTable.riderId, riderId), or(eq(ridesTable.status, "accepted"), eq(ridesTable.status, "arrived"), eq(ridesTable.status, "in_transit")))).orderBy(desc(ridesTable.updatedAt)).limit(1),
   ]);
 

@@ -442,7 +442,11 @@ export default function Home() {
         const now = Date.now();
         const { latitude, longitude, accuracy, speed, heading } = pos.coords;
 
-        const isMockGps = accuracy !== null && accuracy === 0;
+        /* Heuristic mock-GPS check: real devices rarely have accuracy=0 AND
+           speed=0 AND no heading simultaneously. A single zero is not enough
+           to trigger because some chipsets legitimately return accuracy=0 on a
+           perfect fix. Server-side spoof detection is the authoritative gate. */
+        const isMockGps = accuracy === 0 && speed === 0 && heading === null;
         if (isMockGps) {
           setGpsWarningWithRef(
             "Suspicious GPS accuracy detected. Please disable mock location apps.",

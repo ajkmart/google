@@ -109,6 +109,27 @@ export default function Profile() {
     };
   }, []);
 
+  /* Sync form fields from the latest user object whenever the user state
+     updates (e.g. after refreshUser() following a save), but only when the
+     form is not currently open for editing — so we never overwrite what the
+     rider is actively typing. */
+  useEffect(() => {
+    if (editing !== null || !user) return;
+    setName(user.name || "");
+    setEmail(user.email || "");
+    setCnic(user.cnic || "");
+    setCity(user.city || "");
+    setAddress(user.address || "");
+    setEmergency(user.emergencyContact || "");
+    setVehicleType(user.vehicleType || "");
+    setVehiclePlate(user.vehiclePlate || "");
+    setVehicleRegNo(user.vehicleRegNo || "");
+    setDrivingLicense(user.drivingLicense || "");
+    setBankName(user.bankName || "");
+    setBankAccount(user.bankAccount || "");
+    setBankAccountTitle(user.bankAccountTitle || "");
+  }, [user, editing]);
+
   const showToast = (m: string, isError = false) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast(m);
