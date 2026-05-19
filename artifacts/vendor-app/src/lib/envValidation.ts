@@ -122,8 +122,7 @@ export function auditVendorEnv(): VendorEnv {
  * mode uses the relative path through the Vite dev proxy / express.
  */
 export function getVendorApiBase(): string {
-  const base = vendorEnv.baseUrl || "/";
   return vendorEnv.isCapacitor && vendorEnv.apiBaseUrl
     ? `${vendorEnv.apiBaseUrl.replace(/\/+$/, "")}/api`
-    : `${base.replace(/\/$/, "")}/api`;
+    : `/api`;
 }
