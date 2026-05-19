@@ -1,4 +1,4 @@
-import { randomInt } from "crypto";
+import { randomInt, randomUUID } from "crypto";
 import { logger } from "../../lib/logger.js";
 import { fireAndForget } from "../../lib/fireAndForget.js";
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
@@ -832,7 +832,10 @@ router.post("/orders/:id/accept", async (req, res) => {
 
     /* ── Max simultaneous deliveries gate ── */
     const [activeOrders, activeRides] = await Promise.all([
-      tx.select({ c: count() }).from(ordersTable).where(and(eq(ordersTable.riderId, riderId), or(eq(ordersTable.status, "out_for_delivery"), eq(ordersTable.status, "picked_up")))),
+      tx.select({ c: count() }).from(ordersTable).where(and(eq(ordersTable.riderId, riderId), or(
+        eq(ordersTable.status, "out_for_delivery"), eq(ordersTable.status, "picked_up"),
+        eq(ordersTable.status, "ready"), eq(ordersTable.status, "confirmed"),
+      ))),
       tx.select({ c: count() }).from(ridesTable).where(and(eq(ridesTable.riderId, riderId), or(eq(ridesTable.status, "accepted"), eq(ridesTable.status, "arrived"), eq(ridesTable.status, "in_transit")))),
     ]);
     const activeCount = (activeOrders[0]?.c ?? 0) + (activeRides[0]?.c ?? 0);
@@ -945,7 +948,7 @@ async function handleCancelPenalty(riderId: string): Promise<{ dailyCancels: num
       id: generateId(), userId: riderId, type: "cancel_penalty",
       amount: "0",
       description: `Cancellation #${dailyCancels} today`,
-      reference: `cancel:${Date.now()}`,
+      reference: `cancel:${randomUUID()}`,
     });
     await tx.update(usersTable)
       .set({ cancelCount: sql`cancel_count + 1`, updatedAt: new Date() })
@@ -961,7 +964,7 @@ async function handleCancelPenalty(riderId: string): Promise<{ dailyCancels: num
         id: generateId(), userId: riderId, type: "cancel_penalty",
         amount: penaltyAmt.toFixed(2),
         description: `Excessive cancellation penalty (${dailyCancels}/${limit} today) — Rs. ${penaltyAmt} deducted`,
-        reference: `cancel_penalty:${Date.now()}`,
+        reference: `cancel_penalty:${randomUUID()}`,
       });
       await tx.insert(riderPenaltiesTable).values({
         id: generateId(), riderId, type: "cancel",
@@ -1090,7 +1093,7 @@ router.patch("/orders/:id/status", async (req, res) => {
       title: t("notifRiderChange", riderChangeLang) + " 🔄", body: t("notifRiderChangeBody", riderChangeLang),
       type: "order", icon: "refresh-outline",
     }).catch((err: Error) => { logger.error("[rider] background op failed:", err.message); });
-    const cancelledBody = { ...cancelled, total: safeNum(cancelled?.total || 0), status: "cancelled_by_rider", cancelPenalty: penalty };
+    const cancelledBody = { ...cancelled, total: safeNum(cancelled?.total || 0), cancelledByRider: true, cancelPenalty: penalty };
     storeIdempotency(req, 200, { success: true, data: cancelledBody });
     sendSuccess(res, cancelledBody); return;
   }
@@ -1359,7 +1362,10 @@ router.post("/rides/:id/accept", rideAcceptLimiter, async (req, res) => {
 
       /* ── Max simultaneous deliveries gate (inside lock so count is authoritative) ── */
       const [activeOrders, activeRides] = await Promise.all([
-        tx.select({ c: count() }).from(ordersTable).where(and(eq(ordersTable.riderId, riderId), or(eq(ordersTable.status, "out_for_delivery"), eq(ordersTable.status, "picked_up")))),
+        tx.select({ c: count() }).from(ordersTable).where(and(eq(ordersTable.riderId, riderId), or(
+          eq(ordersTable.status, "out_for_delivery"), eq(ordersTable.status, "picked_up"),
+          eq(ordersTable.status, "ready"), eq(ordersTable.status, "confirmed"),
+        ))),
         tx.select({ c: count() }).from(ridesTable).where(and(eq(ridesTable.riderId, riderId), or(eq(ridesTable.status, "accepted"), eq(ridesTable.status, "arrived"), eq(ridesTable.status, "in_transit")))),
       ]);
       const activeCount = (activeOrders[0]?.c ?? 0) + (activeRides[0]?.c ?? 0);

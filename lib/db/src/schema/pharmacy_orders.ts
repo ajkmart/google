@@ -17,6 +17,8 @@ export const pharmacyOrdersTable = pgTable("pharmacy_orders", {
   paymentMethod: text("payment_method").notNull(),
   status: text("status").notNull().default("pending"),
   estimatedTime: text("estimated_time").default("25-40 min"),
+  /* Refund idempotency stamp — set atomically with wallet credit; isNull guard prevents double-refund */
+  refundedAt: timestamp("refunded_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [

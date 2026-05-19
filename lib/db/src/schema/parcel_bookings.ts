@@ -20,6 +20,8 @@ export const parcelBookingsTable = pgTable("parcel_bookings", {
   status: text("status").notNull().default("pending"),
   estimatedTime: text("estimated_time").default("45-60 min"),
   riderId: text("rider_id").references(() => usersTable.id, { onDelete: "set null" }),
+  /* Refund idempotency stamp — set atomically with wallet credit; isNull guard prevents double-refund */
+  refundedAt: timestamp("refunded_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [

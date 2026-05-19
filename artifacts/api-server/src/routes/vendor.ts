@@ -398,6 +398,7 @@ router.patch("/orders/:id/status", async (req, res) => {
   };
 
   let updated: typeof order;
+  let auditLogged = false;
 
   if (status === "confirmed") {
     /*
@@ -422,14 +423,25 @@ router.patch("/orders/:id/status", async (req, res) => {
     const confirmItemsWithProducts = confirmItems.filter(it => it.productId);
 
     try {
-      const [result] = await db.update(ordersTable)
-        .set({ status, updatedAt: new Date() })
-        .where(and(eq(ordersTable.id, orderId), eq(ordersTable.vendorId, vendorId)))
-        .returning();
-      if (!result) { sendNotFound(res, "Order not found"); return; }
+      /* Wrap status update + audit log in ONE transaction so a failed log insert
+         rolls back the status change and prevents phantom confirmed orders with no trail. */
+      const result = await db.transaction(async (tx) => {
+        const [row] = await tx.update(ordersTable)
+          .set({ status, updatedAt: new Date() })
+          .where(and(eq(ordersTable.id, orderId), eq(ordersTable.vendorId, vendorId)))
+          .returning();
+        if (!row) throw new Error("ORDER_NOT_FOUND");
+        await tx.insert(orderAuditLogTable).values({
+          id: generateId(), orderId, vendorId,
+          fromStatus: order.status, toStatus: status,
+          note: note || null,
+        });
+        return row;
+      });
       updated = result;
+      auditLogged = true;
 
-      /* Informational audit entries — quantityDelta is 0 to make clear no stock moved */
+      /* Informational stock-history entries — non-critical, outside the tx */
       for (const item of confirmItemsWithProducts) {
         const [prod] = await db.select({ id: productsTable.id, stock: productsTable.stock })
           .from(productsTable)
@@ -453,6 +465,7 @@ router.patch("/orders/:id/status", async (req, res) => {
       }
     } catch (e: unknown) {
       const err = e as Error;
+      if (err.message === "ORDER_NOT_FOUND") { sendNotFound(res, "Order not found"); return; }
       sendNotFound(res, err.message || "Failed to confirm order");
       return;
     }
@@ -493,12 +506,14 @@ router.patch("/orders/:id/status", async (req, res) => {
     updated = result;
   }
 
-  /* ── Audit trail: record every status transition ── */
-  await db.insert(orderAuditLogTable).values({
-    id: generateId(), orderId, vendorId,
-    fromStatus: order.status, toStatus: status,
-    note: note || null,
-  }).catch((e: Error) => logger.warn({ message: "[vendor/order-status] audit log insert failed", error: e.message, code: "VENDOR_AUDIT_LOG_FAILED", correlationId: null, timestamp: new Date().toISOString(), orderId, vendorId }, "[vendor/order-status] audit log insert failed"));
+  /* ── Audit trail: record every status transition (skip confirmed — already logged atomically above) ── */
+  if (!auditLogged) {
+    await db.insert(orderAuditLogTable).values({
+      id: generateId(), orderId, vendorId,
+      fromStatus: order.status, toStatus: status,
+      note: note || null,
+    }).catch((e: Error) => logger.warn({ message: "[vendor/order-status] audit log insert failed", error: e.message, code: "VENDOR_AUDIT_LOG_FAILED", correlationId: null, timestamp: new Date().toISOString(), orderId, vendorId }, "[vendor/order-status] audit log insert failed"));
+  }
 
   if (msgs[status]) {
     await db.insert(notificationsTable).values({ id: generateId(), userId: order.userId, title: msgs[status]!.title, body: msgs[status]!.body, type: "order", icon: "bag-outline" }).catch((e: Error) => logger.warn({ message: "[vendor/order-status] status notification insert failed", error: e.message, code: "VENDOR_NOTIF_STATUS_FAILED", correlationId: null, timestamp: new Date().toISOString(), orderId, userId: order.userId, status }, "[vendor/order-status] status notification insert failed"));
@@ -544,10 +559,14 @@ router.patch("/orders/:id/status", async (req, res) => {
             gte(liveLocationsTable.updatedAt, tenMinAgo),
           ));
         for (const { userId } of onlineRiders) {
-          emitRiderNewRequest(userId, { type: "order", requestId: orderId, summary: order.type });
+          try {
+            emitRiderNewRequest(userId, { type: "order", requestId: orderId, summary: order.type });
+          } catch (emitErr) {
+            logger.warn({ orderId, riderId: userId, err: (emitErr as Error).message }, "[vendor/order-status] Failed to notify rider on order ready");
+          }
         }
       } catch (err) {
-        logger.warn({ orderId, err: (err as Error).message }, "[vendor/order-status] rider notification failed");
+        logger.warn({ orderId, err: (err as Error).message }, "[vendor/order-status] rider notification loop failed");
       }
     })();
   }

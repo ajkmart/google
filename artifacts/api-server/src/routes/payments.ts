@@ -474,10 +474,159 @@ router.post("/initiate", customerAuth, idempotency("payment:initiate"), async (r
 //  Manual payment verification — admin confirms a manual transfer
 //  Body: { orderId, gateway, transactionId, amount }
 // ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
+//  POST /api/payments/callback/jazzcash
+//  JazzCash server-to-server callback — validates HMAC, updates payment + order
+// ═══════════════════════════════════════════════════════════════════════════════
+router.post("/callback/jazzcash", async (req, res) => {
+  try {
+    const s = await getCachedSettings();
+    const salt = s["jazzcash_salt"] ?? "";
+    const body = req.body as Record<string, string>;
+
+    /* Validate HMAC signature when a real salt is configured */
+    if (salt && salt !== "sandbox_salt") {
+      const receivedHash = body["pp_SecureHash"] ?? "";
+      const paramsWithoutHash = { ...body };
+      delete paramsWithoutHash["pp_SecureHash"];
+      const computedHash = buildJazzCashHash(paramsWithoutHash, salt);
+      if (computedHash !== receivedHash) {
+        logger.warn({ body }, "[payments/callback/jazzcash] HMAC mismatch — rejecting callback");
+        res.status(400).json({ success: false, error: "Invalid signature" });
+        return;
+      }
+    }
+
+    /* pp_TxnRefNo is required — pp_BillReference alone is not a reliable fallback because
+       it may match any string in an unguarded WHERE clause. Require txnRef always. */
+    const txnRef = body["pp_TxnRefNo"] ?? "";
+    const responseCode = body["pp_ResponseCode"] ?? "";
+
+    if (!txnRef) {
+      res.status(400).json({ success: false, error: "Missing pp_TxnRefNo transaction reference" });
+      return;
+    }
+
+    const isSuccess = responseCode === "000";
+    const paymentStatus = isSuccess ? "paid" : "failed";
+
+    /* SELECT + conditional UPDATE in one transaction so no concurrent callback
+       can read stale status between our read and our write. */
+    let orderId: string | undefined;
+    await db.transaction(async (tx) => {
+      const [row] = await tx.select({
+        id: ordersTable.id,
+        status: ordersTable.status,
+      }).from(ordersTable).where(eq(ordersTable.txnRef, txnRef)).limit(1);
+
+      if (!row) return; // handled after transaction
+
+      orderId = row.id;
+      await tx.update(ordersTable).set({
+        paymentStatus,
+        updatedAt: new Date(),
+        ...(isSuccess && row.status === "pending" ? { status: "confirmed" as const } : {}),
+      }).where(eq(ordersTable.id, row.id));
+    });
+
+    if (!orderId) {
+      logger.warn({ txnRef }, "[payments/callback/jazzcash] order not found for callback");
+      res.status(200).json({ success: false, message: "Order not found" });
+      return;
+    }
+
+    logger.info({ orderId, txnRef, paymentStatus, responseCode }, "[payments/callback/jazzcash] callback processed");
+    res.status(200).json({ success: true, orderId, paymentStatus });
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err) }, "[payments/callback/jazzcash] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  POST /api/payments/callback/easypaisa
+//  EasyPaisa server-to-server callback — validates HMAC, updates payment + order
+// ═══════════════════════════════════════════════════════════════════════════════
+router.post("/callback/easypaisa", async (req, res) => {
+  try {
+    const s = await getCachedSettings();
+    const hashKey = s["easypaisa_hash_key"] ?? "";
+    const storeId = s["easypaisa_store_id"] ?? "";
+    const body = req.body as Record<string, string>;
+
+    /* Validate HMAC signature when a real key is configured */
+    if (hashKey && hashKey !== "sandbox_key" && storeId) {
+      const receivedHash = body["hash"] ?? body["encryptedHashRequest"] ?? "";
+      const orderId = body["orderId"] ?? "";
+      const amount  = body["transactionAmount"] ?? "";
+      const currency = body["transactionCurrency"] ?? "PKR";
+      const mobile  = body["mobileAccountNo"] ?? "";
+      const computedHash = buildEasyPaisaHash([storeId, orderId, amount, currency, mobile], hashKey);
+      if (computedHash !== receivedHash) {
+        logger.warn({ body }, "[payments/callback/easypaisa] HMAC mismatch — rejecting callback");
+        res.status(400).json({ success: false, error: "Invalid signature" });
+        return;
+      }
+    }
+
+    const txnRef = body["orderId"] ?? body["transactionId"] ?? "";
+    const responseCode = body["responseCode"] ?? "";
+    const isSuccess = responseCode === "0000" || body["paymentStatus"] === "Paid";
+    const paymentStatus = isSuccess ? "paid" : "failed";
+
+    if (!txnRef) {
+      res.status(400).json({ success: false, error: "Missing transaction reference (orderId or transactionId)" });
+      return;
+    }
+
+    /* SELECT + conditional UPDATE in one transaction so no concurrent callback
+       can read stale status between our read and our write. */
+    let orderId: string | undefined;
+    await db.transaction(async (tx) => {
+      const [row] = await tx.select({
+        id: ordersTable.id,
+        status: ordersTable.status,
+      }).from(ordersTable).where(eq(ordersTable.txnRef, txnRef)).limit(1);
+
+      if (!row) return; // handled after transaction
+
+      orderId = row.id;
+      await tx.update(ordersTable).set({
+        paymentStatus,
+        updatedAt: new Date(),
+        ...(isSuccess && row.status === "pending" ? { status: "confirmed" as const } : {}),
+      }).where(eq(ordersTable.id, row.id));
+    });
+
+    if (!orderId) {
+      logger.warn({ txnRef }, "[payments/callback/easypaisa] order not found for callback");
+      res.status(200).json({ success: false, message: "Order not found" });
+      return;
+    }
+
+    logger.info({ orderId, txnRef, paymentStatus, responseCode }, "[payments/callback/easypaisa] callback processed");
+    res.status(200).json({ success: true, orderId, paymentStatus });
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err) }, "[payments/callback/easypaisa] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
 router.post("/verify-manual", adminAuth, async (req, res) => {
   try {
   const { orderId, gateway, transactionId } = req.body;
   if (!orderId) { sendValidationError(res, "orderId required"); return; }
+
+  const [order] = await db.select({ id: ordersTable.id, status: ordersTable.status })
+    .from(ordersTable).where(eq(ordersTable.id, orderId)).limit(1);
+  if (!order) { sendNotFound(res, "Order not found"); return; }
+
+  const TERMINAL_STATUSES = ["cancelled", "delivered", "completed", "refunded"];
+  if (TERMINAL_STATUSES.includes(order.status)) {
+    sendError(res, `Cannot confirm order — it is already in terminal state "${order.status}"`, 409);
+    return;
+  }
+
   await confirmOrder(orderId);
   sendSuccess(res, { orderId, gateway, transactionId }, "Manual payment verified — order confirmed ✅");
   } catch (err) {
@@ -517,6 +666,13 @@ router.post("/reconcile", adminAuth, async (req, res) => {
     return;
   }
   const newPaymentStatus = forcedStatus as "success" | "failed";
+
+  /* Guard: refuse to reconcile a late payment success for an already-cancelled order */
+  if (newPaymentStatus === "success" && order.status === "cancelled") {
+    sendError(res, "Cannot reconcile: order is already cancelled. Issue a manual refund if funds were captured.", 409);
+    return;
+  }
+
   await db.update(ordersTable).set({
     paymentStatus: newPaymentStatus,
     updatedAt: new Date(),

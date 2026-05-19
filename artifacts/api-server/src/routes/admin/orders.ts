@@ -17,7 +17,7 @@ import {
   signAdminJwt, verifyAdminJwt, invalidateSettingsCache, getCachedSettings,
   ADMIN_TOKEN_TTL_HRS, verifyTotpToken, verifyAdminSecret,
   ensureDefaultRideServices, ensureDefaultLocations, formatSvc,
-  type AdminRequest, revokeAllUserSessions,
+  type AdminRequest, revokeAllUserSessions, adminAuth,
 } from "../admin-shared.js";
 import { sendSuccess, sendCreated, sendError, sendNotFound, sendValidationError, sendErrorWithData } from "../../lib/response.js";
 import { requirePermission } from "../../middleware/require-permission.js";
@@ -31,6 +31,9 @@ import {
 import { getIO } from "../../lib/socketio.js";
 
 const router = Router();
+
+/* ── Auth guard: all routes in this router require a valid admin token ── */
+router.use(adminAuth);
 
 function wrapAsync(fn: (req: Request, res: Response) => Promise<void>): RequestHandler {
   return (req, res, next) => void fn(req, res).catch(next);
@@ -324,6 +327,9 @@ router.post("/orders/:id/refund", wrapAsync(async (req, res) => {
   }
   const refundAmt = parsedAmount;
 
+  const isPartial = refundAmt < maxRefund;
+  const resolvedPaymentStatus = isPartial ? "partially_refunded" : "refunded";
+
   const now = new Date();
   let alreadyRefunded = false;
 
@@ -331,7 +337,7 @@ router.post("/orders/:id/refund", wrapAsync(async (req, res) => {
     /* Atomic idempotency: only stamp refunded_at if it is still NULL.
        The WHERE clause with IS NULL means only one concurrent request will get rowCount > 0. */
     const updated = await tx.update(ordersTable)
-      .set({ refundedAt: now, refundedAmount: refundAmt.toFixed(2), paymentStatus: "refunded", updatedAt: now })
+      .set({ refundedAt: now, refundedAmount: refundAmt.toFixed(2), paymentStatus: resolvedPaymentStatus, updatedAt: now })
       .where(and(eq(ordersTable.id, order.id), isNull(ordersTable.refundedAt)))
       .returning({ id: ordersTable.id });
 
@@ -400,41 +406,70 @@ router.patch("/pharmacy-orders/:id/status", wrapAsync(async (req, res) => {
     sendValidationError(res, `Invalid pharmacy order status "${status}". Valid statuses: ${PHARMACY_ORDER_VALID_STATUSES.join(", ")}`);
     return;
   }
-  const [order] = await db
-    .update(pharmacyOrdersTable)
-    .set({ status, updatedAt: new Date() })
-    .where(eq(pharmacyOrdersTable.id, req.params["id"] as string))
-    .returning();
+
+  const pharmId = req.params["id"] as string;
+
+  /* ── Pharmacy cancel with wallet refund: fully atomic ──
+     Status update + wallet credit + refundedAt stamp are committed in ONE transaction.
+     isNull(refundedAt) is the idempotency guard — only the first concurrent cancel wins;
+     the second returns 409. On any tx failure the entire thing rolls back (no partial cancel). */
+  let order: typeof pharmacyOrdersTable.$inferSelect | undefined;
+
+  if (status === "cancelled") {
+    const [preOrder] = await db.select().from(pharmacyOrdersTable)
+      .where(eq(pharmacyOrdersTable.id, pharmId)).limit(1);
+    if (!preOrder) { sendNotFound(res, "Not found"); return; }
+
+    if (preOrder.paymentMethod === "wallet") {
+      const refundAmt = parseFloat(preOrder.total);
+      const now = new Date();
+      const result = await db.transaction(async (tx) => {
+        /* Atomic: status + refundedAt stamp + wallet credit — all or nothing.
+           WHERE isNull(refundedAt) prevents double-refund under concurrent requests. */
+        const [updated] = await tx.update(pharmacyOrdersTable)
+          .set({ status, refundedAt: now, updatedAt: now })
+          .where(and(eq(pharmacyOrdersTable.id, pharmId), isNull(pharmacyOrdersTable.refundedAt)))
+          .returning();
+        if (!updated) return null;
+        await tx.update(usersTable)
+          .set({ walletBalance: sql`wallet_balance + ${refundAmt}`, updatedAt: now })
+          .where(eq(usersTable.id, preOrder.userId));
+        await tx.insert(walletTransactionsTable).values({
+          id: generateId(), userId: preOrder.userId, type: "credit",
+          amount: refundAmt.toFixed(2),
+          description: `Refund — Pharmacy Order #${preOrder.id.slice(-6).toUpperCase()} cancelled`,
+        });
+        return updated;
+      });
+      if (!result) { sendError(res, "Order has already been cancelled or refunded", 409); return; }
+      order = result;
+      const pharmRefundLang = await getUserLanguage(preOrder.userId);
+      await sendUserNotification(preOrder.userId, t("notifPharmacyRefund", pharmRefundLang), t("notifPharmacyRefundBody", pharmRefundLang).replace("{amount}", refundAmt.toFixed(0)), "pharmacy", "wallet-outline");
+    } else {
+      /* Non-wallet cancellation: plain status update */
+      const [updated] = await db.update(pharmacyOrdersTable)
+        .set({ status, updatedAt: new Date() })
+        .where(eq(pharmacyOrdersTable.id, pharmId))
+        .returning();
+      if (!updated) { sendNotFound(res, "Not found"); return; }
+      order = updated;
+    }
+  } else {
+    /* Non-cancel status update */
+    const [updated] = await db.update(pharmacyOrdersTable)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(pharmacyOrdersTable.id, pharmId))
+      .returning();
+    if (!updated) { sendNotFound(res, "Not found"); return; }
+    order = updated;
+  }
+
   if (!order) { sendNotFound(res, "Not found"); return; }
 
   const pharmNotifKeys = PHARMACY_NOTIF_KEYS[status];
   if (pharmNotifKeys) {
     const pharmUserLang = await getUserLanguage(order.userId);
     await sendUserNotification(order.userId, t(pharmNotifKeys.titleKey, pharmUserLang), t(pharmNotifKeys.bodyKey, pharmUserLang), "pharmacy", pharmNotifKeys.icon);
-  }
-
-  // Wallet refund on cancellation (atomic)
-  let refundFailed = false;
-  if (status === "cancelled" && order.paymentMethod === "wallet") {
-    const refundAmt = parseFloat(order.total);
-    let pharmRefundOk = true;
-    try {
-      await db.transaction(async (tx) => {
-        await tx.update(usersTable).set({ walletBalance: sql`wallet_balance + ${refundAmt}`, updatedAt: new Date() }).where(eq(usersTable.id, order.userId));
-        await tx.insert(walletTransactionsTable).values({ id: generateId(), userId: order.userId, type: "credit", amount: refundAmt.toFixed(2), description: `Refund — Pharmacy Order #${order.id.slice(-6).toUpperCase()} cancelled` });
-      });
-    } catch (refundErr: unknown) {
-      pharmRefundOk = false;
-      refundFailed = true;
-      logger.error(
-        { err: refundErr instanceof Error ? refundErr.message : String(refundErr), code: (refundErr as { code?: string }).code, orderId: order.id, userId: order.userId, refundAmt },
-        "[orders] CRITICAL: pharmacy wallet refund transaction failed — customer not refunded",
-      );
-    }
-    if (pharmRefundOk) {
-      const pharmRefundLang = await getUserLanguage(order.userId);
-      await sendUserNotification(order.userId, t("notifPharmacyRefund", pharmRefundLang), t("notifPharmacyRefundBody", pharmRefundLang).replace("{amount}", refundAmt.toFixed(0)), "pharmacy", "wallet-outline");
-    }
   }
 
   const ioPharm = getIO();
@@ -454,11 +489,7 @@ router.patch("/pharmacy-orders/:id/status", wrapAsync(async (req, res) => {
     });
   }
 
-  sendSuccess(res, {
-    ...order,
-    total: parseFloat(order.total),
-    ...(refundFailed ? { warning: "Order cancelled but wallet refund failed — please refund the customer manually." } : {}),
-  });
+  sendSuccess(res, { ...order, total: parseFloat(order.total) });
 }));
 
 /* ── Parcel Bookings ── */
@@ -485,39 +516,65 @@ router.patch("/parcel-bookings/:id/status", wrapAsync(async (req, res) => {
     sendValidationError(res, `Invalid parcel status "${status}". Valid statuses: ${PARCEL_VALID_STATUSES.join(", ")}`);
     return;
   }
-  const [booking] = await db
-    .update(parcelBookingsTable)
-    .set({ status, updatedAt: new Date() })
-    .where(eq(parcelBookingsTable.id, req.params["id"] as string))
-    .returning();
+
+  const parcelId = req.params["id"] as string;
+
+  /* ── Parcel cancel with wallet refund: atomic — status update + refund in ONE tx ── */
+  let booking: typeof parcelBookingsTable.$inferSelect | undefined;
+
+  if (status === "cancelled") {
+    const [preBooking] = await db.select().from(parcelBookingsTable)
+      .where(eq(parcelBookingsTable.id, parcelId)).limit(1);
+    if (!preBooking) { sendNotFound(res, "Not found"); return; }
+
+    if (preBooking.paymentMethod === "wallet") {
+      const refundAmt = parseFloat(preBooking.fare);
+      const now = new Date();
+      const result = await db.transaction(async (tx) => {
+        /* Atomic: status + refundedAt stamp + wallet credit — all or nothing.
+           WHERE isNull(refundedAt) prevents double-refund under concurrent requests. */
+        const [updated] = await tx.update(parcelBookingsTable)
+          .set({ status, refundedAt: now, updatedAt: now })
+          .where(and(eq(parcelBookingsTable.id, parcelId), isNull(parcelBookingsTable.refundedAt)))
+          .returning();
+        if (!updated) return null;
+        await tx.update(usersTable)
+          .set({ walletBalance: sql`wallet_balance + ${refundAmt}`, updatedAt: now })
+          .where(eq(usersTable.id, preBooking.userId));
+        await tx.insert(walletTransactionsTable).values({
+          id: generateId(), userId: preBooking.userId, type: "credit",
+          amount: refundAmt.toFixed(2),
+          description: `Refund — Parcel Booking #${preBooking.id.slice(-6).toUpperCase()} cancelled`,
+        });
+        return updated;
+      });
+      if (!result) { sendError(res, "Booking has already been cancelled or refunded", 409); return; }
+      booking = result;
+      const parcelRefundLang = await getUserLanguage(preBooking.userId);
+      await sendUserNotification(preBooking.userId, t("notifParcelRefund", parcelRefundLang), t("notifParcelRefundBody", parcelRefundLang).replace("{amount}", refundAmt.toFixed(0)), "parcel", "wallet-outline");
+    } else {
+      const [updated] = await db.update(parcelBookingsTable)
+        .set({ status, updatedAt: new Date() })
+        .where(eq(parcelBookingsTable.id, parcelId))
+        .returning();
+      if (!updated) { sendNotFound(res, "Not found"); return; }
+      booking = updated;
+    }
+  } else {
+    const [updated] = await db.update(parcelBookingsTable)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(parcelBookingsTable.id, parcelId))
+      .returning();
+    if (!updated) { sendNotFound(res, "Not found"); return; }
+    booking = updated;
+  }
+
   if (!booking) { sendNotFound(res, "Not found"); return; }
 
   const parcelNotifKeys = PARCEL_NOTIF_KEYS[status];
   if (parcelNotifKeys) {
     const parcelUserLang = await getUserLanguage(booking.userId);
     await sendUserNotification(booking.userId, t(parcelNotifKeys.titleKey, parcelUserLang), t(parcelNotifKeys.bodyKey, parcelUserLang), "parcel", parcelNotifKeys.icon);
-  }
-
-  // Wallet refund on cancellation (atomic)
-  if (status === "cancelled" && booking.paymentMethod === "wallet") {
-    const refundAmt = parseFloat(booking.fare);
-    let parcelRefundOk = true;
-    try {
-      await db.transaction(async (tx) => {
-        await tx.update(usersTable).set({ walletBalance: sql`wallet_balance + ${refundAmt}`, updatedAt: new Date() }).where(eq(usersTable.id, booking.userId));
-        await tx.insert(walletTransactionsTable).values({ id: generateId(), userId: booking.userId, type: "credit", amount: refundAmt.toFixed(2), description: `Refund — Parcel Booking #${booking.id.slice(-6).toUpperCase()} cancelled` });
-      });
-    } catch (refundErr: unknown) {
-      parcelRefundOk = false;
-      logger.error(
-        { err: refundErr instanceof Error ? refundErr.message : String(refundErr), code: (refundErr as { code?: string }).code, bookingId: booking.id, userId: booking.userId, refundAmt },
-        "[orders] CRITICAL: parcel wallet refund transaction failed — customer not refunded",
-      );
-    }
-    if (parcelRefundOk) {
-      const parcelRefundLang = await getUserLanguage(booking.userId);
-      await sendUserNotification(booking.userId, t("notifParcelRefund", parcelRefundLang), t("notifParcelRefundBody", parcelRefundLang).replace("{amount}", refundAmt.toFixed(0)), "parcel", "wallet-outline");
-    }
   }
 
   const ioParcel = getIO();
@@ -714,16 +771,38 @@ router.patch("/orders/:id/assign-rider", wrapAsync(async (req, res) => {
   let riderName: string | null = null;
   let riderPhone: string | null = null;
   if (riderId) {
-    const [rider] = await db.select({ name: usersTable.name, phone: usersTable.phone }).from(usersTable).where(eq(usersTable.id, riderId));
-    riderName = rider?.name ?? null;
-    riderPhone = rider?.phone ?? null;
+    const [rider] = await db.select({ name: usersTable.name, phone: usersTable.phone, roles: usersTable.roles, isActive: usersTable.isActive })
+      .from(usersTable).where(eq(usersTable.id, riderId));
+    if (!rider) {
+      sendValidationError(res, "Rider not found with the given riderId");
+      return;
+    }
+    const dbRoles = (rider.roles || "").split(",").map((r: string) => r.trim());
+    if (!dbRoles.includes("rider")) {
+      sendValidationError(res, "The specified user does not have the rider role and cannot be assigned to deliveries");
+      return;
+    }
+    if (rider.isActive === false) {
+      sendValidationError(res, "The specified rider account is inactive and cannot accept assignments");
+      return;
+    }
+    riderName = rider.name ?? null;
+    riderPhone = rider.phone ?? null;
   }
+  const [preOrder] = await db.select({ riderId: ordersTable.riderId }).from(ordersTable)
+    .where(and(eq(ordersTable.id, req.params["id"] as string), isNull(ordersTable.deletedAt))).limit(1);
   const [order] = await db.update(ordersTable)
     .set({ riderId: riderId || null, riderName, riderPhone, updatedAt: new Date() })
     .where(and(eq(ordersTable.id, req.params["id"] as string), isNull(ordersTable.deletedAt)))
     .returning();
   if (!order) { sendNotFound(res, "Order not found"); return; }
-  addAuditEntry({ action: "order_rider_assigned", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Rider ${riderName ?? riderId ?? "unassigned"} assigned to order ${req.params["id"] as string}`, result: "success" });
+  addAuditEntry({
+    action: "order_rider_assigned",
+    ip: getClientIp(req),
+    adminId: (req as AdminRequest).adminId,
+    details: `Rider changed from ${preOrder?.riderId ?? "unassigned"} → ${riderName ?? riderId ?? "unassigned"} on order ${req.params["id"] as string}`,
+    result: "success",
+  });
   sendSuccess(res, { success: true, order: { ...order, total: parseFloat(String(order.total)), riderName, riderPhone } });
 }));
 
