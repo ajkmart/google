@@ -236,6 +236,10 @@ async function registerVapidPush(): Promise<void> {
     });
 
     const token = api.getToken();
+    if (!token) {
+      log.warn("VAPID subscription registration skipped — no auth token (rider not logged in)");
+      return;
+    }
     await fetch(`${base}/api/push/subscribe`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },

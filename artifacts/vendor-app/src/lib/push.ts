@@ -279,6 +279,10 @@ async function registerVapidPush(onError?: PushErrorHandler): Promise<void> {
     });
 
     const authToken = getAuthToken();
+    if (!authToken) {
+      log.warn("VAPID subscription registration skipped — no auth token (user not logged in)");
+      return;
+    }
     const res = await fetch(`${base}/api/push/subscribe`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },

@@ -32,7 +32,7 @@ function networkError(err: unknown): string {
 
 async function captureException(err: unknown) {
   try {
-    if (process.env.SENTRY_DSN) {
+    if (import.meta.env.VITE_SENTRY_DSN) {
       const Sentry = await import("@sentry/react");
       Sentry.captureException(err);
     }
