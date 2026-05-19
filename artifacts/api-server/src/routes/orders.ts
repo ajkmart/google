@@ -463,4 +463,292 @@ async function validatePromoCode(
   return { valid: true, discount, discountType, promoId: promo.id, maxDiscount: promo.maxDiscount ? parseFloat(String(promo.maxDiscount)) : null };
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   CUSTOMER-FACING ORDER ROUTES  (mounted at GET|POST /api/orders/*)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── POST /orders/validate-promo ── validate a promo before checkout ── */
+router.post("/validate-promo", customerAuth, async (req, res) => {
+  try {
+    const customerId = req.customerId!;
+    const { code, orderTotal, orderType } = req.body as { code?: string; orderTotal?: number; orderType?: string };
+    if (!code || typeof code !== "string" || !code.trim()) { sendValidationError(res, "code is required"); return; }
+    const total = parseFloat(String(orderTotal ?? 0));
+    if (!total || total <= 0) { sendValidationError(res, "orderTotal must be a positive number"); return; }
+    const result = await validatePromoCode(code.trim(), total, orderType || "mart", customerId);
+    sendSuccess(res, result);
+  } catch (e: unknown) {
+    logger.error({ err: e }, "[orders/validate-promo] failed");
+    sendError(res, "Failed to validate promo code", 500);
+  }
+});
+
+/* ── POST /orders ── customer places a new order ── */
+router.post("/", customerAuth, async (req, res) => {
+  const customerId = req.customerId!;
+  try {
+    const {
+      vendorId, type, items, deliveryAddress, paymentMethod,
+      promoCode, customerLat, customerLng, deliveryLat, deliveryLng,
+      gpsAccuracy, estimatedTime,
+    } = req.body as Record<string, unknown>;
+
+    /* ── input validation ── */
+    if (!Array.isArray(items) || items.length === 0) { sendValidationError(res, "items must be a non-empty array"); return; }
+    if (!deliveryAddress || typeof deliveryAddress !== "string" || !(deliveryAddress as string).trim()) { sendValidationError(res, "deliveryAddress is required"); return; }
+    const VALID_TYPES = ["mart", "food", "pharmacy", "parcel"];
+    const orderType = VALID_TYPES.includes(type as string) ? (type as string) : "mart";
+    const VALID_PAYMENTS = ["cod", "wallet", "jazzcash", "easypaisa"];
+    const payment = VALID_PAYMENTS.includes(paymentMethod as string) ? (paymentMethod as string) : "cod";
+
+    /* ── subtotal ── */
+    let subtotal = 0;
+    const orderItems = (items as Array<Record<string, unknown>>).map(item => {
+      const price = parseFloat(String(item["price"] ?? "0"));
+      const qty = Math.min(Math.max(1, parseInt(String(item["quantity"] ?? "1"))), MAX_ITEM_QUANTITY);
+      subtotal += price * qty;
+      return { ...item, quantity: qty, price: price.toString() };
+    });
+
+    /* ── platform fees ── */
+    const settings = await getPlatformSettings();
+    const deliveryFeeKey = `delivery_fee_${orderType}`;
+    const deliveryFee = parseFloat(settings[deliveryFeeKey] ?? settings["delivery_fee_mart"] ?? "50");
+    const gstPct = parseFloat(settings["gst_percentage"] ?? "0");
+    const gstAmount = Math.round(subtotal * gstPct / 100 * 100) / 100;
+    const codFeePct = parseFloat(settings["cod_fee_percentage"] ?? "0");
+    const codFee = payment === "cod" ? Math.round(subtotal * codFeePct / 100 * 100) / 100 : 0;
+
+    /* ── promo validation ── */
+    let discount = 0;
+    let promoId: string | undefined;
+    let offerId: string | undefined;
+    let finalDeliveryFee = deliveryFee;
+    if (promoCode && typeof promoCode === "string" && (promoCode as string).trim()) {
+      const promo = await validatePromoCode((promoCode as string).trim(), subtotal, orderType, customerId);
+      if (!promo.valid) { sendValidationError(res, promo.error || "Invalid promo code"); return; }
+      discount = promo.discount;
+      promoId = promo.promoId;
+      offerId = promo.offerId;
+      if (promo.freeDelivery) finalDeliveryFee = 0;
+    }
+
+    const total = Math.max(0, subtotal + finalDeliveryFee + gstAmount + codFee - discount);
+
+    /* ── wallet pre-check (optimistic, non-locking) ── */
+    if (payment === "wallet") {
+      const [u] = await db.select({ walletBalance: usersTable.walletBalance })
+        .from(usersTable).where(eq(usersTable.id, customerId)).limit(1);
+      const balance = parseFloat(u?.walletBalance ?? "0");
+      if (balance < total) {
+        sendForbidden(res, `Insufficient wallet balance. Available: Rs. ${balance.toFixed(2)}, Required: Rs. ${total.toFixed(2)}`);
+        return;
+      }
+    }
+
+    /* ── delivery eligibility ── */
+    if (customerLat && customerLng) {
+      try {
+        const elig = await checkDeliveryEligibility(customerId, getClientIp(req));
+        if (!elig.allowed) { sendForbidden(res, elig.reason || "Delivery not available in your area"); return; }
+      } catch { /* non-critical — proceed if eligibility service unavailable */ }
+    }
+
+    const orderId = generateId();
+    const now = new Date();
+    let placed!: typeof ordersTable.$inferSelect;
+    let newWalletBalance = 0;
+
+    await db.transaction(async (tx) => {
+      /* stock decrement for physical goods */
+      if (["mart", "food"].includes(orderType)) {
+        await decrementStock(
+          tx,
+          orderItems as Array<{ productId?: string; variantId?: string; quantity: number }>,
+          orderId,
+        );
+      }
+
+      /* wallet deduction with pessimistic row lock */
+      if (payment === "wallet") {
+        const lockedRows = await tx.execute(sql`SELECT wallet_balance FROM users WHERE id = ${customerId} FOR UPDATE`);
+        const row = ((lockedRows.rows ?? [])[0]) as { wallet_balance: string } | undefined;
+        const current = parseFloat(row?.wallet_balance ?? "0");
+        if (current < total) throw Object.assign(new Error("Insufficient wallet balance"), { code: "WALLET_INSUFFICIENT" });
+        newWalletBalance = parseFloat((current - total).toFixed(2));
+        await tx.update(usersTable).set({ walletBalance: newWalletBalance.toFixed(2) }).where(eq(usersTable.id, customerId));
+        await tx.insert(walletTransactionsTable).values({
+          id: generateId(), userId: customerId, type: "debit",
+          amount: total.toFixed(2), description: `${orderType} order payment`, reference: orderId, paymentMethod: "wallet",
+        });
+      }
+
+      /* track promo/offer usage */
+      if (offerId) {
+        await tx.insert(offerRedemptionsTable).values({
+          id: generateId(), offerId, userId: customerId, orderId, discount: discount.toFixed(2),
+        }).onConflictDoNothing();
+        await tx.update(offersTable).set({ usedCount: sql`${offersTable.usedCount} + 1` }).where(eq(offersTable.id, offerId));
+      }
+      if (promoId) {
+        await tx.update(promoCodesTable).set({ usedCount: sql`${promoCodesTable.usedCount} + 1` }).where(eq(promoCodesTable.id, promoId));
+      }
+
+      /* insert order record */
+      const [row] = await tx.insert(ordersTable).values({
+        id: orderId,
+        userId: customerId,
+        vendorId: (vendorId as string | undefined) ?? undefined,
+        type: orderType,
+        items: JSON.stringify(orderItems),
+        total: total.toFixed(2),
+        deliveryAddress: (deliveryAddress as string).trim(),
+        paymentMethod: payment,
+        paymentStatus: payment === "wallet" ? "success" : "pending",
+        estimatedTime: (estimatedTime as string | undefined) ?? "30-45 min",
+        customerLat: customerLat ? String(customerLat) : null,
+        customerLng: customerLng ? String(customerLng) : null,
+        deliveryLat: deliveryLat ? String(deliveryLat) : null,
+        deliveryLng: deliveryLng ? String(deliveryLng) : null,
+        gpsAccuracy: gpsAccuracy ? parseFloat(String(gpsAccuracy)) : null,
+        createdAt: now, updatedAt: now,
+      }).returning();
+      placed = row;
+    });
+
+    /* post-commit: broadcast & notify (fire-and-forget) */
+    broadcastStockUpdates(orderItems as Array<{ productId?: string; variantId?: string; quantity: number }>).catch(() => undefined);
+    if (payment === "wallet") broadcastWalletUpdate(customerId, newWalletBalance);
+    const mapped = mapOrder(placed, finalDeliveryFee, gstAmount, codFee);
+    broadcastNewOrder(mapped, vendorId as string | undefined);
+    notifyOnlineRidersOfOrder(orderId, orderType).catch(() => undefined);
+
+    AuditService.log({ action: "order:placed", ip: getClientIp(req), details: `${orderType} Rs.${total.toFixed(2)} via ${payment}`, result: "success" });
+    sendCreated(res, { order: mapped });
+  } catch (e: unknown) {
+    const err = e as Error & { code?: string; outOfStockItems?: unknown[] };
+    if (err.code === "INSUFFICIENT_STOCK") { sendErrorWithData(res, err.message, err.outOfStockItems ?? [], 409); return; }
+    if (err.code === "WALLET_INSUFFICIENT") { sendForbidden(res, err.message); return; }
+    logger.error({ err: err.message, stack: err.stack, customerId }, "[orders] placement failed");
+    sendError(res, "Failed to place order. Please try again.", 500);
+  }
+});
+
+/* ── GET /orders ── list the signed-in customer's own orders ── */
+router.get("/", customerAuth, async (req, res) => {
+  try {
+    const customerId = req.customerId!;
+    const page = Math.max(1, parseInt(String(req.query["page"] ?? "1")));
+    const limit = Math.min(50, Math.max(1, parseInt(String(req.query["limit"] ?? "20"))));
+    const offset = (page - 1) * limit;
+    const status = req.query["status"] as string | undefined;
+    const type = req.query["type"] as string | undefined;
+
+    const conds: any[] = [eq(ordersTable.userId, customerId), isNull(ordersTable.deletedAt)];
+    if (status && status !== "all") conds.push(eq(ordersTable.status, status));
+    if (type   && type   !== "all") conds.push(eq(ordersTable.type,   type));
+
+    const [orders, countResult] = await Promise.all([
+      db.select().from(ordersTable).where(and(...conds)).orderBy(desc(ordersTable.createdAt)).limit(limit).offset(offset),
+      db.select({ total: count() }).from(ordersTable).where(and(...conds)),
+    ]);
+
+    sendSuccess(res, { orders: orders.map(o => mapOrder(o)), total: Number(countResult[0]?.total ?? 0), page, limit });
+  } catch (e: unknown) {
+    logger.error({ err: e }, "[orders/list] failed");
+    sendError(res, "Failed to fetch orders", 500);
+  }
+});
+
+/* ── GET /orders/:id/track ── real-time rider GPS for order tracking ──
+   MUST be registered BEFORE /:id so Express doesn't swallow "track" as an id param. ── */
+router.get("/:id/track", customerAuth, async (req, res) => {
+  try {
+    const customerId = req.customerId!;
+    const orderId = req.params["id"] as string;
+    const [order] = await db.select({ userId: ordersTable.userId, riderId: ordersTable.riderId, status: ordersTable.status })
+      .from(ordersTable).where(and(eq(ordersTable.id, orderId), isNull(ordersTable.deletedAt))).limit(1);
+    if (!order) { sendNotFound(res, "Order not found"); return; }
+    if (order.userId !== customerId) { sendForbidden(res, "Access denied"); return; }
+    if (!order.riderId) { sendSuccess(res, { location: null, status: order.status }); return; }
+    const [loc] = await db.select({ latitude: liveLocationsTable.latitude, longitude: liveLocationsTable.longitude, updatedAt: liveLocationsTable.updatedAt })
+      .from(liveLocationsTable).where(eq(liveLocationsTable.userId, order.riderId)).limit(1);
+    sendSuccess(res, {
+      location: loc ? { lat: parseFloat(String(loc.latitude)), lng: parseFloat(String(loc.longitude)), updatedAt: loc.updatedAt instanceof Date ? loc.updatedAt.toISOString() : loc.updatedAt } : null,
+      status: order.status,
+    });
+  } catch (e: unknown) {
+    logger.error({ err: e }, "[orders/:id/track] failed");
+    sendError(res, "Failed to get tracking data", 500);
+  }
+});
+
+/* ── GET /orders/:id ── single order detail (customer-scoped) ── */
+router.get("/:id", customerAuth, async (req, res) => {
+  try {
+    const customerId = req.customerId!;
+    const [order] = await db.select().from(ordersTable)
+      .where(and(eq(ordersTable.id, req.params["id"] as string), eq(ordersTable.userId, customerId), isNull(ordersTable.deletedAt)))
+      .limit(1);
+    if (!order) { sendNotFound(res, "Order not found"); return; }
+    sendSuccess(res, { order: mapOrder(order) });
+  } catch (e: unknown) {
+    logger.error({ err: e }, "[orders/:id] failed");
+    sendError(res, "Failed to fetch order", 500);
+  }
+});
+
+/* ── PATCH /orders/:id/status ── customer cancels a pending/confirmed order ── */
+router.patch("/:id/status", customerAuth, async (req, res) => {
+  try {
+    const customerId = req.customerId!;
+    const orderId = req.params["id"] as string;
+    const { status } = req.body as { status?: string };
+    if (status !== "cancelled") { sendValidationError(res, "Customers may only set status to 'cancelled'"); return; }
+
+    const [order] = await db.select().from(ordersTable)
+      .where(and(eq(ordersTable.id, orderId), eq(ordersTable.userId, customerId), isNull(ordersTable.deletedAt))).limit(1);
+    if (!order) { sendNotFound(res, "Order not found"); return; }
+    if (!["pending", "confirmed"].includes(order.status)) {
+      sendForbidden(res, `Cannot cancel an order in "${order.status}" status. Only pending or confirmed orders can be cancelled.`);
+      return;
+    }
+
+    const now = new Date();
+    let updated!: typeof ordersTable.$inferSelect;
+    let newWalletBalance = 0;
+
+    if (order.paymentMethod === "wallet" && !order.refundedAt) {
+      const refundAmt = parseFloat(String(order.total));
+      await db.transaction(async (tx) => {
+        const [result] = await tx.update(ordersTable)
+          .set({ status: "cancelled", refundedAt: now, paymentStatus: "refunded", updatedAt: now })
+          .where(and(eq(ordersTable.id, orderId), eq(ordersTable.userId, customerId), isNull(ordersTable.refundedAt)))
+          .returning();
+        if (!result) throw new Error("Order already processed");
+        updated = result;
+        const balRows = await tx.execute(sql`UPDATE users SET wallet_balance = wallet_balance + ${refundAmt} WHERE id = ${customerId} RETURNING wallet_balance`);
+        newWalletBalance = parseFloat(((balRows.rows ?? [])[0] as { wallet_balance: string } | undefined)?.wallet_balance ?? "0");
+        await tx.insert(walletTransactionsTable).values({
+          id: generateId(), userId: customerId, type: "credit",
+          amount: refundAmt.toFixed(2), description: "Order cancellation refund", reference: orderId, paymentMethod: "wallet",
+        });
+      });
+      broadcastWalletUpdate(customerId, newWalletBalance);
+    } else {
+      const [result] = await db.update(ordersTable).set({ status: "cancelled", updatedAt: now })
+        .where(and(eq(ordersTable.id, orderId), eq(ordersTable.userId, customerId))).returning();
+      if (!result) { sendNotFound(res, "Order not found"); return; }
+      updated = result;
+    }
+
+    const mapped = mapOrder(updated);
+    broadcastOrderUpdate(mapped, order.vendorId);
+    sendSuccess(res, { order: mapped });
+  } catch (e: unknown) {
+    logger.error({ err: e }, "[orders/:id/status] cancel failed");
+    sendError(res, "Failed to cancel order", 500);
+  }
+});
+
 export default router;

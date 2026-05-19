@@ -48,7 +48,7 @@ export function RiderAssignPanel({ order, ridersData, riderSearch, setRiderSearc
           <Input placeholder="Search riders..." value={riderSearch} onChange={e => setRiderSearch(e.target.value)}
             className="h-9 rounded-lg text-xs" autoFocus aria-label="Search riders" />
           <div className="max-h-36 overflow-y-auto space-y-1" role="listbox" aria-label="Available riders">
-            {(ridersData?.users || [])
+            {(ridersData?.riders || [])
               .filter((r: any) => r.isActive && !r.isBanned)
               .filter((r: any) => riderSearch ? ((r.name || r.phone || "").toLowerCase().includes(riderSearch.toLowerCase())) : true)
               .slice(0, 8)

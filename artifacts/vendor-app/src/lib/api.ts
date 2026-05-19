@@ -334,7 +334,7 @@ export const api = {
   /* Orders */
   getOrders:     (status?: string) => apiFetch(`/vendors/orders${status ? `?status=${status}` : ""}`),
   getVendorOrder: (id: string) => apiFetch(`/vendors/orders/${id}`),
-  updateOrder:   (id: string, status: string, reason?: string) => apiFetch(`/vendors/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, ...(reason ? { reason } : {}) }) }),
+  updateOrder:   (id: string, status: string, note?: string) => apiFetch(`/vendors/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, ...(note ? { note } : {}) }) }),
 
   /* Products */
   getProducts:   (q?: string, category?: string) => {
