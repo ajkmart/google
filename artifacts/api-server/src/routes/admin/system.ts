@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import { sendAdminAlert } from "../../services/email.js";
+import { sendAdminAlert, sendAdminPasswordResetLinkEmail } from "../../services/email.js";
+import { issueAdminPasswordResetToken } from "../../services/admin-password.service.js";
 import { sendOtpSMS } from "../../services/sms.js";
 import { sendWhatsAppOTP } from "../../services/whatsapp.js";
 import { db } from "@workspace/db";
@@ -904,6 +905,58 @@ router.put("/me/preferences", adminAuth, async (req, res) => {
   sendSuccess(res, { preferences: allowed, persisted: true });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+/* ── Aliases for /me/preferences under /system/ prefix (frontend uses /system/me/preferences) ── */
+router.get("/system/me/preferences", adminAuth, async (req, res) => {
+  try {
+    const adminId = (req as AdminRequest).adminId;
+    if (!adminId) { sendForbidden(res, "Not authenticated"); return; }
+    try {
+      const [row] = await db
+        .select({ id: adminAccountsTable.id, preferences: sql<string | null>`preferences` })
+        .from(adminAccountsTable)
+        .where(eq(adminAccountsTable.id, adminId))
+        .limit(1);
+      let prefs: Record<string, unknown> = {};
+      if (row) {
+        const raw = row.preferences;
+        if (raw !== null && raw !== undefined) {
+          if (typeof raw === "object") { prefs = raw as Record<string, unknown>; }
+          else { try { prefs = JSON.parse(raw as string); } catch { prefs = {}; } }
+        }
+      }
+      sendSuccess(res, { preferences: prefs });
+    } catch { sendSuccess(res, { preferences: {} }); }
+  } catch (err) {
+    logger.error({ err }, "[admin] system/me/preferences GET error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+router.put("/system/me/preferences", adminAuth, async (req, res) => {
+  try {
+    const adminId = (req as AdminRequest).adminId;
+    if (!adminId) { sendForbidden(res, "Not authenticated"); return; }
+    const body = req.body as Record<string, unknown>;
+    if (!body || typeof body !== "object") { sendValidationError(res, "preferences object required"); return; }
+    const allowed: Record<string, unknown> = {};
+    if (typeof body["font_scale"] === "number") allowed["font_scale"] = body["font_scale"];
+    if (typeof body["contrast"] === "string") allowed["contrast"] = body["contrast"];
+    if (typeof body["reduce_motion"] === "boolean") allowed["reduce_motion"] = body["reduce_motion"];
+    const prefsJson = JSON.stringify(allowed);
+    try {
+      await db.execute(sql`ALTER TABLE admin_accounts ADD COLUMN IF NOT EXISTS preferences JSONB`);
+      await db.execute(sql`UPDATE admin_accounts SET preferences = ${prefsJson}::jsonb WHERE id = ${adminId}`);
+    } catch (err) {
+      logger.warn({ err }, "[admin/system/me/preferences] PUT failed — returning browser-only response");
+      sendSuccess(res, { preferences: allowed, persisted: false }); return;
+    }
+    sendSuccess(res, { preferences: allowed, persisted: true });
+  } catch (err) {
+    logger.error({ err }, "[admin] system/me/preferences PUT error");
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -3565,6 +3618,232 @@ router.get("/admin-accounts", adminAuth, async (_req, res) => {
   } catch (e) {
     logger.error({ err: e }, "[admin] admin-accounts error");
     sendError(res, "Failed to load admin accounts", 500);
+  }
+});
+
+/** Derive the admin SPA reset-password URL from env (mirrors admin-auth-v2). */
+function buildAdminResetUrlLocal(rawToken: string): string {
+  const replitFallback = process.env.REPLIT_DEV_DOMAIN
+    ? `https://${process.env.REPLIT_DEV_DOMAIN}/admin`
+    : null;
+  const base =
+    process.env.ADMIN_BASE_URL ||
+    process.env.APP_BASE_URL ||
+    replitFallback ||
+    "http://localhost:5000/admin";
+  return `${base.replace(/\/+$/, "")}/reset-password?token=${encodeURIComponent(rawToken)}`;
+}
+
+const VALID_ADMIN_ROLES = ["super", "manager", "support", "finance", "content"] as const;
+
+/* ── POST /admin/admin-accounts — create a new admin account ── */
+router.post("/admin-accounts", adminAuth, async (req: AdminRequest, res) => {
+  try {
+    if (req.adminRole !== "super") return sendForbidden(res, "Only super admins can create admin accounts");
+    const schema = z.object({
+      name:        z.string().min(2).max(128),
+      role:        z.enum(VALID_ADMIN_ROLES).default("manager"),
+      secret:      z.string().min(8).max(256),
+      email:       z.string().email().optional().nullable(),
+      permissions: z.string().default(""),
+      isActive:    z.boolean().default(true),
+      username:    z.string().min(3).max(64).optional().nullable(),
+    });
+    const body = schema.parse(req.body);
+    const hashedSecret = await hashPassword(body.secret);
+    const id = generateId();
+    const [account] = await db.insert(adminAccountsTable).values({
+      id,
+      name:        body.name,
+      role:        body.role,
+      secret:      hashedSecret,
+      email:       body.email ?? null,
+      permissions: body.permissions,
+      isActive:    body.isActive,
+      username:    body.username ?? null,
+    }).returning();
+    addAuditEntry({
+      action: "admin_account_create",
+      adminId: req.adminId,
+      ip: req.adminIp ?? "unknown",
+      details: `Created admin: ${body.name} role=${body.role}`,
+      result: "success",
+    });
+    sendSuccess(res, {
+      account: {
+        id: account!.id,
+        name: account!.name,
+        role: account!.role,
+        permissions: account!.permissions,
+        isActive: account!.isActive,
+        email: account!.email,
+        createdAt: account!.createdAt.toISOString(),
+        lastLoginAt: null,
+      },
+    }, undefined, 201);
+  } catch (e) {
+    if (e instanceof z.ZodError) return sendValidationError(res, e.errors[0]?.message ?? "Validation failed");
+    logger.error({ err: e }, "[admin] create admin-account error");
+    sendError(res, "Failed to create admin account", 500);
+  }
+});
+
+/* ── PATCH /admin/admin-accounts/:id — update an admin account ── */
+router.patch("/admin-accounts/:id", adminAuth, async (req: AdminRequest, res) => {
+  try {
+    if (req.adminRole !== "super") return sendForbidden(res, "Only super admins can edit admin accounts");
+    const schema = z.object({
+      name:        z.string().min(2).max(128).optional(),
+      role:        z.enum(VALID_ADMIN_ROLES).optional(),
+      secret:      z.string().min(8).max(256).optional(),
+      email:       z.string().email().optional().nullable(),
+      permissions: z.string().optional(),
+      isActive:    z.boolean().optional(),
+      username:    z.string().min(3).max(64).optional().nullable(),
+    });
+    const body = schema.parse(req.body);
+    const id = req.params["id"] as string;
+    const [existing] = await db.select().from(adminAccountsTable).where(eq(adminAccountsTable.id, id)).limit(1);
+    if (!existing) return sendNotFound(res, "Admin account not found");
+    const updates: Record<string, unknown> = {};
+    if (body.name        !== undefined) updates["name"]        = body.name;
+    if (body.role        !== undefined) updates["role"]        = body.role;
+    if (body.email       !== undefined) updates["email"]       = body.email;
+    if (body.permissions !== undefined) updates["permissions"] = body.permissions;
+    if (body.isActive    !== undefined) updates["isActive"]    = body.isActive;
+    if (body.username    !== undefined) updates["username"]    = body.username;
+    if (body.secret)                    updates["secret"]      = await hashPassword(body.secret);
+    const [updated] = await db.update(adminAccountsTable).set(updates).where(eq(adminAccountsTable.id, id)).returning();
+    addAuditEntry({
+      action: "admin_account_update",
+      adminId: req.adminId,
+      ip: req.adminIp ?? "unknown",
+      details: `Updated admin: ${id}`,
+      result: "success",
+    });
+    sendSuccess(res, {
+      account: {
+        id: updated!.id,
+        name: updated!.name,
+        role: updated!.role,
+        permissions: updated!.permissions,
+        isActive: updated!.isActive,
+        email: updated!.email,
+        createdAt: updated!.createdAt.toISOString(),
+        lastLoginAt: updated!.lastLoginAt?.toISOString() ?? null,
+      },
+    });
+  } catch (e) {
+    if (e instanceof z.ZodError) return sendValidationError(res, e.errors[0]?.message ?? "Validation failed");
+    logger.error({ err: e }, "[admin] update admin-account error");
+    sendError(res, "Failed to update admin account", 500);
+  }
+});
+
+/* ── DELETE /admin/admin-accounts/:id — delete an admin account ── */
+router.delete("/admin-accounts/:id", adminAuth, async (req: AdminRequest, res) => {
+  try {
+    if (req.adminRole !== "super") return sendForbidden(res, "Only super admins can delete admin accounts");
+    const id = req.params["id"] as string;
+    if (id === req.adminId) return sendError(res, "You cannot delete your own account", 400);
+    const [existing] = await db.select().from(adminAccountsTable).where(eq(adminAccountsTable.id, id)).limit(1);
+    if (!existing) return sendNotFound(res, "Admin account not found");
+    // Prevent deleting the last super admin
+    if (existing.role === "super") {
+      const [{ cnt }] = await db
+        .select({ cnt: count() })
+        .from(adminAccountsTable)
+        .where(and(eq(adminAccountsTable.role, "super"), eq(adminAccountsTable.isActive, true)));
+      if ((cnt ?? 0) <= 1) return sendError(res, "Cannot delete the last active super admin", 400);
+    }
+    await db.delete(adminAccountsTable).where(eq(adminAccountsTable.id, id));
+    addAuditEntry({
+      action: "admin_account_delete",
+      adminId: req.adminId,
+      ip: req.adminIp ?? "unknown",
+      details: `Deleted admin: ${id} name=${existing.name}`,
+      result: "success",
+    });
+    sendSuccess(res, { success: true });
+  } catch (e) {
+    logger.error({ err: e }, "[admin] delete admin-account error");
+    sendError(res, "Failed to delete admin account", 500);
+  }
+});
+
+/* ── POST /admin/admin-accounts/:id/send-reset-link — issue & email a password reset ── */
+router.post("/admin-accounts/:id/send-reset-link", adminAuth, async (req: AdminRequest, res) => {
+  try {
+    if (req.adminRole !== "super") return sendForbidden(res, "Only super admins can issue password reset links");
+    const id = req.params["id"] as string;
+    const [target] = await db.select().from(adminAccountsTable).where(eq(adminAccountsTable.id, id)).limit(1);
+    if (!target) return sendNotFound(res, "Admin account not found");
+    if (!target.email) return sendError(res, "This admin has no email address — add one first", 400);
+
+    const issued = await issueAdminPasswordResetToken({
+      adminId: target.id,
+      requestedBy: req.adminId ?? "super-admin",
+      requesterIp: req.adminIp ?? null,
+      requesterUserAgent: req.headers["user-agent"] ?? null,
+    });
+    const resetUrl = buildAdminResetUrlLocal(issued.rawToken);
+
+    const sendResult = await sendAdminPasswordResetLinkEmail(target.email, {
+      resetUrl,
+      recipientName: target.name,
+      expiresAt: issued.expiresAt,
+    }).catch((err: unknown) => {
+      logger.error({ err }, "[admin] sendAdminPasswordResetLinkEmail failed");
+      return { sent: false, reason: (err as Error).message };
+    });
+
+    addAuditEntry({
+      action: "admin_password_reset_issued",
+      adminId: req.adminId,
+      ip: req.adminIp ?? "unknown",
+      details: `Reset link issued for admin: ${id} email=${target.email} sent=${sendResult.sent}`,
+      result: sendResult.sent ? "success" : "failure",
+    });
+
+    const isDev = process.env.NODE_ENV !== "production";
+    sendSuccess(res, {
+      sent: sendResult.sent,
+      ...(isDev ? { resetUrl } : {}),
+    });
+  } catch (e) {
+    logger.error({ err: e }, "[admin] send-reset-link error");
+    sendError(res, "Failed to issue password reset link", 500);
+  }
+});
+
+/* ── PATCH /admin/system/admin-accounts/:id — update own admin profile ──
+   Called by adminAuthContext.updateOwnProfile to let the logged-in admin
+   change their username / display name and clear the defaultCredentials flag. */
+router.patch("/system/admin-accounts/:id", adminAuth, async (req: AdminRequest, res) => {
+  try {
+    const id = req.params["id"] as string;
+    if (id !== req.adminId) return sendForbidden(res, "You can only update your own profile");
+    const schema = z.object({
+      username: z.string().min(3).max(64).optional(),
+      name:     z.string().min(2).max(128).optional(),
+    });
+    const body = schema.parse(req.body);
+    if (!body.username && !body.name) return sendError(res, "No fields to update", 400);
+    const updates: Record<string, unknown> = { defaultCredentials: false };
+    if (body.username !== undefined) updates["username"] = body.username;
+    if (body.name     !== undefined) updates["name"]     = body.name;
+    const [updated] = await db.update(adminAccountsTable)
+      .set(updates)
+      .where(eq(adminAccountsTable.id, id))
+      .returning();
+    if (!updated) return sendNotFound(res, "Admin account not found");
+    sendSuccess(res, {
+      account: { id: updated.id, username: updated.username, name: updated.name },
+    });
+  } catch (e) {
+    if (e instanceof z.ZodError) return sendValidationError(res, e.errors[0]?.message ?? "Validation failed");
+    logger.error({ err: e }, "[admin] update own profile error");
+    sendError(res, "Failed to update profile", 500);
   }
 });
 
