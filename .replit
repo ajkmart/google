@@ -23,7 +23,7 @@ expertMode = true
 
 [postMerge]
 path = "scripts/post-merge.sh"
-timeoutMs = 20000
+timeoutMs = 60000
 
 [nix]
 channel = "stable-25_05"
@@ -49,27 +49,3 @@ NODE_ENV = "development"
 JWT_ISSUER = "ajkmart"
 VITE_API_PROXY_TARGET = "http://127.0.0.1:5000"
 ADMIN_SEED_PASSWORD = "SuperAdmin@2024!"
-
-[[ports]]
-localPort = 8080
-externalPort = 8080
-
-[[ports]]
-localPort = 8081
-externalPort = 8081
-
-[[ports]]
-localPort = 20716
-externalPort = 3001
-
-[[ports]]
-localPort = 21463
-externalPort = 80
-
-[[ports]]
-localPort = 22969
-externalPort = 3000
-
-[[ports]]
-localPort = 23744
-externalPort = 3002
