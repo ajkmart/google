@@ -3,7 +3,7 @@ import { Request, Response, NextFunction } from "express";
 import { logger as pinoLogger } from "../lib/logger.js";
 import { verifyAccessToken } from "../utils/admin-jwt.js";
 import { t as i18nT, type TranslationKey as I18nTranslationKey, type Language } from "@workspace/i18n";
-import { getCachedSettings as _getCachedSettings, invalidateSettingsCache as _invalidateSettingsCache } from "../middleware/security.js";
+import { getCachedSettings as _getCachedSettings, invalidateSettingsCache as _invalidateSettingsCache, addSecurityEvent as _realAddSecurityEvent } from "../middleware/security.js";
 
 /**
  * Resolve a JWT secret from an environment variable.
@@ -446,14 +446,14 @@ export async function resetAdminLoginAttempts(ip: string): Promise<void> {
   pinoLogger.info({ ip }, "[admin-shared] Reset login attempts");
 }
 
-export async function addSecurityEvent(params: {
+export function addSecurityEvent(params: {
   type: string;
   ip: string;
   userId?: string;
   details: string;
   severity: "low" | "medium" | "high" | "critical";
-}): Promise<void> {
-  pinoLogger.warn(params, "[admin-shared] Security event recorded");
+}): void {
+  _realAddSecurityEvent(params);
 }
 
 /* ── LOCALISATION ──────────────────────────────────────────────────────── */

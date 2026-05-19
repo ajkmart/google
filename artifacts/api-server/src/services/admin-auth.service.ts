@@ -5,7 +5,7 @@ import {
   type AdminSession,
   type AdminAccount,
 } from '@workspace/db/schema';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, or } from 'drizzle-orm';
 import { verifyAdminSecret } from './password.js';
 import { generateId } from '../lib/id.js';
 import {
@@ -36,17 +36,24 @@ export async function adminLogin(
   tempToken?: string;
   error?: string;
 }> {
-  // Find admin by username or name
+  // Find admin by username (case-insensitive). Display name is deliberately
+  // excluded — it is not a unique login handle and matching on it could
+  // allow non-unique identifier collisions.
+  const lowerUsername = username.toLowerCase();
   const admins = await db
     .select()
     .from(adminAccountsTable)
-    .where(eq(adminAccountsTable.isActive, true));
+    .where(
+      and(
+        eq(adminAccountsTable.isActive, true),
+        or(
+          eq(adminAccountsTable.username, username),
+          eq(adminAccountsTable.username, lowerUsername),
+        ),
+      ),
+    );
 
-  const admin = admins.find(
-    (a) =>
-      (a.username && a.username.toLowerCase() === username.toLowerCase()) ||
-      a.name.toLowerCase() === username.toLowerCase()
-  );
+  const admin = admins[0] ?? null;
 
   if (!admin) {
     return { success: false, error: 'Invalid username or password' };

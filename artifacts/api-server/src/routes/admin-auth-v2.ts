@@ -1088,6 +1088,7 @@ router.post(
   '/recovery',
   adminAuthLimiter,
   authenticateAdmin,
+  csrfProtection,
   async (req: Request, res: Response) => {
     try {
       const schema = z.object({
@@ -1137,8 +1138,11 @@ router.post("/rotate-secret", adminAuth, csrfProtection, async (req, res) => {
 
   const ip = getClientIp(req);
 
-  const { randomBytes } = await import("crypto");
-  const rotatedSecret = randomBytes(48).toString("hex");
+  // Use the caller-supplied secret directly — they have already satisfied the
+  // minimum-entropy check above.  Do NOT replace it with a randomly-generated
+  // value: that would silently discard the admin's intended credential and
+  // make it impossible for them to know what secret was actually applied.
+  const rotatedSecret = newSecret;
 
   const { setAdminSecretRuntime } = await import("../lib/runtime-config.js");
   setAdminSecretRuntime(rotatedSecret);
@@ -1409,7 +1413,7 @@ router.delete("/mfa/disable", adminAuth, csrfProtection, async (req, res) => {
     ip: adminReq.adminIp ?? getClientIp(req),
     adminId,
     details: `MFA disabled for ${adminName}`,
-    result: "fail",
+    result: "success",
   });
 
   res.json({
