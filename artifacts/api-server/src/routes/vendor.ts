@@ -30,7 +30,7 @@ router.use(async (req: Request, res: any, next: any) => {
     if (req.vendorUser) { next(); return; }
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, vendorId)).limit(1);
     if (!user) { res.status(403).json({ success: false, error: "Vendor account not found" }); return; }
-    req.vendorUser = user as any;
+    req.vendorUser = user as typeof user & typeof req.vendorUser;
     next();
   } catch (err) {
     logger.error({ err }, "[vendor] user-load middleware error");
@@ -925,7 +925,7 @@ router.get("/analytics", async (req, res) => {
         .groupBy(ordersTable.status),
     ]);
 
-    const dailyRows = (daily.rows as any[]).map(r => ({
+    const dailyRows = (daily.rows as Array<Record<string, unknown>>).map(r => ({
       date: r.date,
       orders: Number(r.orders),
       revenue: parseFloat((parseFloat(String(r.revenue)) * vendorShare).toFixed(2)),
@@ -936,7 +936,7 @@ router.get("/analytics", async (req, res) => {
     sendSuccess(res, {
       daily: dailyRows,
       summary: { totalRevenue: parseFloat(totalRevenue.toFixed(2)), totalOrders, vendorShare },
-      topProducts: (topProducts.rows as any[]).map(r => ({ ...r, price: safeNum(r.price), orderCount: Number(r.order_count), unitsSold: Number(r.units_sold) })),
+      topProducts: (topProducts.rows as Array<Record<string, unknown>>).map(r => ({ ...r, price: safeNum(r.price as unknown), orderCount: Number(r["order_count"]), unitsSold: Number(r["units_sold"]) })),
       ordersByStatus: ordersByStatus.reduce((acc: Record<string, number>, row) => { acc[row.status] = Number(row.c); return acc; }, {}),
     });
   } catch (err) {

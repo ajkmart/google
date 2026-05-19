@@ -20,18 +20,18 @@ import { customerAuth, riderAuth, getCachedSettings } from "../../middleware/sec
 import { loadRide, requireRideState, requireRideOwner } from "../../middleware/ride-guards.js";
 import { getIO } from "../../lib/socketio.js";
 import { sendSuccess, sendCreated, sendError, sendErrorWithData, sendNotFound, sendForbidden, sendValidationError } from "../../lib/response.js";
-
-export function broadcastWalletUpdate(userId: string, newBalance: number) {
-  const io = getIO();
-  if (!io) return;
-  io.to(`user:${userId}`).emit("wallet:update", { balance: newBalance });
-}
 import { t, type TranslationKey } from "@workspace/i18n";
 import { getUserLanguage } from "../../lib/getUserLanguage.js";
 import { emitRiderNewRequest, emitRideDispatchUpdate, emitRideOtp } from "../../lib/socketio.js";
 import { emitRideUpdate, onRideUpdate } from "../../lib/rideEvents.js";
 import { sendPushToUser, sendPushToUsers } from "../../lib/webpush.js";
 import rateLimit from "express-rate-limit";
+
+export function broadcastWalletUpdate(userId: string, newBalance: number) {
+  const io = getIO();
+  if (!io) return;
+  io.to(`user:${userId}`).emit("wallet:update", { balance: newBalance });
+}
 
 /* ── Rate limiters ── */
 export const bargainLimiter = rateLimit({

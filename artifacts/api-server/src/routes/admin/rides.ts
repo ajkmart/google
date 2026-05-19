@@ -144,7 +144,7 @@ router.patch("/ride-services/:id", async (req, res) => {
   if (maxPassengers !== undefined) patch["maxPassengers"]  = Number(maxPassengers);
   if (allowBargaining !== undefined) patch["allowBargaining"] = Boolean(allowBargaining);
   if (sortOrder     !== undefined) patch["sortOrder"]      = Number(sortOrder);
-  const [updated] = await db.update(rideServiceTypesTable).set(patch as any).where(eq(rideServiceTypesTable.id, svcId)).returning();
+  const [updated] = await db.update(rideServiceTypesTable).set(patch as Partial<typeof rideServiceTypesTable.$inferInsert>).where(eq(rideServiceTypesTable.id, svcId)).returning();
   res.json({ success: true, service: formatSvc(updated) });
 });
 
@@ -504,7 +504,7 @@ router.get("/customer-locations", async (_req, res) => {
 router.patch("/riders/:id/online", async (req, res) => {
   const { isOnline } = req.body as { isOnline: boolean };
   const [rider] = await db.update(usersTable)
-    .set({ isOnline, updatedAt: new Date() } as any)
+    .set({ isOnline, updatedAt: new Date() })
     .where(eq(usersTable.id, req.params["id"] as string))
     .returning();
   if (!rider) { res.status(404).json({ error: "Rider not found" }); return; }

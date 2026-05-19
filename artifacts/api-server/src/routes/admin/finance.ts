@@ -88,8 +88,10 @@ router.get("/vendors", async (_req, res) => {
       const stats = statsMap[v.id] || {};
       return {
         id: v.id, phone: v.phone, name: v.name, email: v.email,
-        storeName: (v as any).storeName, storeCategory: (v as any).storeCategory,
-        storeIsOpen: (v as any).storeIsOpen, storeDescription: (v as any).storeDescription,
+        storeName: (v as unknown as Record<string, unknown>)["storeName"] ?? null,
+        storeCategory: (v as unknown as Record<string, unknown>)["storeCategory"] ?? null,
+        storeIsOpen: (v as unknown as Record<string, unknown>)["storeIsOpen"] ?? false,
+        storeDescription: (v as unknown as Record<string, unknown>)["storeDescription"] ?? null,
         walletBalance: parseFloat(v.walletBalance ?? "0"),
         isActive: v.isActive, isBanned: v.isBanned,
         approvalStatus: v.approvalStatus, approvalNote: v.approvalNote,
@@ -204,7 +206,7 @@ router.get("/riders", async (_req, res) => {
       avgRating: ratingMap.get(r.id)?.avg ?? 0,
       ratingCount: ratingMap.get(r.id)?.count ?? 0,
       roles: r.roles, role: r.roles,
-      isOnline: (r as any).isOnline ?? false,
+      isOnline: r.isOnline ?? false,
       createdAt: r.createdAt.toISOString(),
       lastLoginAt: r.lastLoginAt ? r.lastLoginAt.toISOString() : null,
     })),
@@ -725,7 +727,7 @@ router.patch("/vendors/:id/commission", async (req, res) => {
     res.status(400).json({ error: "commissionPct required" }); return;
   }
   const [vendor] = await db.update(usersTable)
-    .set({ commissionOverride: String(commissionPct), updatedAt: new Date() } as any)
+    .set({ commissionOverride: String(commissionPct), updatedAt: new Date() })
     .where(eq(usersTable.id, req.params["id"] as string))
     .returning();
   if (!vendor) { res.status(404).json({ error: "Vendor not found" }); return; }
@@ -756,7 +758,7 @@ router.post("/riders/:id/override-suspension", async (req, res) => {
     icon: "shield-checkmark-outline",
   }).catch((e: Error) => { logger.warn({ err: e.message, userId }, "[admin] rider suspension-override notification insert failed"); });
 
-  res.json({ success: true, user: stripUser(updated as any) });
+  res.json({ success: true, user: stripUser(updated) });
 });
 
 /* ── POST /admin/vendors/:id/override-suspension — override auto-suspension ─ */
@@ -782,7 +784,7 @@ router.post("/vendors/:id/override-suspension", async (req, res) => {
     icon: "shield-checkmark-outline",
   }).catch((e: Error) => { logger.warn({ err: e.message, userId }, "[admin] vendor suspension-override notification insert failed"); });
 
-  res.json({ success: true, user: stripUser(updated as any) });
+  res.json({ success: true, user: stripUser(updated) });
 });
 
 export default router;

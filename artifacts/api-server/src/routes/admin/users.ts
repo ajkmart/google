@@ -28,11 +28,9 @@ import { hashPassword } from "../../services/password.js";
 const router = Router();
 router.get("/users", async (req, res) => {
   const filter = (req.query?.filter as string) ?? "";
-  let query = db.select().from(usersTable);
-  if (filter === "2fa_enabled") {
-    query = query.where(eq(usersTable.totpEnabled, true)) as any;
-  }
-  const users = await query.orderBy(desc(usersTable.createdAt));
+  const users = await (filter === "2fa_enabled"
+    ? db.select().from(usersTable).where(eq(usersTable.totpEnabled, true)).orderBy(desc(usersTable.createdAt))
+    : db.select().from(usersTable).orderBy(desc(usersTable.createdAt)));
   res.json({
     users: users.map((u) => ({
       ...stripUser(u),
@@ -112,7 +110,7 @@ router.post("/users/:id/approve", async (req, res) => {
 
   if (target.roles === "rider" && !skipDocCheck) {
     const hasCnic = !!target.cnic;
-    const hasLicense = !!(target as any).drivingLicense;
+    const hasLicense = !!(target as unknown as Record<string, unknown>)["drivingLicense"];
     const missing: string[] = [];
     if (!hasCnic) missing.push("CNIC");
     if (!hasLicense) missing.push("Driving License");
