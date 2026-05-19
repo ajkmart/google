@@ -1,5 +1,7 @@
 import { Router, type IRouter } from "express";
+import { z } from "zod";
 import { logger } from "../lib/logger.js";
+import { validateBody } from "../middleware/validate.js";
 import { db } from "@workspace/db";
 import { ordersTable, usersTable, walletTransactionsTable, promoCodesTable, productsTable, productVariantsTable, liveLocationsTable, notificationsTable, offersTable, offerRedemptionsTable, idempotencyKeysTable, parcelBookingsTable, ridesTable, pharmacyOrdersTable, productStockHistoryTable, orderAuditLogTable } from "@workspace/db/schema";
 import { eq, and, gte, count, sum, desc, SQL, sql, inArray, ilike, isNull } from "drizzle-orm";
@@ -483,29 +485,57 @@ router.post("/validate-promo", customerAuth, async (req, res) => {
   }
 });
 
+/* ── Zod schemas for customer order endpoints ── */
+const orderItemSchema = z.object({
+  productId: z.string().min(1, "productId is required for each item"),
+  variantId: z.string().optional(),
+  quantity: z.coerce.number().int().min(1).max(MAX_ITEM_QUANTITY),
+  price: z.coerce.number().min(0),
+  name: z.string().optional(),
+  imageUrl: z.string().optional(),
+  unit: z.string().optional(),
+  category: z.string().optional(),
+  variantName: z.string().optional(),
+  inStock: z.boolean().optional(),
+});
+
+const orderCreateSchema = z.object({
+  items: z.array(orderItemSchema).min(1, "items must be a non-empty array"),
+  type: z.enum(["mart", "food", "pharmacy", "parcel"]).default("mart"),
+  paymentMethod: z.enum(["cod", "wallet", "jazzcash", "easypaisa"]).default("cod"),
+  deliveryAddress: z.string().trim().min(1, "deliveryAddress is required"),
+  promoCode: z.string().optional(),
+  vendorId: z.string().optional(),
+  customerLat: z.coerce.number().optional(),
+  customerLng: z.coerce.number().optional(),
+  deliveryLat: z.coerce.number().optional(),
+  deliveryLng: z.coerce.number().optional(),
+  gpsAccuracy: z.coerce.number().optional(),
+  estimatedTime: z.string().optional(),
+});
+
+const customerStatusUpdateSchema = z.object({
+  status: z.literal("cancelled"),
+});
+
 /* ── POST /orders ── customer places a new order ── */
-router.post("/", customerAuth, async (req, res) => {
+router.post("/", customerAuth, validateBody(orderCreateSchema, { status: 422 }), async (req, res) => {
   const customerId = req.customerId!;
   try {
     const {
       vendorId, type, items, deliveryAddress, paymentMethod,
       promoCode, customerLat, customerLng, deliveryLat, deliveryLng,
       gpsAccuracy, estimatedTime,
-    } = req.body as Record<string, unknown>;
+    } = req.body as z.infer<typeof orderCreateSchema>;
 
-    /* ── input validation ── */
-    if (!Array.isArray(items) || items.length === 0) { sendValidationError(res, "items must be a non-empty array"); return; }
-    if (!deliveryAddress || typeof deliveryAddress !== "string" || !(deliveryAddress as string).trim()) { sendValidationError(res, "deliveryAddress is required"); return; }
-    const VALID_TYPES = ["mart", "food", "pharmacy", "parcel"];
-    const orderType = VALID_TYPES.includes(type as string) ? (type as string) : "mart";
-    const VALID_PAYMENTS = ["cod", "wallet", "jazzcash", "easypaisa"];
-    const payment = VALID_PAYMENTS.includes(paymentMethod as string) ? (paymentMethod as string) : "cod";
+    const orderType = type;
+    const payment = paymentMethod;
 
     /* ── subtotal ── */
     let subtotal = 0;
-    const orderItems = (items as Array<Record<string, unknown>>).map(item => {
-      const price = parseFloat(String(item["price"] ?? "0"));
-      const qty = Math.min(Math.max(1, parseInt(String(item["quantity"] ?? "1"))), MAX_ITEM_QUANTITY);
+    const orderItems = items.map(item => {
+      const price = Number(item.price ?? 0);
+      const qty = Math.min(Math.max(1, Number(item.quantity ?? 1)), MAX_ITEM_QUANTITY);
       subtotal += price * qty;
       return { ...item, quantity: qty, price: price.toString() };
     });
@@ -524,8 +554,8 @@ router.post("/", customerAuth, async (req, res) => {
     let promoId: string | undefined;
     let offerId: string | undefined;
     let finalDeliveryFee = deliveryFee;
-    if (promoCode && typeof promoCode === "string" && (promoCode as string).trim()) {
-      const promo = await validatePromoCode((promoCode as string).trim(), subtotal, orderType, customerId);
+    if (promoCode && promoCode.trim()) {
+      const promo = await validatePromoCode(promoCode.trim(), subtotal, orderType, customerId);
       if (!promo.valid) { sendValidationError(res, promo.error || "Invalid promo code"); return; }
       discount = promo.discount;
       promoId = promo.promoId;
@@ -598,29 +628,29 @@ router.post("/", customerAuth, async (req, res) => {
       const [row] = await tx.insert(ordersTable).values({
         id: orderId,
         userId: customerId,
-        vendorId: (vendorId as string | undefined) ?? undefined,
+        vendorId: vendorId ?? undefined,
         type: orderType,
         items: JSON.stringify(orderItems),
         total: total.toFixed(2),
-        deliveryAddress: (deliveryAddress as string).trim(),
+        deliveryAddress: deliveryAddress.trim(),
         paymentMethod: payment,
         paymentStatus: payment === "wallet" ? "success" : "pending",
-        estimatedTime: (estimatedTime as string | undefined) ?? "30-45 min",
-        customerLat: customerLat ? String(customerLat) : null,
-        customerLng: customerLng ? String(customerLng) : null,
-        deliveryLat: deliveryLat ? String(deliveryLat) : null,
-        deliveryLng: deliveryLng ? String(deliveryLng) : null,
-        gpsAccuracy: gpsAccuracy ? parseFloat(String(gpsAccuracy)) : null,
+        estimatedTime: estimatedTime ?? "30-45 min",
+        customerLat: customerLat != null ? String(customerLat) : null,
+        customerLng: customerLng != null ? String(customerLng) : null,
+        deliveryLat: deliveryLat != null ? String(deliveryLat) : null,
+        deliveryLng: deliveryLng != null ? String(deliveryLng) : null,
+        gpsAccuracy: gpsAccuracy ?? null,
         createdAt: now, updatedAt: now,
       }).returning();
       placed = row;
     });
 
     /* post-commit: broadcast & notify (fire-and-forget) */
-    broadcastStockUpdates(orderItems as Array<{ productId?: string; variantId?: string; quantity: number }>).catch(() => undefined);
+    broadcastStockUpdates(orderItems).catch(() => undefined);
     if (payment === "wallet") broadcastWalletUpdate(customerId, newWalletBalance);
     const mapped = mapOrder(placed, finalDeliveryFee, gstAmount, codFee);
-    broadcastNewOrder(mapped, vendorId as string | undefined);
+    broadcastNewOrder(mapped, vendorId);
     notifyOnlineRidersOfOrder(orderId, orderType).catch(() => undefined);
 
     AuditService.log({ action: "order:placed", ip: getClientIp(req), details: `${orderType} Rs.${total.toFixed(2)} via ${payment}`, result: "success" });
@@ -699,12 +729,11 @@ router.get("/:id", customerAuth, async (req, res) => {
 });
 
 /* ── PATCH /orders/:id/status ── customer cancels a pending/confirmed order ── */
-router.patch("/:id/status", customerAuth, async (req, res) => {
+router.patch("/:id/status", customerAuth, validateBody(customerStatusUpdateSchema, { status: 422 }), async (req, res) => {
   try {
     const customerId = req.customerId!;
     const orderId = req.params["id"] as string;
-    const { status } = req.body as { status?: string };
-    if (status !== "cancelled") { sendValidationError(res, "Customers may only set status to 'cancelled'"); return; }
+    const { status } = req.body as z.infer<typeof customerStatusUpdateSchema>;
 
     const [order] = await db.select().from(ordersTable)
       .where(and(eq(ordersTable.id, orderId), eq(ordersTable.userId, customerId), isNull(ordersTable.deletedAt))).limit(1);

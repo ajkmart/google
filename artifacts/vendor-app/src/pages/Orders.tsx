@@ -524,15 +524,21 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
           <span className="text-xs font-bold text-orange-700 flex-1">{selectedIds.size} selected</span>
           <button
             onClick={() => setBulkConfirm("accept")}
-            className="h-8 px-4 bg-green-500 text-white text-xs font-bold rounded-xl"
+            disabled={bulkActionMut.isPending}
+            className="h-8 px-4 bg-green-500 text-white text-xs font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
           >
-            ✓ Accept All
+            {bulkActionMut.isPending
+              ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Processing…</>
+              : "✓ Accept All"}
           </button>
           <button
             onClick={() => setBulkConfirm("reject")}
-            className="h-8 px-4 bg-red-100 text-red-600 text-xs font-bold rounded-xl"
+            disabled={bulkActionMut.isPending}
+            className="h-8 px-4 bg-red-100 text-red-600 text-xs font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
           >
-            ✕ Reject All
+            {bulkActionMut.isPending
+              ? <><span className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" /> Processing…</>
+              : "✕ Reject All"}
           </button>
           <button onClick={() => setSelectedIds(new Set())} className="h-8 px-3 bg-gray-200 text-gray-600 text-xs font-bold rounded-xl">
             Clear

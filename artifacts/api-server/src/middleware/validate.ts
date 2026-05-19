@@ -21,7 +21,12 @@ const formatZodDetails = (err: ZodError): ValidationErrorDetail[] =>
 
 const VALIDATION_ERROR_UR = "توثیق کی خرابی۔ اپنا ان پٹ چیک کریں۔";
 
-export function validate(schema: ValidationTarget) {
+interface ValidateOptions {
+  status?: number;
+}
+
+export function validate(schema: ValidationTarget, opts: ValidateOptions = {}) {
+  const statusCode = opts.status ?? 400;
   return (req: Request, res: Response, next: NextFunction) => {
     if (schema.body) {
       const result = schema.body.safeParse(req.body);
@@ -30,7 +35,7 @@ export function validate(schema: ValidationTarget) {
           { validationErrors: result.error.errors, url: req.url, method: req.method },
           "Request body validation failed"
         );
-        res.status(400).json({
+        res.status(statusCode).json({
           success: false,
           error: "Validation Failed",
           message: VALIDATION_ERROR_UR,
@@ -49,7 +54,7 @@ export function validate(schema: ValidationTarget) {
           { validationErrors: result.error.errors, url: req.url, method: req.method },
           "Request query validation failed"
         );
-        res.status(400).json({
+        res.status(statusCode).json({
           success: false,
           error: "Validation Failed",
           message: VALIDATION_ERROR_UR,
@@ -72,7 +77,7 @@ export function validate(schema: ValidationTarget) {
           { validationErrors: result.error.errors, url: req.url, method: req.method },
           "Request params validation failed"
         );
-        res.status(400).json({
+        res.status(statusCode).json({
           success: false,
           error: "Validation Failed",
           message: VALIDATION_ERROR_UR,
@@ -88,14 +93,14 @@ export function validate(schema: ValidationTarget) {
   };
 }
 
-export function validateBody(schema: ZodSchema) {
-  return validate({ body: schema });
+export function validateBody(schema: ZodSchema, opts: ValidateOptions = {}) {
+  return validate({ body: schema }, opts);
 }
 
-export function validateQuery(schema: ZodSchema) {
-  return validate({ query: schema });
+export function validateQuery(schema: ZodSchema, opts: ValidateOptions = {}) {
+  return validate({ query: schema }, opts);
 }
 
-export function validateParams(schema: ZodSchema) {
-  return validate({ params: schema });
+export function validateParams(schema: ZodSchema, opts: ValidateOptions = {}) {
+  return validate({ params: schema }, opts);
 }
