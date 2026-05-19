@@ -32,7 +32,7 @@ const settingsUpdateSchema = z.object({
   biometric:      z.boolean().optional(),
   twoFactor:      z.boolean().optional(),
   darkMode:       z.boolean().optional(),
-  language: z.enum(["en", "ur", "roman", "en_roman", "en_ur"]).optional(),
+  language: z.enum(["en", "ur", "roman"]).optional(),
 }).strip();
 
 router.get("/", async (req, res) => {

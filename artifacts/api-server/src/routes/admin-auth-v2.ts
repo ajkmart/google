@@ -1226,7 +1226,7 @@ router.put("/me/language", adminAuth, csrfProtection, async (req, res) => {
     res.status(400).json({ error: "language required" });
     return;
   }
-  const VALID = new Set(["en", "ur", "roman", "en_roman", "en_ur"]);
+  const VALID = new Set(["en", "ur", "roman"]);
   if (!VALID.has(language)) {
     res.status(400).json({ error: "Invalid language" });
     return;

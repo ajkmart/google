@@ -22,7 +22,7 @@ function applyTemplate(template: string, vars: Record<string, string>): string {
 }
 
 function resolveLanguage(language?: string): Language {
-  const valid: Language[] = ["en", "ur", "roman", "en_roman", "en_ur"];
+  const valid: Language[] = ["en", "ur", "roman"];
   if (language && valid.includes(language as Language)) return language as Language;
   return "en";
 }

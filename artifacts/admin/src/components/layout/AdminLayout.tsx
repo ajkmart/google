@@ -222,17 +222,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       });
     }
 
-    // Restore sidebar scroll position and scroll active item into view
+    // Restore sidebar scroll position and scroll active item into view.
+    // A single constant key ensures the saved position is always read back
+    // correctly regardless of which nav item was clicked.
     if (sidebarScrollRef.current) {
-      const scrollKey = `sidebar_scroll_${location}`;
-      const savedScroll = sessionStorage.getItem(scrollKey);
+      const savedScroll = sessionStorage.getItem("sidebar_scroll_position");
       if (savedScroll) {
         const scrollPos = parseInt(savedScroll, 10);
-        setTimeout(() => {
+        requestAnimationFrame(() => {
           if (sidebarScrollRef.current) {
             sidebarScrollRef.current.scrollTop = scrollPos;
           }
-        }, 0);
+        });
       } else {
         // If no saved position, scroll active item into view
         setTimeout(() => {
@@ -437,10 +438,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               const active = isActive(item.href);
               return (
                 <Link key={href} href={item.href} onClick={() => {
-                  // Store scroll position before navigating
                   if (sidebarScrollRef.current) {
-                    const scrollKey = `sidebar_scroll_${item.href}`;
-                    sessionStorage.setItem(scrollKey, String(sidebarScrollRef.current.scrollTop));
+                    sessionStorage.setItem("sidebar_scroll_position", String(sidebarScrollRef.current.scrollTop));
                   }
                   isMobile && setIsMobileMenuOpen(false);
                 }}>
@@ -559,10 +558,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
                     const itemNode = (
                       <Link key={item.href} href={item.href} onClick={() => {
-                        // Store scroll position before navigating
                         if (sidebarScrollRef.current) {
-                          const scrollKey = `sidebar_scroll_${item.href}`;
-                          sessionStorage.setItem(scrollKey, String(sidebarScrollRef.current.scrollTop));
+                          sessionStorage.setItem("sidebar_scroll_position", String(sidebarScrollRef.current.scrollTop));
                         }
                         isMobile && setIsMobileMenuOpen(false);
                       }}>
@@ -804,7 +801,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         className="hidden lg:block h-full z-20 shrink-0 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
         style={{ width: sidebarWidth }}
       >
-        <SidebarContent mini={collapsed} />
+        {SidebarContent({ mini: collapsed })}
       </div>
 
       {/* Mobile drawer overlay */}
@@ -831,7 +828,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               boxShadow: "4px 0 32px rgba(0,0,0,0.3)",
             }}
           >
-            <SidebarContent isMobile />
+            {SidebarContent({ isMobile: true })}
           </div>
         </div>
       )}

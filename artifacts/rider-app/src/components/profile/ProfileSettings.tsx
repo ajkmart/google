@@ -4,7 +4,7 @@ import { tDual, type TranslationKey } from "@workspace/i18n";
 
 interface ProfileSettingsProps {
   language: string;
-  setLanguage: (lang: "en" | "ur" | "roman" | "en_roman" | "en_ur") => void;
+  setLanguage: (lang: "en" | "ur" | "roman") => void;
   isDark: boolean;
   toggleDark: () => void;
   unread: number;
@@ -30,12 +30,12 @@ export function ProfileSettings({ language, setLanguage, isDark, toggleDark, unr
             <span className="text-sm font-semibold text-gray-800">{T("languageLabel")}</span>
           </div>
           <div className="flex flex-wrap bg-gray-100 rounded-xl p-0.5 gap-0.5">
-            {(["en","ur","roman","en_roman","en_ur"] as const).map(lang => (
+            {(["en","ur","roman"] as const).map(lang => (
               <button
                 key={lang}
                 onClick={() => setLanguage(lang)}
                 className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all ${language === lang ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"}`}>
-                {lang === "en" ? "EN" : lang === "ur" ? "اردو" : lang === "roman" ? "Roman" : lang === "en_roman" ? "EN+Ro" : "EN+اردو"}
+                {lang === "en" ? "EN" : lang === "ur" ? "اردو" : "Roman"}
               </button>
             ))}
           </div>

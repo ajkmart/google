@@ -14,7 +14,7 @@ const LS_KEY = "ajkmart_vendor_lang";
 function applyRTL(lang: Language) {
   const dir = isRTL(lang) ? "rtl" : "ltr";
   document.documentElement.setAttribute("dir", dir);
-  document.documentElement.setAttribute("lang", lang === "ur" || lang === "en_ur" ? "ur" : "en");
+  document.documentElement.setAttribute("lang", lang === "ur" ? "ur" : "en");
 }
 
 function readLocalLang(): Language {

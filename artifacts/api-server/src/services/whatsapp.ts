@@ -21,8 +21,6 @@ function toWhatsAppLangCode(lang?: string): string {
   switch (lang) {
     case "ur":      return "ur";
     case "roman":
-    case "en_roman":
-    case "en_ur":
     case "en":
     default:        return "en";
   }

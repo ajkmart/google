@@ -1,4 +1,4 @@
-import { useState, ReactNode } from "react";
+import { useState, ReactNode, Fragment } from "react";
 import {
   Info, Shield, Gift, Globe, MessageSquare, Package, ShoppingCart,
   AlertTriangle, CheckCircle2, ShieldCheck, UserPlus, Zap,
@@ -417,7 +417,7 @@ export function renderSection(
             <ChevronDown size={13} className="ml-auto text-slate-400 transition-transform group-open/core:rotate-0 -rotate-90" />
           </summary>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {coreServices.map(f => <FTog key={f.fkey} {...f} />)}
+            {coreServices.map(f => <Fragment key={f.fkey}>{FTog({ ...f })}</Fragment>)}
           </div>
         </details>
 
@@ -429,7 +429,7 @@ export function renderSection(
             <ChevronDown size={13} className="ml-auto text-slate-400 transition-transform group-open/account:rotate-0 -rotate-90" />
           </summary>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {accountFeatures.map(f => <FTog key={f.fkey} {...f} />)}
+            {accountFeatures.map(f => <Fragment key={f.fkey}>{FTog({ ...f })}</Fragment>)}
           </div>
         </details>
 
@@ -441,7 +441,7 @@ export function renderSection(
             <ChevronDown size={13} className="ml-auto text-slate-400 transition-transform group-open/experience:rotate-0 -rotate-90" />
           </summary>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {experienceFeatures.map(f => <FTog key={f.fkey} {...f} />)}
+            {experienceFeatures.map(f => <Fragment key={f.fkey}>{FTog({ ...f })}</Fragment>)}
           </div>
         </details>
 
@@ -594,7 +594,7 @@ export function renderSection(
         <div className="border-t border-border/40 pt-5">
           <SLabel icon={MessageSquare}>App Messaging</SLabel>
           <div className="grid grid-cols-1 gap-4">
-            {msgFields.map(s => <ContentField key={s.key} s={s} />)}
+            {msgFields.map(s => <Fragment key={s.key}>{ContentField({ s: s })}</Fragment>)}
           </div>
         </div>
 
@@ -602,7 +602,7 @@ export function renderSection(
         <div className="border-t border-border/40 pt-5">
           <SLabel icon={Info}>Role-Specific Notices</SLabel>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {noticeFields.map(s => <ContentField key={s.key} s={s} />)}
+            {noticeFields.map(s => <Fragment key={s.key}>{ContentField({ s: s })}</Fragment>)}
           </div>
           <div className="mt-3 rounded-xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-700 flex gap-2">
             <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -614,7 +614,7 @@ export function renderSection(
         <div className="border-t border-border/40 pt-5">
           <SLabel icon={FileText}>Legal & Policy Links</SLabel>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {linkFields.map(s => <ContentField key={s.key} s={s} />)}
+            {linkFields.map(s => <Fragment key={s.key}>{ContentField({ s: s })}</Fragment>)}
           </div>
           <div className="mt-3 rounded-xl bg-gray-50 border border-border p-3 text-xs text-muted-foreground flex gap-2">
             <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -828,7 +828,7 @@ export function renderSection(
           <SLabel icon={BarChart3}>Revenue &amp; Commission</SLabel>
           <p className="text-xs text-muted-foreground -mt-1">Platform commission is the cut AJKMart takes from every order. Vendor and rider shares are configured in their respective sections and shown here for reference.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {commFields.map(s => <FinNumField key={s.key} s={s} />)}
+            {commFields.map(s => <Fragment key={s.key}>{FinNumField({ s: s })}</Fragment>)}
             <RefInfoCard label="Vendor Commission %" value={`${vendorCommVal}%`} detail="Vendor pays this % of order value to platform" linkCat="Vendor" />
             <RefInfoCard label="Rider Earning %" value={`${riderEarnVal}%`} detail="Rider keeps this % of the delivery fee earned" linkCat="Rider" />
           </div>
@@ -845,9 +845,9 @@ export function renderSection(
           <SLabel icon={FileText}>Tax &amp; Invoicing</SLabel>
           <p className="text-xs text-muted-foreground -mt-1">When GST is enabled, a tax line is automatically added to the customer cart breakdown. Invoice generation creates PDFs on order completion.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {taxFields.map(s => TOGGLE_KEYS.has(s.key) ? <FinToggle key={s.key} s={s} /> : <FinNumField key={s.key} s={s} />)}
+            {taxFields.map(s => TOGGLE_KEYS.has(s.key) ? <Fragment key={s.key}>{FinToggle({ s: s })}</Fragment> : <Fragment key={s.key}>{FinNumField({ s: s })}</Fragment>)}
           </div>
-          {invoiceField.map(s => <FinToggle key={s.key} s={s} />)}
+          {invoiceField.map(s => <Fragment key={s.key}>{FinToggle({ s: s })}</Fragment>)}
         </div>
 
         {/* ── Group 3: Payout Rules ── */}
@@ -881,7 +881,7 @@ export function renderSection(
           <SLabel icon={Banknote}>Cashback &amp; Rewards</SLabel>
           <p className="text-xs text-muted-foreground -mt-1">When cashback is active, customers earn a wallet bonus on every successfully delivered order. The preview is shown in the customer cart.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {cashFields.map(s => TOGGLE_KEYS.has(s.key) ? <FinToggle key={s.key} s={s} /> : <FinNumField key={s.key} s={s} />)}
+            {cashFields.map(s => TOGGLE_KEYS.has(s.key) ? <Fragment key={s.key}>{FinToggle({ s: s })}</Fragment> : <Fragment key={s.key}>{FinNumField({ s: s })}</Fragment>)}
           </div>
         </div>
       </div>
@@ -961,7 +961,7 @@ export function renderSection(
           <SLabel icon={Truck}>Per-Service Delivery Fees</SLabel>
           <p className="text-xs text-muted-foreground -mt-1">Flat delivery fee charged to customers per service type. Fees are collected at checkout and the rider earns their configured percentage from each delivery fee.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {feeFields.map(s => <DeliveryNumField key={s.key} s={s} />)}
+            {feeFields.map(s => <Fragment key={s.key}>{DeliveryNumField({ s: s })}</Fragment>)}
           </div>
           <div className="bg-teal-50 border border-teal-100 rounded-xl p-3.5 flex gap-2.5">
             <Info className="w-4 h-4 text-teal-500 flex-shrink-0 mt-0.5" />
@@ -982,8 +982,8 @@ export function renderSection(
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {freeFields.map(s =>
               s.key === "delivery_free_enabled"
-                ? <DeliveryToggle key={s.key} s={s} />
-                : freeEnabled ? <DeliveryNumField key={s.key} s={s} /> : null
+                ? <Fragment key={s.key}>{DeliveryToggle({ s: s })}</Fragment>
+                : freeEnabled ? <Fragment key={s.key}>{DeliveryNumField({ s: s })}</Fragment> : null
             )}
           </div>
           {!freeEnabled && (
@@ -1163,7 +1163,7 @@ export function renderSection(
           <SLabel icon={Bike}>Bike / Motorcycle Pricing</SLabel>
           <p className="text-xs text-muted-foreground -mt-1">Rates applied to all two-wheeler bookings. Minimum fare acts as a floor — short trips will be charged at least this amount.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {bikeFields.map(s => <RideNumField key={s.key} s={s} />)}
+            {bikeFields.map(s => <Fragment key={s.key}>{RideNumField({ s: s })}</Fragment>)}
           </div>
           <div className="bg-teal-50 border border-teal-100 rounded-xl p-3.5 flex gap-2.5">
             <Info className="w-4 h-4 text-teal-500 flex-shrink-0 mt-0.5" />
@@ -1183,7 +1183,7 @@ export function renderSection(
           <SLabel icon={Car}>Car / Taxi Pricing</SLabel>
           <p className="text-xs text-muted-foreground -mt-1">Rates applied to all four-wheeler bookings. Car minimum fare is typically higher to cover fuel and vehicle costs.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {carFields.map(s => <RideNumField key={s.key} s={s} />)}
+            {carFields.map(s => <Fragment key={s.key}>{RideNumField({ s: s })}</Fragment>)}
           </div>
           <div className="bg-teal-50 border border-teal-100 rounded-xl p-3.5 flex gap-2.5">
             <Info className="w-4 h-4 text-teal-500 flex-shrink-0 mt-0.5" />
@@ -1205,7 +1205,7 @@ export function renderSection(
           {rickshawFields.length > 0 ? (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {rickshawFields.map(s => <RideNumField key={s.key} s={s} />)}
+                {rickshawFields.map(s => <Fragment key={s.key}>{RideNumField({ s: s })}</Fragment>)}
               </div>
               <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-3.5 flex gap-2.5">
                 <Info className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />
@@ -1234,7 +1234,7 @@ export function renderSection(
           {dabaFields.length > 0 ? (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {dabaFields.map(s => <RideNumField key={s.key} s={s} />)}
+                {dabaFields.map(s => <Fragment key={s.key}>{RideNumField({ s: s })}</Fragment>)}
               </div>
               <div className="bg-purple-50 border border-purple-100 rounded-xl p-3.5 flex gap-2.5">
                 <Info className="w-4 h-4 text-purple-500 flex-shrink-0 mt-0.5" />
@@ -1280,8 +1280,8 @@ export function renderSection(
           <SLabel icon={Zap}>Surge &amp; Ride Rules</SLabel>
           <p className="text-xs text-muted-foreground -mt-1">Surge pricing multiplies all fares during peak demand. Cancellation fee is charged when a customer cancels after a driver has accepted.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {rulesFields.filter(s => TOGGLE_KEYS.has(s.key)).map(s => <RideToggle key={s.key} s={s} />)}
-            {rulesFields.filter(s => !TOGGLE_KEYS.has(s.key) && (s.key !== "ride_surge_multiplier" || surgeOn)).map(s => <RideNumField key={s.key} s={s} />)}
+            {rulesFields.filter(s => TOGGLE_KEYS.has(s.key)).map(s => <Fragment key={s.key}>{RideToggle({ s: s })}</Fragment>)}
+            {rulesFields.filter(s => !TOGGLE_KEYS.has(s.key) && (s.key !== "ride_surge_multiplier" || surgeOn)).map(s => <Fragment key={s.key}>{RideNumField({ s: s })}</Fragment>)}
           </div>
           {surgeOn && (
             <div className="bg-orange-50 border border-orange-200 rounded-xl p-3.5 flex gap-2.5">
@@ -1313,7 +1313,7 @@ export function renderSection(
           {bargainOn && (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {bargainFields.filter(s => !TOGGLE_KEYS.has(s.key)).map(s => <RideNumField key={s.key} s={s} />)}
+                {bargainFields.filter(s => !TOGGLE_KEYS.has(s.key)).map(s => <Fragment key={s.key}>{RideNumField({ s: s })}</Fragment>)}
               </div>
               <div className="bg-purple-50 border border-purple-200 rounded-xl p-3.5 flex gap-2.5">
                 <Info className="w-4 h-4 text-purple-500 flex-shrink-0 mt-0.5" />
@@ -1401,7 +1401,7 @@ export function renderSection(
           <div className="space-y-3">
             <SLabel icon={Banknote}>Amount Limits</SLabel>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {amountFields.map(s => <OrderNumField key={s.key} s={s} />)}
+              {amountFields.map(s => <Fragment key={s.key}>{OrderNumField({ s: s })}</Fragment>)}
             </div>
           </div>
         )}
@@ -1411,7 +1411,7 @@ export function renderSection(
           <div className="space-y-3 border-t border-border/40 pt-5">
             <SLabel icon={RotateCcw}>Timing & Cancellation</SLabel>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {timingFields.map(s => <OrderNumField key={s.key} s={s} />)}
+              {timingFields.map(s => <Fragment key={s.key}>{OrderNumField({ s: s })}</Fragment>)}
             </div>
           </div>
         )}
@@ -1422,7 +1422,7 @@ export function renderSection(
             <SLabel icon={Package}>Item Quantity Limits</SLabel>
             <p className="text-xs text-muted-foreground -mt-1">Control how many units a customer can order per line item</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {itemFields.map(s => <OrderNumField key={s.key} s={s} />)}
+              {itemFields.map(s => <Fragment key={s.key}>{OrderNumField({ s: s })}</Fragment>)}
             </div>
           </div>
         )}
@@ -1524,8 +1524,8 @@ export function renderSection(
         {/* ── Group 1: Account Controls ── */}
         <Group icon={Users} iconCls="bg-blue-100 text-blue-600" title="Account Controls" subtitle="Per-customer limits and onboarding incentives">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field k="customer_max_orders_day" label="Max Orders Per Day" suffix="orders" min={1} />
-            <Field k="customer_signup_bonus"   label="New User Signup Bonus" suffix="Rs." min={0} />
+            {Field({ k: "customer_max_orders_day", label: "Max Orders Per Day", suffix: "orders", min: 1 })}
+            {Field({ k: "customer_signup_bonus", label: "New User Signup Bonus", suffix: "Rs.", min: 0 })}
           </div>
           <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
             <ShieldCheck size={15} className="text-blue-500 mt-0.5 shrink-0" />
@@ -1539,11 +1539,11 @@ export function renderSection(
         {/* ── Group 2: Wallet Limits ── */}
         <Group icon={Wallet} iconCls="bg-emerald-100 text-emerald-600" title="Wallet Limits" subtitle="Top-up, balance cap, and P2P transfer rules">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Field k="wallet_min_topup"      label="Min Top-Up (Rs.)"        suffix="Rs." min={1} />
-            <Field k="wallet_max_balance"    label="Max Wallet Balance (Rs.)" suffix="Rs." min={100} />
-            <Field k="wallet_min_withdrawal" label="Min Transfer (Rs.)"       suffix="Rs." min={1} />
+            {Field({ k: "wallet_min_topup", label: "Min Top-Up (Rs.)", suffix: "Rs.", min: 1 })}
+            {Field({ k: "wallet_max_balance", label: "Max Wallet Balance (Rs.)", suffix: "Rs.", min: 100 })}
+            {Field({ k: "wallet_min_withdrawal", label: "Min Transfer (Rs.)", suffix: "Rs.", min: 1 })}
           </div>
-          <Tog k="wallet_p2p_enabled" label="P2P Money Transfer" sub="Customers can send wallet balance to each other" dangerOff />
+          {Tog({ k: "wallet_p2p_enabled", label: "P2P Money Transfer", sub: "Customers can send wallet balance to each other", dangerOff: true })}
           {/* Wallet Limits Overview */}
           <div>
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Wallet Limits Overview</p>
@@ -1575,8 +1575,8 @@ export function renderSection(
 
         {/* ── Group 3: Referral Program ── */}
         <Group icon={Gift} iconCls="bg-purple-100 text-purple-600" title="Referral Program" subtitle="Reward customers for inviting new users">
-          <Tog k="customer_referral_enabled" label="Referral Program" sub="Enable refer-a-friend bonus system" dangerOff />
-          <Field k="customer_referral_bonus" label="Referral Bonus (Rs.)" suffix="Rs." min={0} disabled={!referralEnabled} />
+          {Tog({ k: "customer_referral_enabled", label: "Referral Program", sub: "Enable refer-a-friend bonus system", dangerOff: true })}
+          {Field({ k: "customer_referral_bonus", label: "Referral Bonus (Rs.)", suffix: "Rs.", min: 0, disabled: !referralEnabled })}
           <div className={`flex items-start gap-3 rounded-xl px-4 py-3 border ${referralEnabled ? "bg-purple-50 border-purple-200" : "bg-muted/20 border-border"}`}>
             <Gift size={14} className={`mt-0.5 shrink-0 ${referralEnabled ? "text-purple-500" : "text-muted-foreground"}`} />
             <div className={`text-xs space-y-0.5 ${referralEnabled ? "text-purple-700" : "text-muted-foreground"}`}>
@@ -1605,12 +1605,12 @@ export function renderSection(
         {/* ── Group 5: Cashback Settings ── */}
         <Group icon={Percent} iconCls="bg-rose-100 text-rose-600" title="Cashback Settings" subtitle="Cashback applied per order category">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Tog k="wallet_cashback_on_orders"   label="Cashback on Mart/Food" sub="Orders only" />
-            <Tog k="wallet_cashback_on_rides"    label="Cashback on Rides"     sub="Bike & car" />
-            <Tog k="wallet_cashback_on_pharmacy" label="Cashback on Pharmacy"  sub="Medicine orders" />
+            {Tog({ k: "wallet_cashback_on_orders", label: "Cashback on Mart/Food", sub: "Orders only" })}
+            {Tog({ k: "wallet_cashback_on_rides", label: "Cashback on Rides", sub: "Bike & car" })}
+            {Tog({ k: "wallet_cashback_on_pharmacy", label: "Cashback on Pharmacy", sub: "Medicine orders" })}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field k="wallet_cashback_pct" label="Cashback %" suffix="%" min={0} />
+            {Field({ k: "wallet_cashback_pct", label: "Cashback %", suffix: "%", min: 0 })}
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-foreground">Max Cashback Cap</label>
               <div className="h-10 rounded-xl border border-border bg-muted/20 px-4 flex items-center">
@@ -1703,8 +1703,8 @@ export function renderSection(
           <SLabel icon={Zap}>Earnings & Compensation</SLabel>
           <p className="text-xs text-muted-foreground -mt-1">What riders earn per delivery and any per-trip bonus on top</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <RField k="rider_keep_pct" label="Rider Earnings % (of fare)" suffix="%" hint="Rider keeps this % of the delivery fee or ride fare earned" />
-            <RField k="rider_bonus_per_trip" label="Bonus Per Trip (Rs.)" suffix="Rs." hint="Fixed bonus credited for every completed delivery or ride — set 0 to disable" />
+            {RField({ k: "rider_keep_pct", label: "Rider Earnings % (of fare)", suffix: "%", hint: "Rider keeps this % of the delivery fee or ride fare earned" })}
+            {RField({ k: "rider_bonus_per_trip", label: "Bonus Per Trip (Rs.)", suffix: "Rs.", hint: "Fixed bonus credited for every completed delivery or ride — set 0 to disable" })}
           </div>
 
           {/* Earnings Split Visualizer */}
@@ -1736,8 +1736,8 @@ export function renderSection(
           <SLabel icon={Banknote}>Payout Rules</SLabel>
           <p className="text-xs text-muted-foreground -mt-1">Minimum and maximum withdrawal limits per request</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <RField k="rider_min_payout" label="Minimum Payout Request (Rs.)" suffix="Rs." hint="Rider cannot submit a withdrawal below this amount" />
-            <RField k="rider_max_payout" label="Maximum Single Payout (Rs.)" suffix="Rs." hint="Cap per withdrawal request — prevents large one-time draws" />
+            {RField({ k: "rider_min_payout", label: "Minimum Payout Request (Rs.)", suffix: "Rs.", hint: "Rider cannot submit a withdrawal below this amount" })}
+            {RField({ k: "rider_max_payout", label: "Maximum Single Payout (Rs.)", suffix: "Rs.", hint: "Cap per withdrawal request — prevents large one-time draws" })}
           </div>
           {minPayout > maxPayout && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
@@ -1752,8 +1752,8 @@ export function renderSection(
           <SLabel icon={ShoppingCart}>Operational Limits</SLabel>
           <p className="text-xs text-muted-foreground -mt-1">Platform-wide limits enforced at the API level for all riders</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <RField k="rider_max_deliveries" label="Max Active Deliveries" suffix="#" hint="Maximum simultaneous deliveries/rides a rider can accept — enforced at accept time" />
-            <RField k="rider_acceptance_km" label="Acceptance Radius" suffix="KM" hint="Max distance (km) from rider's location to accept an order or ride" />
+            {RField({ k: "rider_max_deliveries", label: "Max Active Deliveries", suffix: "#", hint: "Maximum simultaneous deliveries/rides a rider can accept — enforced at accept time" })}
+            {RField({ k: "rider_acceptance_km", label: "Acceptance Radius", suffix: "KM", hint: "Max distance (km) from rider's location to accept an order or ride" })}
           </div>
           <div className="bg-gray-50 rounded-xl p-3 flex items-start gap-2">
             <Package className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
@@ -1961,8 +1961,8 @@ export function renderSection(
           <SLabel icon={Zap}>Commission & Revenue Split</SLabel>
           <p className="text-xs text-muted-foreground -mt-1">How earnings are split between vendors and the platform</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <VField k="vendor_commission_pct" label="Platform Commission (%)" suffix="%" hint="Platform keeps this % of every vendor order value" />
-            <VField k="vendor_settlement_days" label="Settlement Cycle (Days)" suffix="days" hint="Days after order completion before vendor earnings settle" />
+            {VField({ k: "vendor_commission_pct", label: "Platform Commission (%)", suffix: "%", hint: "Platform keeps this % of every vendor order value" })}
+            {VField({ k: "vendor_settlement_days", label: "Settlement Cycle (Days)", suffix: "days", hint: "Days after order completion before vendor earnings settle" })}
           </div>
 
           {/* Revenue Split Visualizer */}
@@ -1994,8 +1994,8 @@ export function renderSection(
           <SLabel icon={Banknote}>Payout Rules</SLabel>
           <p className="text-xs text-muted-foreground -mt-1">Minimum and maximum withdrawal request amounts</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <VField k="vendor_min_payout" label="Minimum Payout Request (Rs.)" suffix="Rs." hint="Vendor cannot submit a withdrawal below this amount" />
-            <VField k="vendor_max_payout" label="Maximum Single Payout (Rs.)" suffix="Rs." hint="Cap per withdrawal request — prevents large one-time draws" />
+            {VField({ k: "vendor_min_payout", label: "Minimum Payout Request (Rs.)", suffix: "Rs.", hint: "Vendor cannot submit a withdrawal below this amount" })}
+            {VField({ k: "vendor_max_payout", label: "Maximum Single Payout (Rs.)", suffix: "Rs.", hint: "Cap per withdrawal request — prevents large one-time draws" })}
           </div>
           {minPayout > maxPayout && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
@@ -2010,9 +2010,9 @@ export function renderSection(
           <SLabel icon={ShoppingCart}>Store Rules</SLabel>
           <p className="text-xs text-muted-foreground -mt-1">Platform-wide limits applied to all vendor stores</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <VField k="vendor_min_order" label="Default Minimum Order (Rs.)" suffix="Rs." hint="Vendors set their own min order — this is the platform floor" />
-            <VField k="vendor_max_items" label="Max Menu Items Per Vendor" suffix="items" hint="Product/menu listing cap enforced at API level" />
-            <VField k="low_stock_threshold" label="Low Stock Alert Threshold" suffix="units" hint="Vendor dashboard shows a warning when stock falls below this number" />
+            {VField({ k: "vendor_min_order", label: "Default Minimum Order (Rs.)", suffix: "Rs.", hint: "Vendors set their own min order — this is the platform floor" })}
+            {VField({ k: "vendor_max_items", label: "Max Menu Items Per Vendor", suffix: "items", hint: "Product/menu listing cap enforced at API level" })}
+            {VField({ k: "low_stock_threshold", label: "Low Stock Alert Threshold", suffix: "units", hint: "Vendor dashboard shows a warning when stock falls below this number" })}
           </div>
           <div className="bg-gray-50 rounded-xl p-3 flex items-start gap-2">
             <Package className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
@@ -2125,26 +2125,26 @@ export function renderSection(
           <SLabel icon={MessageSquare}>Email Templates</SLabel>
           <p className="text-xs text-muted-foreground mb-3">HTML templates for transactional emails. Use {"{link}"}, {"{otp}"}, {"{userName}"}, {"{appName}"} as placeholders.</p>
           <div className="space-y-4">
-            <NField k="email_template_verify_html" label="Verification Email HTML" hint="Sent when a user registers — include {link} placeholder" rows={5} />
-            <NField k="email_template_reset_html" label="Password Reset Email HTML" hint="Sent for password reset — include {otp} placeholder" rows={5} />
-            <NField k="email_template_magic_html" label="Magic Link Email HTML" hint="Passwordless login email — include {link} placeholder" rows={5} />
+            {NField({ k: "email_template_verify_html", label: "Verification Email HTML", hint: "Sent when a user registers — include {link} placeholder", rows: 5 })}
+            {NField({ k: "email_template_reset_html", label: "Password Reset Email HTML", hint: "Sent for password reset — include {otp} placeholder", rows: 5 })}
+            {NField({ k: "email_template_magic_html", label: "Magic Link Email HTML", hint: "Passwordless login email — include {link} placeholder", rows: 5 })}
           </div>
         </div>
         <div className="border-t border-border/40 pt-5">
           <SLabel icon={MessageSquare}>Push Notification Text</SLabel>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <NField k="notif_text_ride_request" label="Ride Request Notification" hint="Sent to rider when a new ride is available" />
-            <NField k="notif_text_order_update" label="Order Status Update" hint="Sent to customer when order status changes" />
+            {NField({ k: "notif_text_ride_request", label: "Ride Request Notification", hint: "Sent to rider when a new ride is available" })}
+            {NField({ k: "notif_text_order_update", label: "Order Status Update", hint: "Sent to customer when order status changes" })}
           </div>
         </div>
         <div className="border-t border-border/40 pt-5">
           <SLabel icon={AlertTriangle}>Fraud Alert Thresholds</SLabel>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <NField k="alert_high_value_threshold" label="High Value Order Threshold (Rs.)" hint="Orders above this trigger admin alert" />
-            <NField k="fraud_same_address_limit" label="Same Address Limit" hint="Max orders from same address before flagging" />
-            <NField k="fraud_gps_mismatch_threshold_m" label="GPS Mismatch Threshold (m)" hint="Distance mismatch that triggers GPS fraud flag" />
-            <NField k="fraud_new_account_order_limit" label="New Account Order Limit" hint="Max orders for accounts under 24h old" />
-            <NField k="fraud_daily_order_limit" label="Daily Order Limit" hint="Max orders per user per day before review" />
+            {NField({ k: "alert_high_value_threshold", label: "High Value Order Threshold (Rs.)", hint: "Orders above this trigger admin alert" })}
+            {NField({ k: "fraud_same_address_limit", label: "Same Address Limit", hint: "Max orders from same address before flagging" })}
+            {NField({ k: "fraud_gps_mismatch_threshold_m", label: "GPS Mismatch Threshold (m)", hint: "Distance mismatch that triggers GPS fraud flag" })}
+            {NField({ k: "fraud_new_account_order_limit", label: "New Account Order Limit", hint: "Max orders for accounts under 24h old" })}
+            {NField({ k: "fraud_daily_order_limit", label: "Daily Order Limit", hint: "Max orders per user per day before review" })}
           </div>
         </div>
       </div>
@@ -2178,16 +2178,16 @@ export function renderSection(
         <div>
           <SLabel icon={Package}>File Size Limits</SLabel>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <UField k="upload_max_image_mb" label="Max Image Size" suffix="MB" hint="Maximum file size for image uploads" />
-            <UField k="upload_max_video_mb" label="Max Video Size" suffix="MB" hint="Maximum file size for video uploads" />
-            <UField k="upload_max_video_duration_sec" label="Max Video Duration" suffix="sec" hint="Maximum video length in seconds" />
+            {UField({ k: "upload_max_image_mb", label: "Max Image Size", suffix: "MB", hint: "Maximum file size for image uploads" })}
+            {UField({ k: "upload_max_video_mb", label: "Max Video Size", suffix: "MB", hint: "Maximum file size for video uploads" })}
+            {UField({ k: "upload_max_video_duration_sec", label: "Max Video Duration", suffix: "sec", hint: "Maximum video length in seconds" })}
           </div>
         </div>
         <div className="border-t border-border/40 pt-5">
           <SLabel icon={FileText}>Allowed Formats</SLabel>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <UField k="upload_allowed_image_formats" label="Image Formats" hint="Comma-separated, e.g. jpg,png,webp" />
-            <UField k="upload_allowed_video_formats" label="Video Formats" hint="Comma-separated, e.g. mp4,mov" />
+            {UField({ k: "upload_allowed_image_formats", label: "Image Formats", hint: "Comma-separated, e.g. jpg,png,webp" })}
+            {UField({ k: "upload_allowed_video_formats", label: "Video Formats", hint: "Comma-separated, e.g. mp4,mov" })}
           </div>
         </div>
       </div>
@@ -2218,10 +2218,10 @@ export function renderSection(
         <div>
           <SLabel icon={BarChart3}>Product Listing Limits</SLabel>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <PField k="pagination_products_default" label="Products Per Page (Default)" hint="Default page size for product listings" />
-            <PField k="pagination_products_max" label="Products Per Page (Max)" hint="Maximum page size a client can request" />
-            <PField k="pagination_trending_limit" label="Trending Searches Shown" hint="Number of trending search terms displayed" />
-            <PField k="pagination_flash_deals" label="Flash Deals Per Page" hint="Number of flash deal items shown per page" />
+            {PField({ k: "pagination_products_default", label: "Products Per Page (Default)", hint: "Default page size for product listings" })}
+            {PField({ k: "pagination_products_max", label: "Products Per Page (Max)", hint: "Maximum page size a client can request" })}
+            {PField({ k: "pagination_trending_limit", label: "Trending Searches Shown", hint: "Number of trending search terms displayed" })}
+            {PField({ k: "pagination_flash_deals", label: "Flash Deals Per Page", hint: "Number of flash deal items shown per page" })}
           </div>
         </div>
       </div>
@@ -2255,19 +2255,19 @@ export function renderSection(
         <div>
           <SLabel icon={Car}>Booking Rules</SLabel>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <VField k="van_min_advance_hours" label="Min Advance Booking" suffix="hrs" hint="How many hours before departure a booking must be made" />
-            <VField k="van_max_seats_per_booking" label="Max Seats Per Booking" suffix="seats" hint="Maximum seats one customer can book at once" />
-            <VField k="van_cancellation_window_hours" label="Cancellation Window" suffix="hrs" hint="Hours before departure that free cancellation is allowed" />
-            <VField k="van_seat_hold_minutes" label="Seat Hold Duration" suffix="min" hint="Minutes a seat is held during unpaid checkout" />
+            {VField({ k: "van_min_advance_hours", label: "Min Advance Booking", suffix: "hrs", hint: "How many hours before departure a booking must be made" })}
+            {VField({ k: "van_max_seats_per_booking", label: "Max Seats Per Booking", suffix: "seats", hint: "Maximum seats one customer can book at once" })}
+            {VField({ k: "van_cancellation_window_hours", label: "Cancellation Window", suffix: "hrs", hint: "Hours before departure that free cancellation is allowed" })}
+            {VField({ k: "van_seat_hold_minutes", label: "Seat Hold Duration", suffix: "min", hint: "Minutes a seat is held during unpaid checkout" })}
           </div>
         </div>
         <div className="border-t border-border/40 pt-5">
           <SLabel icon={Shield}>Refund & Passenger Rules</SLabel>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <VField k="van_refund_type" label="Refund Type" hint="full or partial — type of refund on cancellation" />
-            <VField k="van_refund_partial_pct" label="Partial Refund %" suffix="%" hint="Percentage refunded if refund type is partial" />
-            <VField k="van_min_passengers" label="Min Passengers to Depart" suffix="pax" hint="Minimum passengers required or trip may be cancelled" />
-            <VField k="van_min_check_hours_before" label="Min Passenger Check Before" suffix="hrs" hint="Hours before departure to check minimum passengers" />
+            {VField({ k: "van_refund_type", label: "Refund Type", hint: "full or partial — type of refund on cancellation" })}
+            {VField({ k: "van_refund_partial_pct", label: "Partial Refund %", suffix: "%", hint: "Percentage refunded if refund type is partial" })}
+            {VField({ k: "van_min_passengers", label: "Min Passengers to Depart", suffix: "pax", hint: "Minimum passengers required or trip may be cancelled" })}
+            {VField({ k: "van_min_check_hours_before", label: "Min Passenger Check Before", suffix: "hrs", hint: "Hours before departure to check minimum passengers" })}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
             <Toggle checked={(localValues["van_auto_notify_cancel"] ?? "on") === "on"} isDirty={d("van_auto_notify_cancel")}
@@ -2281,18 +2281,18 @@ export function renderSection(
         <div className="border-t border-border/40 pt-5">
           <SLabel icon={Truck}>Driver Limits</SLabel>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <VField k="van_max_driver_trips_day" label="Max Driver Trips/Day" suffix="trips" hint="Maximum trips a driver can make per day" />
-            <VField k="van_driver_rest_hours" label="Driver Rest Between Trips" suffix="hrs" hint="Mandatory rest period between trips" />
+            {VField({ k: "van_max_driver_trips_day", label: "Max Driver Trips/Day", suffix: "trips", hint: "Maximum trips a driver can make per day" })}
+            {VField({ k: "van_driver_rest_hours", label: "Driver Rest Between Trips", suffix: "hrs", hint: "Mandatory rest period between trips" })}
           </div>
         </div>
         <div className="border-t border-border/40 pt-5">
           <SLabel icon={Percent}>Pricing Surcharges</SLabel>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <VField k="van_peak_surcharge_pct" label="Peak Hours Surcharge" suffix="%" hint="Extra charge during peak hours" />
-            <VField k="van_peak_hours" label="Peak Hours" hint="Comma-separated hours, e.g. 7,8,9,17,18" />
-            <VField k="van_weekend_surcharge_pct" label="Weekend Surcharge" suffix="%" hint="Extra charge on weekends" />
-            <VField k="van_holiday_surcharge_pct" label="Holiday Surcharge" suffix="%" hint="Extra charge on holidays" />
-            <VField k="van_holiday_dates" label="Holiday Dates" hint="Comma-separated YYYY-MM-DD dates" />
+            {VField({ k: "van_peak_surcharge_pct", label: "Peak Hours Surcharge", suffix: "%", hint: "Extra charge during peak hours" })}
+            {VField({ k: "van_peak_hours", label: "Peak Hours", hint: "Comma-separated hours, e.g. 7,8,9,17,18" })}
+            {VField({ k: "van_weekend_surcharge_pct", label: "Weekend Surcharge", suffix: "%", hint: "Extra charge on weekends" })}
+            {VField({ k: "van_holiday_surcharge_pct", label: "Holiday Surcharge", suffix: "%", hint: "Extra charge on holidays" })}
+            {VField({ k: "van_holiday_dates", label: "Holiday Dates", hint: "Comma-separated YYYY-MM-DD dates" })}
           </div>
         </div>
       </div>
@@ -2434,7 +2434,7 @@ export function renderSection(
       )}
       {inputs.length > 0 && (
         <div className={`grid grid-cols-1 sm:grid-cols-2 gap-5 ${toggles.length > 0 ? "border-t border-border/40 pt-4" : ""}`}>
-          {inputs.map(s => <NumField key={s.key} s={s} />)}
+          {inputs.map(s => <Fragment key={s.key}>{NumField({ s: s })}</Fragment>)}
         </div>
       )}
     </div>

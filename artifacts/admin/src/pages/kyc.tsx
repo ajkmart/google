@@ -608,17 +608,17 @@ export default function KycPage() {
             {/* Header */}
             <div className="grid grid-cols-12 gap-4 px-5 py-3 bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider">
               <button onClick={() => handleKycSort("userName")} className="col-span-3 flex items-center gap-0.5 hover:text-blue-600 transition-colors text-left">
-                User<KycSortIcon col="userName" />
+                User{KycSortIcon({ col: "userName" })}
               </button>
               <div className="col-span-3">CNIC / Name</div>
               <button onClick={() => handleKycSort("city")} className="col-span-2 flex items-center gap-0.5 hover:text-blue-600 transition-colors text-left">
-                City<KycSortIcon col="city" />
+                City{KycSortIcon({ col: "city" })}
               </button>
               <button onClick={() => handleKycSort("status")} className="col-span-2 flex items-center gap-0.5 hover:text-blue-600 transition-colors text-left">
-                Status<KycSortIcon col="status" />
+                Status{KycSortIcon({ col: "status" })}
               </button>
               <button onClick={() => handleKycSort("submittedAt")} className="col-span-2 flex items-center gap-0.5 hover:text-blue-600 transition-colors text-left">
-                Submitted<KycSortIcon col="submittedAt" />
+                Submitted{KycSortIcon({ col: "submittedAt" })}
               </button>
             </div>
             {sortedRecords.map(rec => {

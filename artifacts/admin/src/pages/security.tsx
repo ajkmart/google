@@ -519,16 +519,16 @@ export default function SecurityPage() {
 
           <SecPanel title="Multi-Factor Authentication (Policy)" icon={Shield} color="text-indigo-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <T k="security_mfa_required" label="Two-Factor Auth for Admin Login" sub="Adds TOTP code requirement at every login" />
-              <T k="security_multi_device" label="Allow Multiple Device Logins"    sub="One active session or concurrent devices" />
+              {T({ k: "security_mfa_required", label: "Two-Factor Auth for Admin Login", sub: "Adds TOTP code requirement at every login" })}
+              {T({ k: "security_multi_device", label: "Allow Multiple Device Logins", sub: "One active session or concurrent devices" })}
             </div>
           </SecPanel>
 
           <SecPanel title="Session & Token Expiry" icon={Lock} color="text-indigo-700">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <N k="security_session_days"     label="Customer Session Expiry" suffix="days" placeholder="30" />
-              <N k="security_admin_token_hrs"  label="Admin Token Expiry"      suffix="hrs"  placeholder="24" hint="24 hrs = 1 day" />
-              <N k="security_rider_token_days" label="Rider Token Expiry"      suffix="days" placeholder="30" />
+              {N({ k: "security_session_days", label: "Customer Session Expiry", suffix: "days", placeholder: "30" })}
+              {N({ k: "security_admin_token_hrs", label: "Admin Token Expiry", suffix: "hrs", placeholder: "24", hint: "24 hrs = 1 day" })}
+              {N({ k: "security_rider_token_days", label: "Rider Token Expiry", suffix: "days", placeholder: "30" })}
             </div>
           </SecPanel>
 
@@ -538,11 +538,11 @@ export default function SecurityPage() {
               <span>After <strong>Max Attempts</strong> failures, the account is locked for <strong>Lockout Duration</strong>. Applies to customer, rider, and vendor logins.</span>
             </div>
             <div className="mb-3">
-              <T k="security_lockout_enabled" label="Enable Account Lockout" sub="Globally enable / disable login lockout" />
+              {T({ k: "security_lockout_enabled", label: "Enable Account Lockout", sub: "Globally enable / disable login lockout" })}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <N k="security_login_max_attempts" label="Max Failed Login Attempts" placeholder="5"  hint="Before account lockout" />
-              <N k="security_lockout_minutes"    label="Lockout Duration"          suffix="min"     placeholder="30" hint="0 = permanent until admin unlocks" />
+              {N({ k: "security_login_max_attempts", label: "Max Failed Login Attempts", placeholder: "5", hint: "Before account lockout" })}
+              {N({ k: "security_lockout_minutes", label: "Lockout Duration", suffix: "min", placeholder: "30", hint: "0 = permanent until admin unlocks" })}
             </div>
           </SecPanel>
 
@@ -875,11 +875,11 @@ export default function SecurityPage() {
               <span>Limits are per IP address per minute. Exceeding triggers HTTP 429 Too Many Requests. Burst allowance temporarily permits extra requests during short spikes.</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <N k="security_rate_limit"  label="General API (customers)" suffix="req/min" placeholder="100" />
-              <N k="security_rate_admin"  label="Admin Panel"             suffix="req/min" placeholder="60" />
-              <N k="security_rate_rider"  label="Rider App API"           suffix="req/min" placeholder="200" />
-              <N k="security_rate_vendor" label="Vendor App API"          suffix="req/min" placeholder="150" />
-              <N k="security_rate_burst"  label="Burst Allowance"         suffix="req"     placeholder="20" hint="Extra requests before block" />
+              {N({ k: "security_rate_limit", label: "General API (customers)", suffix: "req/min", placeholder: "100" })}
+              {N({ k: "security_rate_admin", label: "Admin Panel", suffix: "req/min", placeholder: "60" })}
+              {N({ k: "security_rate_rider", label: "Rider App API", suffix: "req/min", placeholder: "200" })}
+              {N({ k: "security_rate_vendor", label: "Vendor App API", suffix: "req/min", placeholder: "150" })}
+              {N({ k: "security_rate_burst", label: "Burst Allowance", suffix: "req", placeholder: "20", hint: "Extra requests before block" })}
             </div>
           </SecPanel>
 
@@ -889,8 +889,8 @@ export default function SecurityPage() {
               <span><strong>Warning:</strong> VPN blocking may affect legitimate users. TOR blocking prevents anonymous access. Use carefully in Pakistan — some users may use VPNs for privacy.</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <T k="security_block_tor" label="Block TOR Exit Nodes"  sub="Prevents anonymous TOR access" />
-              <T k="security_block_vpn" label="Block VPN/Proxy Users" sub="Fraud prevention (may affect legit users)" />
+              {T({ k: "security_block_tor", label: "Block TOR Exit Nodes", sub: "Prevents anonymous TOR access" })}
+              {T({ k: "security_block_vpn", label: "Block VPN/Proxy Users", sub: "Fraud prevention (may affect legit users)" })}
             </div>
           </SecPanel>
 
@@ -927,14 +927,14 @@ export default function SecurityPage() {
         <div className="space-y-4">
           <SecPanel title="GPS Tracking" icon={Bike} color="text-green-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-              <T k="security_gps_tracking"    label="Enable GPS Tracking"    sub="Rider location updates sent to server" />
-              <T k="security_spoof_detection" label="GPS Spoofing Detection" sub="Mock location / fake GPS app detection" />
-              <T k="security_geo_fence"       label="Strict Geofence Mode"   sub="Riders must be within service area" />
+              {T({ k: "security_gps_tracking", label: "Enable GPS Tracking", sub: "Rider location updates sent to server" })}
+              {T({ k: "security_spoof_detection", label: "GPS Spoofing Detection", sub: "Mock location / fake GPS app detection" })}
+              {T({ k: "security_geo_fence", label: "Strict Geofence Mode", sub: "Riders must be within service area" })}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <N k="security_gps_accuracy"  label="Min GPS Accuracy Required" suffix="m"    placeholder="50"  hint="Reject readings worse than this" />
-              <N k="security_gps_interval"  label="Location Update Interval"  suffix="sec"  placeholder="10"  hint="How often rider sends GPS ping" />
-              <N k="security_max_speed_kmh" label="Max Plausible Speed"       suffix="km/h" placeholder="150" hint="Above this = flag as suspicious" />
+              {N({ k: "security_gps_accuracy", label: "Min GPS Accuracy Required", suffix: "m", placeholder: "50", hint: "Reject readings worse than this" })}
+              {N({ k: "security_gps_interval", label: "Location Update Interval", suffix: "sec", placeholder: "10", hint: "How often rider sends GPS ping" })}
+              {N({ k: "security_max_speed_kmh", label: "Max Plausible Speed", suffix: "km/h", placeholder: "150", hint: "Above this = flag as suspicious" })}
             </div>
           </SecPanel>
 
@@ -944,8 +944,8 @@ export default function SecurityPage() {
               <span>Service area boundaries are controlled per city in the Geofence settings. When Strict Mode is on, orders outside the defined zones are automatically rejected.</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
-              <F k="security_service_city"      label="Primary Service City"    placeholder="Muzaffarabad, AJK" />
-              <F k="security_service_radius_km" label="Max Service Radius (km)" placeholder="30" mono hint="From city center" />
+              {F({ k: "security_service_city", label: "Primary Service City", placeholder: "Muzaffarabad, AJK" })}
+              {F({ k: "security_service_radius_km", label: "Max Service Radius (km)", placeholder: "30", mono: true, hint: "From city center" })}
             </div>
           </SecPanel>
 
@@ -966,11 +966,11 @@ export default function SecurityPage() {
         <div className="space-y-4">
           <SecPanel title="Password Requirements" icon={KeyRound} color="text-amber-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
-              <N k="security_pwd_min_length"  label="Minimum Length"  suffix="chars" placeholder="8" />
-              <N k="security_pwd_expiry_days" label="Password Expiry" suffix="days"  placeholder="0" hint="0 = never expires" />
+              {N({ k: "security_pwd_min_length", label: "Minimum Length", suffix: "chars", placeholder: "8" })}
+              {N({ k: "security_pwd_expiry_days", label: "Password Expiry", suffix: "days", placeholder: "0", hint: "0 = never expires" })}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <T k="security_pwd_strong" label="Require Strong Password" sub="Must include uppercase, number & symbol" />
+              {T({ k: "security_pwd_strong", label: "Require Strong Password", sub: "Must include uppercase, number & symbol" })}
             </div>
             <div className="mt-4 bg-muted/50 rounded-xl p-3 border border-border">
               <p className="text-xs font-semibold text-foreground mb-2">Current Password Rules Preview:</p>
@@ -996,10 +996,10 @@ export default function SecurityPage() {
               <span>JWT Secret is auto-generated and stored securely. Rotation invalidates all existing sessions — users must log in again.</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <N k="security_jwt_rotation_days" label="JWT Secret Rotation" suffix="days" placeholder="90" hint="All sessions invalidated on rotation" />
-              <N k="security_admin_token_hrs"   label="Admin Token Expiry"  suffix="hrs"  placeholder="24" />
-              <N k="security_session_days"      label="Customer Session"     suffix="days" placeholder="30" />
-              <N k="security_rider_token_days"  label="Rider Token Expiry"  suffix="days" placeholder="30" />
+              {N({ k: "security_jwt_rotation_days", label: "JWT Secret Rotation", suffix: "days", placeholder: "90", hint: "All sessions invalidated on rotation" })}
+              {N({ k: "security_admin_token_hrs", label: "Admin Token Expiry", suffix: "hrs", placeholder: "24" })}
+              {N({ k: "security_session_days", label: "Customer Session", suffix: "days", placeholder: "30" })}
+              {N({ k: "security_rider_token_days", label: "Rider Token Expiry", suffix: "days", placeholder: "30" })}
             </div>
           </SecPanel>
         </div>
@@ -1010,19 +1010,18 @@ export default function SecurityPage() {
         <div className="space-y-4">
           <SecPanel title="Upload Permissions" icon={FileText} color="text-teal-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-              <T k="security_allow_uploads"   label="Allow File Uploads"   sub="Photos, payment proofs, KYC docs" />
-              <T k="security_compress_images" label="Auto-compress Images" sub="Reduces storage & bandwidth usage" />
-              <T k="security_scan_uploads"    label="Virus/Malware Scan"   sub="Scan uploads before saving (requires ClamAV)" />
+              {T({ k: "security_allow_uploads", label: "Allow File Uploads", sub: "Photos, payment proofs, KYC docs" })}
+              {T({ k: "security_compress_images", label: "Auto-compress Images", sub: "Reduces storage & bandwidth usage" })}
+              {T({ k: "security_scan_uploads", label: "Virus/Malware Scan", sub: "Scan uploads before saving (requires ClamAV)" })}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <N k="security_max_file_mb" label="Max File Size"       suffix="MB" placeholder="5"  hint="Per upload" />
-              <N k="security_img_quality" label="Compression Quality" suffix="%"  placeholder="80" hint="80% = good balance" />
+              {N({ k: "security_max_file_mb", label: "Max File Size", suffix: "MB", placeholder: "5", hint: "Per upload" })}
+              {N({ k: "security_img_quality", label: "Compression Quality", suffix: "%", placeholder: "80", hint: "80% = good balance" })}
             </div>
           </SecPanel>
 
           <SecPanel title="Allowed File Types" icon={FileText} color="text-teal-700">
-            <F k="security_allowed_types" label="Allowed Extensions (comma-separated)" placeholder="jpg,jpeg,png,pdf"
-              mono hint="Reject all other file types at the upload API layer" />
+            {F({ k: "security_allowed_types", label: "Allowed Extensions (comma-separated)", placeholder: "jpg,jpeg,png,pdf", mono: true, hint: "Reject all other file types at the upload API layer" })}
             <div className="flex flex-wrap gap-1.5 mt-2">
               {val("security_allowed_types", "jpg,jpeg,png,pdf").split(",").map(t => t.trim()).filter(Boolean).map(ext => (
                 <span key={ext} className="px-2 py-0.5 bg-teal-100 text-teal-700 rounded-full text-xs font-bold uppercase">{ext}</span>
@@ -1053,15 +1052,15 @@ export default function SecurityPage() {
         <div className="space-y-4">
           <SecPanel title="Fake Order Prevention" icon={AlertTriangle} color="text-red-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-              <T k="security_fake_order_detect" label="Fake Order Auto-Detection"   sub="Flag suspicious order patterns" />
-              <T k="security_auto_block_ip"     label="Auto-block Suspicious IPs"   sub="After repeated fake orders" />
-              <T k="security_phone_verify"      label="Phone Verification Required" sub="Before placing first order" />
-              <T k="security_single_phone"      label="One Account per Phone"       sub="Prevent multi-account fraud" />
+              {T({ k: "security_fake_order_detect", label: "Fake Order Auto-Detection", sub: "Flag suspicious order patterns" })}
+              {T({ k: "security_auto_block_ip", label: "Auto-block Suspicious IPs", sub: "After repeated fake orders" })}
+              {T({ k: "security_phone_verify", label: "Phone Verification Required", sub: "Before placing first order" })}
+              {T({ k: "security_single_phone", label: "One Account per Phone", sub: "Prevent multi-account fraud" })}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <N k="security_max_daily_orders" label="Max Orders per Day"         placeholder="20" hint="Per customer account" />
-              <N k="security_new_acct_limit"   label="New Account Order Limit"   placeholder="3"  hint="First 7 days after signup" />
-              <N k="security_same_addr_limit"  label="Same-Address Hourly Limit" placeholder="5"  hint="Orders from same address per hour" />
+              {N({ k: "security_max_daily_orders", label: "Max Orders per Day", placeholder: "20", hint: "Per customer account" })}
+              {N({ k: "security_new_acct_limit", label: "New Account Order Limit", placeholder: "3", hint: "First 7 days after signup" })}
+              {N({ k: "security_same_addr_limit", label: "Same-Address Hourly Limit", placeholder: "5", hint: "Orders from same address per hour" })}
             </div>
           </SecPanel>
 
@@ -1165,8 +1164,8 @@ export default function SecurityPage() {
           {/* Admin Access & Audit Log settings */}
           <SecPanel title="Admin Access & Audit Log" icon={Shield} color="text-red-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-              <T k="security_audit_log"    label="Admin Action Audit Log" sub="Log all admin changes with timestamp & IP" />
-              <T k="security_mfa_required" label="Require 2FA for Admin"  sub="TOTP code required at every login" />
+              {T({ k: "security_audit_log", label: "Admin Action Audit Log", sub: "Log all admin changes with timestamp & IP" })}
+              {T({ k: "security_mfa_required", label: "Require 2FA for Admin", sub: "TOTP code required at every login" })}
             </div>
             <Field
               label="Admin IP Whitelist (comma-separated, blank = allow all)"
@@ -1202,7 +1201,7 @@ export default function SecurityPage() {
               <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <span>Admins can bypass maintenance mode by appending <span className="font-mono bg-white/70 px-1 rounded">?key=YOUR_KEY</span> to the app URL.</span>
             </div>
-            <S k="security_maintenance_key" label="Maintenance Mode Bypass Key" placeholder="maint-bypass-secret-2025" />
+            {S({ k: "security_maintenance_key", label: "Maintenance Mode Bypass Key", placeholder: "maint-bypass-secret-2025" })}
           </SecPanel>
         </div>
       )}

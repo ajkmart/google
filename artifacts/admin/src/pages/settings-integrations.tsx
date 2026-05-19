@@ -817,16 +817,16 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
             <div>
               <SLabel icon={KeyRound}>Core Credentials</SLabel>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
-                <S label="FCM Server Key / Legacy API Key" k="fcm_server_key" placeholder="AAAA..." />
-                <F label="Firebase Project ID" k="fcm_project_id" placeholder="ajkmart-12345" mono />
-                <F label="Sender ID" k="fcm_sender_id" placeholder="123456789012" mono />
-                <F label="App ID" k="fcm_app_id" placeholder="1:123456789:web:abc123" mono />
+                {S({ label: "FCM Server Key / Legacy API Key", k: "fcm_server_key", placeholder: "AAAA..." })}
+                {F({ label: "Firebase Project ID", k: "fcm_project_id", placeholder: "ajkmart-12345", mono: true })}
+                {F({ label: "Sender ID", k: "fcm_sender_id", placeholder: "123456789012", mono: true })}
+                {F({ label: "App ID", k: "fcm_app_id", placeholder: "1:123456789:web:abc123", mono: true })}
               </div>
             </div>
             <div>
               <SLabel icon={Globe}>Web Push (PWA)</SLabel>
               <div className="grid grid-cols-1 gap-4 mt-3">
-                <S label="VAPID Web Push Key (for browser push)" k="fcm_vapid_key" placeholder="BPsc..." />
+                {S({ label: "VAPID Web Push Key (for browser push)", k: "fcm_vapid_key", placeholder: "BPsc..." })}
               </div>
             </div>
             <div>
@@ -907,9 +907,9 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
               <SLabel icon={Globe}>SMTP Server</SLabel>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">
                 <div className="sm:col-span-2">
-                  <F label="SMTP Host" k="smtp_host" placeholder="smtp.gmail.com" mono />
+                  {F({ label: "SMTP Host", k: "smtp_host", placeholder: "smtp.gmail.com", mono: true })}
                 </div>
-                <F label="Port" k="smtp_port" placeholder="587" mono />
+                {F({ label: "Port", k: "smtp_port", placeholder: "587", mono: true })}
               </div>
               {/* Encryption quick select */}
               <div className="mt-3">
@@ -930,18 +930,17 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
             <div>
               <SLabel icon={KeyRound}>Authentication</SLabel>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
-                <F label="SMTP Username / Email" k="smtp_user" placeholder="alerts@ajkmart.pk" mono />
-                <S label="Password / App Password" k="smtp_password" placeholder="xxxx xxxx xxxx xxxx" />
+                {F({ label: "SMTP Username / Email", k: "smtp_user", placeholder: "alerts@ajkmart.pk", mono: true })}
+                {S({ label: "Password / App Password", k: "smtp_password", placeholder: "xxxx xxxx xxxx xxxx" })}
               </div>
             </div>
             <div>
               <SLabel icon={MessageSquare}>Sender Identity</SLabel>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
-                <F label="From Email Address" k="smtp_from_email" placeholder="noreply@ajkmart.pk" mono />
-                <F label="From Display Name" k="smtp_from_name" placeholder="AJKMart" />
+                {F({ label: "From Email Address", k: "smtp_from_email", placeholder: "noreply@ajkmart.pk", mono: true })}
+                {F({ label: "From Display Name", k: "smtp_from_name", placeholder: "AJKMart" })}
                 <div className="sm:col-span-2">
-                  <F label="Admin Alert Recipient Email" k="smtp_admin_alert_email" placeholder="admin@ajkmart.pk" mono
-                    hint="Where to send order alerts, low stock, fraud warnings etc." />
+                  {F({ label: "Admin Alert Recipient Email", k: "smtp_admin_alert_email", placeholder: "admin@ajkmart.pk", mono: true, hint: "Where to send order alerts, low stock, fraud warnings etc." })}
                 </div>
               </div>
             </div>
@@ -986,17 +985,17 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
             <div>
               <SLabel icon={KeyRound}>API Credentials</SLabel>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
-                <F label="Phone Number ID" k="wa_phone_number_id" placeholder="123456789012345" mono />
-                <F label="WhatsApp Business Account ID" k="wa_business_account_id" placeholder="987654321098765" mono />
+                {F({ label: "Phone Number ID", k: "wa_phone_number_id", placeholder: "123456789012345", mono: true })}
+                {F({ label: "WhatsApp Business Account ID", k: "wa_business_account_id", placeholder: "987654321098765", mono: true })}
                 <div className="sm:col-span-2">
-                  <S label="Permanent Access Token" k="wa_access_token" placeholder="EAAxxxxxxx..." />
+                  {S({ label: "Permanent Access Token", k: "wa_access_token", placeholder: "EAAxxxxxxx..." })}
                 </div>
               </div>
             </div>
             <div>
               <SLabel icon={Globe}>Webhook Configuration</SLabel>
               <div className="grid grid-cols-1 gap-4 mt-3">
-                <S label="Webhook Verify Token (set same in Meta Developer Console)" k="wa_verify_token" placeholder="my_secure_verify_token_123" />
+                {S({ label: "Webhook Verify Token (set same in Meta Developer Console)", k: "wa_verify_token", placeholder: "my_secure_verify_token_123" })}
                 <div className="bg-muted/50 border border-border rounded-xl p-3 space-y-1">
                   <p className="text-xs font-semibold text-foreground">Webhook Callback URL (set in Meta console):</p>
                   <p className="text-xs font-mono text-muted-foreground break-all">{whatsappWebhookUrl}</p>
@@ -1019,8 +1018,8 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
                 <span>Template names must be approved by Meta before use. Use only approved template names below.</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <F label="Order Notification Template" k="wa_order_template" placeholder="order_notification" mono />
-                <F label="OTP Verification Template" k="wa_otp_template" placeholder="otp_verification" mono />
+                {F({ label: "Order Notification Template", k: "wa_order_template", placeholder: "order_notification", mono: true })}
+                {F({ label: "OTP Verification Template", k: "wa_otp_template", placeholder: "otp_verification", mono: true })}
               </div>
             </div>
             {/* WA notification channels */}
@@ -1097,14 +1096,11 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
                   </div>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <F label={analyticsPlatform === "google" ? "Measurement ID (G-XXXXXXXXXX)" : "Project Token / API Key"}
-                    k="analytics_tracking_id"
-                    placeholder={analyticsPlatform === "google" ? "G-XXXXXXXXXX" : "your_token"} mono />
-                  <S label={analyticsPlatform === "google" ? "API Secret (for server-side events)" : "API Secret"}
-                    k="analytics_api_secret" placeholder="your_api_secret" />
+                  {F({ label: analyticsPlatform === "google" ? "Measurement ID (G-XXXXXXXXXX)" : "Project Token / API Key", k: "analytics_tracking_id", placeholder: analyticsPlatform === "google" ? "G-XXXXXXXXXX" : "your_token", mono: true })}
+                  {S({ label: analyticsPlatform === "google" ? "API Secret (for server-side events)" : "API Secret", k: "analytics_api_secret", placeholder: "your_api_secret" })}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <T label="Debug Mode (verbose logging)" k="analytics_debug_mode" sub="Disable in production" />
+                  {T({ label: "Debug Mode (verbose logging)", k: "analytics_debug_mode", sub: "Disable in production" })}
                 </div>
               </div>
             )}
@@ -1150,7 +1146,7 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
             <div>
               <SLabel icon={KeyRound}>Sentry DSN</SLabel>
               <div className="mt-3">
-                <S label="Sentry DSN URL" k="sentry_dsn" placeholder="https://examplePublicKey@o0.ingest.sentry.io/0" />
+                {S({ label: "Sentry DSN URL", k: "sentry_dsn", placeholder: "https://examplePublicKey@o0.ingest.sentry.io/0" })}
               </div>
             </div>
             <div>

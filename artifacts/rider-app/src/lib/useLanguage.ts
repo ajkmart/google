@@ -24,7 +24,7 @@ function applyRTL(lang: Language) {
   if (_lastAppliedDir === dir + "|" + lang) return;
   _lastAppliedDir = dir + "|" + lang;
   document.documentElement.setAttribute("dir", dir);
-  document.documentElement.setAttribute("lang", lang === "ur" || lang === "en_ur" ? "ur" : "en");
+  document.documentElement.setAttribute("lang", lang === "ur" ? "ur" : "en");
 }
 
 interface LanguageCtx {

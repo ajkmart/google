@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { getPlatformSettings } from "../routes/admin-shared.js";
 import type { Language } from "@workspace/i18n";
 
-const VALID_LANGUAGES: Language[] = ["en", "ur", "roman", "en_roman", "en_ur"];
+const VALID_LANGUAGES: Language[] = ["en", "ur", "roman"];
 
 export async function getPlatformDefaultLanguage(): Promise<Language> {
   try {

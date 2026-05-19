@@ -1,11 +1,9 @@
-export type Language = "en" | "ur" | "roman" | "en_roman" | "en_ur";
+export type Language = "en" | "ur" | "roman";
 
 export const LANGUAGE_OPTIONS: { value: Language; label: string; nativeLabel: string; rtl: boolean }[] = [
-  { value: "en",       label: "English Only",          nativeLabel: "English",          rtl: false },
-  { value: "ur",       label: "Urdu Only",             nativeLabel: "اردو",             rtl: true  },
-  { value: "roman",    label: "Roman Urdu Only",       nativeLabel: "Roman Urdu",       rtl: false },
-  { value: "en_roman", label: "English + Roman Urdu",  nativeLabel: "English + Roman",  rtl: false },
-  { value: "en_ur",    label: "English + Urdu",        nativeLabel: "English + اردو",   rtl: false },
+  { value: "en",    label: "English", nativeLabel: "English",    rtl: false },
+  { value: "ur",    label: "Urdu",    nativeLabel: "اردو",       rtl: true  },
+  { value: "roman", label: "Roman",   nativeLabel: "Roman Urdu", rtl: false },
 ];
 
 export const DEFAULT_LANGUAGE: Language = "en";
@@ -5376,12 +5374,7 @@ const translations = {
     nextSteps: "Agle Iqdam",
   },
 
-  en_roman: {} as Record<string, string>,
-  en_ur: {} as Record<string, string>,
 };
-
-translations.en_roman = translations.en;
-translations.en_ur = translations.en;
 
 export function t(key: TranslationKey, lang: Language): string {
   const base = translations[lang] as Record<string, string>;
@@ -5390,23 +5383,11 @@ export function t(key: TranslationKey, lang: Language): string {
 }
 
 export function tDual(key: TranslationKey, lang: Language): string {
-  if (lang === "en_roman") {
-    const en = translations.en[key] ?? String(key);
-    const roman = (translations.roman as Record<string, string>)[key] ?? String(key);
-    if (en === roman) return en;
-    return `${en}\n${roman}`;
-  }
-  if (lang === "en_ur") {
-    const en = translations.en[key] ?? String(key);
-    const ur = (translations.ur as Record<string, string>)[key] ?? String(key);
-    if (en === ur) return en;
-    return `${en}\n${ur}`;
-  }
   return t(key, lang);
 }
 
 export function isRTL(lang: Language): boolean {
-  return lang === "ur" || lang === "en_ur";
+  return lang === "ur";
 }
 
 export function getDir(lang: Language): "ltr" | "rtl" {
@@ -5414,7 +5395,7 @@ export function getDir(lang: Language): "ltr" | "rtl" {
 }
 
 export function getUrduFontFamily(lang: Language): string {
-  return lang === "ur" || lang === "en_ur"
+  return lang === "ur"
     ? "NotoNastaliqUrdu_400Regular"
     : "Inter_400Regular";
 }

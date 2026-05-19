@@ -12,7 +12,7 @@ const STORAGE_KEY = "ajkmart_admin_language";
 function applyRTL(lang: Language) {
   const dir = isRTL(lang) ? "rtl" : "ltr";
   document.documentElement.setAttribute("dir", dir);
-  document.documentElement.setAttribute("lang", lang === "ur" || lang === "en_ur" ? "ur" : "en");
+  document.documentElement.setAttribute("lang", lang === "ur" ? "ur" : "en");
 }
 
 function getSavedLanguage(): Language | null {
