@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { adminFetch } from "@/lib/adminFetcher";
 import { PageHeader } from "@/components/shared";
 import {
@@ -59,6 +60,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 
 export default function SettingsPage() {
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   // Wouter's `useLocation` returns the path with the configured router base
   // already stripped (see `WouterRouter base={…}` in App.tsx) and provides a
@@ -251,6 +253,7 @@ export default function SettingsPage() {
       });
       setDirtyKeys(new Set());
       toast({ title: "Settings saved ✅", description: `${changed.length} change(s) applied instantly.` });
+      queryClient.invalidateQueries({ queryKey: ["platform-settings"] });
     } catch (e: any) {
       toast({ title: "Save failed", description: e.message, variant: "destructive" });
     }

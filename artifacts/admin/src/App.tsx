@@ -387,7 +387,7 @@ function Router() {
       <Route path="/promotions"><ProtectedRoute component={PromotionsHub} requiredPermission="promotions.view" /></Route>
       <Route path="/support-chat"><ProtectedRoute component={SupportChat} requiredPermission="support.chat.view" /></Route>
       <Route path="/faq-management"><ProtectedRoute component={FaqManagement} requiredPermission="content.products.view" /></Route>
-      <Route path="/search-analytics"><RedirectTo to="/analytics?tab=search" /></Route>
+      <Route path="/search-analytics"><ProtectedRoute component={() => <RedirectTo to="/analytics?tab=search" />} requiredPermission="system.settings.view" /></Route>
       <Route path="/error-monitor"><ProtectedRoute component={ErrorMonitor} requiredPermission="system.settings.view" /></Route>
       <Route path="/communication"><RedirectTo to="/communications?tab=kpis" /></Route>
       <Route path="/loyalty"><ProtectedRoute component={Loyalty} requiredPermission="promotions.view" /></Route>

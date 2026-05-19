@@ -96,14 +96,20 @@ export default function Orders() {
       setShowDeliverConfirm(id);
       return;
     }
+    const prevStatus: string | undefined = selectedOrder?.id === id ? selectedOrder.status : undefined;
     updateMutation.mutate({ id, status }, {
       onSuccess: () => {
         toast({ title: `Order status updated to ${STATUS_LABELS[status] ?? status}` });
         setSelectedOrder((prev: any) => prev?.id === id ? ({ ...prev, status, updatedAt: new Date().toISOString() }) : prev);
       },
-      onError: (err) => toast({ title: "Update failed", description: err.message, variant: "destructive" })
+      onError: (err) => {
+        if (prevStatus !== undefined) {
+          setSelectedOrder((prev: any) => prev?.id === id ? ({ ...prev, status: prevStatus }) : prev);
+        }
+        toast({ title: "Update failed", description: err.message, variant: "destructive" });
+      }
     });
-  }, [updateMutation, toast]);
+  }, [updateMutation, toast, selectedOrder]);
 
   const confirmDeliver = useCallback(() => {
     if (!showDeliverConfirm) return;
@@ -218,6 +224,7 @@ export default function Orders() {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["admin-orders-enriched"] }),
       qc.invalidateQueries({ queryKey: ["admin-orders-stats"] }),
+      qc.invalidateQueries({ queryKey: ["admin-riders"] }),
     ]);
   }, [qc]);
 

@@ -169,6 +169,7 @@ export const useApproveUser = () => {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       queryClient.invalidateQueries({ queryKey: ["admin-users-pending"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-riders"] });
     },
   });
 };
@@ -201,6 +202,7 @@ export const useRejectUser = () => {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       queryClient.invalidateQueries({ queryKey: ["admin-users-pending"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-riders"] });
     },
   });
 };

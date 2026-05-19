@@ -126,6 +126,10 @@ router.post("/users/:id/approve", async (req, res) => {
     .returning();
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   addAuditEntry({ action: "user_approved", ip: "admin", details: `User approved: ${user.phone} — ${user.name || "unnamed"}`, result: "success" });
+  revokeAllUserSessions(user.id).catch((e: unknown) => {
+    logger.warn({ err: e instanceof Error ? e.message : String(e), userId: user.id }, "[users] revokeAllUserSessions (approve) failed");
+  });
+  sendUserNotification(user.id, "Account Approved ✅", "Your account has been approved. You can now access all services.", "system", "checkmark-circle-outline").catch(() => {});
   res.json({ success: true, user: { ...stripUser(user), walletBalance: parseFloat(user.walletBalance ?? "0") } });
 });
 
@@ -138,6 +142,10 @@ router.post("/users/:id/reject", async (req, res) => {
     .returning();
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   addAuditEntry({ action: "user_rejected", ip: "admin", details: `User rejected: ${user.phone} — ${note || "no reason"}`, result: "success" });
+  revokeAllUserSessions(user.id).catch((e: unknown) => {
+    logger.warn({ err: e instanceof Error ? e.message : String(e), userId: user.id }, "[users] revokeAllUserSessions (reject) failed");
+  });
+  sendUserNotification(user.id, "Account Application Rejected", note || "Your account application has been reviewed and rejected. Please contact support for more information.", "warning", "close-circle-outline").catch(() => {});
   res.json({ success: true, user: { ...stripUser(user), walletBalance: parseFloat(user.walletBalance ?? "0") } });
 });
 
@@ -426,6 +434,75 @@ router.patch("/users/bulk-ban", async (req, res) => {
   }
   addAuditEntry({ action: `bulk_${action}`, ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Bulk ${action}: ${affected} succeeded, ${failed.length} failed`, result: failed.length === 0 ? "success" : "fail" });
   res.json({ success: failed.length === 0, affected, action, ...(failed.length > 0 && { failed, error: `${failed.length} user(s) could not be updated` }) });
+});
+
+/* ── POST /admin/vendors/invite — create a pending vendor account and notify them ── */
+router.post("/vendors/invite", async (req, res) => {
+  const { phone, email, name } = req.body as { phone?: string; email?: string; name?: string };
+  if (!phone?.trim() && !email?.trim()) {
+    res.status(400).json({ error: "Phone number or email is required to invite a vendor." });
+    return;
+  }
+
+  /* Check if a user already exists with this phone / email. */
+  const existing = await db.select({ id: usersTable.id, roles: usersTable.roles, approvalStatus: usersTable.approvalStatus })
+    .from(usersTable)
+    .where(
+      phone?.trim()
+        ? eq(usersTable.phone, phone.trim())
+        : eq(usersTable.email, email!.trim()),
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    const u = existing[0]!;
+    if ((u.roles ?? "").includes("vendor")) {
+      res.status(409).json({ error: "A vendor with this contact already exists.", approvalStatus: u.approvalStatus });
+      return;
+    }
+  }
+
+  let userId: string;
+  if (existing.length > 0) {
+    /* Upgrade the existing non-vendor user to a pending vendor. */
+    userId = existing[0]!.id;
+    await db.update(usersTable)
+      .set({ roles: "vendor", approvalStatus: "pending", isActive: false, updatedAt: new Date(), name: name?.trim() || undefined })
+      .where(eq(usersTable.id, userId));
+  } else {
+    /* Create a brand-new pending vendor account. */
+    userId = generateId();
+    await db.insert(usersTable).values({
+      id: userId,
+      phone: phone?.trim() || null,
+      email: email?.trim() || null,
+      name:  name?.trim()  || null,
+      roles: "vendor",
+      approvalStatus: "pending",
+      isActive: false,
+    });
+  }
+
+  /* In-app notification (visible once the vendor installs the app).
+     SMS/email OTP delivery is a Phase-2 enhancement. */
+  sendUserNotification(
+    userId,
+    "You're Invited to AJKMart! 🎉",
+    "You've been invited to join AJKMart as a vendor. Download the app and complete your registration.",
+    "system",
+    "storefront-outline",
+  ).catch(() => {});
+
+  const channel = phone?.trim() ? `SMS (phone: ${phone.trim()})` : `email: ${email!.trim()}`;
+  addAuditEntry({
+    action: "vendor_invite",
+    ip: getClientIp(req),
+    adminId: (req as AdminRequest).adminId,
+    details: `Vendor invited via ${channel}${name ? ` — store: ${name.trim()}` : ""}`,
+    result: "success",
+  });
+
+  res.json({ success: true, userId, message: `Invitation recorded for ${phone?.trim() || email!.trim()}` });
 });
 
 /* ── PATCH /admin/orders/:id/assign-rider — manually assign a rider to an order ── */

@@ -998,54 +998,86 @@ router.post("/riders/:id/unrestrict", async (req, res) => {
 });
 
 /* ── GET /admin/withdrawal-requests ─────────── */
-router.get("/withdrawal-requests", async (req, res) => {
+router.get("/withdrawal-requests", requirePermission("finance.withdrawals.view"), async (req, res) => {
   try {
     const statusFilter = req.query["status"] as string | undefined;
-    const txns = await db
-      .select()
+    const pageNum  = Math.max(1, parseInt(String(req.query["page"]  ?? "1"),  10) || 1);
+    const pageSize = Math.min(200, Math.max(1, parseInt(String(req.query["limit"] ?? "50"), 10) || 50));
+    const offset   = (pageNum - 1) * pageSize;
+
+    type WithdrawalRow = typeof walletTransactionsTable.$inferSelect;
+    const statusToRefPattern: Record<string, string> = {
+      pending:  "pending",
+      paid:     "paid:",
+      rejected: "rejected:",
+    };
+
+    let baseWhere = eq(walletTransactionsTable.type, "withdrawal");
+    if (statusFilter && statusFilter in statusToRefPattern) {
+      const pattern = statusToRefPattern[statusFilter]!;
+      if (pattern === "pending") {
+        baseWhere = and(
+          baseWhere,
+          sql`(${walletTransactionsTable.reference} = 'pending' OR ${walletTransactionsTable.reference} IS NULL)`,
+        ) as typeof baseWhere;
+      } else {
+        baseWhere = and(
+          baseWhere,
+          sql`${walletTransactionsTable.reference} LIKE ${pattern + "%"}`,
+        ) as typeof baseWhere;
+      }
+    }
+
+    const [{ total }] = await db
+      .select({ total: count() })
       .from(walletTransactionsTable)
-      .where(eq(walletTransactionsTable.type, "withdrawal"))
+      .where(baseWhere);
+
+    const rows = await db
+      .select({
+        tx:    walletTransactionsTable,
+        uid:   usersTable.id,
+        name:  usersTable.name,
+        phone: usersTable.phone,
+        roles: usersTable.roles,
+      })
+      .from(walletTransactionsTable)
+      .leftJoin(usersTable, eq(walletTransactionsTable.userId, usersTable.id))
+      .where(baseWhere)
       .orderBy(desc(walletTransactionsTable.createdAt))
-      .limit(300);
-    const enriched = await Promise.all(
-      txns.map(async (t) => {
-        const [user] = await db
-          .select({
-            id: usersTable.id,
-            name: usersTable.name,
-            phone: usersTable.phone,
-            roles: usersTable.roles,
-          })
-          .from(usersTable)
-          .where(eq(usersTable.id, t.userId))
-          .limit(1);
-        const ref = t.reference ?? "pending";
-        const status =
-          ref === "pending"
-            ? "pending"
-            : ref.startsWith("paid:")
-              ? "paid"
-              : ref.startsWith("rejected:")
-                ? "rejected"
-                : ref;
-        const refNo = ref.startsWith("paid:")
-          ? ref.slice(5)
-          : ref.startsWith("rejected:")
-            ? ref.slice(9)
-            : "";
-        return {
-          ...t,
-          amount: parseFloat(String(t.amount)),
-          user: user || null,
-          status,
-          refNo,
-        };
-      }),
-    );
-    const filtered = statusFilter
-      ? enriched.filter((w) => w.status === statusFilter)
-      : enriched;
-    sendSuccess(res, { withdrawals: filtered });
+      .limit(pageSize)
+      .offset(offset);
+
+    const withdrawals = rows.map(({ tx, uid, name, phone, roles }) => {
+      const ref = (tx as WithdrawalRow).reference ?? "pending";
+      const status =
+        ref === "pending"
+          ? "pending"
+          : ref.startsWith("paid:")
+            ? "paid"
+            : ref.startsWith("rejected:")
+              ? "rejected"
+              : ref;
+      const refNo = ref.startsWith("paid:")
+        ? ref.slice(5)
+        : ref.startsWith("rejected:")
+          ? ref.slice(9)
+          : "";
+      return {
+        ...tx,
+        amount: parseFloat(String(tx.amount)),
+        user:   uid ? { id: uid, name, phone, roles } : null,
+        status,
+        refNo,
+      };
+    });
+
+    sendSuccess(res, {
+      withdrawals,
+      total: total ?? 0,
+      page: pageNum,
+      pageSize,
+    });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
@@ -1053,7 +1085,7 @@ router.get("/withdrawal-requests", async (req, res) => {
 });
 
 /* ── PATCH /admin/withdrawal-requests/:id/approve ─── */
-router.patch("/withdrawal-requests/:id/approve", async (req, res) => {
+router.patch("/withdrawal-requests/:id/approve", requirePermission("finance.withdrawals.approve"), async (req, res) => {
   try {
     const adminReq = req as AdminRequest;
     const { refNo, note } = req.body;
@@ -1137,7 +1169,7 @@ router.patch("/withdrawal-requests/:id/approve", async (req, res) => {
 });
 
 /* ── PATCH /admin/withdrawal-requests/:id/reject ─── */
-router.patch("/withdrawal-requests/:id/reject", async (req, res) => {
+router.patch("/withdrawal-requests/:id/reject", requirePermission("finance.withdrawals.approve"), async (req, res) => {
   try {
     const adminReq = req as AdminRequest;
     const { reason } = req.body;
@@ -1248,49 +1280,63 @@ router.patch("/withdrawal-requests/:id/reject", async (req, res) => {
 });
 
 /* ── PATCH /admin/withdrawal-requests/batch-approve ─── */
-router.patch("/withdrawal-requests/batch-approve", async (req, res) => {
+router.patch("/withdrawal-requests/batch-approve", requirePermission("finance.withdrawals.approve"), async (req, res) => {
   try {
     const { ids } = req.body as { ids: string[] };
     if (!Array.isArray(ids) || ids.length === 0) {
       sendValidationError(res, "ids required");
       return;
     }
-    const results: unknown[] = [];
-    for (const txId of ids) {
-      const [tx] = await db
-        .select()
-        .from(walletTransactionsTable)
-        .where(eq(walletTransactionsTable.id, txId))
-        .limit(1);
-      if (!tx || (tx.reference && tx.reference !== "pending")) continue;
-      const refNo = `BATCH-${Date.now()}`;
-      await db
-        .update(walletTransactionsTable)
-        .set({ reference: refNo })
-        .where(eq(walletTransactionsTable.id, txId));
-      const batchAppLang = await getUserLanguage(tx.userId);
+    type ApprovedItem = { txId: string; refNo: string; userId: string; amount: string };
+    const approvedItems: ApprovedItem[] = [];
+    /* All reference updates committed atomically — if any write fails the
+       entire batch is rolled back, leaving no half-approved state. */
+    await db.transaction(async (tx) => {
+      for (const txId of ids) {
+        const [txn] = await tx
+          .select()
+          .from(walletTransactionsTable)
+          .where(eq(walletTransactionsTable.id, txId))
+          .limit(1);
+        if (!txn) {
+          throw Object.assign(new Error(`Withdrawal request not found: ${txId}`), { status: 404 });
+        }
+        if (txn.reference && txn.reference !== "pending") {
+          throw Object.assign(new Error(`Withdrawal ${txId} is already processed (status: ${txn.reference})`), { status: 409 });
+        }
+        const refNo = `BATCH-${Date.now()}`;
+        await tx
+          .update(walletTransactionsTable)
+          .set({ reference: refNo })
+          .where(eq(walletTransactionsTable.id, txId));
+        approvedItems.push({ txId, refNo, userId: txn.userId, amount: String(txn.amount) });
+      }
+    });
+    /* Notifications are best-effort — sent after the transaction commits so a
+       notification failure never rolls back an already-committed approval. */
+    for (const item of approvedItems) {
+      const batchAppLang = await getUserLanguage(item.userId);
       await db
         .insert(notificationsTable)
         .values({
           id: generateId(),
-          userId: tx.userId,
+          userId: item.userId,
           title: t("notifWithdrawalApproved" as TranslationKey, batchAppLang),
           body: t("notifWithdrawalApprovedBody" as TranslationKey, batchAppLang)
-            .replace("{amount}", parseFloat(String(tx.amount)).toFixed(0))
-            .replace("{ref}", ` Ref: ${refNo}`)
+            .replace("{amount}", parseFloat(item.amount).toFixed(0))
+            .replace("{ref}", ` Ref: ${item.refNo}`)
             .replace("{note}", ""),
           type: "wallet",
           icon: "checkmark-circle-outline",
         })
         .catch((err: unknown) => {
           logger.warn(
-            { err: err instanceof Error ? err.message : String(err), txId },
+            { err: err instanceof Error ? err.message : String(err), txId: item.txId },
             "[wallets] batch-approve notification insert failed",
           );
         });
-      results.push(txId);
     }
-    sendSuccess(res, { approved: results });
+    sendSuccess(res, { approved: approvedItems.map((i) => i.txId) });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
@@ -1298,7 +1344,7 @@ router.patch("/withdrawal-requests/batch-approve", async (req, res) => {
 });
 
 /* ── PATCH /admin/withdrawal-requests/batch-reject ─── */
-router.patch("/withdrawal-requests/batch-reject", async (req, res) => {
+router.patch("/withdrawal-requests/batch-reject", requirePermission("finance.withdrawals.approve"), async (req, res) => {
   try {
     const { ids, reason } = req.body as { ids: string[]; reason: string };
     if (!Array.isArray(ids) || ids.length === 0) {
@@ -1306,111 +1352,157 @@ router.patch("/withdrawal-requests/batch-reject", async (req, res) => {
       return;
     }
     const rejReason = (reason || "Admin batch rejected").trim();
-    const results: unknown[] = [];
-    for (const txId of ids) {
-      const [tx] = await db
-        .select()
-        .from(walletTransactionsTable)
-        .where(eq(walletTransactionsTable.id, txId))
-        .limit(1);
-      if (!tx || (tx.reference && tx.reference !== "pending")) continue;
-      await db
-        .update(walletTransactionsTable)
-        .set({ reference: `rejected:${rejReason}` })
-        .where(eq(walletTransactionsTable.id, txId));
-      const amt = parseFloat(String(tx.amount));
-      await db
-        .update(usersTable)
-        .set({
-          walletBalance: sql`wallet_balance + ${amt}`,
-          updatedAt: new Date(),
-        })
-        .where(eq(usersTable.id, tx.userId));
-      await db.insert(walletTransactionsTable).values({
-        id: generateId(),
-        userId: tx.userId,
-        type: "credit",
-        amount: amt.toFixed(2),
-        description: `Withdrawal Refunded — ${rejReason}`,
-        reference: `refund:${txId}`,
-        paymentMethod: null,
-      });
-      const batchRejLang = await getUserLanguage(tx.userId);
+    type RejectedItem = { txId: string; userId: string; amt: number };
+    const rejectedItems: RejectedItem[] = [];
+    /* All three per-item writes (mark rejected, refund balance, log credit)
+       are committed in one atomic transaction — no partial refund state. */
+    await db.transaction(async (tx) => {
+      for (const txId of ids) {
+        const [txn] = await tx
+          .select()
+          .from(walletTransactionsTable)
+          .where(eq(walletTransactionsTable.id, txId))
+          .limit(1);
+        if (!txn) {
+          throw Object.assign(new Error(`Withdrawal request not found: ${txId}`), { status: 404 });
+        }
+        if (txn.reference && txn.reference !== "pending") {
+          throw Object.assign(new Error(`Withdrawal ${txId} is already processed (status: ${txn.reference})`), { status: 409 });
+        }
+        const amt = parseFloat(String(txn.amount));
+        await tx
+          .update(walletTransactionsTable)
+          .set({ reference: `rejected:${rejReason}` })
+          .where(eq(walletTransactionsTable.id, txId));
+        await tx
+          .update(usersTable)
+          .set({ walletBalance: sql`wallet_balance + ${amt}`, updatedAt: new Date() })
+          .where(eq(usersTable.id, txn.userId));
+        await tx.insert(walletTransactionsTable).values({
+          id: generateId(),
+          userId: txn.userId,
+          type: "credit",
+          amount: amt.toFixed(2),
+          description: `Withdrawal Refunded — ${rejReason}`,
+          reference: `refund:${txId}`,
+          paymentMethod: null,
+        });
+        rejectedItems.push({ txId, userId: txn.userId, amt });
+      }
+    });
+    /* Notifications are best-effort — sent after commit so a notif failure
+       never rolls back an already-committed refund. */
+    for (const item of rejectedItems) {
+      const batchRejLang = await getUserLanguage(item.userId);
       await db
         .insert(notificationsTable)
         .values({
           id: generateId(),
-          userId: tx.userId,
+          userId: item.userId,
           title: t("notifWithdrawalRejected" as TranslationKey, batchRejLang),
           body: t("notifWithdrawalRejectedBody" as TranslationKey, batchRejLang)
-            .replace("{amount}", amt.toFixed(0))
+            .replace("{amount}", item.amt.toFixed(0))
             .replace("{reason}", rejReason),
           type: "wallet",
           icon: "close-circle-outline",
         })
         .catch((err: unknown) => {
           logger.warn(
-            { err: err instanceof Error ? err.message : String(err), txId },
+            { err: err instanceof Error ? err.message : String(err), txId: item.txId },
             "[wallets] batch-reject notification insert failed",
           );
         });
-      results.push(txId);
     }
-    sendSuccess(res, { rejected: results });
+    sendSuccess(res, { rejected: rejectedItems.map((i) => i.txId) });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
 
-/* ── GET /admin/deposit-requests — List all rider deposit requests ─── */
-router.get("/deposit-requests", async (req, res) => {
+/* ── GET /admin/deposit-requests — List deposit requests with offset pagination ─── */
+router.get("/deposit-requests", requirePermission("finance.deposits.review"), async (req, res) => {
   try {
     const statusFilter = req.query["status"] as string | undefined;
-    const txns = await db
-      .select()
+    const pageNum  = Math.max(1, parseInt(String(req.query["page"]  ?? "1"),  10) || 1);
+    const pageSize = Math.min(200, Math.max(1, parseInt(String(req.query["limit"] ?? "50"), 10) || 50));
+    const offset   = (pageNum - 1) * pageSize;
+
+    /* Build status-aware WHERE clause so we can count + paginate at DB level. */
+    type DepositRow = typeof walletTransactionsTable.$inferSelect;
+    const statusToRefPattern: Record<string, string> = {
+      pending:  "pending",
+      approved: "approved:",
+      rejected: "rejected:",
+    };
+
+    /* Count total matching rows first (cheap — no JOIN needed yet). */
+    let baseWhere = eq(walletTransactionsTable.type, "deposit");
+    if (statusFilter && statusFilter in statusToRefPattern) {
+      const pattern = statusToRefPattern[statusFilter]!;
+      if (pattern === "pending") {
+        baseWhere = and(
+          baseWhere,
+          sql`(${walletTransactionsTable.reference} = 'pending' OR ${walletTransactionsTable.reference} IS NULL OR ${walletTransactionsTable.reference} LIKE 'pending:%')`,
+        ) as typeof baseWhere;
+      } else {
+        baseWhere = and(
+          baseWhere,
+          sql`${walletTransactionsTable.reference} LIKE ${pattern + "%"}`,
+        ) as typeof baseWhere;
+      }
+    }
+
+    const [{ total }] = await db
+      .select({ total: count() })
       .from(walletTransactionsTable)
-      .where(eq(walletTransactionsTable.type, "deposit"))
+      .where(baseWhere);
+
+    /* Fetch the current page, JOIN users to eliminate N+1 queries. */
+    const rows = await db
+      .select({
+        tx:   walletTransactionsTable,
+        uid:  usersTable.id,
+        name: usersTable.name,
+        phone: usersTable.phone,
+        roles: usersTable.roles,
+      })
+      .from(walletTransactionsTable)
+      .leftJoin(usersTable, eq(walletTransactionsTable.userId, usersTable.id))
+      .where(baseWhere)
       .orderBy(desc(walletTransactionsTable.createdAt))
-      .limit(200);
-    const enriched = await Promise.all(
-      txns.map(async (t) => {
-        const [user] = await db
-          .select({
-            id: usersTable.id,
-            name: usersTable.name,
-            phone: usersTable.phone,
-            roles: usersTable.roles,
-          })
-          .from(usersTable)
-          .where(eq(usersTable.id, t.userId))
-          .limit(1);
-        const ref = t.reference ?? "pending";
-        const isPending = ref === "pending" || ref.startsWith("pending:");
-        const status = isPending
-          ? "pending"
-          : ref.startsWith("approved:")
-            ? "approved"
-            : ref.startsWith("rejected:")
-              ? "rejected"
-              : ref;
-        const refNo =
-          ref.startsWith("approved:") || ref.startsWith("rejected:")
-            ? ref.split(":").slice(1).join(":")
-            : "";
-        return {
-          ...t,
-          amount: parseFloat(String(t.amount)),
-          user: user || null,
-          status,
-          refNo,
-        };
-      }),
-    );
-    const filtered = statusFilter
-      ? enriched.filter((d) => d.status === statusFilter)
-      : enriched;
-    sendSuccess(res, { deposits: filtered });
+      .limit(pageSize)
+      .offset(offset);
+
+    const deposits = rows.map(({ tx, uid, name, phone, roles }) => {
+      const ref = (tx as DepositRow).reference ?? "pending";
+      const isPending = ref === "pending" || ref.startsWith("pending:");
+      const status = isPending
+        ? "pending"
+        : ref.startsWith("approved:")
+          ? "approved"
+          : ref.startsWith("rejected:")
+            ? "rejected"
+            : ref;
+      const refNo =
+        ref.startsWith("approved:") || ref.startsWith("rejected:")
+          ? ref.split(":").slice(1).join(":")
+          : "";
+      return {
+        ...tx,
+        amount: parseFloat(String(tx.amount)),
+        user:   uid ? { id: uid, name, phone, roles } : null,
+        status,
+        refNo,
+      };
+    });
+
+    sendSuccess(res, {
+      deposits,
+      total: total ?? 0,
+      page: pageNum,
+      pageSize,
+    });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
@@ -1418,7 +1510,7 @@ router.get("/deposit-requests", async (req, res) => {
 });
 
 /* ── PATCH /admin/deposit-requests/:id/approve — Approve a rider deposit (credits wallet, atomic) ─── */
-router.patch("/deposit-requests/:id/approve", async (req, res) => {
+router.patch("/deposit-requests/:id/approve", requirePermission("finance.deposits.review"), async (req, res) => {
   try {
     const { refNo, note } = req.body;
     const txId = req.params["id"] as string;
@@ -1564,7 +1656,7 @@ router.patch("/deposit-requests/:id/approve", async (req, res) => {
 });
 
 /* ── PATCH /admin/deposit-requests/:id/reject — Reject a rider deposit (atomic state transition) ─── */
-router.patch("/deposit-requests/:id/reject", async (req, res) => {
+router.patch("/deposit-requests/:id/reject", requirePermission("finance.deposits.review"), async (req, res) => {
   try {
     const { reason } = req.body;
     const txId = req.params["id"] as string;
@@ -1638,7 +1730,7 @@ router.patch("/deposit-requests/:id/reject", async (req, res) => {
 });
 
 /* ── POST /admin/deposit-requests/bulk-approve — Bulk approve customer pending deposits (all-or-nothing atomic) ─── */
-router.post("/deposit-requests/bulk-approve", async (req, res) => {
+router.post("/deposit-requests/bulk-approve", requirePermission("finance.deposits.review"), async (req, res) => {
   try {
     const { ids, refNo } = req.body as { ids: string[]; refNo?: string };
     if (!Array.isArray(ids) || ids.length === 0) {
@@ -1780,7 +1872,7 @@ router.post("/deposit-requests/bulk-approve", async (req, res) => {
 });
 
 /* ── POST /admin/deposit-requests/bulk-reject — Bulk reject customer pending deposits (all-or-nothing atomic) ─── */
-router.post("/deposit-requests/bulk-reject", async (req, res) => {
+router.post("/deposit-requests/bulk-reject", requirePermission("finance.deposits.review"), async (req, res) => {
   try {
     const { ids, reason } = req.body as { ids: string[]; reason: string };
     if (!Array.isArray(ids) || ids.length === 0) {
@@ -1896,8 +1988,8 @@ router.post("/deposit-requests/bulk-reject", async (req, res) => {
   }
 });
 
-/* ── GET /admin/all-notifications ─────────── */
-router.post("/riders/:id/credit", async (req, res) => {
+/* ── POST /admin/riders/:id/credit ─────────── */
+router.post("/riders/:id/credit", requirePermission("finance.wallet.adjust"), async (req, res) => {
   try {
     const { amount, description, type } = req.body;
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
@@ -1998,7 +2090,7 @@ const vendorCommissionSchema = z.object({
 
 router.patch(
   "/vendors/:id/commission",
-  requirePermission("vendors.edit"),
+  requirePermission("finance.wallet.adjust"),
   validateBody(vendorCommissionSchema),
   async (req, res) => {
     try {

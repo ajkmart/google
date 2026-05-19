@@ -21,18 +21,17 @@ export default function ForgotPassword() {
         body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
       if (!response.ok) {
-        // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to generic success message
         const data = await response.json().catch(() => ({}));
-        if (response.status === 400 && data?.error) {
-          setError(String(data.error));
-        } else {
-          setSubmitted(true);
-        }
+        setError(
+          data?.error
+            ? String(data.error)
+            : `Request failed (${response.status}). Please try again.`,
+        );
       } else {
         setSubmitted(true);
       }
     } catch (err) {
-      setSubmitted(true);
+      setError("Network error — please check your connection and try again.");
     } finally {
       setSubmitting(false);
     }

@@ -1110,7 +1110,7 @@ router.get("/notifications", async (req, res) => {
       db.select().from(notificationsTable).where(eq(notificationsTable.userId, vendorId)).orderBy(desc(notificationsTable.createdAt)).limit(limitNum).offset(offset),
       db.select({ c: count() }).from(notificationsTable).where(and(eq(notificationsTable.userId, vendorId), eq(notificationsTable.isRead, false))),
     ]);
-    sendSuccess(res, { notifications: notifs, unreadCount: unreadResult[0]?.c ?? 0 });
+    sendSuccess(res, { notifications: notifs, unread: unreadResult[0]?.c ?? 0 });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[vendor/notifications] error");
     res.status(500).json({ success: false, error: "Internal server error" });
