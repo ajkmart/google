@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type NextFunction } from "express";
 import { logger } from "../lib/logger.js";
 import { db } from "@workspace/db";
 import { liveLocationsTable, locationLogsTable, locationHistoryTable, ridesTable, ordersTable, usersTable, riderProfilesTable } from "@workspace/db/schema";
@@ -438,7 +438,7 @@ async function broadcastRiderLocation(userId: string, lat: number, lon: number, 
   });
 }
 
-router.post("/update", gpsAntiSpoofMiddleware, async (req, res) => {
+router.post("/update", gpsAntiSpoofMiddleware, async (req, res, next: NextFunction) => {
   try {
   const authHeader = req.headers.authorization ?? "";
   if (!authHeader.startsWith("Bearer ")) {
@@ -532,15 +532,14 @@ router.post("/update", gpsAntiSpoofMiddleware, async (req, res) => {
 
   res.json({ success: true, updatedAt });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 
 /* ── POST /locations/batch — Replay queued GPS pings from IndexedDB (offline mode) ──
    Accepts an array of pings sorted by timestamp. Each ping is replayed in order.
    Spoofed pings are rejected silently (logged but not included in response). */
-router.post("/batch", async (req, res) => {
+router.post("/batch", async (req, res, next: NextFunction) => {
   try {
   const authHeader = req.headers.authorization ?? "";
   if (!authHeader.startsWith("Bearer ")) {
@@ -630,8 +629,7 @@ router.post("/batch", async (req, res) => {
 
   res.json({ success: true, processed, skipped, updatedAt: lastUpdatedAt });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
+    next(err);
   }
 });
 

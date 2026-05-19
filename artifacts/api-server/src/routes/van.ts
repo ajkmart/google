@@ -56,7 +56,7 @@ async function getVanSettings() {
       try {
         return JSON.parse(s["van_holiday_dates"] ?? "[]") as string[];
       } catch (err) {
-        logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+        logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[van] Invalid holiday_dates JSON — using empty list");
         return [] as string[];
       }
     })(),

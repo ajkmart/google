@@ -403,10 +403,7 @@ router.post("/avatar", (req, res, next) => {
       id: user.id, phone: user.phone, name: user.name, email: user.email,
       role: user.roles, avatar: user.avatar, walletBalance: parseFloat(user.walletBalance ?? "0"),
     }});
-  } catch (e: unknown) {
-    logger.error({ err: (e as Error)?.message, stack: (e as Error)?.stack }, "[users] avatar upload error");
-    sendError(res, "Upload failed. Please try again.", 500);
-  }
+  } catch (e: unknown) { next(e); }
 });
 
 router.put("/profile", validateBody(ProfileUpdateSchema), async (req, res, next) => {
@@ -613,6 +610,7 @@ router.delete("/delete-account", validateBody(DeleteAccountSchema), async (req, 
 });
 
 router.get("/sessions", async (req, res, next) => {
+  try {
   const userId = req.customerId!;
   const sessions = await db.select().from(userSessionsTable)
     .where(and(eq(userSessionsTable.userId, userId), isNull(userSessionsTable.revokedAt)))
@@ -635,9 +633,11 @@ router.get("/sessions", async (req, res, next) => {
       isCurrent: s.tokenHash === currentTokenHash,
     })),
   });
+  } catch (err) { next(err); }
 });
 
 router.delete("/sessions/all", async (req, res, next) => {
+  try {
   const userId = req.customerId!;
   const authHeader = req.headers["authorization"] as string | undefined;
   const currentToken = authHeader?.replace(/^Bearer\s+/i, "") ?? "";
@@ -683,9 +683,11 @@ router.delete("/sessions/all", async (req, res, next) => {
   writeAuthAuditLog("sessions_revoked_all", { userId, ip, userAgent: req.headers["user-agent"] as string });
 
   sendSuccess(res, null, "تمام دیگر سیشنز سے سائن آؤٹ ہو گیا۔");
+  } catch (err) { next(err); }
 });
 
 router.delete("/sessions/:sessionId", async (req, res, next) => {
+  try {
   const userId = req.customerId!;
   const sessionId = req.params["sessionId"] as string;
 
@@ -721,9 +723,11 @@ router.delete("/sessions/:sessionId", async (req, res, next) => {
   writeAuthAuditLog("session_revoked", { userId, ip, userAgent: req.headers["user-agent"] as string, metadata: { sessionId } });
 
   sendSuccess(res, null, "سیشن منسوخ ہو گیا۔");
+  } catch (err) { next(err); }
 });
 
 router.get("/login-history", async (req, res, next) => {
+  try {
   const userId = req.customerId!;
   const history = await db.select().from(loginHistoryTable)
     .where(eq(loginHistoryTable.userId, userId))
@@ -743,6 +747,7 @@ router.get("/login-history", async (req, res, next) => {
       createdAt: h.createdAt.toISOString(),
     })),
   });
+  } catch (err) { next(err); }
 });
 
 type DbOrTx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
@@ -768,6 +773,7 @@ async function computeLoyaltyPoints(tx: DbOrTx, userId: string): Promise<{ total
 }
 
 router.get("/loyalty/balance", async (req, res, next) => {
+  try {
   const userId = req.customerId!;
 
   const s = await getCachedSettings();
@@ -785,10 +791,12 @@ router.get("/loyalty/balance", async (req, res, next) => {
     available,
     walletBalance: parseFloat(user?.walletBalance ?? "0"),
   });
+  } catch (err) { next(err); }
 });
 
 /* ── GET /users/me/loyalty — loyalty points balance + transaction history ─── */
 router.get("/me/loyalty", customerAuth, async (req, res, next) => {
+  try {
   const userId = req.customerId!;
 
   const s = await getCachedSettings();
@@ -833,6 +841,7 @@ router.get("/me/loyalty", customerAuth, async (req, res, next) => {
       createdAt:   t.createdAt.toISOString(),
     })),
   });
+  } catch (err) { next(err); }
 });
 
 router.post("/loyalty/redeem", paymentLimiter, validateBody(LoyaltyRedeemSchema), async (req, res, next) => {
@@ -880,12 +889,13 @@ router.post("/loyalty/redeem", paymentLimiter, validateBody(LoyaltyRedeemSchema)
 
       newBalance = parseFloat(upd.walletBalance ?? "0");
     });
-  } catch (err: any) {
-    if (err?.code === "INSUFFICIENT") {
-      sendError(res, `You need at least ${MIN_REDEEM} loyalty points to redeem. You have ${err.available} available.`, 400);
+  } catch (err: unknown) {
+    if ((err as { code?: string })?.code === "INSUFFICIENT") {
+      sendError(res, `You need at least ${MIN_REDEEM} loyalty points to redeem. You have ${(err as { code?: string; available?: number }).available} available.`, 400);
       return;
     }
-    throw err;
+    next(err);
+    return;
   }
 
   sendSuccess(res, {

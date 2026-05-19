@@ -167,7 +167,7 @@ export default function Home() {
       } else {
         setZoneWarning(null);
       }
-      await refreshUser().catch((err) => { console.warn('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
+      await refreshUser().catch((err) => { console.error('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
       if (!isMountedRef.current) return;
       succeeded = true;
       showToast(newStatus ? T("youAreNowOnline") : T("youAreNowOffline"), "success");
@@ -341,14 +341,14 @@ export default function Home() {
           }
         ).wakeLock.request("screen");
         setWakeLockWarning(false);
-      } catch (err) { console.warn('[artifacts/rider-app/src/pages/Home.tsx]', err); } // eslint-disable-line no-console
+      } catch (err) { console.error('[artifacts/rider-app/src/pages/Home.tsx]', err); } // eslint-disable-line no-console
     };
 
     acquire();
 
     return () => {
       cancelled = true;
-      sentinel?.release().catch((err) => { console.warn('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
+      sentinel?.release().catch((err) => { console.error('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
     };
   }, [effectiveOnline, tabVisible]);
 
@@ -384,7 +384,7 @@ export default function Home() {
         batteryRef.current = Math.round(b.level * 100);
         b.addEventListener("levelchange", onLevelChange);
       })
-      .catch((err) => { console.warn('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
+      .catch((err) => { console.error('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
     return () => { mounted = false; batt?.removeEventListener("levelchange", onLevelChange); };
   }, []);
 
@@ -496,7 +496,7 @@ export default function Home() {
         };
 
         if (!navigator.onLine) {
-          enqueue(queuedPing).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
+          enqueue(queuedPing).catch((err) => { console.error('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
           return;
         }
 
@@ -512,7 +512,7 @@ export default function Home() {
             if (isSpoofError) {
               setGpsWarningWithRef(`GPS Spoof Detected: ${msg}`);
             } else {
-              enqueue(queuedPing).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
+              enqueue(queuedPing).catch((err) => { console.error('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
               setGpsWarningWithRef(T("gpsLocationError"));
             }
           });
@@ -614,7 +614,7 @@ export default function Home() {
       } else {
         /* Persist to IndexedDB queue so the accept survives connectivity loss */
         const looksLikeNetErr = /network|fetch|timeout|offline/i.test(e?.message || "");
-        if (looksLikeNetErr) enqueueAction("accept_order", id, {}).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
+        if (looksLikeNetErr) enqueueAction("accept_order", id, {}).catch((err) => { console.error('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
         showToast(e.message || "Could not accept order. Please try again.", "error");
       }
     },
@@ -665,7 +665,7 @@ export default function Home() {
       } else {
         /* Persist to IndexedDB queue so the accept survives connectivity loss */
         const looksLikeNetErr = /network|fetch|timeout|offline/i.test(e?.message || "");
-        if (looksLikeNetErr) enqueueAction("accept_ride", id, {}).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
+        if (looksLikeNetErr) enqueueAction("accept_ride", id, {}).catch((err) => { console.error('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
         showToast(e.message || "Could not accept ride. Please try again.", "error");
       }
     },

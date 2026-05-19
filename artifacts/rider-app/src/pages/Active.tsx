@@ -136,7 +136,7 @@ export default function Active() {
       const statusUpdates = pending.filter(item => item.kind === "status");
       if (locationUpdates.length > 0) {
         const latest = locationUpdates[locationUpdates.length - 1];
-        latest.run().catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
+        latest.run().catch((err) => { console.error('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
       }
       if (statusUpdates.length > 0) {
         pendingUpdatesRef.current.push(...statusUpdates);
@@ -233,7 +233,7 @@ export default function Active() {
         if (!mounted) return;
         batt = b; batteryRef.current = b.level; b.addEventListener("levelchange", onLevelChange);
       })
-      .catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
+      .catch((err) => { console.error('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
     return () => { mounted = false; batt?.removeEventListener("levelchange", onLevelChange); };
   }, []);
 
@@ -308,12 +308,12 @@ export default function Active() {
           if (isSpoofError) {
             setGpsWarningWithRef("Mock location detected — please disable fake GPS apps.");
           } else {
-            enqueue(queuedPing).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
+            enqueue(queuedPing).catch((err) => { console.error('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
             setGpsWarningWithRef(TRef.current?.("gpsLocationError") ?? "Location not being tracked — check GPS permissions");
           }
         });
         if (!navigator.onLine) {
-          enqueue(queuedPing).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
+          enqueue(queuedPing).catch((err) => { console.error('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
           queueUpdate({ kind: "location", run: doUpdate });
         } else {
           doUpdate();
@@ -340,7 +340,7 @@ export default function Active() {
     let compressed: File = file;
     try {
       compressed = await compressImage(file, 1920, 1.5 * 1024 * 1024);
-    } catch (err) { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); } // eslint-disable-line no-console
+    } catch (err) { console.error('[artifacts/rider-app/src/pages/Active.tsx]', err); } // eslint-disable-line no-console
     setProofFile(compressed);
     const compressForPreview = (dataUrl: string): Promise<string> =>
       new Promise((resolve) => {
@@ -379,7 +379,7 @@ export default function Active() {
          server URL), so we can enqueue the full delivery payload right now without
          uploading to the server first. The queue will replay it when reconnected. */
       showToast("You're offline — delivery queued with photo for retry.", true);
-      enqueueAction("update_order", id, { status: "delivered", proofPhoto }).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
+      enqueueAction("update_order", id, { status: "delivered", proofPhoto }).catch((err) => { console.error('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
       return;
     }
     let photoUrl: string | undefined;
@@ -408,7 +408,7 @@ export default function Active() {
     }
     if (!navigator.onLine) {
       showToast("You're offline — update queued for retry", true);
-      enqueueAction("update_order", id, { status: "delivered", ...(photoUrl ? { proofPhoto: photoUrl } : {}) }).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
+      enqueueAction("update_order", id, { status: "delivered", ...(photoUrl ? { proofPhoto: photoUrl } : {}) }).catch((err) => { console.error('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
       return;
     }
     updateOrderMut.mutate({ id, status: "delivered", photoUrl });
@@ -449,7 +449,7 @@ export default function Active() {
     },
     onError: (e: Error, vars, context) => {
       const looksLikeNetworkErr = /network|fetch|timeout|offline/i.test(e?.message || "");
-      if (looksLikeNetworkErr && !context?.enqueued) enqueueAction("update_order", vars.id, { status: vars.status, ...(vars.photoUrl ? { proofPhoto: vars.photoUrl } : {}) }).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
+      if (looksLikeNetworkErr && !context?.enqueued) enqueueAction("update_order", vars.id, { status: vars.status, ...(vars.photoUrl ? { proofPhoto: vars.photoUrl } : {}) }).catch((err) => { console.error('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
       showToast(mapMutationError(e, T), true);
     },
     onSettled: () => { setShowCancelConfirm(false); },
@@ -475,7 +475,7 @@ export default function Active() {
       const looksLikeNetworkErr = /network|fetch|timeout|offline/i.test(e?.message || "");
       if (looksLikeNetworkErr && !context?.enqueued) {
         const loc = vars.lat != null && vars.lng != null ? { lat: vars.lat, lng: vars.lng } : undefined;
-        enqueueAction("update_ride", vars.id, { status: vars.status, ...(loc ?? {}) }).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
+        enqueueAction("update_ride", vars.id, { status: vars.status, ...(loc ?? {}) }).catch((err) => { console.error('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
       }
       showToast(mapMutationError(e, T), true);
     },

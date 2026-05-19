@@ -35,7 +35,7 @@ export default function Chat() {
     try {
       const params = new URLSearchParams(search);
       if (params.get("tab") === "ai") return "ai";
-    } catch (err) { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
+    } catch (err) { console.error('[artifacts/rider-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
     return "chats";
   });
   const [typing, setTyping] = useState(false);
@@ -59,7 +59,7 @@ export default function Chat() {
     try {
       const params = new URLSearchParams(search);
       if (params.get("tab") === "ai") setTab("ai");
-    } catch (err) { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
+    } catch (err) { console.error('[artifacts/rider-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
   }, [search]);
 
   /* Notify push.ts whether the AI Help tab is currently the active, visible tab.
@@ -96,17 +96,17 @@ export default function Chat() {
   }, []);
 
   const loadConversations = useCallback(() => {
-    api.apiFetch("/communication/conversations").then(setConversations).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
+    api.apiFetch("/communication/conversations").then(setConversations).catch((err) => { console.error('[artifacts/rider-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
   }, []);
 
   const loadRequests = useCallback(() => {
-    api.apiFetch("/communication/requests?type=received").then(setRequests).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
+    api.apiFetch("/communication/requests?type=received").then(setRequests).catch((err) => { console.error('[artifacts/rider-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
   }, []);
 
   const endCall = useCallback(() => {
     stopSound();
     if (callId) {
-      api.apiFetch(`/communication/calls/${callId}/end`, { method: "POST", body: JSON.stringify({ duration: callTimer }) }).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
+      api.apiFetch(`/communication/calls/${callId}/end`, { method: "POST", body: JSON.stringify({ duration: callTimer }) }).catch((err) => { console.error('[artifacts/rider-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
       const otherId = selectedConv?.otherUser?.id;
       if (otherId && socket) socket.emit("comm:call:end", { callId, targetUserId: otherId });
     }
@@ -165,7 +165,7 @@ export default function Chat() {
   useEffect(() => {
     if (!socket || !user?.id) return;
 
-    api.apiFetch("/communication/me/ajk-id").then(d => setAjkId(d.ajkId)).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
+    api.apiFetch("/communication/me/ajk-id").then(d => setAjkId(d.ajkId)).catch((err) => { console.error('[artifacts/rider-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
     loadConversations();
     loadRequests();
 
@@ -357,7 +357,7 @@ export default function Chat() {
     try {
       const result = await api.apiFetch(`/communication/search/${searchId.toUpperCase()}`);
       setSearchResult(result);
-    } catch (err) { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
+    } catch (err) { console.error('[artifacts/rider-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
   };
 
   const sendRequest = async (receiverId: string) => {
@@ -424,7 +424,7 @@ export default function Chat() {
       pc.ontrack = (e) => {
         if (remoteAudioRef.current) {
           remoteAudioRef.current.srcObject = e.streams[0];
-          remoteAudioRef.current.play().catch((err) => { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
+          remoteAudioRef.current.play().catch((err) => { console.error('[artifacts/rider-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
         }
       };
 
@@ -480,7 +480,7 @@ export default function Chat() {
       pc.ontrack = (e) => {
         if (remoteAudioRef.current) {
           remoteAudioRef.current.srcObject = e.streams[0];
-          remoteAudioRef.current.play().catch((err) => { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
+          remoteAudioRef.current.play().catch((err) => { console.error('[artifacts/rider-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
         }
       };
 
@@ -504,7 +504,7 @@ export default function Chat() {
     try {
       const result = await api.aiChat(text, newHistory.slice(-10));
       setAiMessages(prev => [...prev, { role: "assistant", content: result.reply }]);
-    } catch (err) { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
+    } catch (err) { console.error('[artifacts/rider-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
     finally {
       setAiLoading(false);
       setTimeout(() => aiScrollRef.current?.scrollTo(0, aiScrollRef.current.scrollHeight), 100);
