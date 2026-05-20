@@ -30,9 +30,12 @@ import {
   Activity,
   Zap,
   Gauge,
-  KeyRound,
   Eye,
   EyeOff,
+  KeyRound,
+  Unlock,
+  Copy,
+  CheckCheck,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -653,6 +656,53 @@ export default function OtpControl() {
     }
   };
 
+  /* ── Generate OTP for user (support tool) ── */
+  const [generatedOtp, setGeneratedOtp] = useState<{
+    userId: string;
+    code: string;
+    copiedCode: boolean;
+  } | null>(null);
+  const [generatingOtpFor, setGeneratingOtpFor] = useState<string | null>(null);
+
+  const generateUserOtp = async (userId: string) => {
+    setGeneratingOtpFor(userId);
+    try {
+      const d = await api("POST", `/users/${userId}/otp/generate`);
+      if (d?.data?.code) {
+        setGeneratedOtp({ userId, code: d.data.code, copiedCode: false });
+      } else {
+        toast({ title: "Error", description: d?.error ?? "Failed to generate OTP.", variant: "destructive" });
+      }
+    } catch (e: unknown) {
+      toast({ title: "Error", description: errorMessage(e, "Failed to generate OTP."), variant: "destructive" });
+    } finally {
+      setGeneratingOtpFor(null);
+    }
+  };
+
+  const copyOtpCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setGeneratedOtp((prev) => prev ? { ...prev, copiedCode: true } : null);
+      setTimeout(() => setGeneratedOtp((prev) => prev ? { ...prev, copiedCode: false } : null), 2000);
+    } catch (_) {/* ignore */ }
+  };
+
+  /* ── Unlock (clear OTP attempts) ── */
+  const [unlockingFor, setUnlockingFor] = useState<string | null>(null);
+
+  const clearOtpAttempts = async (userId: string, name: string | null) => {
+    setUnlockingFor(userId);
+    try {
+      await api("DELETE", `/users/${userId}/otp/attempts`);
+      toast({ title: "User Unlocked", description: `OTP attempt counter cleared for ${name ?? "user"}.` });
+    } catch (e: unknown) {
+      toast({ title: "Error", description: errorMessage(e, "Failed to clear attempts."), variant: "destructive" });
+    } finally {
+      setUnlockingFor(null);
+    }
+  };
+
   const eventLabel: Record<OtpAuditEvent, string> = {
     login_otp_bypass: "Per-user bypass",
     login_global_otp_bypass: "Global suspension",
@@ -1052,57 +1102,101 @@ export default function OtpControl() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-border/50">
-                      {bypassActive ? (
+                    <div className="space-y-2 mt-3 pt-3 border-t border-border/50">
+                      {/* Bypass row */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {bypassActive ? (
+                          <button
+                            onClick={() => cancelBypass(user.id)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-red-200 text-red-700 bg-white hover:bg-red-50 transition-colors"
+                          >
+                            <XCircle className="w-3 h-3" /> Remove Bypass
+                          </button>
+                        ) : (
+                          <>
+                            {[
+                              { label: "15 min", mins: 15 },
+                              { label: "1 hour", mins: 60 },
+                              { label: "24 hrs", mins: 1440 },
+                            ].map((opt) => (
+                              <button
+                                key={opt.mins}
+                                onClick={() => grantBypass(user.id, opt.mins)}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                placeholder="min"
+                                value={bypassMins[user.id] ?? ""}
+                                onChange={(e) =>
+                                  setBypassMins((p) => ({
+                                    ...p,
+                                    [user.id]: e.target.value,
+                                  }))
+                                }
+                                className="w-16 h-7 text-xs rounded-lg"
+                                min={1}
+                              />
+                              <button
+                                onClick={() => {
+                                  const m = parseInt(bypassMins[user.id] ?? "", 10);
+                                  if (m > 0) grantBypass(user.id, m);
+                                }}
+                                className="px-2.5 py-1.5 h-7 rounded-lg text-xs font-semibold border border-border text-foreground bg-white hover:bg-muted/40 transition-colors"
+                              >
+                                Custom
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Support tools row */}
+                      <div className="flex flex-wrap gap-1.5 pt-1">
                         <button
-                          onClick={() => cancelBypass(user.id)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-red-200 text-red-700 bg-white hover:bg-red-50 transition-colors"
+                          onClick={() => generateUserOtp(user.id)}
+                          disabled={generatingOtpFor === user.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors disabled:opacity-60"
                         >
-                          <XCircle className="w-3 h-3" /> Remove Bypass
+                          {generatingOtpFor === user.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <KeyRound className="w-3 h-3" />
+                          )}
+                          Generate OTP
                         </button>
-                      ) : (
-                        <>
-                          {[
-                            { label: "15 min", mins: 15 },
-                            { label: "1 hour", mins: 60 },
-                            { label: "24 hrs", mins: 1440 },
-                          ].map((opt) => (
-                            <button
-                              key={opt.mins}
-                              onClick={() => grantBypass(user.id, opt.mins)}
-                              className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors"
-                            >
-                              {opt.label}
-                            </button>
-                          ))}
-                          <div className="flex items-center gap-1">
-                            <Input
-                              type="number"
-                              placeholder="min"
-                              value={bypassMins[user.id] ?? ""}
-                              onChange={(e) =>
-                                setBypassMins((p) => ({
-                                  ...p,
-                                  [user.id]: e.target.value,
-                                }))
-                              }
-                              className="w-16 h-7 text-xs rounded-lg"
-                              min={1}
-                            />
-                            <button
-                              onClick={() => {
-                                const m = parseInt(
-                                  bypassMins[user.id] ?? "",
-                                  10,
-                                );
-                                if (m > 0) grantBypass(user.id, m);
-                              }}
-                              className="px-2.5 py-1.5 h-7 rounded-lg text-xs font-semibold border border-border text-foreground bg-white hover:bg-muted/40 transition-colors"
-                            >
-                              Custom
-                            </button>
-                          </div>
-                        </>
+                        <button
+                          onClick={() => clearOtpAttempts(user.id, user.name)}
+                          disabled={unlockingFor === user.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors disabled:opacity-60"
+                        >
+                          {unlockingFor === user.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Unlock className="w-3 h-3" />
+                          )}
+                          Unlock
+                        </button>
+                      </div>
+
+                      {/* Generated OTP display */}
+                      {generatedOtp?.userId === user.id && (
+                        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                          <span className="text-[11px] text-emerald-700 font-medium">Generated OTP:</span>
+                          <span className="font-mono text-sm font-bold text-emerald-800 tracking-widest">{generatedOtp.code}</span>
+                          <button
+                            onClick={() => copyOtpCode(generatedOtp.code)}
+                            className="ml-auto shrink-0 p-1 rounded text-emerald-600 hover:text-emerald-800 transition-colors"
+                            title="Copy to clipboard"
+                          >
+                            {generatedOtp.copiedCode ? <CheckCheck className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                          <span className="text-[10px] text-emerald-600">Expires in 10 min</span>
+                        </div>
                       )}
                     </div>
                   </div>

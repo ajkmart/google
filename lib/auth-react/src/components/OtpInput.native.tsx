@@ -8,30 +8,41 @@ import {
 } from 'react-native';
 
 export interface OtpInputProps {
-  value: string;
-  onChangeText: (v: string) => void;
+  value?: string;
+  onChangeText?: (v: string) => void;
   length?: number;
   onComplete?: (otp: string) => void;
-  onResend?: () => void;
+  onResend?: () => void | Promise<void>;
   resendCooldownSeconds?: number;
+  resendCooldown?: number;
   disabled?: boolean;
   label?: string;
   hasError?: boolean;
+  error?: string | null;
+  channel?: 'sms' | 'whatsapp' | 'email';
+  isLoading?: boolean;
+  autoSubmit?: boolean;
   className?: string;
   inputClassName?: string;
 }
 
 export function OtpInput({
-  value,
+  value: valueProp,
   onChangeText,
   length = 6,
   onComplete,
   onResend,
-  resendCooldownSeconds = 60,
+  resendCooldownSeconds,
+  resendCooldown,
   disabled = false,
   label,
   hasError = false,
+  error,
 }: OtpInputProps) {
+  const [internalValue, setInternalValue] = React.useState('');
+  const value = valueProp !== undefined ? valueProp : internalValue;
+  const effectiveCooldown = resendCooldown ?? resendCooldownSeconds ?? 60;
+  const hasErr = hasError || !!error;
   const [cooldown, setCooldown] = React.useState(0);
   const inputRef = useRef<TextInput>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -51,7 +62,7 @@ export function OtpInput({
   }, [value, length, onComplete]);
 
   function startCooldown() {
-    setCooldown(resendCooldownSeconds);
+    setCooldown(effectiveCooldown);
     timerRef.current = setInterval(() => {
       setCooldown((c) => {
         if (c <= 1) {
@@ -65,14 +76,16 @@ export function OtpInput({
 
   function handleResend() {
     if (cooldown > 0 || !onResend) return;
-    onChangeText('');
-    onResend();
+    setInternalValue('');
+    onChangeText?.('');
+    void onResend();
     startCooldown();
   }
 
   function handleChangeText(raw: string) {
     const cleaned = raw.replace(/\D/g, '').slice(0, length);
-    onChangeText(cleaned);
+    setInternalValue(cleaned);
+    onChangeText?.(cleaned);
   }
 
   const digits = value.split('');
@@ -109,7 +122,7 @@ export function OtpInput({
                 styles.box,
                 isActive && styles.boxActive,
                 isFilled && styles.boxFilled,
-                hasError && styles.boxError,
+                hasErr && styles.boxError,
               ]}
             >
               {isFilled ? (

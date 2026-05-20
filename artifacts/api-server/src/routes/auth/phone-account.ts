@@ -3,7 +3,7 @@ import rateLimit from "express-rate-limit";
 import crypto, { randomBytes, createHash, randomInt } from "crypto";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, pendingOtpsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
+import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
 import { eq, and, sql, lt, or, desc, ilike, isNull } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
 import { getPlatformSettings } from "../admin.js";
@@ -25,6 +25,8 @@ import { canonicalizePhone } from "@workspace/phone-utils";
 import { isAuthMethodEnabled, isAuthMethodEnabledStrict } from "@workspace/auth-utils/server";
 import { validateBody as sharedValidateBody } from "../../middleware/validate.js";
 import { authLimiter, loginLimiter, otpLimiter } from "../../middleware/rate-limit.js";
+import { verifyOtp } from "../../modules/otp/otp.verify.js";
+import { OtpBlockedError, OtpInvalidError, OtpExpiredError } from "../../modules/otp/otp.types.js";
 import { hashOtp, isValidCanonicalPhone, normalizeVehicleTypeForStorage, generateVerificationToken, hashVerificationToken, tryEncrypt, decryptPii, setRiderRefreshCookie, clearRiderRefreshCookie, setVendorRefreshCookie, clearVendorRefreshCookie, RIDER_REFRESH_COOKIE, RIDER_REFRESH_COOKIE_PATH, VENDOR_REFRESH_COOKIE, VENDOR_REFRESH_COOKIE_PATH } from "./helpers.js";
 import { rotateRefreshToken, invalidateTokenFamily } from "../../services/auth/tokenRotation.js";
 import {
@@ -73,9 +75,11 @@ router.post("/change-phone/request", sharedValidateBody(ChangePhoneRequestSchema
   const otp = generateSecureOtp();
   const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
+  // Store merge OTP in otp_tokens (mergeOtpCode column was dropped from users table)
+  const { saveOtpToken } = await import("../../modules/otp/otp.store.js");
+  const { hashOtpCode } = await import("../../modules/otp/otp.generate.js");
+  await saveOtpToken({ identifier: phone, identifierType: "phone", otpType: "merge", otpHash: hashOtpCode(otp), channel: "sms", userId: auth.userId, ttlMs: 10 * 60 * 1000 });
   await db.update(usersTable).set({
-    mergeOtpCode: hashOtp(otp),
-    mergeOtpExpiry: otpExpiry,
     pendingMergeIdentifier: phone,
     updatedAt: new Date(),
   }).where(eq(usersTable.id, auth.userId));
@@ -126,8 +130,13 @@ router.post("/change-phone/confirm", sharedValidateBody(ChangePhoneConfirmSchema
     sendError(res, "OTP was not requested for this phone number", 400); return;
   }
 
-  if (user.mergeOtpCode !== hashOtp(otp) || !user.mergeOtpExpiry || user.mergeOtpExpiry < new Date()) {
-    sendError(res, "Invalid or expired OTP", 400); return;
+  try {
+    await verifyOtp({ identifier: phone, identifierType: "phone", otpType: "merge", code: String(otp) });
+  } catch (otpErr) {
+    if (otpErr instanceof OtpBlockedError || otpErr instanceof OtpInvalidError || otpErr instanceof OtpExpiredError) {
+      sendError(res, otpErr.message || "Invalid or expired OTP", 400); return;
+    }
+    throw otpErr;
   }
 
   const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, phone)).limit(1);
@@ -138,8 +147,6 @@ router.post("/change-phone/confirm", sharedValidateBody(ChangePhoneConfirmSchema
   await db.update(usersTable).set({
     phone,
     phoneVerified: true,
-    mergeOtpCode: null,
-    mergeOtpExpiry: null,
     pendingMergeIdentifier: null,
     updatedAt: new Date(),
   }).where(eq(usersTable.id, auth.userId));

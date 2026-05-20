@@ -34,8 +34,8 @@ export type {
 } from './hooks/useSessionManager';
 
 // Components
-export { OtpInput } from './components/OtpInput';
-export type { OtpInputProps } from './components/OtpInput';
+export { OtpInput, OtpTimer } from './components/OtpInput';
+export type { OtpInputProps, OtpTimerProps } from './components/OtpInput';
 export { PhoneInput } from './components/PhoneInput';
 export type { PhoneInputProps, Country } from './components/PhoneInput';
 export { PasswordInput } from './components/PasswordInput';

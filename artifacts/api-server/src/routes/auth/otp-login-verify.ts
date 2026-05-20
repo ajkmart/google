@@ -1,12 +1,13 @@
 /**
  * POST /auth/login/verify-otp
  * Second-step OTP verification for the password-then-OTP login flow.
- * Extracted from otp.ts to keep individual auth files under 1000 lines.
+ * Uses the centralised OTP module (otp_tokens table) — no longer reads
+ * otp_code / otp_used columns from the users table.
  */
 import type { Request, Response } from "express";
 import { db } from "@workspace/db";
 import { usersTable, refreshTokensTable } from "@workspace/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
 import {
   checkLockout, recordFailedAttempt, resetAttempts,
@@ -22,9 +23,11 @@ import {
   sendSuccess, sendTooManyRequests, sendErrorWithData,
 } from "../../lib/response.js";
 import {
-  hashOtp, decryptPii, setRiderRefreshCookie, setVendorRefreshCookie,
+  decryptPii, setRiderRefreshCookie, setVendorRefreshCookie,
   isDeviceTrusted,
 } from "./helpers.js";
+import { verifyOtp } from "../../modules/otp/otp.verify.js";
+import { OtpBlockedError, OtpInvalidError, OtpExpiredError } from "../../modules/otp/otp.types.js";
 
 export async function handleLoginVerifyOtp(req: Request, res: Response): Promise<void> {
   try {
@@ -57,31 +60,41 @@ export async function handleLoginVerifyOtp(req: Request, res: Response): Promise
       }
     }
 
-    const now  = new Date();
-    const rows = await db
-      .update(usersTable)
-      .set({ otpCode: null, otpExpiry: null, otpUsed: true, lastLoginAt: now, updatedAt: now })
-      .where(and(
-        eq(usersTable.id,      user.id),
-        eq(usersTable.otpCode, hashOtp(otp)),
-        eq(usersTable.otpUsed, false),
-        sql`otp_expiry > now()`,
-      ))
-      .returning({ id: usersTable.id });
+    // ── Verify via new OTP module (otp_tokens table) ──
+    // OTP was sent to the user's phone (or email) during the password login step.
+    // The identifier is the normalised phone (primary) or email fallback.
+    const identifier = user.phone ?? user.email ?? "";
+    const identifierType = user.phone ? "phone" : "email";
 
-    if (rows.length === 0) {
-      const updated = await recordFailedAttempt(lockoutKey, maxAttempts, lockoutMinutes);
-      writeAuthAuditLog("otp_failed", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { method: "password_login_otp" } });
-      if (lockoutEnabled && updated.locked) {
-        sendTooManyRequests(res, `Too many failed attempts. Account locked for ${lockoutMinutes} minutes.`);
-      } else if (lockoutEnabled) {
-        const remaining = Math.max(0, maxAttempts - updated.attempts);
-        sendErrorWithData(res, `Invalid or expired OTP. ${remaining} attempt(s) remaining.`, { attemptsRemaining: remaining }, 401);
-      } else {
-        sendUnauthorized(res, "Invalid or expired OTP.");
+    try {
+      await verifyOtp({ identifier, identifierType, otpType: "login", code: String(otp) });
+    } catch (otpErr) {
+      if (otpErr instanceof OtpBlockedError) {
+        sendTooManyRequests(res, otpErr.message); return;
       }
-      return;
+      if (otpErr instanceof OtpInvalidError || otpErr instanceof OtpExpiredError) {
+        if (lockoutEnabled) {
+          const updated = await recordFailedAttempt(lockoutKey, maxAttempts, lockoutMinutes);
+          writeAuthAuditLog("otp_failed", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { method: "password_login_otp" } });
+          if (updated.locked) {
+            sendTooManyRequests(res, `Too many failed attempts. Account locked for ${lockoutMinutes} minutes.`); return;
+          }
+          const remaining = Math.max(0, maxAttempts - updated.attempts);
+          sendErrorWithData(res, `${otpErr.message} ${remaining} attempt(s) remaining.`, { attemptsRemaining: remaining }, 401);
+        } else {
+          writeAuthAuditLog("otp_failed", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { method: "password_login_otp" } });
+          sendUnauthorized(res, otpErr.message);
+        }
+        return;
+      }
+      throw otpErr;
     }
+
+    // ── OTP verified — update lastLoginAt ──
+    const now = new Date();
+    await db.update(usersTable)
+      .set({ lastLoginAt: now, updatedAt: now })
+      .where(eq(usersTable.id, user.id));
 
     await resetAttempts(lockoutKey);
     writeAuthAuditLog("otp_verified", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { method: "password_login_otp" } });

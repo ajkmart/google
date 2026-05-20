@@ -10,7 +10,7 @@ export interface Country {
 
 export interface PhoneInputProps {
   value: string;
-  onChangeText: (localNumber: string) => void;
+  onChangeText?: (localNumber: string) => void;
   onChange?: (e164: string, local: string, country: Country) => void;
   defaultCountryCode?: string;
   disabled?: boolean;
@@ -69,7 +69,7 @@ export function PhoneInput({
   function handleChange(raw: string) {
     // Strip dial prefix in case user pastes/types the full international number
     const clean = stripDialPrefix(raw, country.dial).slice(0, 10);
-    onChangeText(clean);
+    onChangeText?.(clean);
     onChange?.(toE164(country.dial, clean), clean, country);
   }
 

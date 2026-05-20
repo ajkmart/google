@@ -12,14 +12,6 @@ export const usersTable = pgTable("users", {
   roles:           text("roles").notNull().default("customer"),
   avatar:          text("avatar"),
   walletBalance:   decimal("wallet_balance", { precision: 10, scale: 2 }).notNull().default("0"),
-  /* ── OTP fields (phone verification) ── */
-  otpCode:         text("otp_code"),
-  otpExpiry:       timestamp("otp_expiry"),
-  otpUsed:         boolean("otp_used").notNull().default(false),
-  /* ── Email OTP (separate from phone OTP) ── */
-  emailOtpCode:    text("email_otp_code"),
-  emailOtpExpiry:  timestamp("email_otp_expiry"),
-  emailOtpUsed:    boolean("email_otp_used").notNull().default(false),
   /* ── Username + password login ── */
   username:        text("username").unique(),
   passwordHash:    text("password_hash"),
@@ -88,9 +80,6 @@ export const usersTable = pgTable("users", {
   ajkId:           text("ajk_id").unique(),
   chatMuted:       boolean("chat_muted").notNull().default(false),
   commBlocked:     boolean("comm_blocked").notNull().default(false),
-  /* ── Merge OTP fields (separate from login OTP to avoid race conditions) ── */
-  mergeOtpCode:    text("merge_otp_code"),
-  mergeOtpExpiry:  timestamp("merge_otp_expiry"),
   /* ── Pending merge identifier ── */
   pendingMergeIdentifier: text("pending_merge_identifier"),
   /* ── Device fingerprinting ── */

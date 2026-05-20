@@ -800,15 +800,14 @@ export class UserService {
     const otp = generateSecureOtp();
     const otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
 
-    await db
-      .update(usersTable)
-      .set({
-        otpCode: this.hashOtp(otp),
-        otpExpiry,
-        otpUsed: false,
-        updatedAt: new Date(),
-      })
-      .where(eq(usersTable.id, userId));
+    // Store OTP in otp_tokens table (columns removed from users table)
+    const { generateOtpCode: _g, hashOtpCode } = await import("../modules/otp/otp.generate.js");
+    const { saveOtpToken } = await import("../modules/otp/otp.store.js");
+    const identifier = user.phone ?? userId;
+    const identifierType: "phone" | "email" = user.phone ? "phone" : "email";
+    await saveOtpToken({ identifier, identifierType, otpType: "login", otpHash: hashOtpCode(otp), channel: "sms", userId, ttlMs: 5 * 60 * 1000 });
+
+    await db.update(usersTable).set({ updatedAt: new Date() }).where(eq(usersTable.id, userId));
 
     return { otp, expiresAt: otpExpiry.toISOString(), phone: user.phone };
   }

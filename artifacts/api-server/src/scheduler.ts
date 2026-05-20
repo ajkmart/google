@@ -1,10 +1,10 @@
 import { db } from "@workspace/db";
 import {
   otpAttemptsTable,
+  otpTokensTable,
   rideBidsTable,
   refreshTokensTable,
   magicLinkTokensTable,
-  pendingOtpsTable,
   userSessionsTable,
   liveLocationsTable,
   locationHistoryTable,
@@ -146,15 +146,16 @@ async function purgeExpiredMagicLinkTokens(): Promise<void> {
   }
 }
 
-async function purgeExpiredPendingOtps(): Promise<void> {
+
+async function purgeExpiredOtpTokens(): Promise<void> {
   const deleted = await db
-    .delete(pendingOtpsTable)
-    .where(sql`otp_expiry < now()`)
-    .returning({ id: pendingOtpsTable.id });
+    .delete(otpTokensTable)
+    .where(sql`expires_at < now()`)
+    .returning({ id: otpTokensTable.id });
   if (deleted.length > 0) {
-    logger.info({ count: deleted.length }, "[scheduler] purged expired pending OTP rows");
+    logger.info({ count: deleted.length }, "[scheduler] purged expired otp_tokens rows");
   } else {
-    logger.debug("[scheduler] pending-otp cleanup ran, 0 rows removed");
+    logger.debug("[scheduler] otp-token cleanup ran, 0 rows removed");
   }
 }
 
@@ -225,7 +226,7 @@ const ALL_JOBS = [
   "ride-bid-map-cleanup",
   "refresh-token-cleanup",
   "magic-link-token-cleanup",
-  "pending-otp-cleanup",
+  "otp-token-cleanup",
   "user-session-cleanup",
   "live-location-cleanup",
   "login-history-archival",
@@ -238,7 +239,7 @@ export function startScheduler(): void {
   register("ride-bid-map-cleanup",      purgeStaleRideBids,           30 * 60_000);
   register("refresh-token-cleanup",     purgeExpiredRefreshTokens,    60 * 60_000);
   register("magic-link-token-cleanup",  purgeExpiredMagicLinkTokens,  30 * 60_000);
-  register("pending-otp-cleanup",       purgeExpiredPendingOtps,      15 * 60_000);
+  register("otp-token-cleanup",         purgeExpiredOtpTokens,        30 * 60_000);
   register("user-session-cleanup",      purgeExpiredUserSessions,     60 * 60_000);
   register("live-location-cleanup",     purgeStaleLocations,          30 * 60_000);
   register("login-history-archival",    archiveOldLoginHistory,       24 * 60 * 60_000);

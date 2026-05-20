@@ -3,7 +3,7 @@ import rateLimit from "express-rate-limit";
 import crypto, { randomBytes, createHash, randomInt } from "crypto";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, pendingOtpsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
+import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
 import { eq, and, sql, lt, or, desc, ilike, isNull } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
 import { getPlatformSettings } from "../admin.js";
@@ -25,6 +25,10 @@ import { canonicalizePhone } from "@workspace/phone-utils";
 import { isAuthMethodEnabled, isAuthMethodEnabledStrict } from "@workspace/auth-utils/server";
 import { validateBody as sharedValidateBody } from "../../middleware/validate.js";
 import { authLimiter, loginLimiter, otpLimiter } from "../../middleware/rate-limit.js";
+import { saveOtpToken } from "../../modules/otp/otp.store.js";
+import { hashOtpCode } from "../../modules/otp/otp.generate.js";
+import { verifyOtp } from "../../modules/otp/otp.verify.js";
+import { OtpBlockedError, OtpInvalidError, OtpExpiredError } from "../../modules/otp/otp.types.js";
 import { hashOtp, isValidCanonicalPhone, normalizeVehicleTypeForStorage, generateVerificationToken, hashVerificationToken, tryEncrypt, decryptPii, setRiderRefreshCookie, clearRiderRefreshCookie, setVendorRefreshCookie, clearVendorRefreshCookie, RIDER_REFRESH_COOKIE, RIDER_REFRESH_COOKIE_PATH, VENDOR_REFRESH_COOKIE, VENDOR_REFRESH_COOKIE_PATH } from "./helpers.js";
 import { rotateRefreshToken, invalidateTokenFamily } from "../../services/auth/tokenRotation.js";
 import {
@@ -75,9 +79,9 @@ router.post("/send-merge-otp", otpLimiter, sharedValidateBody(SendMergeOtpSchema
   }
 
   const otp = generateSecureOtp();
-  const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
   const normalizedIdentifier = looksLikePhone ? canonicalizePhone(identifier) : identifier.trim().toLowerCase();
-  await db.update(usersTable).set({ mergeOtpCode: hashOtp(otp), mergeOtpExpiry: otpExpiry, pendingMergeIdentifier: normalizedIdentifier, updatedAt: new Date() }).where(eq(usersTable.id, auth.userId));
+  await saveOtpToken({ identifier: normalizedIdentifier, identifierType: looksLikePhone ? "phone" : "email", otpType: "merge", otpHash: hashOtpCode(otp), channel: looksLikePhone ? "sms" : "email", userId: auth.userId, ttlMs: 10 * 60 * 1000 });
+  await db.update(usersTable).set({ pendingMergeIdentifier: normalizedIdentifier, updatedAt: new Date() }).where(eq(usersTable.id, auth.userId));
 
   if (looksLikePhone) {
     const phone = canonicalizePhone(identifier);
@@ -140,14 +144,19 @@ router.post("/merge-account", sharedValidateBody(MergeAccountSchema), async (req
 
   const normalizedIdentifier = looksLikePhone ? canonicalizePhone(identifier) : identifier.trim().toLowerCase();
 
-  if (currentUser.mergeOtpCode !== hashOtp(otp) || !currentUser.mergeOtpExpiry || currentUser.mergeOtpExpiry < new Date()) {
-    sendError(res, "Invalid or expired OTP", 400);
-    return;
-  }
-
   if (currentUser.pendingMergeIdentifier !== normalizedIdentifier) {
     sendError(res, "OTP was not issued for this identifier", 400);
     return;
+  }
+
+  try {
+    await verifyOtp({ identifier: normalizedIdentifier, identifierType: looksLikePhone ? "phone" : "email", otpType: "merge", code: String(otp) });
+  } catch (otpErr) {
+    if (otpErr instanceof OtpBlockedError || otpErr instanceof OtpInvalidError || otpErr instanceof OtpExpiredError) {
+      sendError(res, otpErr.message || "Invalid or expired OTP", 400);
+      return;
+    }
+    throw otpErr;
   }
 
   if (looksLikePhone) {
@@ -157,7 +166,7 @@ router.post("/merge-account", sharedValidateBody(MergeAccountSchema), async (req
     const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, phone)).limit(1);
     if (existing) { sendError(res, "This phone number is already linked to another account", 409); return; }
 
-    await db.update(usersTable).set({ phone, encryptedPhone: tryEncrypt(phone), mergeOtpCode: null, mergeOtpExpiry: null, phoneVerified: true, pendingMergeIdentifier: null, updatedAt: new Date() }).where(eq(usersTable.id, auth.userId));
+    await db.update(usersTable).set({ phone, encryptedPhone: tryEncrypt(phone), phoneVerified: true, pendingMergeIdentifier: null, updatedAt: new Date() }).where(eq(usersTable.id, auth.userId));
 
     writeAuthAuditLog("account_merge_phone", { ip, userId: auth.userId, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone } });
     sendSuccess(res, { success: true, message: "Phone number linked successfully", linked: "phone" });
@@ -168,7 +177,7 @@ router.post("/merge-account", sharedValidateBody(MergeAccountSchema), async (req
     const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
     if (existing) { sendError(res, "This email is already linked to another account", 409); return; }
 
-    await db.update(usersTable).set({ email, encryptedEmail: tryEncrypt(email), mergeOtpCode: null, mergeOtpExpiry: null, emailVerified: true, pendingMergeIdentifier: null, updatedAt: new Date() }).where(eq(usersTable.id, auth.userId));
+    await db.update(usersTable).set({ email, encryptedEmail: tryEncrypt(email), emailVerified: true, pendingMergeIdentifier: null, updatedAt: new Date() }).where(eq(usersTable.id, auth.userId));
 
     writeAuthAuditLog("account_merge_email", { ip, userId: auth.userId, userAgent: req.headers["user-agent"] ?? undefined, metadata: { email } });
     sendSuccess(res, { success: true, message: "Email linked successfully", linked: "email" });

@@ -3,7 +3,7 @@ import rateLimit from "express-rate-limit";
 import crypto, { randomBytes, createHash, randomInt } from "crypto";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, pendingOtpsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
+import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
 import { eq, and, sql, lt, or, desc, ilike, isNull } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
 import { getPlatformSettings } from "../admin.js";
@@ -195,7 +195,7 @@ router.post("/logout", sharedValidateBody(LogoutSchema), async (req, res) => {
       }
       /* Increment tokenVersion to immediately invalidate ALL outstanding access JWTs for this user */
       await db.update(usersTable)
-        .set({ otpCode: null, tokenVersion: sql`token_version + 1` })
+        .set({ tokenVersion: sql`token_version + 1` })
         .where(eq(usersTable.id, payload.userId));
       /* Mark all active user_sessions rows as revoked so session-list queries
          reflect the logout immediately (avoids "ghost" sessions in the UI). */

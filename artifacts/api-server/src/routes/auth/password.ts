@@ -3,7 +3,7 @@ import rateLimit from "express-rate-limit";
 import crypto, { randomBytes, createHash, randomInt } from "crypto";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, pendingOtpsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
+import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
 import { eq, and, sql, lt, or, desc, ilike, isNull } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
 import { getPlatformSettings } from "../admin.js";
@@ -26,6 +26,10 @@ import { isAuthMethodEnabled, isAuthMethodEnabledStrict } from "@workspace/auth-
 import { validateBody as sharedValidateBody } from "../../middleware/validate.js";
 import { authLimiter, loginLimiter, otpLimiter, passwordResetLimiter } from "../../middleware/rate-limit.js";
 import { hashOtp, isValidCanonicalPhone, normalizeVehicleTypeForStorage, generateVerificationToken, hashVerificationToken, tryEncrypt, decryptPii, setRiderRefreshCookie, clearRiderRefreshCookie, setVendorRefreshCookie, clearVendorRefreshCookie, RIDER_REFRESH_COOKIE, RIDER_REFRESH_COOKIE_PATH, VENDOR_REFRESH_COOKIE, VENDOR_REFRESH_COOKIE_PATH } from "./helpers.js";
+import { saveOtpToken, getActiveOtpToken, markOtpUsed } from "../../modules/otp/otp.store.js";
+import { hashOtpCode, verifyOtpHash } from "../../modules/otp/otp.generate.js";
+import { OtpBlockedError, OtpInvalidError, OtpExpiredError } from "../../modules/otp/otp.types.js";
+import { verifyOtp } from "../../modules/otp/otp.verify.js";
 import { rotateRefreshToken, invalidateTokenFamily } from "../../services/auth/tokenRotation.js";
 import { AuditService } from "../../services/admin-audit.service.js";
 import {
@@ -264,11 +268,8 @@ router.post("/forgot-password", passwordResetLimiter, verifyCaptcha, sharedValid
   const forgotLang = await getUserLanguage(user.id);
 
   if (phone) {
-    await db.update(usersTable)
-      .set({ otpCode: hashOtp(otp), otpExpiry, otpUsed: false, updatedAt: new Date() })
-      .where(eq(usersTable.id, user.id));
-
     const targetPhone = canonicalizePhone(phone);
+    await saveOtpToken({ identifier: targetPhone, identifierType: "phone", otpType: "reset", otpHash: hashOtpCode(otp), channel: "sms", userId: user.id, ttlMs: AUTH_OTP_TTL_MS });
     await sendOtpSMS(targetPhone, otp, settings, forgotLang);
     if (settings["integration_whatsapp"] === "on") {
       fireAndForget(
@@ -279,9 +280,8 @@ router.post("/forgot-password", passwordResetLimiter, verifyCaptcha, sharedValid
       );
     }
   } else {
-    await db.update(usersTable)
-      .set({ emailOtpCode: hashOtp(otp), emailOtpExpiry: otpExpiry, emailOtpUsed: false, updatedAt: new Date() })
-      .where(eq(usersTable.id, user.id));
+    const targetEmail = email!.toLowerCase().trim();
+    await saveOtpToken({ identifier: targetEmail, identifierType: "email", otpType: "reset", otpHash: hashOtpCode(otp), channel: "email", userId: user.id, ttlMs: AUTH_OTP_TTL_MS });
 
     await sendPasswordResetEmail(email!, otp, user.name ?? undefined, forgotLang);
   }
@@ -334,35 +334,12 @@ router.post("/verify-reset-otp", otpLimiter, verifyCaptcha, sharedValidateBody(V
     return;
   }
 
-  const hashed = hashOtp(otp);
-  const now = new Date();
-
-  if (phone) {
-    if (!user.otpCode || user.otpCode !== hashed) {
-      sendError(res, "Invalid verification code", 422);
-      return;
-    }
-    if (!user.otpExpiry || user.otpExpiry < now) {
-      sendError(res, "Verification code has expired. Please request a new one.", 422);
-      return;
-    }
-    if (user.otpUsed) {
-      sendError(res, "This code has already been used. Please request a new one.", 422);
-      return;
-    }
-  } else {
-    if (!user.emailOtpCode || user.emailOtpCode !== hashed) {
-      sendError(res, "Invalid verification code", 422);
-      return;
-    }
-    if (!user.emailOtpExpiry || user.emailOtpExpiry < now) {
-      sendError(res, "Verification code has expired. Please request a new one.", 422);
-      return;
-    }
-    if (user.emailOtpUsed) {
-      sendError(res, "This code has already been used. Please request a new one.", 422);
-      return;
-    }
+  const identifier = phone ? canonicalizePhone(phone) : (email as string).toLowerCase().trim();
+  const identifierType = phone ? "phone" : "email";
+  const activeToken = await getActiveOtpToken({ identifier, identifierType, otpType: "reset" });
+  if (!activeToken || !verifyOtpHash(otp, activeToken.otpHash)) {
+    sendError(res, "Invalid or expired verification code", 422);
+    return;
   }
 
   const settings = await getCachedSettings();
@@ -465,14 +442,10 @@ router.post("/reset-password", verifyCaptcha, sharedValidateBody(ResetPasswordSc
     return;
   }
 
-  let otpValid = false;
-  if (phone) {
-    otpValid = user.otpCode === hashOtp(otp) && !user.otpUsed && user.otpExpiry != null && new Date() < user.otpExpiry;
-  } else {
-    otpValid = user.emailOtpCode === hashOtp(otp) && !user.emailOtpUsed && user.emailOtpExpiry != null && new Date() < user.emailOtpExpiry;
-  }
-
-  if (!otpValid) {
+  const resetIdentifier = phone ? canonicalizePhone(phone) : email!.toLowerCase().trim();
+  const resetIdentifierType = phone ? "phone" : "email";
+  const resetToken = await getActiveOtpToken({ identifier: resetIdentifier, identifierType: resetIdentifierType, otpType: "reset" });
+  if (!resetToken || !verifyOtpHash(otp, resetToken.otpHash)) {
     await recordFailedAttempt(lockoutKey, maxAttempts, lockoutMinutes);
     AuditService.log({ action: "reset_password_failed", ip, details: `Invalid OTP for password reset: ${user.id}`, result: "fail" });
     sendUnauthorized(res, "Invalid or expired OTP");
@@ -482,11 +455,7 @@ router.post("/reset-password", verifyCaptcha, sharedValidateBody(ResetPasswordSc
   /* Mark the OTP as consumed immediately after validation, before any
      further checks (2FA). This prevents an attacker from retrying the
      same OTP code while a 2FA challenge is pending. */
-  if (phone) {
-    await db.update(usersTable).set({ otpUsed: true, updatedAt: new Date() }).where(eq(usersTable.id, user.id));
-  } else {
-    await db.update(usersTable).set({ emailOtpUsed: true, updatedAt: new Date() }).where(eq(usersTable.id, user.id));
-  }
+  await markOtpUsed(resetToken.id);
 
   if (user.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", userRole)) {
     if (!totpCode) {
@@ -521,11 +490,6 @@ router.post("/reset-password", verifyCaptcha, sharedValidateBody(ResetPasswordSc
   await db.update(usersTable).set({
     passwordHash: hashPassword(newPassword),
     requirePasswordChange: false,
-    otpCode: null,
-    otpExpiry: null,
-    otpUsed: true,
-    emailOtpCode: null,
-    emailOtpExpiry: null,
     tokenVersion: sql`token_version + 1`,
     updatedAt: new Date(),
   }).where(eq(usersTable.id, user.id));

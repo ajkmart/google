@@ -147,7 +147,6 @@ async function restoreTables(tables: Record<string, any[]>) {
       if (out.createdAt) out.createdAt = new Date(out.createdAt as string);
       if (out.updatedAt) out.updatedAt = new Date(out.updatedAt as string);
       if (out.expiresAt) out.expiresAt = new Date(out.expiresAt as string);
-      if (out.otpExpiry) out.otpExpiry = new Date(out.otpExpiry as string);
       if (out.scheduledFor) out.scheduledFor = new Date(out.scheduledFor as string);
       return out;
     });

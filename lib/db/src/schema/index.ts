@@ -39,7 +39,6 @@ export * from "./user_interactions";
 export * from "./rider_profiles";
 export * from "./vendor_profiles";
 export * from "./push_subscriptions";
-export * from "./pending_otps";
 export * from "./otp_tokens";
 export * from "./kyc_verifications";
 export * from "./user_sessions";

@@ -3,7 +3,7 @@ import rateLimit from "express-rate-limit";
 import crypto, { randomBytes, createHash, randomInt } from "crypto";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, pendingOtpsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
+import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
 import { eq, and, sql, lt, or, desc, ilike, isNull } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
 import { getPlatformSettings } from "../admin.js";
@@ -463,7 +463,7 @@ router.post("/firebase-verify", sharedValidateBody(FirebaseVerifySchema), async 
 
   writeAuthAuditLog("firebase_login", { userId: user.id, ip, userAgent, metadata: { uid: decoded.uid } });
 
-  const { passwordHash: _ph, otpCode: _otp, otpExpiry: _exp, emailOtpCode: _eotp, emailOtpExpiry: _eexp, totpSecret: _ts, backupCodes: _bc, ...safeUser } = user;
+  const { passwordHash: _ph, totpSecret: _ts, backupCodes: _bc, ...safeUser } = user;
   sendSuccess(res, { ...tokenData, user: safeUser });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');

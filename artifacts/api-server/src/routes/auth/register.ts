@@ -3,7 +3,7 @@ import rateLimit from "express-rate-limit";
 import crypto, { randomBytes, createHash, randomInt } from "crypto";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, pendingOtpsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
+import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
 import { eq, and, sql, lt, or, desc, ilike, isNull } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
 import { getPlatformSettings } from "../admin.js";
@@ -25,6 +25,7 @@ import { canonicalizePhone } from "@workspace/phone-utils";
 import { isAuthMethodEnabled, isAuthMethodEnabledStrict } from "@workspace/auth-utils/server";
 import { validateBody as sharedValidateBody } from "../../middleware/validate.js";
 import { authLimiter, loginLimiter, otpLimiter, registrationLimiter } from "../../middleware/rate-limit.js";
+import { saveOtpToken, getActiveOtpToken, markOtpUsed } from "../../modules/otp/otp.store.js";
 import { hashOtp, isValidCanonicalPhone, normalizeVehicleTypeForStorage, generateVerificationToken, hashVerificationToken, tryEncrypt, decryptPii, setRiderRefreshCookie, clearRiderRefreshCookie, setVendorRefreshCookie, clearVendorRefreshCookie, RIDER_REFRESH_COOKIE, RIDER_REFRESH_COOKIE_PATH, VENDOR_REFRESH_COOKIE, VENDOR_REFRESH_COOKIE_PATH } from "./helpers.js";
 import { rotateRefreshToken, invalidateTokenFamily } from "../../services/auth/tokenRotation.js";
 import { AuditService } from "../../services/admin-audit.service.js";
@@ -682,9 +683,6 @@ router.post("/register", registrationLimiter, verifyCaptcha, sharedValidateBody(
 
       roles: userRole,
       passwordHash: hashPassword(password),
-      otpCode: hashOtp(otp),
-      otpExpiry,
-      otpUsed: false,
       /* Mark phone as verified immediately when OTP is globally bypassed OR when
          both phone+email OTP are disabled for this role (config-driven skip). */
       phoneVerified: otpBypassed || otpMethodsDisabled,
@@ -934,12 +932,21 @@ router.post("/email-register", registrationLimiter, verifyCaptcha, sharedValidat
     isActive: !requireApproval,
     approvalStatus: requireApproval ? "pending" : "approved",
     emailVerified: false,
-    emailOtpCode: tokenHash,
-    emailOtpExpiry: verificationExpiry,
     ...(cnic ? { cnic: tryEncrypt(cnic.trim()) ?? cnic.trim() } : {}),
     ...(address ? { address: address.trim() } : {}),
     ...(city ? { city: city.trim() } : {}),
     ...(emergencyContact ? { emergencyContact: emergencyContact.trim() } : {}),
+  });
+
+  // Store email verification token in otp_tokens (replaces emailOtpCode/emailOtpExpiry columns)
+  await saveOtpToken({
+    identifier: normalizedEmail,
+    identifierType: "email",
+    otpType: "register",
+    otpHash: tokenHash,
+    channel: "email",
+    userId,
+    ttlMs: 24 * 60 * 60 * 1000,
   });
 
   if (userRole === "rider" && (vehicleType || resolvedVehicleRegNo || drivingLicense || vehiclePlate || vehiclePhoto || documents)) {
@@ -1021,23 +1028,18 @@ router.get("/verify-email", async (req, res) => {
     return;
   }
 
-  if (user.emailOtpExpiry && new Date() > user.emailOtpExpiry) {
-    sendUnauthorized(res, "Verification link has expired. Please register again.");
-    return;
-  }
-
   const incomingHash = hashVerificationToken(decodeURIComponent(token));
-  if (!user.emailOtpCode || user.emailOtpCode !== incomingHash) {
+  const otpToken = await getActiveOtpToken({ identifier: normalizedEmail, identifierType: "email", otpType: "register" });
+  if (!otpToken || otpToken.otpHash !== incomingHash) {
     await recordFailedAttempt(verifyKey, 5, 15);
     AuditService.log({ action: "email_verify_failed", ip, details: `Invalid verification token for ${normalizedEmail}`, result: "fail" });
     sendUnauthorized(res, "Invalid or expired verification link");
     return;
   }
 
+  await markOtpUsed(otpToken.id);
   await db.update(usersTable).set({
     emailVerified: true,
-    emailOtpCode: null,
-    emailOtpExpiry: null,
     updatedAt: new Date(),
   }).where(eq(usersTable.id, user.id));
 

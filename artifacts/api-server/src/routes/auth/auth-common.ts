@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { rotateRefreshToken, invalidateTokenFamily } from "../../services/auth/tokenRotation.js";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, pendingOtpsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
+import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
 import { eq, and, sql, lt, or, desc, ilike, isNull } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
 import { getPlatformSettings } from "../admin.js";
@@ -436,8 +436,20 @@ export async function handleUnifiedLogin(req: Request, res: Response) {
   if (!skipLoginOtp) {
     const loginOtp = generateSecureOtp();
     const loginOtpExpiry = new Date(Date.now() + 5 * 60 * 1000);
+    // Store OTP in otp_tokens table (columns were removed from users table)
+    const { otpTokensTable: _otpTbl } = await import("@workspace/db/schema");
+    const { eq: _eq2, and: _and2, isNull: _isNull2 } = await import("drizzle-orm");
+    // Mark any active login tokens as used first
+    await db.update(_otpTbl)
+      .set({ usedAt: new Date() })
+      .where(_and2(eq(usersTable.id, user.id), _isNull2(_otpTbl.usedAt)));
+    const { hashOtpCode: hashOtpNew, generateOtpCode: _gen } = await import("../../modules/otp/otp.generate.js");
+    const { saveOtpToken } = await import("../../modules/otp/otp.store.js");
+    const identifier = user.phone ?? user.email ?? user.id;
+    const identifierType = user.phone ? "phone" as const : "email" as const;
+    await saveOtpToken({ identifier, identifierType, otpType: "login", otpHash: hashOtpNew(loginOtp), channel: "sms", userId: user.id, ttlMs: 5 * 60 * 1000 });
     await db.update(usersTable)
-      .set({ otpCode: hashOtp(loginOtp), otpExpiry: loginOtpExpiry, otpUsed: false, updatedAt: new Date() })
+      .set({ updatedAt: new Date() })
       .where(eq(usersTable.id, user.id));
 
     /* ── Deliver OTP via the same waterfall used by POST /auth/send-otp ── */

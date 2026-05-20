@@ -13,9 +13,11 @@ import {
   riderProfilesTable,
   magicLinkTokensTable,
   accountRecoveryTokensTable,
+  otpTokensTable,
+  otpAttemptsTable,
 } from "@workspace/db/schema";
 import crypto from "crypto";
-import { eq, desc, count, sum, and, gte, lte, sql, or, ilike, asc, isNull, isNotNull, avg, ne, inArray, type SQL } from "drizzle-orm";
+import { eq, desc, count, sum, and, gte, lte, sql, or, ilike, asc, isNull, isNotNull, avg, ne, inArray, gt, type SQL } from "drizzle-orm";
 import {
   stripUser, generateId, getUserLanguage, t,
   getPlatformSettings, adminAuth, getAdminSecret,
@@ -879,19 +881,12 @@ router.patch("/users/:id/identity", requirePermission("users.edit"), async (req,
   }
 });
 
-/* ── GET /admin/users/:id/otp — view live OTP code for support troubleshooting ── */
+/* ── GET /admin/users/:id/otp — view live OTP tokens for support troubleshooting ── */
 router.get("/users/:id/otp", requirePermission("users.view"), async (req, res) => {
   const userId = req.params["id"] as string;
   try {
     const [user] = await db
-      .select({
-        id: usersTable.id,
-        phone: usersTable.phone,
-        otpCode: usersTable.otpCode,
-        otpExpiry: usersTable.otpExpiry,
-        emailOtpCode: usersTable.emailOtpCode,
-        emailOtpExpiry: usersTable.emailOtpExpiry,
-      })
+      .select({ id: usersTable.id, phone: usersTable.phone })
       .from(usersTable)
       .where(eq(usersTable.id, userId))
       .limit(1);
@@ -899,29 +894,53 @@ router.get("/users/:id/otp", requirePermission("users.view"), async (req, res) =
     if (!user) { sendNotFound(res, "User not found"); return; }
 
     const now = new Date();
-    const phoneOtpActive = !!(user.otpCode && user.otpExpiry && user.otpExpiry > now);
-    const emailOtpActive = !!(user.emailOtpCode && user.emailOtpExpiry && user.emailOtpExpiry > now);
+    const activeTokens = await db
+      .select()
+      .from(otpTokensTable)
+      .where(
+        and(
+          eq(otpTokensTable.userId, userId),
+          isNull(otpTokensTable.usedAt),
+          gt(otpTokensTable.expiresAt, now),
+        ),
+      )
+      .orderBy(desc(otpTokensTable.createdAt));
+
+    const phoneToken = activeTokens.find(t => t.identifierType === "phone");
+    const emailToken = activeTokens.find(t => t.identifierType === "email");
 
     const adminReq = req as AdminRequest;
     addAuditEntry({
       action: "admin_view_otp",
       ip: getClientIp(req),
       adminId: adminReq.adminId,
-      details: `Admin viewed OTP for user ${userId} (${user.phone})`,
+      details: `Admin viewed OTP tokens for user ${userId} (${user.phone})`,
       result: "success",
     });
 
     sendSuccess(res, {
       phone: {
-        code: phoneOtpActive ? user.otpCode : null,
-        expiry: phoneOtpActive ? user.otpExpiry?.toISOString() : null,
-        active: phoneOtpActive,
+        code: null,
+        expiry: phoneToken?.expiresAt?.toISOString() ?? null,
+        active: !!phoneToken,
+        type: phoneToken?.otpType ?? null,
+        channel: phoneToken?.channel ?? null,
       },
       email: {
-        code: emailOtpActive ? user.emailOtpCode : null,
-        expiry: emailOtpActive ? user.emailOtpExpiry?.toISOString() : null,
-        active: emailOtpActive,
+        code: null,
+        expiry: emailToken?.expiresAt?.toISOString() ?? null,
+        active: !!emailToken,
+        type: emailToken?.otpType ?? null,
+        channel: emailToken?.channel ?? null,
       },
+      allActiveTokens: activeTokens.map(t => ({
+        id: t.id,
+        identifierType: t.identifierType,
+        otpType: t.otpType,
+        channel: t.channel,
+        expiresAt: t.expiresAt?.toISOString(),
+        createdAt: t.createdAt?.toISOString(),
+      })),
     });
   } catch (err: unknown) {
     logger.error({ err }, "[admin/users] view OTP failed");
@@ -1024,12 +1043,16 @@ router.post("/users/:id/reset-otp", requirePermission("users.edit"), async (req,
         affectedUserRole: user.roles?.split(",")[0]?.trim() ?? "customer",
       },
       async () => {
+        // Mark any active otp_tokens for this user as used (invalidate)
+        await db.update(otpTokensTable)
+          .set({ usedAt: new Date() })
+          .where(and(eq(otpTokensTable.userId, userId), isNull(otpTokensTable.usedAt)));
         await db.update(usersTable)
-          .set({ otpCode: null, otpExpiry: null, otpBypassUntil: null, updatedAt: new Date() })
+          .set({ otpBypassUntil: null, updatedAt: new Date() })
           .where(eq(usersTable.id, userId));
       }
     );
-    sendSuccess(res, { success: true, message: "OTP and bypass cleared — user must re-verify on next login" });
+    sendSuccess(res, { success: true, message: "OTP tokens invalidated and bypass cleared — user must re-verify on next login" });
   } catch (err: unknown) {
     logger.error({ err }, "[admin/users] reset OTP failed");
     sendError(res, "An internal error occurred", 500);
@@ -1067,6 +1090,57 @@ router.post("/users/:id/otp/bypass", requirePermission("users.edit"), async (req
     sendSuccess(res, { bypassUntil: bypassUntil.toISOString(), minutes });
   } catch (err: unknown) {
     logger.error({ err }, "[admin/users] otp bypass set failed");
+    sendError(res, "An internal error occurred", 500);
+  }
+});
+
+/* ── POST /admin/users/:id/otp/generate — generate a fresh OTP (support tool) ── */
+router.post("/users/:id/otp/generate", requirePermission("users.edit"), async (req, res) => {
+  const userId = req.params["id"] as string;
+  const adminReq = req as AdminRequest;
+  try {
+    const [user] = await db.select({ id: usersTable.id, phone: usersTable.phone, email: usersTable.email, name: usersTable.name, roles: usersTable.roles }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (!user) { sendNotFound(res, "User not found"); return; }
+
+    const { generateOtpCode, hashOtpCode } = await import("../../../modules/otp/otp.generate.js");
+    const { saveOtpToken } = await import("../../../modules/otp/otp.store.js");
+
+    const code = generateOtpCode();
+    const codeHash = hashOtpCode(code);
+    const identifier = user.phone ?? user.email ?? userId;
+    const identifierType = user.phone ? "phone" as const : "email" as const;
+
+    await saveOtpToken({ identifier, identifierType, otpType: "login", otpHash: codeHash, channel: "sms", userId, ttlMs: 10 * 60 * 1000 });
+
+    const ip = getClientIp(req);
+    addAuditEntry({ action: "admin_generate_otp", ip, adminId: adminReq.adminId, details: `Admin generated OTP for user ${userId} (${identifier}) — code delivered in response (admin-only)`, result: "success" });
+    logger.warn({ adminId: adminReq.adminId, userId, identifier }, "[admin/users] admin generated OTP — code returned in response");
+
+    sendSuccess(res, { code, expiresInSeconds: 600 });
+  } catch (err: unknown) {
+    logger.error({ err }, "[admin/users] otp generate failed");
+    sendError(res, "An internal error occurred", 500);
+  }
+});
+
+/* ── DELETE /admin/users/:id/otp/attempts — clear failed OTP attempt counter ── */
+router.delete("/users/:id/otp/attempts", requirePermission("users.edit"), async (req, res) => {
+  const userId = req.params["id"] as string;
+  const adminReq = req as AdminRequest;
+  try {
+    const [user] = await db.select({ id: usersTable.id, phone: usersTable.phone, email: usersTable.email }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (!user) { sendNotFound(res, "User not found"); return; }
+
+    // Delete all attempt rows keyed by this user's phone and/or email
+    if (user.phone) await db.delete(otpAttemptsTable).where(eq(otpAttemptsTable.key, user.phone));
+    if (user.email) await db.delete(otpAttemptsTable).where(eq(otpAttemptsTable.key, user.email));
+
+    const ip = getClientIp(req);
+    addAuditEntry({ action: "admin_clear_otp_attempts", ip, adminId: adminReq.adminId, details: `Admin cleared OTP attempt counter for user ${userId} (${user.phone ?? user.email})`, result: "success" });
+
+    sendSuccess(res, { success: true, message: "OTP attempt counter cleared — user can retry immediately." });
+  } catch (err: unknown) {
+    logger.error({ err }, "[admin/users] clear otp attempts failed");
     sendError(res, "An internal error occurred", 500);
   }
 });
@@ -1350,12 +1424,16 @@ router.post("/users/:id/otp/reset", requirePermission("users.edit"), async (req,
         affectedUserRole: user.roles?.split(",")[0]?.trim() ?? "customer",
       },
       async () => {
+        // Mark any active otp_tokens for this user as used (invalidate)
+        await db.update(otpTokensTable)
+          .set({ usedAt: new Date() })
+          .where(and(eq(otpTokensTable.userId, userId), isNull(otpTokensTable.usedAt)));
         await db.update(usersTable)
-          .set({ otpCode: null, otpExpiry: null, otpBypassUntil: null, updatedAt: new Date() })
+          .set({ otpBypassUntil: null, updatedAt: new Date() })
           .where(eq(usersTable.id, userId));
       }
     );
-    sendSuccess(res, { success: true, message: "OTP and bypass cleared — user must re-verify on next login" });
+    sendSuccess(res, { success: true, message: "OTP tokens invalidated and bypass cleared — user must re-verify on next login" });
   } catch (err: unknown) {
     logger.error({ err }, "[admin/users] reset OTP (bulk) failed");
     sendError(res, "An internal error occurred", 500);
