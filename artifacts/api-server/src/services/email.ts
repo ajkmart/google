@@ -819,6 +819,146 @@ export async function sendRejectionEmail(
   }
 }
 
+/* ── KYC approval / rejection / resubmit emails sent to the user ── */
+
+export async function sendKycApprovalEmail(
+  to: string,
+  name: string | null | undefined,
+  settings: Record<string, string>,
+): Promise<EmailResult> {
+  if (!isEmailProviderConfigured(settings)) {
+    logger.info(`[EMAIL] KYC approval email for ${to} — email integration disabled or SMTP not configured`);
+    return { sent: false, reason: "Email integration disabled or SMTP not configured" };
+  }
+
+  const tr = buildTransporterFromSettings(settings);
+  const transport = tr || getEnvTransporter();
+  const appName = settings["app_name"]?.trim() || "AJKMart";
+  const greeting = name ? `Dear ${name}` : "Hello";
+  const subject = `Your KYC Verification is Approved — ${appName}`;
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;">
+      <h2 style="color:#10B981;">✅ KYC Verified Successfully</h2>
+      <p>${greeting},</p>
+      <p>Great news! Your identity verification (KYC) on <strong>${appName}</strong> has been reviewed and <strong style="color:#10B981;">approved</strong>.</p>
+      <p>Your account is now fully verified. You can access all features of the platform without any restrictions.</p>
+      <p style="color:#6b7280;font-size:13px;">If you have any questions, please contact our support team.</p>
+      <p>Thank you for verifying your identity.<br/><strong>${appName} Team</strong></p>
+    </div>
+  `;
+  const text = `${greeting},\n\nYour KYC verification on ${appName} has been approved. Your account is now fully verified.\n\nThank you!\n${appName} Team`;
+
+  if (!transport) {
+    logger.info(`[EMAIL] KYC approval email for ${to} — SMTP not configured`);
+    return { sent: false, reason: "SMTP not configured" };
+  }
+
+  try {
+    await transport.sendMail({ from: resolveFrom(settings), to, subject, html, text });
+    logger.info(`[EMAIL] KYC approval email sent to ${to}`);
+    return { sent: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`[EMAIL] Failed to send KYC approval email to ${to}: ${msg}`);
+    return { sent: false, error: msg };
+  }
+}
+
+export async function sendKycRejectionEmail(
+  to: string,
+  name: string | null | undefined,
+  reason: string,
+  settings: Record<string, string>,
+): Promise<EmailResult> {
+  if (!isEmailProviderConfigured(settings)) {
+    logger.info(`[EMAIL] KYC rejection email for ${to} — email integration disabled or SMTP not configured`);
+    return { sent: false, reason: "Email integration disabled or SMTP not configured" };
+  }
+
+  const tr = buildTransporterFromSettings(settings);
+  const transport = tr || getEnvTransporter();
+  const appName = settings["app_name"]?.trim() || "AJKMart";
+  const greeting = name ? `Dear ${name}` : "Hello";
+  const subject = `KYC Verification Update — ${appName}`;
+  const reasonLine = reason ? `<p><strong>Reason:</strong> ${reason}</p>` : "";
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;">
+      <h2 style="color:#EF4444;">⚠️ KYC Verification Not Approved</h2>
+      <p>${greeting},</p>
+      <p>We have reviewed your identity verification (KYC) submission on <strong>${appName}</strong> and were unable to approve it at this time.</p>
+      ${reasonLine}
+      <p>Please resubmit your KYC with the correct documents. If you need help, contact our support team.</p>
+      <p>Thank you for your patience.<br/><strong>${appName} Team</strong></p>
+    </div>
+  `;
+  const reasonText = reason ? `\nReason: ${reason}` : "";
+  const text = `${greeting},\n\nYour KYC verification on ${appName} could not be approved.${reasonText}\n\nPlease resubmit with correct documents. Contact support if you need help.\n${appName} Team`;
+
+  if (!transport) {
+    logger.info(`[EMAIL] KYC rejection email for ${to} — SMTP not configured`);
+    return { sent: false, reason: "SMTP not configured" };
+  }
+
+  try {
+    await transport.sendMail({ from: resolveFrom(settings), to, subject, html, text });
+    logger.info(`[EMAIL] KYC rejection email sent to ${to}`);
+    return { sent: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`[EMAIL] Failed to send KYC rejection email to ${to}: ${msg}`);
+    return { sent: false, error: msg };
+  }
+}
+
+export async function sendKycResubmitEmail(
+  to: string,
+  name: string | null | undefined,
+  reason: string,
+  settings: Record<string, string>,
+): Promise<EmailResult> {
+  if (!isEmailProviderConfigured(settings)) {
+    logger.info(`[EMAIL] KYC resubmit email for ${to} — email integration disabled or SMTP not configured`);
+    return { sent: false, reason: "Email integration disabled or SMTP not configured" };
+  }
+
+  const tr = buildTransporterFromSettings(settings);
+  const transport = tr || getEnvTransporter();
+  const appName = settings["app_name"]?.trim() || "AJKMart";
+  const greeting = name ? `Dear ${name}` : "Hello";
+  const subject = `Action Required: Resubmit Your KYC — ${appName}`;
+  const reasonLine = reason ? `<p><strong>What needs to be fixed:</strong> ${reason}</p>` : "";
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;">
+      <h2 style="color:#F59E0B;">📋 Please Resubmit Your KYC Documents</h2>
+      <p>${greeting},</p>
+      <p>Our team has reviewed your identity verification (KYC) on <strong>${appName}</strong> and needs you to resubmit with updated documents.</p>
+      ${reasonLine}
+      <p>Please open the app and resubmit your KYC with the corrections noted above.</p>
+      <p>Thank you for your cooperation.<br/><strong>${appName} Team</strong></p>
+    </div>
+  `;
+  const reasonText = reason ? `\nWhat needs to be fixed: ${reason}` : "";
+  const text = `${greeting},\n\nPlease resubmit your KYC on ${appName}.${reasonText}\n\nOpen the app to resubmit. Contact support if you need help.\n${appName} Team`;
+
+  if (!transport) {
+    logger.info(`[EMAIL] KYC resubmit email for ${to} — SMTP not configured`);
+    return { sent: false, reason: "SMTP not configured" };
+  }
+
+  try {
+    await transport.sendMail({ from: resolveFrom(settings), to, subject, html, text });
+    logger.info(`[EMAIL] KYC resubmit email sent to ${to}`);
+    return { sent: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`[EMAIL] Failed to send KYC resubmit email to ${to}: ${msg}`);
+    return { sent: false, error: msg };
+  }
+}
+
 /* ── Generic transactional email sender (env-var SMTP only) ── */
 export async function sendEmail(
   input: { to: string; subject: string; html: string; text?: string },

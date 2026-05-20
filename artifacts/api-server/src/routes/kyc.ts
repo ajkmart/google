@@ -33,6 +33,8 @@ import {
 } from "../lib/validation/schemas.js";
 import { sendPushToUser } from "../lib/webpush.js";
 import { sendSms } from "../services/sms.js";
+import { sendApprovalSMS, sendRejectionSMS } from "../services/sms.js";
+import { sendKycApprovalEmail, sendKycRejectionEmail, sendKycResubmitEmail } from "../services/email.js";
 import { emitKycSubmitted } from "../lib/socketio.js";
 
 
@@ -968,6 +970,10 @@ router.patch("/admin/:id", adminAuth, validateBody(KycAdminReviewSchema), async 
     const now = new Date();
     const adminId = req.adminId;
 
+    let userPhone: string | null = null;
+    let userEmail: string | null = null;
+    let userName: string | null = record.fullName ?? null;
+
     try {
       await db.transaction(async (tx) => {
         await tx
@@ -996,10 +1002,14 @@ router.patch("/admin/:id", adminAuth, validateBody(KycAdminReviewSchema), async 
           .where(eq(usersTable.id, record.userId));
 
         const [user] = await tx
-          .select({ name: usersTable.name })
+          .select({ name: usersTable.name, phone: usersTable.phone, email: usersTable.email })
           .from(usersTable)
           .where(eq(usersTable.id, record.userId))
           .limit(1);
+
+        userPhone = user?.phone ?? null;
+        userEmail = user?.email ?? null;
+        userName = record.fullName ?? user?.name ?? null;
 
         /* Task 12: Sync approved name to users.name if it was different */
         if (status === "approved" && record.fullName) {
@@ -1051,6 +1061,21 @@ router.patch("/admin/:id", adminAuth, validateBody(KycAdminReviewSchema), async 
         });
       });
 
+      /* Fire-and-forget SMS + Email after transaction commits */
+      const settings = await getCachedSettings();
+      if (status === "approved") {
+        if (userPhone) sendApprovalSMS(userPhone, userName, "account", settings).catch((err: unknown) => logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[kyc] approval SMS failed"));
+        if (userEmail) sendKycApprovalEmail(userEmail, userName, settings).catch((err: unknown) => logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[kyc] approval email failed"));
+      } else if (status === "rejected") {
+        const reason = rejectionReason || "Details mismatch";
+        if (userPhone) sendRejectionSMS(userPhone, userName, "account", reason, settings).catch((err: unknown) => logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[kyc] rejection SMS failed"));
+        if (userEmail) sendKycRejectionEmail(userEmail, userName, reason, settings).catch((err: unknown) => logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[kyc] rejection email failed"));
+      } else if (status === "resubmit") {
+        const reason = rejectionReason || "Please resubmit your documents";
+        if (userPhone) sendRejectionSMS(userPhone, userName, "account", reason, settings).catch((err: unknown) => logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[kyc] resubmit SMS failed"));
+        if (userEmail) sendKycResubmitEmail(userEmail, userName, reason, settings).catch((err: unknown) => logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[kyc] resubmit email failed"));
+      }
+
       res.json({ success: true });
     } catch (err) {
       logger.error({ err }, "KYC review error");
@@ -1075,6 +1100,9 @@ router.post("/admin/:id/approve", adminAuth, async (req, res) => {
 
     const now = new Date();
     const adminId = req.adminId;
+    let userPhone: string | null = null;
+    let userEmail: string | null = null;
+
     await db.transaction(async (tx) => {
       await tx.update(kycVerificationsTable)
         .set({ status: "approved", rejectionReason: null, reviewedAt: now, reviewedBy: adminId, updatedAt: now })
@@ -1087,6 +1115,14 @@ router.post("/admin/:id/approve", adminAuth, async (req, res) => {
           .set({ name: record.fullName })
           .where(eq(usersTable.id, record.userId));
       }
+      const [user] = await tx
+        .select({ phone: usersTable.phone, email: usersTable.email })
+        .from(usersTable)
+        .where(eq(usersTable.id, record.userId))
+        .limit(1);
+      userPhone = user?.phone ?? null;
+      userEmail = user?.email ?? null;
+
       const notifTitle = "KYC Approved ✅";
       const notifBody = `Shukriya ${record.fullName || "Customer"}, aapka KYC verify ho gaya hai.`;
       await tx.insert(notificationsTable).values({
@@ -1099,6 +1135,12 @@ router.post("/admin/:id/approve", adminAuth, async (req, res) => {
       });
       void logAdminAudit("kyc_review_approved", { adminId, ip: getClientIp(req), result: "success", metadata: { userId: record.userId, reason: reason || "approved" } });
     });
+
+    /* Fire-and-forget SMS + Email after transaction commits */
+    const settings = await getCachedSettings();
+    if (userPhone) sendApprovalSMS(userPhone, record.fullName, "account", settings).catch((err: unknown) => logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[kyc] approval SMS failed"));
+    if (userEmail) sendKycApprovalEmail(userEmail, record.fullName, settings).catch((err: unknown) => logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[kyc] approval email failed"));
+
     res.json({ success: true });
   } catch (err) {
     logger.error({ err }, "[kyc] approve alias failed");
@@ -1120,6 +1162,9 @@ router.post("/admin/:id/reject", adminAuth, async (req, res) => {
 
     const now = new Date();
     const adminId = req.adminId;
+    let userPhone: string | null = null;
+    let userEmail: string | null = null;
+
     await db.transaction(async (tx) => {
       await tx.update(kycVerificationsTable)
         .set({ status: "rejected", rejectionReason: reason, reviewedAt: now, reviewedBy: adminId, updatedAt: now })
@@ -1127,6 +1172,14 @@ router.post("/admin/:id/reject", adminAuth, async (req, res) => {
       await tx.update(usersTable)
         .set({ kycStatus: "rejected", updatedAt: now })
         .where(eq(usersTable.id, record.userId));
+      const [user] = await tx
+        .select({ phone: usersTable.phone, email: usersTable.email })
+        .from(usersTable)
+        .where(eq(usersTable.id, record.userId))
+        .limit(1);
+      userPhone = user?.phone ?? null;
+      userEmail = user?.email ?? null;
+
       const notifTitle = "KYC Update Required ⚠️";
       const notifBody = `Aapka KYC review kiya gaya: ${reason}. Dobara submit karein.`;
       await tx.insert(notificationsTable).values({
@@ -1139,6 +1192,12 @@ router.post("/admin/:id/reject", adminAuth, async (req, res) => {
       });
       void logAdminAudit("kyc_review_rejected", { adminId, ip: getClientIp(req), result: "success", metadata: { userId: record.userId, reason } });
     });
+
+    /* Fire-and-forget SMS + Email after transaction commits */
+    const settings = await getCachedSettings();
+    if (userPhone) sendRejectionSMS(userPhone, record.fullName, "account", reason, settings).catch((err: unknown) => logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[kyc] rejection SMS failed"));
+    if (userEmail) sendKycRejectionEmail(userEmail, record.fullName, reason, settings).catch((err: unknown) => logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[kyc] rejection email failed"));
+
     res.json({ success: true });
   } catch (err) {
     logger.error({ err }, "[kyc] reject alias failed");

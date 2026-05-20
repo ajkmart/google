@@ -206,6 +206,44 @@ function RejectModal({ onConfirm, onClose, loading }: { onConfirm: (reason: stri
   );
 }
 
+function ResubmitModal({ onConfirm, onClose, loading }: { onConfirm: (reason: string) => void; onClose: () => void; loading: boolean }) {
+  const [reason, setReason] = useState("");
+  const QUICK = [
+    "Photo too small or blurry — upload a clearer image",
+    "CNIC is expired — upload a valid CNIC",
+    "Selfie quality too low — retake in good lighting",
+    "CNIC corners are cut off — show all 4 corners",
+    "Selfie does not match CNIC — use the same person",
+    "Document is not a CNIC — submit your national ID card",
+  ];
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <h3 className="font-bold text-gray-900 text-lg mb-1">Request Resubmission</h3>
+        <p className="text-gray-500 text-sm mb-4">Tell the user what needs to be corrected. They will be notified via push, SMS, and email.</p>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {QUICK.map(q => (
+            <button key={q} onClick={() => setReason(q)}
+              className={`text-xs px-3 py-1.5 rounded-full border transition ${reason === q ? "bg-amber-500 text-white border-amber-500" : "bg-gray-50 text-gray-600 border-gray-200 hover:border-amber-300"}`}>
+              {q}
+            </button>
+          ))}
+        </div>
+        <textarea
+          value={reason} onChange={e => setReason(e.target.value)} rows={3} placeholder="Or describe what needs to be fixed…"
+          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-400 mb-4" />
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 border border-gray-200 text-gray-600 font-semibold text-sm py-2.5 rounded-xl hover:bg-gray-50">Cancel</button>
+          <button onClick={() => reason.trim() && onConfirm(reason.trim())} disabled={!reason.trim() || loading}
+            className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold text-sm py-2.5 rounded-xl transition flex items-center justify-center gap-2">
+            {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : "Request Resubmit"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function KycDetailPanel({ record, onClose, onApprove, onReject }: {
   record: KycRecord; onClose: () => void;
   onApprove: () => void; onReject: (reason: string) => void;
@@ -213,6 +251,7 @@ function KycDetailPanel({ record, onClose, onApprove, onReject }: {
   const [photo, setPhoto] = useState<{ url: string; label: string } | null>(null);
   const [showReject, setShowReject] = useState(false);
   const [showApprove, setShowApprove] = useState(false);
+  const [showResubmit, setShowResubmit] = useState(false);
   const qc = useQueryClient();
 
   const approveMut = useMutation({
@@ -233,6 +272,16 @@ function KycDetailPanel({ record, onClose, onApprove, onReject }: {
       });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-kyc"] }); setShowReject(false); onReject(""); onClose(); },
+  });
+
+  const resubmitMut = useMutation({
+    mutationFn: async (reason: string) => {
+      return fetchAdminAbsolute(`/api/kyc/admin/${record.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "resubmit", rejectionReason: reason }),
+      });
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-kyc"] }); setShowResubmit(false); onReject(""); onClose(); },
   });
 
   const { data: fullRecord } = useQuery({
@@ -257,6 +306,7 @@ function KycDetailPanel({ record, onClose, onApprove, onReject }: {
       {photo && <PhotoModal url={photo.url} label={photo.label} onClose={() => setPhoto(null)} />}
       {showApprove && <ApproveModal onConfirm={r => approveMut.mutate(r)} onClose={() => setShowApprove(false)} loading={approveMut.isPending} />}
       {showReject && <RejectModal onConfirm={r => rejectMut.mutate(r)} onClose={() => setShowReject(false)} loading={rejectMut.isPending} />}
+      {showResubmit && <ResubmitModal onConfirm={r => resubmitMut.mutate(r)} onClose={() => setShowResubmit(false)} loading={resubmitMut.isPending} />}
 
       <div className="fixed inset-0 z-40 flex items-start justify-end bg-black/40 p-4" onClick={onClose}>
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg h-full max-h-[calc(100vh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -425,14 +475,20 @@ function KycDetailPanel({ record, onClose, onApprove, onReject }: {
 
             {/* Actions */}
             {details.status === "pending" && (
-              <div className="flex gap-3 pt-2">
-                <button onClick={() => setShowReject(true)}
-                  className="flex-1 border-2 border-red-300 text-red-600 font-bold text-sm py-3 rounded-xl hover:bg-red-50 transition flex items-center justify-center gap-2">
-                  <XCircle size={16} /> Reject
-                </button>
-                <button onClick={() => setShowApprove(true)} disabled={approveMut.isPending}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold text-sm py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-green-100">
-                  {approveMut.isPending ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><CheckCircle size={16} /> Approve</>}
+              <div className="space-y-2 pt-2">
+                <div className="flex gap-3">
+                  <button onClick={() => setShowReject(true)}
+                    className="flex-1 border-2 border-red-300 text-red-600 font-bold text-sm py-3 rounded-xl hover:bg-red-50 transition flex items-center justify-center gap-2">
+                    <XCircle size={16} /> Reject
+                  </button>
+                  <button onClick={() => setShowApprove(true)} disabled={approveMut.isPending}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold text-sm py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-green-100">
+                    {approveMut.isPending ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><CheckCircle size={16} /> Approve</>}
+                  </button>
+                </div>
+                <button onClick={() => setShowResubmit(true)} disabled={resubmitMut.isPending}
+                  className="w-full border-2 border-amber-300 text-amber-700 font-bold text-sm py-2.5 rounded-xl hover:bg-amber-50 transition flex items-center justify-center gap-2">
+                  {resubmitMut.isPending ? <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" /> : <><AlertCircle size={16} /> Request Resubmit</>}
                 </button>
               </div>
             )}
@@ -450,6 +506,26 @@ export default function KycPage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<KycRecord | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [inlineLoadingId, setInlineLoadingId] = useState<string | null>(null);
+  const [inlineRejectId, setInlineRejectId] = useState<string | null>(null);
+
+  const inlineApproveMut = useMutation({
+    mutationFn: async (id: string) => {
+      setInlineLoadingId(id);
+      return fetchAdminAbsolute(`/api/kyc/admin/${id}/approve`, { method: "POST", body: JSON.stringify({ reason: "" }) });
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-kyc"] }); setInlineLoadingId(null); },
+    onError: () => setInlineLoadingId(null),
+  });
+
+  const inlineRejectMut = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      setInlineLoadingId(id);
+      return fetchAdminAbsolute(`/api/kyc/admin/${id}/reject`, { method: "POST", body: JSON.stringify({ reason }) });
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-kyc"] }); setInlineLoadingId(null); setInlineRejectId(null); },
+    onError: () => { setInlineLoadingId(null); setInlineRejectId(null); },
+  });
 
   /* Debounce search input */
   useEffect(() => {
@@ -523,6 +599,13 @@ export default function KycPage() {
   return (
     <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">KYC page crashed. Please reload.</div>}>
     <div className="p-6 space-y-6">
+      {inlineRejectId && (
+        <RejectModal
+          onConfirm={reason => inlineRejectMut.mutate({ id: inlineRejectId, reason })}
+          onClose={() => setInlineRejectId(null)}
+          loading={inlineRejectMut.isPending}
+        />
+      )}
       {selected && (
         <KycDetailPanel
           record={selected}
@@ -610,20 +693,21 @@ export default function KycPage() {
               <button onClick={() => handleKycSort("userName")} className="col-span-3 flex items-center gap-0.5 hover:text-blue-600 transition-colors text-left">
                 User{KycSortIcon({ col: "userName" })}
               </button>
-              <div className="col-span-3">CNIC / Name</div>
+              <div className="col-span-2">CNIC / Name</div>
               <button onClick={() => handleKycSort("city")} className="col-span-2 flex items-center gap-0.5 hover:text-blue-600 transition-colors text-left">
                 City{KycSortIcon({ col: "city" })}
               </button>
               <button onClick={() => handleKycSort("status")} className="col-span-2 flex items-center gap-0.5 hover:text-blue-600 transition-colors text-left">
                 Status{KycSortIcon({ col: "status" })}
               </button>
-              <button onClick={() => handleKycSort("submittedAt")} className="col-span-2 flex items-center gap-0.5 hover:text-blue-600 transition-colors text-left">
-                Submitted{KycSortIcon({ col: "submittedAt" })}
+              <button onClick={() => handleKycSort("submittedAt")} className="col-span-1 flex items-center gap-0.5 hover:text-blue-600 transition-colors text-left">
+                Date{KycSortIcon({ col: "submittedAt" })}
               </button>
+              <div className="col-span-2 text-right">Actions</div>
             </div>
             {sortedRecords.map(rec => {
               const stConf = STATUS_CONFIG[rec.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pending;
-              const StIcon = stConf.Icon;
+              const isLoading = inlineLoadingId === rec.id;
               return (
                 <div key={rec.id} onClick={() => setSelected(rec)} className="grid grid-cols-12 gap-4 px-5 py-3.5 hover:bg-gray-50 cursor-pointer transition items-center">
                   <div className="col-span-3">
@@ -637,7 +721,7 @@ export default function KycPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="col-span-3">
+                  <div className="col-span-2">
                     <p className="text-sm font-medium text-gray-700 truncate">{rec.fullName ?? "—"}</p>
                     <p className="text-xs text-gray-400 font-mono">{rec.cnic ?? "—"}</p>
                   </div>
@@ -645,8 +729,32 @@ export default function KycPage() {
                   <div className="col-span-2">
                     <StatusBadge status={rec.status} label={stConf.label} size="sm" />
                   </div>
-                  <div className="col-span-2 text-xs text-gray-400">
+                  <div className="col-span-1 text-xs text-gray-400">
                     {new Date(rec.submittedAt).toLocaleDateString("en-PK", { day: "2-digit", month: "short" })}
+                  </div>
+                  <div className="col-span-2 flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
+                    {rec.status === "pending" ? (
+                      isLoading ? (
+                        <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <button
+                            title="Approve"
+                            onClick={e => { e.stopPropagation(); inlineApproveMut.mutate(rec.id); }}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-green-50 hover:bg-green-100 text-green-600 border border-green-200 transition"
+                          >
+                            <CheckCircle size={15} />
+                          </button>
+                          <button
+                            title="Reject"
+                            onClick={e => { e.stopPropagation(); setInlineRejectId(rec.id); }}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition"
+                          >
+                            <XCircle size={15} />
+                          </button>
+                        </>
+                      )
+                    ) : null}
                   </div>
                 </div>
               );
