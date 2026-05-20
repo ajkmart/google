@@ -424,9 +424,13 @@ function AppRoutes() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-6">
         <div className="bg-white rounded-3xl shadow-xl p-8 max-w-sm w-full text-center">
-          <div className="text-5xl mb-4">⏳</div>
+          <div className="text-5xl mb-4">
+            <span>⏳</span>
+          </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Account Under Review</h2>
-          <p className="text-gray-500 text-sm leading-relaxed mb-6">Your rider account is pending admin approval. You will be able to access the app once your account is approved.</p>
+          <p className="text-gray-500 text-sm leading-relaxed mb-6">
+            Your rider account is pending admin approval. You will be able to access the app once your account is approved.
+          </p>
           {/* U6: Contact support CTA on approval/rejection screens */}
           {supportPhone && (
             <a href={`tel:${supportPhone}`}
@@ -450,9 +454,13 @@ function AppRoutes() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-rose-100 flex items-center justify-center p-6">
         <div className="bg-white rounded-3xl shadow-xl p-8 max-w-sm w-full text-center">
-          <div className="text-5xl mb-4">❌</div>
+          <div className="text-5xl mb-4">
+            <span>❌</span>
+          </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Account Rejected</h2>
-          <p className="text-gray-500 text-sm leading-relaxed mb-2">Your rider account application was not approved.</p>
+          <p className="text-gray-500 text-sm leading-relaxed mb-2">
+            Your rider account application was not approved.
+          </p>
           {user.rejectionReason && <p className="text-red-600 text-sm font-medium mb-6">{T("reason")}: {user.rejectionReason}</p>}
           {supportPhone && (
             <a href={`tel:${supportPhone}`}

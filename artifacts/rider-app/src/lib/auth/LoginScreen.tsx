@@ -113,6 +113,18 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     try {
       profile = await api.getMe() as AuthUser;
     } catch (fetchErr: unknown) {
+      const err = fetchErr as { code?: string; approvalStatus?: string; rejectionReason?: string | null };
+      if (err.code === "APPROVAL_PENDING") {
+        setOverlay("pending");
+        setIsProcessing(false);
+        return;
+      }
+      if (err.code === "APPROVAL_REJECTED") {
+        setRejectionReason(err.rejectionReason ?? null);
+        setOverlay("rejected");
+        setIsProcessing(false);
+        return;
+      }
       api.clearTokens();
       setLoginError(fetchErr instanceof Error ? translateApiError(fetchErr.message) : T("loginFailed") as string);
       setIsProcessing(false);
