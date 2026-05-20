@@ -239,18 +239,20 @@ router.post("/check-available", sharedValidateBody(CheckAvailableSchema), async 
   const { phone, email, username } = req.body;
   const result: Record<string, { available: boolean; message: string }> = {};
 
+  const lang = await getPlatformDefaultLanguage();
+
   if (phone) {
     const canonPhone = canonicalizePhone(phone);
     const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, canonPhone)).limit(1);
     result.phone = existing
-      ? { available: false, message: "An account already exists with this phone number." }
+      ? { available: false, message: t("phoneAlreadyExists", lang) }
       : { available: true,  message: "Available" };
   }
 
   if (email && email.length > 3) {
     const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim())).limit(1);
     result.email = existing
-      ? { available: false, message: "An account already exists with this email address." }
+      ? { available: false, message: t("emailAlreadyExists", lang) }
       : { available: true,  message: "Available" };
   }
 
@@ -258,7 +260,7 @@ router.post("/check-available", sharedValidateBody(CheckAvailableSchema), async 
     const clean = username.toLowerCase().trim();
     const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(sql`lower(${usersTable.username}) = ${clean}`).limit(1);
     result.username = existing
-      ? { available: false, message: "This username is already taken. Please choose another." }
+      ? { available: false, message: t("usernameTaken", lang) }
       : { available: true,  message: "Available" };
   }
 

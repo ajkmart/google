@@ -275,7 +275,8 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
     if (normalized !== user.email) {
       const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, normalized)).limit(1);
       if (existing && existing.id !== userId) {
-        sendError(res, "An account already exists with this email address.", 409); return;
+        const lang = await getPlatformDefaultLanguage();
+        sendError(res, t("emailAlreadyExists", lang), 409); return;
       }
     }
     updates.email = normalized;
@@ -287,7 +288,8 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
     if (clean !== user.username) {
       const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(sql`lower(${usersTable.username}) = ${clean}`).limit(1);
       if (existing && existing.id !== userId) {
-        sendError(res, "This username is already taken. Please choose another.", 409); return;
+        const lang = await getPlatformDefaultLanguage();
+        sendError(res, t("usernameTaken", lang), 409); return;
       }
     }
     updates.username = clean;
@@ -323,7 +325,8 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
         sendError(res, "Current password required to change password", 400); return;
       }
       if (!verifyPassword(currentPassword, user.passwordHash)) {
-        sendUnauthorized(res, "Current password is incorrect."); return;
+        const lang = await getPlatformDefaultLanguage();
+        sendUnauthorized(res, t("currentPasswordIncorrect", lang)); return;
       }
     }
     const check = validatePasswordStrength(password);
@@ -357,7 +360,8 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
   }
 
   if (Object.keys(updates).length === 1) {
-    sendError(res, "No fields to update — please provide at least a name, email, username, or password.", 400); return;
+    const lang = await getPlatformDefaultLanguage();
+    sendError(res, t("noUpdateProvided", lang), 400); return;
   }
 
   const [updated] = await db.update(usersTable).set(updates).where(eq(usersTable.id, userId)).returning();
@@ -397,7 +401,7 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
 
   sendSuccess(res, {
     success: true,
-    message: "Profile updated successfully.",
+    message: t("passwordUpdated", await getPlatformDefaultLanguage()),
     token: accessToken,
     refreshToken: refreshRaw,
     user: { id: updated!.id, phone: updated!.phone, name: updated!.name, email: updated!.email, username: updated!.username, role: updated!.roles, roles: updated!.roles, avatar: updated!.avatar, cnic: updated!.cnic, city: updated!.city, area: updated!.area, address: updated!.address, latitude: updated!.latitude, longitude: updated!.longitude, kycStatus: updated!.kycStatus, accountLevel: updated!.accountLevel, totpEnabled: updated!.totpEnabled ?? false, emailVerified: updated!.emailVerified, phoneVerified: updated!.phoneVerified, walletBalance: parseFloat(updated!.walletBalance ?? "0"), isActive: updated!.isActive, createdAt: updated!.createdAt.toISOString() },

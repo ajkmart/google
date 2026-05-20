@@ -142,7 +142,8 @@ router.post("/set-password", loginLimiter, sharedValidateBody(SetPasswordSchema)
       sendError(res, "Current password required to change password", 400); return;
     }
     if (!verifyPassword(currentPassword, user.passwordHash)) {
-      sendUnauthorized(res, "Current password is incorrect."); return;
+        const lang = await getPlatformDefaultLanguage();
+        sendUnauthorized(res, t("currentPasswordIncorrect", lang)); return;
     }
   }
 
@@ -158,7 +159,7 @@ router.post("/set-password", loginLimiter, sharedValidateBody(SetPasswordSchema)
     updatedAt: new Date(),
   }).where(eq(usersTable.id, userId));
   writeAuthAuditLog("password_changed", { userId, ip: getClientIp(req), userAgent: req.headers["user-agent"] ?? undefined });
-  sendSuccess(res, { success: true, message: "Password updated successfully.", requirePasswordChange: false });
+  sendSuccess(res, { success: true, message: t("passwordUpdated", await getPlatformDefaultLanguage()), requirePasswordChange: false });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
