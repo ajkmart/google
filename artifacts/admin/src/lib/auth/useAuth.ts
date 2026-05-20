@@ -12,6 +12,7 @@ export interface AuthResult<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
+  retryAfter?: number;
 }
 
 export interface AdminLoginData {
@@ -41,6 +42,13 @@ export function useAuth() {
       if (err && typeof err === "object" && "requiresMfa" in err) {
         const e = err as { requiresMfa: boolean; tempToken?: string };
         return { success: false, error: "mfa_required", data: { requiresMfa: true, tempToken: e.tempToken } };
+      }
+      const errObj = err as Record<string, unknown> | null;
+      const status = errObj?.status as number | undefined;
+      if (status === 429) {
+        const rd = errObj?.responseData as Record<string, unknown> | undefined;
+        const retryAfter = typeof rd?.retryAfter === "number" ? rd.retryAfter : 60;
+        return { success: false, error: "Too many attempts. Please wait before trying again.", retryAfter };
       }
       return { success: false, error: networkError(err) };
     }

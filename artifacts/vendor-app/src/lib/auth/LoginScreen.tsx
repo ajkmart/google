@@ -182,6 +182,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
         onFacebook={vendorAuth.facebook ? handleFacebook : undefined}
         enableMagicLink={vendorAuth.magicLink}
         onMagicLink={handleMagicLink}
+        onForgotPassword={() => navigate("/forgot-password")}
       />
     </div>
   );

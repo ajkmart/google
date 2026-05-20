@@ -12,8 +12,9 @@ export interface AdminUser {
   username?: string;
   role: string;
   /**
-   * Legacy "must change password" flag. The forced rotation gate has been
-   * removed; the field is still surfaced so legacy callers keep compiling.
+   * @deprecated Legacy "must change password" flag. The forced rotation gate
+   * has been removed; the field is still surfaced so legacy callers keep
+   * compiling. Do not add new references — it will be removed in a future cleanup.
    */
   mustChangePassword?: boolean;
   /**
@@ -31,8 +32,8 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   /**
-   * Legacy field. Always false now that the forced password-change flow
-   * has been removed; kept on the type so existing readers do not break.
+   * @deprecated Always false. The forced password-change flow has been
+   * removed; kept on the type so existing readers do not break.
    */
   mustChangePassword: boolean;
   /**

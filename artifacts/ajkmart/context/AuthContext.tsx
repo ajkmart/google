@@ -283,7 +283,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           registerAuth(storedToken, storedRefresh);
           syncToServer(storedToken).catch(() => {});
         }
-      } catch {}
+      } catch (err) { console.error("[AuthContext] loadAuth failed:", err); }
       setIsLoading(false);
     };
     loadAuth();
@@ -435,7 +435,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await AsyncStorage.setItem(BIOMETRIC_KEY, "false");
         return false;
       }
-      const data = await res.json() as any;
+      const data = await res.json() as { token?: string; refreshToken?: string };
       if (!data.token) return false;
 
       const meRes = await fetch(`${base}/api/users/profile`, {

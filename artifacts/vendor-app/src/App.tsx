@@ -29,6 +29,7 @@ import { MaintenanceScreen } from "./components/MaintenanceScreen";
 import GuestLanding from "./pages/GuestLanding";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import Orders from "./pages/Orders";
 import Products from "./pages/Products";
@@ -262,6 +263,7 @@ function AppRoutes() {
   if (!loading && !user) {
     if (location === "/register") return <Register />;
     if (location === "/login") return <Login />;
+    if (location === "/forgot-password") return <ForgotPassword />;
     return <GuestLanding />;
   }
 

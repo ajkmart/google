@@ -25,6 +25,8 @@ import { isValidPhone, isValidCnic } from "@workspace/phone-utils";
 import { PAKISTAN_CITIES } from "@workspace/service-constants";
 
 const DRAFT_KEY = "vendor_reg_draft";
+const DRAFT_TTL_KEY = "vendor_reg_draft_ts";
+const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
 
 const STORE_CATS = ["Grocery","Restaurant","Bakery","Pharmacy","Electronics","Clothing","General Store","Fast Food","Fruits & Vegetables","Dairy","Meat & Poultry","Other"];
 
@@ -87,14 +89,15 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
       <p className="text-sm mb-4 text-gray-500">{T("uploadRequiredDocuments")}</p>
 
       <div>
-        <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("cnicNumber")} *</label>
+        <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("cnicNumber")}</label>
         <input className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
           value={(data.cnic as string) ?? ""}
           onChange={e => { onChange("cnic", formatCnic(e.target.value)); onError(""); }}
-          placeholder="XXXXX-XXXXXXX-X" maxLength={15} inputMode="numeric" />
+          placeholder="XXXXX-XXXXXXX-X (optional)" maxLength={15} inputMode="numeric" />
         {(data.cnic as string)?.length > 0 && !isValidCnic((data.cnic as string) ?? "") && (
           <p className="text-gray-500 text-xs mt-1">Format: XXXXX-XXXXXXX-X</p>
         )}
+        <p className="text-gray-400 text-xs mt-1">Optional — you can complete this in your profile after approval.</p>
       </div>
       <div>
         <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("phoneNumber")} *</label>
@@ -103,8 +106,9 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
           onChange={e => { onChange("phone", e.target.value); onError(""); }}
           placeholder="03XXXXXXXXX or +92XXXXXXXXXX" inputMode="tel" maxLength={15} />
       </div>
-      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
-        <p className="text-gray-400 text-sm">{T("documentUploadComingSoon")}</p>
+      <div className="bg-green-50 border border-green-100 rounded-xl p-4">
+        <p className="text-green-700 text-xs font-semibold mb-1">Document Upload</p>
+        <p className="text-gray-500 text-xs leading-relaxed">Your CNIC copy and business registration documents will be required after approval. You can submit them from your profile settings.</p>
       </div>
     </div>
   );
@@ -291,8 +295,7 @@ const STEPS: StepConfig[] = [
     component: DocumentsStep,
     validate: (data) => {
       const cnic = String(data.cnic ?? "").trim();
-      if (!cnic) return "CNIC number is required";
-      if (!isValidCnic(cnic)) return "CNIC must be in format XXXXX-XXXXXXX-X";
+      if (cnic && !isValidCnic(cnic)) return "CNIC must be in format XXXXX-XXXXXXX-X";
       const phone = String(data.phone ?? "").trim();
       if (!phone) return "Phone number is required";
       if (!isValidPhone(phone)) return "Enter a valid Pakistani mobile number (03XXXXXXXXX)";
@@ -329,16 +332,26 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
   const T = (key: TranslationKey) => tDual(key, language);
 
   const [draft, setDraft] = useState<Record<string, unknown>>(() => {
-    try { const raw = localStorage.getItem(DRAFT_KEY); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      const ts = parseInt(localStorage.getItem(DRAFT_TTL_KEY) ?? "0", 10);
+      if (raw && Date.now() - ts > DRAFT_TTL_MS) {
+        localStorage.removeItem(DRAFT_KEY);
+        localStorage.removeItem(DRAFT_TTL_KEY);
+        return {};
+      }
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
   });
 
   /* ── Save draft using an explicit allowlist — credentials never reach localStorage ── */
   const handleDataChange = useCallback((key: string, value: unknown) => {
     setDraft(prev => {
       const next = { ...prev, [key]: value };
-      const SAFE_FIELDS = new Set(["storeName", "storeCategory", "ownerName", "city", "cnic", "phone", "bankName", "bankAccount", "bankAccountTitle"]);
+      const SAFE_FIELDS = new Set(["storeName", "storeCategory", "ownerName", "city", "phone", "bankName", "bankAccount", "bankAccountTitle"]);
       const safe = Object.fromEntries(Object.entries(next).filter(([k]) => SAFE_FIELDS.has(k)));
       localStorage.setItem(DRAFT_KEY, JSON.stringify(safe));
+      localStorage.setItem(DRAFT_TTL_KEY, Date.now().toString());
       return next;
     });
   }, []);

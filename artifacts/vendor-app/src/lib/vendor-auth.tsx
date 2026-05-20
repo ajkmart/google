@@ -24,7 +24,7 @@
  *   [ ] Logout clears sessionStorage tokens and redirects to /login
  *   [ ] GET /api/users/profile?appRole=vendor returns 403 for non-vendor tokens (server-side gate)
  */
-import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AuthProvider as SharedAuthProvider,
@@ -63,6 +63,7 @@ interface AuthCtx {
   user: AuthUser | null;
   token: string | null;
   loading: boolean;
+  storageError: boolean;
   login: (token: string, user: AuthUser, refreshToken?: string) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -92,8 +93,7 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
   const [user, setUser]   = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const logoutCallbackRef = useRef<(() => void) | null>(null);
+  const [storageError, setStorageError] = useState(false);
 
   /* ── Proactive token refresh via shared SDK hook ────────────────────────
      useTokenRefresh handles scheduling, retry (up to 5 attempts, exponential
@@ -124,7 +124,14 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
     const controller = new AbortController();
 
     const initAuth = async () => {
-      let activeToken = api.getToken();
+      let activeToken: string | null = null;
+      try {
+        activeToken = api.getToken();
+      } catch (e) {
+        setStorageError(true);
+        setLoading(false);
+        return;
+      }
 
       if (!activeToken) {
         const result = await api.refreshToken();
@@ -170,7 +177,6 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
   /* ── Register logout callback + DOM event ── */
   useEffect(() => {
     const clearAuth = () => { setToken(null); setUser(null); sharedAuth.logout(); };
-    logoutCallbackRef.current = clearAuth;
     const unregister = api.registerLogoutCallback(clearAuth);
     const handleLogout = () => clearAuth();
     window.addEventListener("ajkmart:logout", handleLogout);
@@ -201,11 +207,14 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
 
   const logout = () => {
     const refreshTok = api.getRefreshToken();
-    api.logout(refreshTok || undefined).catch((err) => { console.warn('[artifacts/vendor-app/src/lib/vendor-auth.tsx]', err); }); // eslint-disable-line no-console
+    api.clearTokens();
     sharedAuth.logout();
     setToken(null);
     setUser(null);
     queryClient.clear();
+    if (refreshTok) {
+      api.logout(refreshTok).catch((err) => log.warn("server token revocation failed (local session already cleared):", err));
+    }
   };
 
   const refreshUser = async () => {
@@ -228,7 +237,7 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
   };
 
   return (
-    <Ctx.Provider value={{ user, token, loading, login, logout, refreshUser }}>
+    <Ctx.Provider value={{ user, token, loading, storageError, login, logout, refreshUser }}>
       {children}
     </Ctx.Provider>
   );

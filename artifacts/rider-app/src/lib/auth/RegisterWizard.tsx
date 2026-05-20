@@ -38,6 +38,7 @@ function isValidPakistaniPhone(phone: string): boolean {
 function PhoneInfoStep({ data, onChange, onError }: StepComponentProps) {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
+  const theme = useTheme();
 
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
   const abortRef = useRef<AbortController | null>(null);
@@ -64,26 +65,29 @@ function PhoneInfoStep({ data, onChange, onError }: StepComponentProps) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-gray-100 font-bold text-lg mb-1">{T("personalInfo")}</h3>
-      <p className="text-gray-500 text-sm mb-4">{T("enterDetailsToGetStarted")}</p>
+      <h3 className="font-bold text-lg mb-1" style={{ color: theme.text }}>{T("personalInfo")}</h3>
+      <p className="text-sm mb-4" style={{ color: theme.textMuted }}>{T("enterDetailsToGetStarted")}</p>
 
       <div>
-        <label className="text-[10px] font-bold text-yellow-500 uppercase tracking-wider mb-1.5 block">{T("fullName")} *</label>
-        <input className="w-full h-12 px-4 bg-gray-950 border border-gray-800 rounded-xl text-gray-100 text-sm focus:outline-none focus:border-yellow-500/50 transition-all"
+        <label className="text-[10px] font-bold uppercase tracking-wider mb-1.5 block" style={{ color: theme.primary }}>{T("fullName")} *</label>
+        <input className="w-full h-12 px-4 rounded-xl text-sm focus:outline-none transition-all"
+          style={{ background: theme.background, border: `1px solid ${theme.border}`, color: theme.text }}
           value={(data.name as string) ?? ""} onChange={e => { onChange("name", e.target.value); onError(""); }} placeholder="Muhammad Ali" />
       </div>
 
       <div>
-        <label className="text-[10px] font-bold text-yellow-500 uppercase tracking-wider mb-1.5 block">{T("phoneNumber")} *</label>
-        <input className="w-full h-12 px-4 bg-gray-950 border border-gray-800 rounded-xl text-gray-100 text-sm focus:outline-none focus:border-yellow-500/50 transition-all"
+        <label className="text-[10px] font-bold uppercase tracking-wider mb-1.5 block" style={{ color: theme.primary }}>{T("phoneNumber")} *</label>
+        <input className="w-full h-12 px-4 rounded-xl text-sm focus:outline-none transition-all"
+          style={{ background: theme.background, border: `1px solid ${theme.border}`, color: theme.text }}
           value={(data.phone as string) ?? ""} onChange={e => { onChange("phone", e.target.value); onError(""); }} placeholder="03XXXXXXXXX" inputMode="tel" maxLength={11} />
       </div>
 
       <div>
-        <label className="text-[10px] font-bold text-yellow-500 uppercase tracking-wider mb-1.5 block">{T("username")}</label>
-        <input className="w-full h-12 px-4 bg-gray-950 border border-gray-800 rounded-xl text-gray-100 text-sm focus:outline-none focus:border-yellow-500/50 transition-all"
+        <label className="text-[10px] font-bold uppercase tracking-wider mb-1.5 block" style={{ color: theme.primary }}>{T("username")}</label>
+        <input className="w-full h-12 px-4 rounded-xl text-sm focus:outline-none transition-all"
+          style={{ background: theme.background, border: `1px solid ${theme.border}`, color: theme.text }}
           value={(data.username as string) ?? ""} onChange={e => { onChange("username", e.target.value); onError(""); }} placeholder="ali_rider" />
-        {usernameStatus === "checking" && <p className="text-gray-500 text-xs mt-1">Checking availability…</p>}
+        {usernameStatus === "checking" && <p className="text-xs mt-1" style={{ color: theme.textMuted }}>Checking availability…</p>}
         {usernameStatus === "taken" && <p className="text-red-400 text-xs mt-1">Username already taken</p>}
         {usernameStatus === "available" && <p className="text-green-400 text-xs mt-1">Username available</p>}
       </div>
@@ -100,10 +104,6 @@ function OtpStep({ data, onChange, onError, onComplete }: StepComponentProps & {
   const [resending, setResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  useEffect(() => {
-    setResendCooldown(30);
-  }, []);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -186,6 +186,7 @@ function OtpStep({ data, onChange, onError, onComplete }: StepComponentProps & {
 function VehicleStep({ data, onChange, onError }: StepComponentProps) {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
+  const theme = useTheme();
 
   const VEHICLE_TYPES = ["Bike", "Car", "Van", "Pickup", "Rickshaw"];
 
@@ -198,23 +199,26 @@ function VehicleStep({ data, onChange, onError }: StepComponentProps) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-gray-100 font-bold text-lg mb-1">{T("vehicleInfo")}</h3>
-      <p className="text-gray-500 text-sm mb-4">{T("enterVehicleDetails")}</p>
+      <h3 className="font-bold text-lg mb-1" style={{ color: theme.text }}>{T("vehicleInfo")}</h3>
+      <p className="text-sm mb-4" style={{ color: theme.textMuted }}>{T("enterVehicleDetails")}</p>
 
       <div>
-        <label className="text-[10px] font-bold text-yellow-500 uppercase tracking-wider mb-1.5 block">{T("cnicNumber")} *</label>
-        <input className="w-full h-12 px-4 bg-gray-950 border border-gray-800 rounded-xl text-gray-100 text-sm focus:outline-none focus:border-yellow-500/50 transition-all"
+        <label className="text-[10px] font-bold uppercase tracking-wider mb-1.5 block" style={{ color: theme.primary }}>{T("cnicNumber")}</label>
+        <input className="w-full h-12 px-4 rounded-xl text-sm focus:outline-none transition-all"
+          style={{ background: theme.background, border: `1px solid ${theme.border}`, color: theme.text }}
           value={(data.cnic as string) ?? ""}
           onChange={e => { onChange("cnic", formatCnic(e.target.value)); onError(""); }}
-          placeholder="XXXXX-XXXXXXX-X" maxLength={15} inputMode="numeric" />
+          placeholder="XXXXX-XXXXXXX-X (optional)" maxLength={15} inputMode="numeric" />
         {(data.cnic as string)?.length > 0 && !isValidCnic((data.cnic as string) ?? "") && (
-          <p className="text-gray-500 text-xs mt-1">Format: XXXXX-XXXXXXX-X</p>
+          <p className="text-xs mt-1" style={{ color: theme.textMuted }}>Format: XXXXX-XXXXXXX-X</p>
         )}
+        <p className="text-xs mt-1" style={{ color: theme.textMuted, opacity: 0.7 }}>Optional — you can complete this in your profile after registration.</p>
       </div>
 
       <div>
-        <label className="text-[10px] font-bold text-yellow-500 uppercase tracking-wider mb-1.5 block">{T("vehicleType")} *</label>
-        <select className="w-full h-12 px-4 bg-gray-950 border border-gray-800 rounded-xl text-gray-100 text-sm focus:outline-none focus:border-yellow-500/50 transition-all appearance-none"
+        <label className="text-[10px] font-bold uppercase tracking-wider mb-1.5 block" style={{ color: theme.primary }}>{T("vehicleType")} *</label>
+        <select className="w-full h-12 px-4 rounded-xl text-sm focus:outline-none transition-all appearance-none"
+          style={{ background: theme.background, border: `1px solid ${theme.border}`, color: theme.text }}
           value={(data.vehicleType as string) ?? ""} onChange={e => { onChange("vehicleType", e.target.value); onError(""); }}>
           <option value="">{T("selectVehicleType")}</option>
           {VEHICLE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -222,14 +226,16 @@ function VehicleStep({ data, onChange, onError }: StepComponentProps) {
       </div>
 
       <div>
-        <label className="text-[10px] font-bold text-yellow-500 uppercase tracking-wider mb-1.5 block">{T("drivingLicense")} *</label>
-        <input className="w-full h-12 px-4 bg-gray-950 border border-gray-800 rounded-xl text-gray-100 text-sm focus:outline-none focus:border-yellow-500/50 transition-all"
+        <label className="text-[10px] font-bold uppercase tracking-wider mb-1.5 block" style={{ color: theme.primary }}>{T("drivingLicense")} *</label>
+        <input className="w-full h-12 px-4 rounded-xl text-sm focus:outline-none transition-all"
+          style={{ background: theme.background, border: `1px solid ${theme.border}`, color: theme.text }}
           value={(data.drivingLicense as string) ?? ""} onChange={e => { onChange("drivingLicense", e.target.value); onError(""); }} placeholder="License number" />
       </div>
 
       <div>
-        <label className="text-[10px] font-bold text-yellow-500 uppercase tracking-wider mb-1.5 block">{T("vehicleRegistration")} *</label>
-        <input className="w-full h-12 px-4 bg-gray-950 border border-gray-800 rounded-xl text-gray-100 text-sm focus:outline-none focus:border-yellow-500/50 transition-all"
+        <label className="text-[10px] font-bold uppercase tracking-wider mb-1.5 block" style={{ color: theme.primary }}>{T("vehicleRegistration")} *</label>
+        <input className="w-full h-12 px-4 rounded-xl text-sm focus:outline-none transition-all"
+          style={{ background: theme.background, border: `1px solid ${theme.border}`, color: theme.text }}
           value={(data.vehicleRegistration as string) ?? ""} onChange={e => { onChange("vehicleRegistration", e.target.value); onError(""); }} placeholder="Registration number" />
       </div>
     </div>
@@ -450,8 +456,7 @@ const BASE_STEPS: StepConfig[] = [
     component: VehicleStep,
     validate: (data) => {
       const cnic = String(data.cnic ?? "").trim();
-      if (!cnic) return "CNIC number is required";
-      if (!isValidCnic(cnic)) return "CNIC must be in format XXXXX-XXXXXXX-X";
+      if (cnic && !isValidCnic(cnic)) return "CNIC must be in format XXXXX-XXXXXXX-X";
       if (!String(data.vehicleType ?? "").trim()) return "Please select a vehicle type";
       if (!String(data.drivingLicense ?? "").trim()) return "Driving license number is required";
       if (!String(data.vehicleRegistration ?? "").trim()) return "Vehicle registration number is required";
@@ -514,6 +519,7 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
       const next = { ...prev, [key]: value };
       const {
         password: _pw, confirmPassword: _cpw,
+        cnic: _cnic,
         vehiclePhoto: _vp, cnicDocUrl: _cd, cnicBackDocUrl: _cbd, licenseDocUrl: _ld,
         ...safe
       } = next as Record<string, unknown>;

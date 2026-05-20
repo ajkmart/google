@@ -6,6 +6,8 @@
  * call is slow, blocked, or fails entirely, the local session is already
  * dead and cannot be reused.
  */
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[logoutSequence]");
 
 export interface LogoutApi {
   getRefreshToken(): string;
@@ -31,6 +33,6 @@ export function executeLogoutSequence(
   clearAppState();
   if (refreshTok) {
     /* Token is already cleared locally — server revocation is fire-and-forget */
-    apiClient.logout(refreshTok).catch((err) => { console.warn("[logoutSequence] server token revocation failed (local session already cleared):", err); }); // eslint-disable-line no-console
+    apiClient.logout(refreshTok).catch((err) => { log.warn("server token revocation failed (local session already cleared):", err); });
   }
 }

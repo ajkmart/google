@@ -8,9 +8,10 @@
  * The MFA step is rendered as a local overlay so it's consistent
  * with the overlay pattern used by rider/vendor apps.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "./useAuth";
+import { useRateLimitCountdown } from "./useRateLimitCountdown";
 import { useAppStatus } from "./useAppStatus";
 import { useTheme } from "./ThemeContext";
 import { useAdminAuth } from "../adminAuthContext";
@@ -28,10 +29,12 @@ export interface LoginScreenProps {
 export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const { loginWithPassword, logout, isLoading } = useAuth();
   const { maintenance, maintenanceMsg, supportPhone, supportEmail } = useAppStatus();
+  const { isRateLimited, secondsLeft, triggerRateLimit } = useRateLimitCountdown();
   const theme = useTheme();
   const [, setLocation] = useLocation();
   const { state } = useAdminAuth();
   const { toast } = useToast();
+  const prevErrorRef = useRef<string | null>(null);
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -44,22 +47,20 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   /* ── Redirect on success ── */
   useEffect(() => {
     if (state.user && state.accessToken) {
-      onSuccess?.();
-      setLocation("/dashboard");
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        setLocation("/dashboard");
+      }
     }
   }, [state.user, state.accessToken, setLocation, onSuccess]);
 
-  /* ── Show errors from auth context ── */
-  useEffect(() => {
-    if (state.error) {
-      toast({ title: "Login Error", description: state.error, variant: "destructive" });
-    }
-  }, [state.error, toast]);
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!username.trim() || !password.trim()) return;
+    if (isRateLimited) return;
     const result = await loginWithPassword(username.trim(), password);
     if (result.error === "mfa_required") {
       setTempToken(result.data?.tempToken ?? null);
@@ -67,6 +68,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       setTotp("");
       toast({ title: "MFA Required", description: "Enter your authenticator code" });
     } else if (!result.success) {
+      if (result.retryAfter) triggerRateLimit(result.retryAfter);
       setError(result.error ?? "Login failed");
     }
   };
@@ -150,7 +152,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
           boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
         }}>
           {error && (
-            <div style={{
+            <div role="alert" aria-live="polite" style={{
               background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)",
               borderRadius: 10, padding: "10px 14px", marginBottom: 16,
               color: theme.error ?? "#fca5a5", fontSize: 13, fontWeight: 500,
@@ -192,16 +194,21 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
                   Forgot password?
                 </button>
               </div>
-              <button type="submit" disabled={isLoading || !username.trim() || !password.trim()}
+              <button type="submit"
+                disabled={isLoading || isRateLimited || !username.trim() || !password.trim()}
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                   width: "100%", borderRadius: 12, padding: "11px 0",
-                  background: isLoading || !username.trim() || !password.trim() ? `${theme.primary}80` : theme.primary,
+                  background: isLoading || isRateLimited || !username.trim() || !password.trim() ? `${theme.primary}80` : theme.primary,
                   color: theme.surface, fontSize: 14, fontWeight: 700,
-                  border: "none", cursor: isLoading ? "not-allowed" : "pointer",
+                  border: "none", cursor: isLoading || isRateLimited ? "not-allowed" : "pointer",
                   transition: "all 0.2s",
                 }}>
-                {isLoading ? <Loader2 className="animate-spin" style={{ width: 16, height: 16 }} /> : <>Sign in <ArrowRight style={{ width: 16, height: 16 }} /></>}
+                {isLoading
+                  ? <Loader2 className="animate-spin" style={{ width: 16, height: 16 }} />
+                  : isRateLimited
+                    ? `Try again in ${secondsLeft}s`
+                    : <>Sign in <ArrowRight style={{ width: 16, height: 16 }} /></>}
               </button>
             </form>
           ) : (

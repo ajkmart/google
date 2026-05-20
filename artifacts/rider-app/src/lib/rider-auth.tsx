@@ -72,8 +72,12 @@ interface AuthCtx {
   refreshUser: () => Promise<void>;
 }
 
-const Ctx = createContext<AuthCtx>({} as AuthCtx);
-export const useAuth = () => useContext(Ctx);
+const Ctx = createContext<AuthCtx | null>(null);
+export function useAuth(): AuthCtx {
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error("useAuth must be used inside RiderAuthProvider");
+  return ctx;
+}
 
 /** Outer shell — provides the shared SDK context (token storage, base URL, role).
  *
