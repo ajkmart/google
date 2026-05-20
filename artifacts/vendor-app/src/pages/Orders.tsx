@@ -474,10 +474,10 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
         <div className="text-5xl mb-4">⚠️</div>
         <h2 className="text-lg font-bold text-gray-900 mb-2">Orders section failed to load</h2>
         <p className="text-gray-500 text-sm mb-5">An unexpected error occurred. Tap retry to reload this section.</p>
-        <button onClick={reset} className="px-5 py-2 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-700">Retry</button>
+        <button onClick={reset} className="px-5 py-2 bg-blue-700 text-white rounded-lg text-sm font-semibold hover:bg-orange-700">Retry</button>
       </div>
     )}>
-    <PullToRefresh onRefresh={handlePullRefresh} className="min-h-screen bg-gray-50 md:bg-transparent">
+    <PullToRefresh onRefresh={handlePullRefresh} className="min-h-screen bg-[#0A0F1A] md:bg-transparent">
       {/* ── Offline Banner ── */}
       {!isOnline && (
         <div className="bg-red-500 text-white text-center text-xs font-bold py-2 px-4">
@@ -505,12 +505,12 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
           placeholder="Search by order ID or customer..."
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          className="flex-1 h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-orange-400"
+          className="flex-1 h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500"
         />
         <select
           value={sortOrder}
           onChange={e => setSortOrder(e.target.value as "newest"|"oldest"|"highest")}
-          className="h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-orange-400 font-medium text-gray-700"
+          className="h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 font-medium text-gray-700"
         >
           <option value="newest">Newest first</option>
           <option value="oldest">Oldest first</option>
@@ -520,7 +520,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
 
       {/* ── Bulk Action Bar ── */}
       {selectedIds.size > 0 && (
-        <div className="px-4 py-2 bg-orange-50 border-b border-orange-200 flex items-center gap-3 md:px-0">
+        <div className="px-4 py-2 bg-blue-50 border-b border-blue-200 flex items-center gap-3 md:px-0">
           <span className="text-xs font-bold text-orange-700 flex-1">{selectedIds.size} selected</span>
           <button
             onClick={() => setBulkConfirm("accept")}
@@ -551,7 +551,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
         {TAB_KEYS.map(tb => (
           <button key={tb.key} onClick={() => setTab(tb.key)}
             className={`flex-1 flex flex-col items-center py-3 text-[11px] font-bold border-b-2 transition-colors android-press min-h-0 relative
-              ${tab === tb.key ? "border-orange-500 text-orange-600" : "border-transparent text-gray-400"}`}>
+              ${tab === tb.key ? "border-blue-500 text-blue-600" : "border-transparent text-gray-400"}`}>
             <span className="text-lg mb-0.5">{tb.icon}</span>
             {T(tb.labelKey)}
             {tb.key === "new" && newCount > 0 && (
@@ -618,15 +618,15 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
               const cancelWindowExpired = msSincePlacedForCancel > 5 * 60 * 1000;
 
               return (
-                <div key={o.id} className={`${CARD}${o.status === "pending" ? " border-l-4 border-orange-400" : ""}${selectedIds.has(o.id) ? " ring-2 ring-orange-400" : ""}`}>
+                <div key={o.id} className={`${CARD}${o.status === "pending" ? " border-l-4 border-blue-400" : ""}${selectedIds.has(o.id) ? " ring-2 ring-orange-400" : ""}`}>
                   {/* Auto-cancel countdown bar */}
                   {isPendingTimer && (
                     <div className="px-4 pt-3 pb-1">
                       <div className="flex justify-between items-center mb-1">
-                        <span className={`text-[10px] font-bold tracking-wide ${timerRed ? "text-red-600" : "text-orange-500"}`}>
+                        <span className={`text-[10px] font-bold tracking-wide ${timerRed ? "text-red-600" : "text-blue-500"}`}>
                           {timerRed ? "⚠️ AUTO-CANCEL IN" : "⏱ AUTO-CANCEL IN"}
                         </span>
-                        <span className={`text-[11px] font-extrabold tabular-nums ${timerRed ? "text-red-600" : "text-orange-600"}`}>
+                        <span className={`text-[11px] font-extrabold tabular-nums ${timerRed ? "text-red-600" : "text-blue-600"}`}>
                           {minsLeft}:{String(secsLeft).padStart(2,"0")}
                         </span>
                       </div>
@@ -693,7 +693,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
                           ))}
                           <div className="border-t border-gray-200 pt-2 flex justify-between font-bold text-sm">
                             <span className="text-gray-600">{T("subtotal")}</span>
-                            <span className="text-orange-600">{fc(o.total)}</span>
+                            <span className="text-blue-600">{fc(o.total)}</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span className="text-gray-500">🚚 {T("deliveryFee")}</span>

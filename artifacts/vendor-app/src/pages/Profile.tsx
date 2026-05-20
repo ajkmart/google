@@ -191,7 +191,7 @@ export default function Profile() {
     setSaving(false);
   };
 
-  const SELECT = "w-full h-12 px-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-orange-400 appearance-none";
+  const SELECT = "w-full h-12 px-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 appearance-none";
 
   const InfoRow = ({ label, value, empty = "Not set" }: { label: string; value?: string | null; empty?: string }) => (
     <div className="flex justify-between items-start py-3 border-b border-gray-50 last:border-0 gap-3">
@@ -230,7 +230,7 @@ export default function Profile() {
   const completionPct    = Math.round((completedCount / completionFields.length) * 100);
 
   return (
-    <div className="bg-gray-50 md:bg-transparent">
+    <div className="bg-[#0A0F1A] md:bg-transparent">
       {kycModalOpen && (
         <VendorKycModal
           onClose={() => setKycModalOpen(false)}
@@ -288,7 +288,7 @@ export default function Profile() {
             {/* Business Identity Card */}
             <div className={CARD}>
               <div className="p-5 text-center border-b border-gray-100">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-4xl font-extrabold text-white mx-auto mb-3 shadow-md">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-4xl font-extrabold text-white mx-auto mb-3 shadow-md">
                   {(user?.storeName || user?.name || "V")[0].toUpperCase()}
                 </div>
                 <h2 className="text-lg font-extrabold text-gray-900">{user?.storeName || "My Store"}</h2>
@@ -298,7 +298,7 @@ export default function Profile() {
                 )}
                 <div className="flex items-center justify-center gap-2 mt-2.5 flex-wrap">
                   {user?.storeCategory && (
-                    <span className="text-xs bg-orange-100 text-orange-700 px-2.5 py-1 rounded-full font-bold capitalize">{user.storeCategory}</span>
+                    <span className="text-xs bg-blue-100 text-orange-700 px-2.5 py-1 rounded-full font-bold capitalize">{user.storeCategory}</span>
                   )}
                   {user?.isVerified === true && (
                     <span className="text-xs bg-green-100 text-green-700 px-2.5 py-1 rounded-full font-bold">✓ Verified</span>
@@ -309,8 +309,8 @@ export default function Profile() {
                 </div>
               </div>
               <div className="p-4 grid grid-cols-2 gap-3">
-                <div className="text-center bg-orange-50 rounded-xl p-3">
-                  <p className="text-2xl font-extrabold text-orange-500">{user?.stats?.totalOrders || 0}</p>
+                <div className="text-center bg-blue-50 rounded-xl p-3">
+                  <p className="text-2xl font-extrabold text-blue-500">{user?.stats?.totalOrders || 0}</p>
                   <p className="text-xs text-gray-500 mt-0.5">Total Orders</p>
                 </div>
                 <div className="text-center bg-amber-50 rounded-xl p-3">
@@ -324,10 +324,10 @@ export default function Profile() {
             <div className="bg-white rounded-2xl shadow-sm p-4">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-bold text-gray-700">Profile Completion</p>
-                <span className={`text-sm font-extrabold ${completionPct >= 80 ? "text-green-600" : completionPct >= 50 ? "text-orange-500" : "text-red-500"}`}>{completionPct}%</span>
+                <span className={`text-sm font-extrabold ${completionPct >= 80 ? "text-green-600" : completionPct >= 50 ? "text-blue-500" : "text-red-500"}`}>{completionPct}%</span>
               </div>
               <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                <div className="h-2 rounded-full bg-gradient-to-r from-orange-400 to-amber-500 transition-all"
+                <div className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all"
                   style={{ width: `${completionPct}%` }}/>
               </div>
               {completionPct < 100 && (
@@ -336,7 +336,7 @@ export default function Profile() {
             </div>
 
             {/* Wallet */}
-            <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-4 text-white shadow-sm">
+            <div className="bg-gradient-to-r from-orange-500 to-blue-600 rounded-2xl p-4 text-white shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-orange-100 font-medium">Wallet Balance</p>
@@ -396,7 +396,7 @@ export default function Profile() {
                   <button
                     onClick={handleTestNotification}
                     disabled={testingNotif}
-                    className="w-full h-10 bg-orange-50 text-orange-600 font-bold rounded-xl text-sm border border-orange-200 hover:bg-orange-100 transition-colors disabled:opacity-50"
+                    className="w-full h-10 bg-blue-50 text-blue-600 font-bold rounded-xl text-sm border border-blue-200 hover:bg-blue-100 transition-colors disabled:opacity-50"
                   >
                     {testingNotif ? "Sending..." : "🧪 Send Test Notification"}
                   </button>
@@ -424,7 +424,7 @@ export default function Profile() {
                   </div>
                   <button
                     onClick={toggleDark}
-                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${isDark ? "bg-orange-500" : "bg-gray-300"}`}
+                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${isDark ? "bg-blue-600" : "bg-gray-300"}`}
                     aria-label="Toggle dark mode"
                   >
                     <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${isDark ? "translate-x-5" : "translate-x-0.5"}`}/>
@@ -445,8 +445,8 @@ export default function Profile() {
                           onClick={() => setLanguage(opt.value as Language)}
                           className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all ${
                             language === opt.value
-                              ? "bg-orange-50 border-orange-400 text-orange-700"
-                              : "bg-gray-50 border-gray-200 text-gray-500 hover:border-orange-200"
+                              ? "bg-blue-50 border-blue-400 text-orange-700"
+                              : "bg-gray-50 border-gray-200 text-gray-500 hover:border-blue-200"
                           }`}
                         >
                           {opt.nativeLabel}
@@ -476,7 +476,7 @@ export default function Profile() {
                       </div>
                     </AccordionTrigger>
                     <button onClick={() => editing === "personal" ? setEditing(null) : startEdit("personal")}
-                      className="text-orange-500 text-sm font-bold android-press min-h-0 py-1 ml-3 flex-shrink-0">
+                      className="text-blue-500 text-sm font-bold android-press min-h-0 py-1 ml-3 flex-shrink-0">
                       {editing === "personal" ? "Cancel" : "✏️ Edit"}
                     </button>
                   </div>
@@ -550,7 +550,7 @@ export default function Profile() {
                   ] as { href: string; icon: string; label: string; badge?: number }[]
                 ).map(item => (
                   <Link key={item.href} href={item.href}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-orange-50 transition-colors relative">
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-blue-50 transition-colors relative">
                     <span className="text-lg">{item.icon}</span>
                     <span className="text-sm font-semibold text-gray-700">{item.label}</span>
                     <span className="flex-1"/>
@@ -579,7 +579,7 @@ export default function Profile() {
                       </div>
                     </AccordionTrigger>
                     <button onClick={() => editing === "bank" ? setEditing(null) : startEdit("bank")}
-                      className="text-orange-500 text-sm font-bold android-press min-h-0 py-1 ml-3 flex-shrink-0">
+                      className="text-blue-500 text-sm font-bold android-press min-h-0 py-1 ml-3 flex-shrink-0">
                       {editing === "bank" ? "Cancel" : "✏️ Edit"}
                     </button>
                   </div>
@@ -612,7 +612,7 @@ export default function Profile() {
                       <div className="px-4 py-3">
                         {user?.bankName ? (
                           <>
-                            <div className="flex items-center gap-3 bg-orange-50 rounded-xl p-3.5 mb-3">
+                            <div className="flex items-center gap-3 bg-blue-50 rounded-xl p-3.5 mb-3">
                               <span className="text-2xl">{user.bankName.includes("Easy") ? "📱" : user.bankName.includes("Jazz") ? "📱" : "🏦"}</span>
                               <div>
                                 <p className="font-bold text-gray-800 text-sm">{user.bankName}</p>
@@ -631,7 +631,7 @@ export default function Profile() {
                             <p className="text-sm font-bold text-gray-600">No account set</p>
                             <p className="text-xs text-gray-400 mt-1">Add your bank account to receive withdrawals</p>
                             <button onClick={() => startEdit("bank")}
-                              className="mt-3 px-4 py-2 bg-orange-50 text-orange-600 font-bold rounded-xl text-sm">
+                              className="mt-3 px-4 py-2 bg-blue-50 text-blue-600 font-bold rounded-xl text-sm">
                               + Add Account
                             </button>
                           </div>
@@ -699,7 +699,7 @@ export default function Profile() {
                     </div>
                     <button
                       onClick={() => setKycModalOpen(true)}
-                      className="w-full h-11 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-xl text-sm hover:opacity-95 transition-opacity"
+                      className="w-full h-11 bg-gradient-to-r from-orange-500 to-blue-600 text-white font-bold rounded-xl text-sm hover:opacity-95 transition-opacity"
                     >
                       {user?.kycStatus === "rejected" ? "🔄 Re-submit Verification" : "🛡️ Start Identity Verification"}
                     </button>
@@ -764,9 +764,9 @@ export default function Profile() {
                                     <span className="absolute top-2 right-2 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">✓ Uploaded</span>
                                   </div>
                                 ) : (
-                                  <label className={`flex items-center justify-center gap-2 h-20 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${busy ? "border-orange-300 bg-orange-50" : "border-gray-200 hover:border-orange-300 hover:bg-orange-50"}`}>
+                                  <label className={`flex items-center justify-center gap-2 h-20 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${busy ? "border-orange-300 bg-blue-50" : "border-gray-200 hover:border-orange-300 hover:bg-blue-50"}`}>
                                     {busy ? (
-                                      <span className="text-sm text-orange-500 font-medium animate-pulse">Uploading…</span>
+                                      <span className="text-sm text-blue-500 font-medium animate-pulse">Uploading…</span>
                                     ) : (
                                       <>
                                         <span className="text-xl">📤</span>
@@ -796,7 +796,7 @@ export default function Profile() {
 
             {/* Payout Policy */}
             <Accordion type="single" collapsible>
-              <AccordionItem value="payout-policy" className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-100 rounded-2xl overflow-hidden">
+              <AccordionItem value="payout-policy" className="bg-gradient-to-br from-orange-50 to-amber-50 border border-blue-100 rounded-2xl overflow-hidden">
                 <AccordionTrigger className="px-4 py-3 hover:no-underline">
                   <span className="font-bold text-orange-700 text-sm">💡 Payout Policy</span>
                 </AccordionTrigger>
@@ -822,14 +822,14 @@ export default function Profile() {
             <div className="bg-gray-100 rounded-2xl p-4 space-y-3">
               <p className="text-xs text-gray-500 text-center leading-relaxed">
                 By using {config.platform.appName} Vendor Portal, you agree to our vendor terms.
-                {" "}For support: <a href={`tel:${config.platform.supportPhone}`} className="font-bold text-orange-500">{config.platform.supportPhone}</a>
+                {" "}For support: <a href={`tel:${config.platform.supportPhone}`} className="font-bold text-blue-500">{config.platform.supportPhone}</a>
               </p>
               {config.platform.supportHours && (
                 <p className="text-xs text-gray-400 text-center">⏰ {config.platform.supportHours}</p>
               )}
               {config.platform.supportEmail && (
                 <p className="text-xs text-gray-500 text-center">
-                  ✉️ <a href={`mailto:${config.platform.supportEmail}`} className="text-orange-500 hover:text-orange-700">{config.platform.supportEmail}</a>
+                  ✉️ <a href={`mailto:${config.platform.supportEmail}`} className="text-blue-500 hover:text-orange-700">{config.platform.supportEmail}</a>
                 </p>
               )}
               {(config.platform.socialFacebook || config.platform.socialInstagram) && (
@@ -846,31 +846,31 @@ export default function Profile() {
                 <div className="flex flex-wrap gap-2 justify-center">
                   {config.content.tncUrl && (
                     <a href={config.content.tncUrl} target="_blank" rel="noopener noreferrer"
-                      className="text-xs text-orange-600 underline underline-offset-2 hover:text-orange-800 transition-colors">
+                      className="text-xs text-blue-600 underline underline-offset-2 hover:text-orange-800 transition-colors">
                       📋 Terms of Service
                     </a>
                   )}
                   {config.content.privacyUrl && (
                     <a href={config.content.privacyUrl} target="_blank" rel="noopener noreferrer"
-                      className="text-xs text-orange-600 underline underline-offset-2 hover:text-orange-800 transition-colors">
+                      className="text-xs text-blue-600 underline underline-offset-2 hover:text-orange-800 transition-colors">
                       🔒 Privacy Policy
                     </a>
                   )}
                   {config.content.refundPolicyUrl && (
                     <a href={config.content.refundPolicyUrl} target="_blank" rel="noopener noreferrer"
-                      className="text-xs text-orange-600 underline underline-offset-2 hover:text-orange-800 transition-colors">
+                      className="text-xs text-blue-600 underline underline-offset-2 hover:text-orange-800 transition-colors">
                       ↩️ Refund Policy
                     </a>
                   )}
                   {config.content.faqUrl && (
                     <a href={config.content.faqUrl} target="_blank" rel="noopener noreferrer"
-                      className="text-xs text-orange-600 underline underline-offset-2 hover:text-orange-800 transition-colors">
+                      className="text-xs text-blue-600 underline underline-offset-2 hover:text-orange-800 transition-colors">
                       ❓ Help & FAQs
                     </a>
                   )}
                   {config.content.aboutUrl && (
                     <a href={config.content.aboutUrl} target="_blank" rel="noopener noreferrer"
-                      className="text-xs text-orange-600 underline underline-offset-2 hover:text-orange-800 transition-colors">
+                      className="text-xs text-blue-600 underline underline-offset-2 hover:text-orange-800 transition-colors">
                       ℹ️ About Us
                     </a>
                   )}

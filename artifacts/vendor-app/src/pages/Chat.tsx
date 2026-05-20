@@ -161,7 +161,7 @@ function ShortcutsModal({ shortcuts, onSave, onClose }: { shortcuts: string[]; o
               onDrop={() => handleDrop(idx)}
               onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
               className={`flex items-center gap-2 p-2 rounded-xl border transition cursor-grab active:cursor-grabbing
-                ${overIdx === idx && dragIdx !== idx ? "border-orange-400 bg-orange-50" : "border-gray-100 bg-gray-50"}
+                ${overIdx === idx && dragIdx !== idx ? "border-blue-400 bg-blue-50" : "border-gray-100 bg-gray-50"}
                 ${dragIdx === idx ? "opacity-40" : "opacity-100"}
               `}
             >
@@ -172,7 +172,7 @@ function ShortcutsModal({ shortcuts, onSave, onClose }: { shortcuts: string[]; o
                   value={editText}
                   onChange={e => setEditText(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") saveEdit(); if (e.key === "Escape") { setEditIdx(null); setEditText(""); } }}
-                  className="flex-1 text-sm px-2 py-1 rounded-lg border border-orange-400 focus:ring-2 focus:ring-orange-200 outline-none"
+                  className="flex-1 text-sm px-2 py-1 rounded-lg border border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none"
                 />
               ) : (
                 <span className="flex-1 text-sm text-gray-700 break-words">{s}</span>
@@ -180,7 +180,7 @@ function ShortcutsModal({ shortcuts, onSave, onClose }: { shortcuts: string[]; o
               {editIdx === idx ? (
                 <button onClick={saveEdit} className="text-green-600 font-bold text-sm px-2 py-1 rounded-lg hover:bg-green-50 transition flex-shrink-0">Save</button>
               ) : (
-                <button onClick={() => startEdit(idx)} className="text-orange-500 text-sm px-2 py-1 rounded-lg hover:bg-orange-50 transition flex-shrink-0">Edit</button>
+                <button onClick={() => startEdit(idx)} className="text-blue-500 text-sm px-2 py-1 rounded-lg hover:bg-blue-50 transition flex-shrink-0">Edit</button>
               )}
               <button onClick={() => removeShortcut(idx)} className="w-7 h-7 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition flex-shrink-0 text-sm">✕</button>
             </div>
@@ -197,12 +197,12 @@ function ShortcutsModal({ shortcuts, onSave, onClose }: { shortcuts: string[]; o
                   onKeyDown={e => { if (e.key === "Enter") addShortcut(); }}
                   placeholder="Add a new quick reply…"
                   maxLength={120}
-                  className="flex-1 h-10 px-3 rounded-xl border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm"
+                  className="flex-1 h-10 px-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-orange-100 outline-none text-sm"
                 />
                 <button
                   onClick={addShortcut}
                   disabled={!newText.trim()}
-                  className="h-10 px-4 bg-orange-500 text-white rounded-xl font-bold text-sm disabled:opacity-40 hover:bg-orange-600 transition"
+                  className="h-10 px-4 bg-blue-600 text-white rounded-xl font-bold text-sm disabled:opacity-40 hover:bg-blue-700 transition"
                 >
                   Add
                 </button>
@@ -211,7 +211,7 @@ function ShortcutsModal({ shortcuts, onSave, onClose }: { shortcuts: string[]; o
               {/* Suggested templates toggle */}
               <button
                 onClick={() => setShowSuggestions(s => !s)}
-                className="w-full flex items-center justify-between text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-100 px-3 py-2 rounded-xl hover:bg-orange-100 transition"
+                className="w-full flex items-center justify-between text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-3 py-2 rounded-xl hover:bg-blue-100 transition"
               >
                 <span>✨ Pick from suggested templates</span>
                 <span className="text-gray-400">{showSuggestions ? "▲" : "▼"}</span>
@@ -242,7 +242,7 @@ function ShortcutsModal({ shortcuts, onSave, onClose }: { shortcuts: string[]; o
                                   <>
                                     <button
                                       onClick={() => { setNewText(item); setShowSuggestions(false); setOpenCategory(null); }}
-                                      className="flex-shrink-0 h-7 px-2.5 rounded-lg border border-orange-200 text-orange-500 text-[11px] font-semibold hover:bg-orange-50 transition"
+                                      className="flex-shrink-0 h-7 px-2.5 rounded-lg border border-blue-200 text-blue-500 text-[11px] font-semibold hover:bg-blue-50 transition"
                                     >
                                       Use →
                                     </button>
@@ -250,7 +250,7 @@ function ShortcutsModal({ shortcuts, onSave, onClose }: { shortcuts: string[]; o
                                       disabled={listFull}
                                       onClick={() => { setList(prev => prev.includes(item) || prev.length >= MAX_SHORTCUTS ? prev : [...prev, item]); }}
                                       title={listFull ? "List is full" : "Add directly"}
-                                      className="flex-shrink-0 w-7 h-7 rounded-lg bg-orange-500 text-white text-base font-bold flex items-center justify-center hover:bg-orange-600 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                                      className="flex-shrink-0 w-7 h-7 rounded-lg bg-blue-600 text-white text-base font-bold flex items-center justify-center hover:bg-blue-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
                                     >
                                       +
                                     </button>
@@ -271,7 +271,7 @@ function ShortcutsModal({ shortcuts, onSave, onClose }: { shortcuts: string[]; o
           )}
           <div className="flex gap-2">
             <button onClick={onClose} className="flex-1 h-11 rounded-xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition">Cancel</button>
-            <button onClick={handleSave} className="flex-1 h-11 rounded-xl bg-orange-500 text-white font-bold text-sm hover:bg-orange-600 transition">Save</button>
+            <button onClick={handleSave} className="flex-1 h-11 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition">Save</button>
           </div>
         </div>
       </div>
@@ -694,7 +694,7 @@ export default function Chat() {
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-2xl font-extrabold text-gray-800">💬 Messages</h1>
           {ajkId && (
-            <button onClick={() => navigator.clipboard.writeText(ajkId)} className="text-xs bg-orange-100 text-orange-700 px-3 py-1.5 rounded-full font-bold hover:bg-orange-200 transition">
+            <button onClick={() => navigator.clipboard.writeText(ajkId)} className="text-xs bg-blue-100 text-orange-700 px-3 py-1.5 rounded-full font-bold hover:bg-orange-200 transition">
               {ajkId} 📋
             </button>
           )}
@@ -703,7 +703,7 @@ export default function Chat() {
         {!selectedConv && (
           <div className="flex gap-1 mb-3">
             {(["chats", "requests", "search"] as const).map(t => (
-              <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-xl text-sm font-bold transition ${tab === t ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+              <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-xl text-sm font-bold transition ${tab === t ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                 {t === "chats" ? "Chats" : t === "requests" ? `Requests${requests.length ? ` (${requests.length})` : ""}` : "Search"}
               </button>
             ))}
@@ -716,7 +716,7 @@ export default function Chat() {
         {selectedConv ? (
           <div className="flex flex-col h-full">
             <div className="flex items-center gap-3 py-3 border-b mb-3">
-              <button onClick={() => setSelectedConv(null)} className="text-orange-500 font-bold">← Back</button>
+              <button onClick={() => setSelectedConv(null)} className="text-blue-500 font-bold">← Back</button>
               <div className="flex-1">
                 <p className="font-bold text-gray-800">{selectedConv.otherUser?.name || "User"}</p>
                 <p className="text-xs text-gray-400">{selectedConv.otherUser?.ajkId} · {selectedConv.otherUser?.roles}</p>
@@ -727,7 +727,7 @@ export default function Chat() {
             <div className="flex-1 overflow-y-auto space-y-2 pb-2">
               {messages.map(msg => (
                 <div key={msg.id} className={`flex ${msg.senderId === user?.id ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${msg.senderId === user?.id ? "bg-orange-500 text-white rounded-br-md" : "bg-gray-100 text-gray-800 rounded-bl-md"}`}>
+                  <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${msg.senderId === user?.id ? "bg-blue-600 text-white rounded-br-md" : "bg-gray-100 text-gray-800 rounded-bl-md"}`}>
                     {msg.messageType === "image" && msg.imageUrl && <SafeImage src={msg.imageUrl} alt="" className="rounded-xl mb-1 max-w-full" />}
                     {msg.messageType === "voice_note" && msg.voiceNoteUrl && (
                       <audio controls src={msg.voiceNoteUrl} className="max-w-full" />
@@ -753,7 +753,7 @@ export default function Chat() {
           <div className="space-y-2">
             {conversations.map(conv => (
               <button key={conv.id} onClick={() => selectConversation(conv)} className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-gray-50 transition text-left">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white font-bold text-lg">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg">
                   {(conv.otherUser?.name || "?").charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -763,7 +763,7 @@ export default function Chat() {
                   </div>
                   <div className="flex justify-between items-center">
                     <p className="text-sm text-gray-500 truncate">{conv.lastMessage?.content || "No messages yet"}</p>
-                    {conv.unreadCount > 0 && <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] flex items-center justify-center font-bold">{conv.unreadCount}</span>}
+                    {conv.unreadCount > 0 && <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">{conv.unreadCount}</span>}
                   </div>
                 </div>
               </button>
@@ -776,7 +776,7 @@ export default function Chat() {
                   </div>
                   <p className="font-bold text-gray-700 text-base">Could not load chats</p>
                   <p className="text-sm text-gray-400 mt-1">Check your connection and tap to retry</p>
-                  <button onClick={loadConversations} className="mt-5 px-6 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600 transition active:scale-95">
+                  <button onClick={loadConversations} className="mt-5 px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition active:scale-95">
                     Retry
                   </button>
                 </div>
@@ -813,7 +813,7 @@ export default function Chat() {
                   </div>
                   <p className="font-bold text-gray-700 text-base">Could not load requests</p>
                   <p className="text-sm text-gray-400 mt-1">Check your connection and tap to retry</p>
-                  <button onClick={loadRequests} className="mt-5 px-6 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600 transition active:scale-95">
+                  <button onClick={loadRequests} className="mt-5 px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition active:scale-95">
                     Retry
                   </button>
                 </div>
@@ -825,8 +825,8 @@ export default function Chat() {
         ) : (
           <div className="space-y-3">
             <div className="flex gap-2">
-              <input value={searchId} onChange={e => setSearchId(e.target.value)} placeholder="Enter AJK ID (e.g., AJK-ABC123)" className="flex-1 h-12 px-4 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none text-sm" />
-              <button onClick={searchUser} className="h-12 px-6 bg-orange-500 text-white rounded-xl font-bold text-sm">Search</button>
+              <input value={searchId} onChange={e => setSearchId(e.target.value)} placeholder="Enter AJK ID (e.g., AJK-ABC123)" className="flex-1 h-12 px-4 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-sm" />
+              <button onClick={searchUser} className="h-12 px-6 bg-blue-600 text-white rounded-xl font-bold text-sm">Search</button>
             </div>
             {searchResult && (
               <div className="p-4 rounded-2xl bg-gray-50 flex items-center justify-between">
@@ -835,7 +835,7 @@ export default function Chat() {
                   <p className="text-xs text-gray-400">{searchResult.ajkId} · {searchResult.role}</p>
                   <span className={`text-xs ${searchResult.isOnline ? "text-green-500" : "text-gray-400"}`}>{searchResult.isOnline ? "Online" : "Offline"}</span>
                 </div>
-                <button onClick={() => sendRequest(searchResult.id)} className="px-4 py-2 rounded-xl bg-orange-500 text-white text-sm font-bold">Send Request</button>
+                <button onClick={() => sendRequest(searchResult.id)} className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold">Send Request</button>
               </div>
             )}
           </div>
@@ -852,7 +852,7 @@ export default function Chat() {
                 <button
                   key={reply}
                   onClick={() => { setInput(reply); }}
-                  className="flex-shrink-0 h-8 px-3 bg-orange-50 border border-orange-200 text-orange-700 text-xs font-semibold rounded-full hover:bg-orange-100 active:scale-95 transition whitespace-nowrap"
+                  className="flex-shrink-0 h-8 px-3 bg-blue-50 border border-blue-200 text-orange-700 text-xs font-semibold rounded-full hover:bg-blue-100 active:scale-95 transition whitespace-nowrap"
                 >
                   {reply}
                 </button>
@@ -877,7 +877,7 @@ export default function Chat() {
                   <span className="text-xs font-bold text-red-600">{Math.floor(voiceRecordSecs/60)}:{String(voiceRecordSecs%60).padStart(2,"0")}</span>
                 </div>
                 <button onClick={cancelVoiceRecording} title="Cancel" className="h-12 w-12 rounded-xl bg-gray-100 text-gray-500 flex items-center justify-center text-lg flex-shrink-0">✕</button>
-                <button onClick={stopVoiceRecording} title="Send voice note" className="h-12 w-12 rounded-xl bg-orange-500 text-white flex items-center justify-center text-lg flex-shrink-0">✔</button>
+                <button onClick={stopVoiceRecording} title="Send voice note" className="h-12 w-12 rounded-xl bg-blue-600 text-white flex items-center justify-center text-lg flex-shrink-0">✔</button>
               </div>
             ) : (
               <>
@@ -889,7 +889,7 @@ export default function Chat() {
                   className="h-12 w-12 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 active:scale-95 transition flex-shrink-0 disabled:opacity-50"
                 >
                   {uploadingFile ? (
-                    <span className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"/>
+                    <span className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"/>
                   ) : (
                     <span className="text-xl">📎</span>
                   )}
@@ -937,8 +937,8 @@ export default function Chat() {
             />
             {!recordingVoice && (
               <>
-                <input value={input} onChange={e => { setInput(e.target.value); socketRef.current?.emit("comm:typing:start", { conversationId: selectedConv.id, userId: user?.id }); }} onBlur={() => socketRef.current?.emit("comm:typing:stop", { conversationId: selectedConv.id, userId: user?.id })} placeholder="Type a message..." className="flex-1 h-12 px-4 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none text-sm" onKeyDown={e => e.key === "Enter" && sendMessage()} />
-                <button onClick={sendMessage} disabled={sending || !input.trim()} className="h-12 px-6 bg-orange-500 text-white rounded-xl font-bold text-sm disabled:opacity-50">Send</button>
+                <input value={input} onChange={e => { setInput(e.target.value); socketRef.current?.emit("comm:typing:start", { conversationId: selectedConv.id, userId: user?.id }); }} onBlur={() => socketRef.current?.emit("comm:typing:stop", { conversationId: selectedConv.id, userId: user?.id })} placeholder="Type a message..." className="flex-1 h-12 px-4 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-sm" onKeyDown={e => e.key === "Enter" && sendMessage()} />
+                <button onClick={sendMessage} disabled={sending || !input.trim()} className="h-12 px-6 bg-blue-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">Send</button>
               </>
             )}
           </div>

@@ -67,7 +67,7 @@ function WithdrawModal({ balance, minPayout, maxPayout, onClose, onSuccess, defa
           <div className="p-8 text-center">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl">✅</div>
             <h3 className="text-xl font-extrabold text-gray-800">Request Submitted!</h3>
-            <p className="text-gray-500 mt-2 text-sm">Your withdrawal of <span className="font-bold text-orange-500">{fcLocal(Number(amount))}</span> has been queued. Admin will process within {processingText}.</p>
+            <p className="text-gray-500 mt-2 text-sm">Your withdrawal of <span className="font-bold text-blue-500">{fcLocal(Number(amount))}</span> has been queued. Admin will process within {processingText}.</p>
             <div className="mt-4 bg-amber-50 rounded-2xl p-4 text-left space-y-1.5">
               <div className="flex justify-between text-sm"><span className="text-gray-500">Bank / Wallet</span><span className="font-bold">{bank}</span></div>
               <div className="flex justify-between text-sm"><span className="text-gray-500">Account #</span><span className="font-bold">{acNo}</span></div>
@@ -75,7 +75,7 @@ function WithdrawModal({ balance, minPayout, maxPayout, onClose, onSuccess, defa
               {txId && (
                 <div className="flex justify-between text-sm border-t border-amber-200 pt-1.5 mt-1">
                   <span className="text-gray-500">Transaction Ref</span>
-                  <span className="font-mono font-bold text-orange-600 text-xs">#TX-{txId}</span>
+                  <span className="font-mono font-bold text-blue-600 text-xs">#TX-{txId}</span>
                 </div>
               )}
             </div>
@@ -84,8 +84,8 @@ function WithdrawModal({ balance, minPayout, maxPayout, onClose, onSuccess, defa
         ) : step === "confirm" ? (
           <div className="p-6">
             <h3 className="text-lg font-extrabold text-gray-800 mb-4">Confirm Withdrawal</h3>
-            <div className="bg-orange-50 rounded-2xl p-4 space-y-2 mb-5">
-              <div className="flex justify-between"><span className="text-gray-500 text-sm">Amount</span><span className="font-extrabold text-orange-600 text-lg">{fcLocal(Number(amount))}</span></div>
+            <div className="bg-blue-50 rounded-2xl p-4 space-y-2 mb-5">
+              <div className="flex justify-between"><span className="text-gray-500 text-sm">Amount</span><span className="font-extrabold text-blue-600 text-lg">{fcLocal(Number(amount))}</span></div>
               <div className="flex justify-between text-sm"><span className="text-gray-500">To</span><span className="font-bold">{bank}</span></div>
               <div className="flex justify-between text-sm"><span className="text-gray-500">Account</span><span className="font-bold">{acNo}</span></div>
               <div className="flex justify-between text-sm"><span className="text-gray-500">Name</span><span className="font-bold">{acName}</span></div>
@@ -105,7 +105,7 @@ function WithdrawModal({ balance, minPayout, maxPayout, onClose, onSuccess, defa
               <h3 className="text-lg font-extrabold text-gray-800">💸 Withdraw Funds</h3>
               <button onClick={onClose} className="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-xl font-bold text-gray-500">✕</button>
             </div>
-            <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-4 text-white mb-5">
+            <div className="bg-gradient-to-r from-orange-500 to-blue-600 rounded-2xl p-4 text-white mb-5">
               <p className="text-sm text-orange-100">Available Balance</p>
               <p className="text-3xl font-extrabold mt-0.5">{fcLocal(balance)}</p>
               <p className="text-xs text-orange-200 mt-1.5">Minimum withdrawal: {fcLocal(minPayout)}</p>
@@ -117,7 +117,7 @@ function WithdrawModal({ balance, minPayout, maxPayout, onClose, onSuccess, defa
                   <input type="number" inputMode="numeric" value={amount} onChange={e => { setAmount(e.target.value); setErr(""); }}
                     placeholder="0" className={INPUT}/>
                   <button onClick={() => setAmount(String(Math.floor(balance)))}
-                    className="absolute right-3 top-3 text-xs font-bold text-orange-500 bg-orange-50 px-2 py-1 rounded-lg">MAX</button>
+                    className="absolute right-3 top-3 text-xs font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-lg">MAX</button>
                 </div>
               </div>
               <div>
@@ -181,7 +181,7 @@ function DepositModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
           <div className="p-8 text-center">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl">✅</div>
             <h3 className="text-xl font-extrabold text-gray-800">Deposit Request Submitted!</h3>
-            <p className="text-gray-500 mt-2 text-sm">Your deposit request of <span className="font-bold text-orange-500">{fcLocal(Number(amount))}</span> via {method} has been sent to admin for verification.</p>
+            <p className="text-gray-500 mt-2 text-sm">Your deposit request of <span className="font-bold text-blue-500">{fcLocal(Number(amount))}</span> via {method} has been sent to admin for verification.</p>
             <div className="mt-4 bg-blue-50 rounded-2xl p-4 text-left space-y-1.5">
               <div className="flex justify-between text-sm"><span className="text-gray-500">Method</span><span className="font-bold">{method}</span></div>
               <div className="flex justify-between text-sm"><span className="text-gray-500">Reference</span><span className="font-bold">{ref}</span></div>
@@ -309,7 +309,7 @@ export default function Wallet() {
 
   if (!config.features.wallet) {
     return (
-      <div className="bg-gray-50 md:bg-transparent">
+      <div className="bg-[#0A0F1A] md:bg-transparent">
         <PageHeader title={T("wallet")} subtitle={T("earningsPayoutsShort")} />
         <div className="px-4 py-8 text-center">
           <div className="bg-white rounded-3xl p-10 shadow-sm max-w-sm mx-auto">
@@ -328,10 +328,10 @@ export default function Wallet() {
         <div className="text-5xl mb-4">⚠️</div>
         <h2 className="text-lg font-bold text-gray-900 mb-2">Wallet section failed to load</h2>
         <p className="text-gray-500 text-sm mb-5">An unexpected error occurred. Tap retry to reload this section.</p>
-        <button onClick={reset} className="px-5 py-2 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-700">Retry</button>
+        <button onClick={reset} className="px-5 py-2 bg-blue-700 text-white rounded-lg text-sm font-semibold hover:bg-orange-700">Retry</button>
       </div>
     )}>
-    <PullToRefresh onRefresh={handlePullRefresh} className="min-h-screen bg-gray-50 md:bg-transparent">
+    <PullToRefresh onRefresh={handlePullRefresh} className="min-h-screen bg-[#0A0F1A] md:bg-transparent">
       <PageHeader
         title={T("wallet")}
         subtitle={T("earningsPayoutsShort")}
@@ -345,7 +345,7 @@ export default function Wallet() {
 
       <div className="px-4 py-4 space-y-4 md:px-0 md:py-4">
         {/* ── Balance Hero Card ── */}
-        <div className="bg-gradient-to-br from-orange-500 via-orange-500 to-amber-500 rounded-3xl p-5 text-white shadow-lg relative overflow-hidden">
+        <div className="bg-gradient-to-br from-orange-500 via-orange-500 to-blue-600 rounded-3xl p-5 text-white shadow-lg relative overflow-hidden">
           <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full"/>
           <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-white/10 rounded-full"/>
           <div className="relative">
@@ -356,7 +356,7 @@ export default function Wallet() {
               {withdrawalEnabled ? (
                 balance >= minPayout ? (
                   <button onClick={() => setShowWithdraw(true)}
-                    className="flex-1 h-12 bg-white text-orange-500 font-extrabold rounded-2xl android-press text-sm flex items-center justify-center gap-2 shadow-md">
+                    className="flex-1 h-12 bg-white text-blue-500 font-extrabold rounded-2xl android-press text-sm flex items-center justify-center gap-2 shadow-md">
                     💸 {T("withdraw")}
                   </button>
                 ) : (
@@ -437,7 +437,7 @@ export default function Wallet() {
             <p className="text-xs text-gray-400">
               Last updated: <span className="font-semibold text-gray-500">{new Date(dataUpdatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
             </p>
-            <button onClick={() => refetch()} className="text-xs font-bold text-orange-500 hover:text-orange-600">↻ Refresh</button>
+            <button onClick={() => refetch()} className="text-xs font-bold text-blue-500 hover:text-blue-600">↻ Refresh</button>
           </div>
         )}
 
@@ -557,7 +557,7 @@ export default function Wallet() {
         {/* ── Security Notice ── */}
         <div className="bg-gray-100 rounded-2xl p-4">
           <p className="text-xs text-gray-500 font-medium text-center leading-relaxed">
-            🔐 All wallet transactions are encrypted and audited. If you see any unauthorized activity, contact <span className="font-bold text-orange-500">{config.platform.appName} Admin</span> immediately.
+            🔐 All wallet transactions are encrypted and audited. If you see any unauthorized activity, contact <span className="font-bold text-blue-500">{config.platform.appName} Admin</span> immediately.
           </p>
         </div>
       </div>

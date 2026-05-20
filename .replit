@@ -138,6 +138,7 @@ ADMIN_SEED_PASSWORD = "SuperAdmin@2024!"
 
 [[ports]]
 localPort = 3000
+externalPort = 8081
 
 [[ports]]
 localPort = 3001

@@ -79,7 +79,7 @@ export function ImageUploader({
             onClick={() => setMode("upload")}
             className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${
               mode === "upload"
-                ? "bg-orange-100 text-orange-600"
+                ? "bg-blue-100 text-blue-600"
                 : "bg-gray-100 text-gray-400 hover:text-gray-600"
             }`}
           >
@@ -90,7 +90,7 @@ export function ImageUploader({
             onClick={() => setMode("url")}
             className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${
               mode === "url"
-                ? "bg-orange-100 text-orange-600"
+                ? "bg-blue-100 text-blue-600"
                 : "bg-gray-100 text-gray-400 hover:text-gray-600"
             }`}
           >
@@ -106,10 +106,10 @@ export function ImageUploader({
           onClick={() => fileRef.current?.click()}
           className={`w-full border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
             uploading
-              ? "border-orange-300 bg-orange-50"
+              ? "border-blue-300 bg-blue-50"
               : value
                 ? "border-green-300 bg-green-50"
-                : "border-gray-200 bg-gray-50 hover:border-orange-300 hover:bg-orange-50"
+                : "border-gray-200 bg-gray-50 hover:border-blue-300 hover:bg-blue-50"
           } flex flex-col items-center justify-center py-6 px-4`}
         >
           <input
@@ -125,8 +125,8 @@ export function ImageUploader({
           />
           {uploading ? (
             <>
-              <div className="w-8 h-8 border-3 border-orange-400 border-t-transparent rounded-full animate-spin mb-2" />
-              <p className="text-xs font-bold text-orange-600">{T("loading")}</p>
+              <div className="w-8 h-8 border-3 border-blue-400 border-t-transparent rounded-full animate-spin mb-2" />
+              <p className="text-xs font-bold text-blue-600">{T("loading")}</p>
             </>
           ) : value ? (
             <>

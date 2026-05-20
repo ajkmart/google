@@ -152,11 +152,11 @@ export default function Promos() {
               const expired = promo.expiresAt && new Date(promo.expiresAt) < new Date();
               return (
                 <div key={promo.id} className={`${CARD} flex items-start gap-3`}>
-                  <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0 text-lg">🏷️</div>
+                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0 text-lg">🏷️</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-extrabold text-gray-800 text-sm">{promo.title}</p>
-                      <span className="font-mono bg-orange-50 text-orange-700 border border-orange-200 text-[10px] px-2 py-0.5 rounded-lg font-bold">{promo.code}</span>
+                      <span className="font-mono bg-blue-50 text-orange-700 border border-blue-200 text-[10px] px-2 py-0.5 rounded-lg font-bold">{promo.code}</span>
                       {expired && <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">Expired</span>}
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">

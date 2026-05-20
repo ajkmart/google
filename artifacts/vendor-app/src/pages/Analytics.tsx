@@ -172,7 +172,7 @@ export default function Analytics() {
   const loading = isLoading || (preset === "custom" && !customReady) || isFetching && !data;
 
   if (isError) return (
-    <div className="bg-gray-50 md:bg-transparent">
+    <div className="bg-[#0A0F1A] md:bg-transparent">
       <PageHeader title={T("analytics")} subtitle={T("storePerformance")} />
       <div className="px-4 py-4">
         <ErrorState
@@ -186,7 +186,7 @@ export default function Analytics() {
   );
 
   return (
-    <div className="bg-gray-50 md:bg-transparent">
+    <div className="bg-[#0A0F1A] md:bg-transparent">
       <PageHeader
         title={T("analytics")}
         subtitle={T("storePerformance")}
@@ -195,13 +195,13 @@ export default function Analytics() {
             {PRESETS.map(p => (
               <button key={p.value} onClick={() => setPreset(p.value)}
                 className={`h-8 px-3 text-xs font-bold rounded-xl android-press min-h-0 transition-all
-                  ${preset === p.value ? "bg-white text-orange-500 md:bg-orange-500 md:text-white" : "bg-white/20 text-white md:bg-gray-100 md:text-gray-600"}`}>
+                  ${preset === p.value ? "bg-white text-blue-500 md:bg-blue-600 md:text-white" : "bg-white/20 text-white md:bg-gray-100 md:text-gray-600"}`}>
                 {p.label}
               </button>
             ))}
             <button onClick={() => setPreset("custom")}
               className={`h-8 px-3 text-xs font-bold rounded-xl android-press min-h-0 transition-all
-                ${preset === "custom" ? "bg-white text-orange-500 md:bg-orange-500 md:text-white" : "bg-white/20 text-white md:bg-gray-100 md:text-gray-600"}`}>
+                ${preset === "custom" ? "bg-white text-blue-500 md:bg-blue-600 md:text-white" : "bg-white/20 text-white md:bg-gray-100 md:text-gray-600"}`}>
               Custom
             </button>
             {!loading && trendSeries.length > 0 && (
@@ -237,7 +237,7 @@ export default function Analytics() {
         {/* ── KPI Cards ── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: T("revenue"),    value: fc(totalRevenue, currencySymbol),  icon: "💰", sub: rangeLabel,         bg: "bg-orange-50",  val: "text-orange-600"  },
+            { label: T("revenue"),    value: fc(totalRevenue, currencySymbol),  icon: "💰", sub: rangeLabel,         bg: "bg-blue-50",  val: "text-blue-600"  },
             { label: T("orders"),     value: String(totalOrders),               icon: "📦", sub: rangeLabel,         bg: "bg-blue-50",    val: "text-blue-600"    },
             { label: T("avgOrder"),   value: fc(avgOrderValue, currencySymbol), icon: "📊", sub: T("avgOrder"),      bg: "bg-purple-50",  val: "text-purple-600"  },
             { label: T("completion"), value: `${completionRate}%`,              icon: "✅", sub: T("delivered"),     bg: "bg-green-50",   val: "text-green-600"   },
@@ -270,7 +270,7 @@ export default function Analytics() {
               {(["daily","weekly","monthly"] as Granularity[]).map(g => (
                 <button key={g} onClick={() => setGranularity(g)}
                   className={`h-7 px-2.5 text-[11px] font-bold rounded-lg transition-colors capitalize
-                    ${granularity === g ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                    ${granularity === g ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                   {g}
                 </button>
               ))}
@@ -332,7 +332,7 @@ export default function Analytics() {
                 {topProducts.slice(0, 5).map((p, i) => (
                   <div key={p.productId || i} className="flex items-center justify-between text-xs">
                     <span className="text-gray-700 font-medium truncate flex-1">{i + 1}. {p.name}</span>
-                    <span className="text-orange-600 font-bold ml-2">{fc(p.revenue || 0, currencySymbol)}</span>
+                    <span className="text-blue-600 font-bold ml-2">{fc(p.revenue || 0, currencySymbol)}</span>
                   </div>
                 ))}
               </div>

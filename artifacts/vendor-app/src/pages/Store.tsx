@@ -260,7 +260,7 @@ export default function Store() {
   ];
 
   return (
-    <div className="bg-gray-50 md:bg-transparent">
+    <div className="bg-[#0A0F1A] md:bg-transparent">
       <PageHeader
         title={T("myStore")}
         subtitle={user?.storeName || T("storeSettings")}
@@ -276,7 +276,7 @@ export default function Store() {
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`flex-1 flex flex-col md:flex-row items-center md:justify-center md:gap-2 py-3 text-[11px] md:text-sm font-bold border-b-2 transition-colors android-press min-h-0
-              ${tab === t.key ? "border-orange-500 text-orange-600" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
+              ${tab === t.key ? "border-blue-500 text-blue-600" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
             <span className="text-lg md:text-base mb-0.5 md:mb-0">{t.icon}</span>
             {t.label}
           </button>
@@ -381,13 +381,13 @@ export default function Store() {
                                 <div className="flex-1">
                                   <p className="text-[10px] text-gray-400 font-bold mb-1">{T("opens").toUpperCase()}</p>
                                   <input type="time" value={h.open} onChange={e => setHours(prev => ({ ...prev, [day]: { ...h, open: e.target.value } }))}
-                                    className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-400 text-sm"/>
+                                    className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-sm"/>
                                 </div>
                                 <span className="text-gray-300 font-bold mt-4">—</span>
                                 <div className="flex-1">
                                   <p className="text-[10px] text-gray-400 font-bold mb-1">{T("closes").toUpperCase()}</p>
                                   <input type="time" value={h.close} onChange={e => setHours(prev => ({ ...prev, [day]: { ...h, close: e.target.value } }))}
-                                    className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-400 text-sm"/>
+                                    className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-sm"/>
                                 </div>
                               </div>
                             )}
@@ -426,13 +426,13 @@ export default function Store() {
                                 <div className="flex-1">
                                   <p className="text-[10px] text-gray-400 font-bold mb-1">{T("opens").toUpperCase()}</p>
                                   <input type="time" value={h.open} onChange={e => setHours(prev => ({ ...prev, [day]: { ...h, open: e.target.value } }))}
-                                    className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-400 text-sm"/>
+                                    className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-sm"/>
                                 </div>
                                 <span className="text-gray-300 font-bold mt-4">—</span>
                                 <div className="flex-1">
                                   <p className="text-[10px] text-gray-400 font-bold mb-1">{T("closes").toUpperCase()}</p>
                                   <input type="time" value={h.close} onChange={e => setHours(prev => ({ ...prev, [day]: { ...h, close: e.target.value } }))}
-                                    className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-400 text-sm"/>
+                                    className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-sm"/>
                                 </div>
                               </div>
                             )}
@@ -470,7 +470,7 @@ export default function Store() {
                   <p>No schedule data found.</p>
                   <button onClick={() => {
                     setLocalSched(SCHED_DAYS.map((name, i) => ({ dayOfWeek: i, dayName: name, openTime: "09:00", closeTime: "21:00", isEnabled: false })));
-                  }} className="mt-2 text-orange-500 font-bold text-sm underline">Initialize Schedule</button>
+                  }} className="mt-2 text-blue-500 font-bold text-sm underline">Initialize Schedule</button>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100">
@@ -489,13 +489,13 @@ export default function Store() {
                           <div className="flex-1">
                             <p className="text-[10px] text-gray-400 font-bold mb-1">OPEN</p>
                             <input type="time" value={day.openTime} onChange={e => updateSchedDay(i, { openTime: e.target.value })}
-                              className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-400 text-sm" />
+                              className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-sm" />
                           </div>
                           <span className="text-gray-300 font-bold mt-4">-</span>
                           <div className="flex-1">
                             <p className="text-[10px] text-gray-400 font-bold mb-1">CLOSE</p>
                             <input type="time" value={day.closeTime} onChange={e => updateSchedDay(i, { closeTime: e.target.value })}
-                              className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-400 text-sm" />
+                              className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-sm" />
                           </div>
                         </div>
                       )}
@@ -531,8 +531,8 @@ export default function Store() {
                 <div>
                   <label className={LABEL}>{T("discountType")}</label>
                   <div className="flex gap-2">
-                    <button onClick={() => p("type","pct")}  className={`flex-1 h-11 rounded-xl text-sm font-bold border-2 android-press min-h-0 ${pf.type==="pct"  ? "border-orange-500 bg-orange-50 text-orange-600" : "border-gray-200 text-gray-400"}`}>% {T("percentage")}</button>
-                    <button onClick={() => p("type","flat")} className={`flex-1 h-11 rounded-xl text-sm font-bold border-2 android-press min-h-0 ${pf.type==="flat" ? "border-orange-500 bg-orange-50 text-orange-600" : "border-gray-200 text-gray-400"}`}>{currencySymbol} {T("flatAmount")}</button>
+                    <button onClick={() => p("type","pct")}  className={`flex-1 h-11 rounded-xl text-sm font-bold border-2 android-press min-h-0 ${pf.type==="pct"  ? "border-blue-500 bg-blue-50 text-blue-600" : "border-gray-200 text-gray-400"}`}>% {T("percentage")}</button>
+                    <button onClick={() => p("type","flat")} className={`flex-1 h-11 rounded-xl text-sm font-bold border-2 android-press min-h-0 ${pf.type==="flat" ? "border-blue-500 bg-blue-50 text-blue-600" : "border-gray-200 text-gray-400"}`}>{currencySymbol} {T("flatAmount")}</button>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -579,14 +579,14 @@ export default function Store() {
               ) : (
                 <div className="space-y-3">
                   {promos.map((pm: any) => (
-                    <div key={pm.id} className={`${CARD} border-2 ${pm.isActive ? "border-orange-200" : "border-gray-200 opacity-60"}`}>
+                    <div key={pm.id} className={`${CARD} border-2 ${pm.isActive ? "border-blue-200" : "border-gray-200 opacity-60"}`}>
                       <div className="p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <p className="font-extrabold text-xl text-gray-800 tracking-widest">{pm.code}</p>
                             {pm.description && <p className="text-xs text-gray-500 mt-0.5">{pm.description}</p>}
                             <div className="flex items-center gap-2 mt-2 flex-wrap">
-                              <span className="text-xs bg-orange-50 text-orange-600 font-bold px-2.5 py-1 rounded-full">
+                              <span className="text-xs bg-blue-50 text-blue-600 font-bold px-2.5 py-1 rounded-full">
                                 {pm.discountPct > 0 ? `${pm.discountPct}% OFF` : `${currencySymbol} ${pm.discountFlat} OFF`}
                               </span>
                               {pm.minOrderAmount > 0 && <span className="text-xs text-gray-400">Min: {fc(pm.minOrderAmount, currencySymbol)}</span>}
@@ -639,7 +639,7 @@ export default function Store() {
                                 <input value={pf.description} onChange={e => p("description", e.target.value)} className={INPUT}/>
                               </div>
                             </div>
-                            <button onClick={() => updatePromoMut.mutate(pm.id)} disabled={updatePromoMut.isPending} className="w-full h-10 bg-orange-500 text-white font-bold rounded-xl text-sm android-press">
+                            <button onClick={() => updatePromoMut.mutate(pm.id)} disabled={updatePromoMut.isPending} className="w-full h-10 bg-blue-600 text-white font-bold rounded-xl text-sm android-press">
                               {updatePromoMut.isPending ? T("saving") : `✓ ${T("save")}`}
                             </button>
                           </div>

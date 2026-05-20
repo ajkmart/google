@@ -22,7 +22,7 @@ function isAtTop(): boolean {
   return window.scrollY <= 0 && document.documentElement.scrollTop <= 0;
 }
 
-export function PullToRefresh({ onRefresh, children, accentColor = "#F59E0B", className = "" }: PullToRefreshProps) {
+export function PullToRefresh({ onRefresh, children, accentColor = "#1A56DB", className = "" }: PullToRefreshProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [pullY, setPullY] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);

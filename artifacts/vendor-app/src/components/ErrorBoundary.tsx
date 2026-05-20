@@ -47,7 +47,7 @@ export class ErrorBoundary extends Component<Props, State> {
           className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center bg-white"
         >
           <div className="max-w-sm w-full">
-            <div className="w-14 h-14 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center mx-auto mb-4">
+            <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center mx-auto mb-4">
               <span className="text-3xl" aria-hidden="true">⚠️</span>
             </div>
             <h1 className="text-lg font-bold text-gray-900 mb-2">
@@ -59,7 +59,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="flex flex-col gap-2">
               <button
                 onClick={this.reset}
-                className="w-full px-5 py-3 bg-orange-600 text-white rounded-xl text-sm font-semibold hover:bg-orange-700 active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600"
+                className="w-full px-5 py-3 bg-blue-700 text-white rounded-xl text-sm font-semibold hover:bg-blue-800 active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600"
               >
                 Dobara koshish karein / Retry
               </button>

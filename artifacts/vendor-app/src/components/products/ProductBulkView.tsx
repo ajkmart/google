@@ -49,7 +49,7 @@ export function ProductBulkView({
   csvInputRef, downloadSampleCsv, handleCsvImport,
   EMPTY_ROW, TYPES, T, Toast, PageHeader,
 }: ProductBulkViewProps) {
-  const B_INPUT = "w-full h-9 px-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400 text-xs";
+  const B_INPUT = "w-full h-9 px-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 text-xs";
 
   return (
     <div className="bg-gray-50 md:bg-transparent">
@@ -66,13 +66,13 @@ export function ProductBulkView({
           <div className="md:grid md:grid-cols-3 md:gap-4 space-y-3 md:space-y-0">
             <div>
               <label className={LABEL}>Default Category (for all rows)</label>
-              <select value={bulkCat} onChange={e => setBulkCat(e.target.value)} className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-orange-400">
+              <select value={bulkCat} onChange={e => setBulkCat(e.target.value)} className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-400">
                 <option value="">— applies per row if set —</option>
                 {catList.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
               </select>
             </div>
             <div className="flex gap-2 items-end">
-              <button onClick={() => setBulkRows(r => [...r, {...EMPTY_ROW}])} className="flex-1 h-10 border-2 border-dashed border-orange-300 text-orange-500 font-bold rounded-xl text-sm android-press">+ Add Row</button>
+              <button onClick={() => setBulkRows(r => [...r, {...EMPTY_ROW}])} className="flex-1 h-10 border-2 border-dashed border-blue-300 text-blue-500 font-bold rounded-xl text-sm android-press">+ Add Row</button>
               <button onClick={() => setBulkRows(r => [...r, {...EMPTY_ROW},{...EMPTY_ROW},{...EMPTY_ROW},{...EMPTY_ROW},{...EMPTY_ROW}])} className="flex-1 h-10 border-2 border-dashed border-gray-200 text-gray-500 font-bold rounded-xl text-sm android-press">+5 Rows</button>
             </div>
             <div className="flex gap-2 items-end">
@@ -156,7 +156,7 @@ export function ProductBulkView({
 
         <div className="md:hidden space-y-3">
           {bulkRows.map((row, i) => (
-            <div key={i} className={`${CARD} p-4 space-y-2.5 border-2 ${row.name && row.price ? "border-orange-100" : "border-gray-100"}`}>
+            <div key={i} className={`${CARD} p-4 space-y-2.5 border-2 ${row.name && row.price ? "border-blue-100" : "border-gray-100"}`}>
               <div className="flex items-center justify-between mb-1">
                 <p className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">Row {i+1} {row.name && row.price ? "✓" : ""}</p>
                 <button onClick={() => setBulkRows(r => r.filter((_,j) => j!==i))} className="w-7 h-7 bg-red-50 text-red-500 rounded-lg font-bold text-sm min-h-0">✕</button>
@@ -183,10 +183,10 @@ export function ProductBulkView({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-gray-500">{bulkImporting ? "Importing..." : "Complete"}</p>
-                  <p className="text-sm font-extrabold text-orange-600 tabular-nums">{bulkImportProgress.done} / {bulkImportProgress.total}</p>
+                  <p className="text-sm font-extrabold text-blue-600 tabular-nums">{bulkImportProgress.done} / {bulkImportProgress.total}</p>
                 </div>
                 <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-orange-400 rounded-full transition-all duration-300" style={{ width: `${(bulkImportProgress.done / bulkImportProgress.total) * 100}%` }}/>
+                  <div className="h-full bg-blue-500 rounded-full transition-all duration-300" style={{ width: `${(bulkImportProgress.done / bulkImportProgress.total) * 100}%` }}/>
                 </div>
                 {!bulkImporting && (() => {
                   const added = bulkImportResults.filter(r => r.status === "success").length;
@@ -199,7 +199,7 @@ export function ProductBulkView({
             <div className="max-h-64 overflow-y-auto space-y-1">
               {bulkImportResults.map((r, i) => (
                 <div key={i} className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm ${r.status === "success" ? "bg-green-50" : r.status === "error" ? "bg-red-50" : "bg-gray-50"}`}>
-                  <span className="text-base flex-shrink-0">{r.status === "success" ? "✅" : r.status === "error" ? "❌" : <span className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin inline-block"/>}</span>
+                  <span className="text-base flex-shrink-0">{r.status === "success" ? "✅" : r.status === "error" ? "❌" : <span className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin inline-block"/>}</span>
                   <span className="flex-1 font-medium text-gray-800 truncate">{r.name}</span>
                   {r.status === "error" && r.message && <span className="text-xs text-red-500 truncate max-w-[140px]" title={r.message}>{r.message}</span>}
                   {r.status === "success" && <span className="text-xs text-green-600 font-bold">Added</span>}

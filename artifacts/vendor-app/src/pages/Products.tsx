@@ -619,7 +619,7 @@ export default function Products() {
 
   // ── Product List ──
   return (
-    <PullToRefresh onRefresh={handlePullRefresh} className="min-h-screen bg-gray-50 md:bg-transparent">
+    <PullToRefresh onRefresh={handlePullRefresh} className="min-h-screen bg-[#0A0F1A] md:bg-transparent">
       <PageHeader
         title={T("products")}
         subtitle={totalProductCount !== null ? `${totalProductCount}/${maxItems} items used` : `—/${maxItems} items`}
@@ -634,7 +634,7 @@ export default function Products() {
                     return next;
                   });
                 }}
-                className={`h-9 px-3.5 text-xs font-bold rounded-xl android-press min-h-0 ${bulkEditMode ? "bg-orange-500 text-white" : "bg-white/20 md:bg-gray-100 md:text-gray-700 text-white"}`}
+                className={`h-9 px-3.5 text-xs font-bold rounded-xl android-press min-h-0 ${bulkEditMode ? "bg-blue-600 text-white" : "bg-white/20 md:bg-gray-100 md:text-gray-700 text-white"}`}
               >
                 {bulkEditMode ? "✕ Cancel" : "✏️ Bulk Edit"}
               </button>
@@ -663,7 +663,7 @@ export default function Products() {
               <button
                 onClick={() => setShowAdd(true)}
                 disabled={allDataLoading || totalProductCount === null || totalProductCount >= maxItems}
-                className={`h-9 px-3.5 text-sm font-bold rounded-xl android-press min-h-0 ${(allDataLoading || totalProductCount === null || totalProductCount >= maxItems) ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-white text-orange-500 md:bg-orange-500 md:text-white"}`}
+                className={`h-9 px-3.5 text-sm font-bold rounded-xl android-press min-h-0 ${(allDataLoading || totalProductCount === null || totalProductCount >= maxItems) ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-white text-blue-500 md:bg-blue-600 md:text-white"}`}
               >
                 + Add
               </button>
@@ -688,7 +688,7 @@ export default function Products() {
           placeholder="🔍 Search products..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full h-11 px-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-orange-400 text-sm"
+          className="w-full h-11 px-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-sm"
         />
       </div>
 
@@ -708,7 +708,7 @@ export default function Products() {
               key={c}
               onClick={() => setFilterCat(c)}
               className={`h-8 px-3.5 rounded-full text-xs font-bold whitespace-nowrap capitalize android-press min-h-0 flex-shrink-0 transition-all
-                ${filterCat === c ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-orange-50"}`}
+                ${filterCat === c ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-blue-50"}`}
             >
               {c}
             </button>
@@ -814,7 +814,7 @@ export default function Products() {
               <>
                 <p className="font-bold text-gray-700 text-base">No products yet</p>
                 <p className="text-sm text-gray-400 mt-1">Add your first product to get started</p>
-                <button onClick={() => setShowAdd(true)} className="mt-5 h-12 px-8 bg-orange-500 text-white font-bold rounded-2xl android-press">+ Add First Product</button>
+                <button onClick={() => setShowAdd(true)} className="mt-5 h-12 px-8 bg-blue-600 text-white font-bold rounded-2xl android-press">+ Add First Product</button>
               </>
             )}
           </div>
@@ -845,7 +845,7 @@ export default function Products() {
                   <div className="p-4 flex items-start gap-3">
                     {p.image
                       ? <SafeImage src={p.image} alt={p.name} className="w-16 h-16 rounded-xl object-cover flex-shrink-0 bg-gray-100" />
-                      : <div className="w-16 h-16 rounded-xl bg-orange-50 flex items-center justify-center text-2xl flex-shrink-0">🍽️</div>
+                      : <div className="w-16 h-16 rounded-xl bg-blue-50 flex items-center justify-center text-2xl flex-shrink-0">🍽️</div>
                     }
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
@@ -858,7 +858,7 @@ export default function Products() {
                           </div>
                           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                             {p.category && (
-                              <span className="text-[10px] bg-orange-50 text-orange-600 font-bold px-2 py-0.5 rounded-full capitalize">{p.category}</span>
+                              <span className="text-[10px] bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-full capitalize">{p.category}</span>
                             )}
                             {p.unit && <span className="text-[10px] text-gray-400">/{p.unit}</span>}
                             {p.stock != null && (
@@ -869,7 +869,7 @@ export default function Products() {
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className="font-extrabold text-orange-600 text-base">{fc(p.price, currencySymbol)}</p>
+                          <p className="font-extrabold text-blue-600 text-base">{fc(p.price, currencySymbol)}</p>
                           {p.originalPrice && p.originalPrice > p.price && (
                             <p className="text-[10px] text-gray-400 line-through">{fc(p.originalPrice, currencySymbol)}</p>
                           )}
@@ -928,8 +928,8 @@ export default function Products() {
       {bulkEditMode && (
         <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
           <div className="max-w-2xl mx-auto px-4 pb-4 pointer-events-auto">
-            <div className="bg-white rounded-2xl shadow-2xl border border-orange-200 overflow-hidden">
-              <div className="px-4 py-3 bg-orange-50 border-b border-orange-100 flex items-center justify-between">
+            <div className="bg-white rounded-2xl shadow-2xl border border-blue-200 overflow-hidden">
+              <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
                 <p className="text-sm font-bold text-orange-700">
                   ✏️ Bulk Edit Mode — {bulkEditSelected.size} product{bulkEditSelected.size !== 1 ? "s" : ""} selected
                 </p>
@@ -938,7 +938,7 @@ export default function Products() {
                     const all = new Set(products.map((p: any) => p.id));
                     setBulkEditSelected(prev => (prev.size === all.size ? new Set() : all));
                   }}
-                  className="text-xs font-bold text-orange-500 underline"
+                  className="text-xs font-bold text-blue-500 underline"
                 >
                   {bulkEditSelected.size === products.length ? "Deselect All" : "Select All"}
                 </button>
@@ -954,7 +954,7 @@ export default function Products() {
                       value={bulkEditPrice}
                       onChange={e => { setBulkEditPrice(e.target.value); setBulkEditError(""); }}
                       placeholder="Leave blank to keep"
-                      className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-400 text-sm"
+                      className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-sm"
                     />
                   </div>
                   <div>
@@ -966,7 +966,7 @@ export default function Products() {
                       value={bulkEditStock}
                       onChange={e => { setBulkEditStock(e.target.value); setBulkEditError(""); }}
                       placeholder="Leave blank to keep"
-                      className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-400 text-sm"
+                      className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-sm"
                     />
                   </div>
                 </div>
@@ -976,7 +976,7 @@ export default function Products() {
                 <button
                   onClick={() => bulkEditMut.mutate()}
                   disabled={bulkEditMut.isPending || bulkEditSelected.size === 0}
-                  className="w-full h-11 bg-orange-500 text-white font-bold rounded-xl text-sm disabled:opacity-50 android-press"
+                  className="w-full h-11 bg-blue-600 text-white font-bold rounded-xl text-sm disabled:opacity-50 android-press"
                 >
                   {bulkEditMut.isPending
                     ? "Updating..."

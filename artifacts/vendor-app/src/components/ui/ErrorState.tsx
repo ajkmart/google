@@ -17,17 +17,19 @@ export function ErrorState({
 }: ErrorStateProps) {
   return (
     <div className={`flex flex-col items-center justify-center py-16 px-6 text-center ${className}`}>
-      <div className="w-16 h-16 bg-red-50 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-red-100">
-        <AlertCircle size={28} className="text-red-400" />
+      <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4"
+        style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.22)" }}>
+        <AlertCircle size={28} style={{ color: "#F87171" }} />
       </div>
-      <p className="font-bold text-gray-700 text-base">{title}</p>
+      <p className="font-bold text-white text-base">{title}</p>
       {subtitle && (
-        <p className="text-gray-400 text-sm mt-1 leading-relaxed max-w-xs">{subtitle}</p>
+        <p className="text-sm mt-1 leading-relaxed max-w-xs" style={{ color: "#6B7280" }}>{subtitle}</p>
       )}
       {onRetry && (
         <button
           onClick={onRetry}
-          className="mt-4 flex items-center gap-2 px-5 py-2.5 bg-red-50 text-red-700 text-sm font-bold rounded-2xl hover:bg-red-100 active:bg-red-200 transition-colors border border-red-100"
+          className="mt-4 flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-2xl transition-colors"
+          style={{ background: "rgba(239,68,68,0.12)", color: "#F87171", border: "1px solid rgba(239,68,68,0.22)" }}
         >
           <RefreshCw size={13} />
           {retryLabel}

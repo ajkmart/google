@@ -8,18 +8,25 @@ interface HeaderProps {
 }
 
 /**
- * Full-bleed gradient header that respects Android status bar safe area.
- * Use this instead of raw <div className="bg-gradient..."> for all page headers.
+ * Full-bleed gradient header — AJKMart Blue (#1A56DB) brand theme.
+ * Respects Android status bar safe area.
  */
 export function Header({ children, className = "", pb = "pb-5" }: HeaderProps) {
   return (
     <div
-      className={`bg-gradient-to-br from-orange-500 to-amber-600 relative overflow-hidden ${pb} ${className}`}
-      style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 2.5rem)" }}
+      className={`relative overflow-hidden ${pb} ${className}`}
+      style={{
+        background: "linear-gradient(135deg, #1A56DB 0%, #1348B5 60%, #0F3499 100%)",
+        paddingTop: "calc(env(safe-area-inset-top, 0px) + 2.5rem)",
+      }}
     >
-      {/* Decorative circles */}
-      <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/10 rounded-full pointer-events-none" />
-      <div className="absolute -bottom-6 -left-6 w-28 h-28 bg-white/10 rounded-full pointer-events-none" />
+      {/* Decorative glow circles */}
+      <div className="absolute -top-8 -right-8 w-48 h-48 rounded-full pointer-events-none"
+        style={{ background: "radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%)" }} />
+      <div className="absolute -bottom-6 -left-6 w-32 h-32 rounded-full pointer-events-none"
+        style={{ background: "radial-gradient(circle, rgba(245,158,11,0.15) 0%, transparent 70%)" }} />
+      <div className="absolute top-1/2 right-1/4 w-24 h-24 rounded-full pointer-events-none"
+        style={{ background: "radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%)" }} />
       <div className="relative px-5">{children}</div>
     </div>
   );

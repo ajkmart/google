@@ -145,7 +145,7 @@ export default function Reviews() {
   };
 
   return (
-    <div className="bg-gray-50 md:bg-transparent">
+    <div className="bg-[#0A0F1A] md:bg-transparent">
       <PageHeader
         title={T("reviews")}
         subtitle={avgRating !== null ? `${avgRating.toFixed(1)} ★ · ${total} ${T("reviews")}` : T("customerFeedback")}
@@ -257,8 +257,8 @@ export default function Reviews() {
             <div key={r.id} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-orange-600">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-bold text-blue-600">
                       {(r.customerName?.[0] ?? "?").toUpperCase()}
                     </span>
                   </div>

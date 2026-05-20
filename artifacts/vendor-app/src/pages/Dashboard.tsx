@@ -39,7 +39,7 @@ function QuickActions() {
           <span className="text-xs font-bold text-blue-700 leading-tight">Open Chat</span>
         </Link>
         <Link href="/products"
-          className="flex flex-col items-center gap-2 p-3 bg-orange-50 rounded-2xl active:scale-95 transition-transform text-center">
+          className="flex flex-col items-center gap-2 p-3 bg-blue-50 rounded-2xl active:scale-95 transition-transform text-center">
           <span className="text-2xl">🛒</span>
           <span className="text-xs font-bold text-orange-700 leading-tight">Manage Products</span>
         </Link>
@@ -84,11 +84,11 @@ function NotificationsSection() {
         <div className="flex items-center gap-2">
           {unread > 0 && (
             <button onClick={() => markAllMut.mutate()} disabled={markAllMut.isPending}
-              className="text-[11px] font-bold text-orange-600 bg-orange-50 px-2.5 py-1 rounded-lg">
+              className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">
               ✓ Mark all read
             </button>
           )}
-          <Link href="/notifications" className="text-[11px] font-bold text-gray-400 hover:text-orange-500">View all →</Link>
+          <Link href="/notifications" className="text-[11px] font-bold text-gray-400 hover:text-blue-500">View all →</Link>
         </div>
       </div>
       {isLoading ? (
@@ -104,8 +104,8 @@ function NotificationsSection() {
       ) : (
         <div className="divide-y divide-gray-50">
           {notifs.map(n => (
-            <div key={n.id} className={`px-4 py-3 flex items-start gap-3 ${!n.isRead ? "bg-orange-50/30" : ""}`}>
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-base ${!n.isRead ? "bg-orange-100" : "bg-gray-100"}`}>
+            <div key={n.id} className={`px-4 py-3 flex items-start gap-3 ${!n.isRead ? "bg-blue-50/30" : ""}`}>
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-base ${!n.isRead ? "bg-blue-100" : "bg-gray-100"}`}>
                 {typeIcon(n.type)}
               </div>
               <div className="flex-1 min-w-0">
@@ -113,7 +113,7 @@ function NotificationsSection() {
                 <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed line-clamp-1">{n.body}</p>
                 <p className="text-[10px] text-gray-400 mt-1">{fd(n.createdAt)}</p>
               </div>
-              {!n.isRead && <div className="w-2 h-2 bg-orange-500 rounded-full flex-shrink-0 mt-1.5"/>}
+              {!n.isRead && <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 mt-1.5"/>}
             </div>
           ))}
         </div>
@@ -170,7 +170,7 @@ function ScheduleEditor({ storeHours, onSave, saving }: {
           </div>
           <button
             onClick={() => setExpanded(true)}
-            className="h-9 px-4 bg-orange-50 text-orange-600 font-bold rounded-xl text-sm"
+            className="h-9 px-4 bg-blue-50 text-blue-600 font-bold rounded-xl text-sm"
           >
             Edit Schedule
           </button>
@@ -211,14 +211,14 @@ function ScheduleEditor({ storeHours, onSave, saving }: {
                     type="time"
                     value={day.open || "08:00"}
                     onChange={e => update(key, "open", e.target.value)}
-                    className="flex-1 h-8 px-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-orange-400"
+                    className="flex-1 h-8 px-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-blue-500"
                   />
                   <span className="text-gray-400 text-xs">–</span>
                   <input
                     type="time"
                     value={day.close || "22:00"}
                     onChange={e => update(key, "close", e.target.value)}
-                    className="flex-1 h-8 px-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-orange-400"
+                    className="flex-1 h-8 px-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-blue-500"
                   />
                 </div>
               )}
@@ -236,7 +236,7 @@ function ScheduleEditor({ storeHours, onSave, saving }: {
         <button
           onClick={async () => { await onSave(hours); setDirty(false); setExpanded(false); }}
           disabled={!dirty || saving}
-          className="flex-1 h-9 bg-orange-500 text-white font-bold rounded-xl text-sm disabled:opacity-50"
+          className="flex-1 h-9 bg-blue-600 text-white font-bold rounded-xl text-sm disabled:opacity-50"
         >
           {saving ? "Saving..." : "Save Schedule"}
         </button>
@@ -345,7 +345,7 @@ export default function Dashboard() {
   const activeOrders  = allOrders.filter((o: any) => ["confirmed","preparing","ready"].includes(o.status));
 
   const statItems = [
-    { label: T("todaysOrders"),   value: isLoading ? "—" : statsError ? "⚠" : String(stats?.today?.orders ?? 0),  color: statsError ? "text-red-400" : "text-orange-500", bg: statsError ? "bg-red-50" : "bg-orange-50",  icon: "📦" },
+    { label: T("todaysOrders"),   value: isLoading ? "—" : statsError ? "⚠" : String(stats?.today?.orders ?? 0),  color: statsError ? "text-red-400" : "text-blue-500", bg: statsError ? "bg-red-50" : "bg-blue-50",  icon: "📦" },
     { label: T("todaysRevenue"),  value: isLoading ? "—" : statsError ? "⚠" : fc(stats?.today?.revenue ?? 0),      color: statsError ? "text-red-400" : "text-amber-600",  bg: statsError ? "bg-red-50" : "bg-amber-50",   icon: "💰" },
     { label: T("weeklyRevenue"),  value: isLoading ? "—" : statsError ? "⚠" : fc(stats?.week?.revenue ?? 0),       color: statsError ? "text-red-400" : "text-blue-600",   bg: statsError ? "bg-red-50" : "bg-blue-50",    icon: "📅" },
     { label: T("monthlyRevenue"), value: isLoading ? "—" : statsError ? "⚠" : fc(stats?.month?.revenue ?? 0),      color: statsError ? "text-red-400" : "text-purple-600", bg: statsError ? "bg-red-50" : "bg-purple-50",  icon: "📈" },
@@ -359,7 +359,7 @@ export default function Dashboard() {
   }, [qc]);
 
   return (
-    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-gray-50 md:bg-transparent">
+    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-[#0A0F1A] md:bg-transparent">
       {/* ── Offline Banner ── */}
       {!isOnline && (
         <div className="bg-red-500 text-white text-center text-xs font-bold py-2 px-4">
@@ -414,7 +414,7 @@ export default function Dashboard() {
         {/* Active Tracker Banner — top position */}
         {config.content.trackerBannerEnabled && config.content.trackerBannerPosition === "top" && activeOrders.length > 0 && (
           <Link href="/orders"
-            className="block bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl px-4 py-3.5 shadow-lg shadow-orange-200 active:scale-[0.98] transition-transform mb-2">
+            className="block bg-gradient-to-r from-orange-500 to-blue-600 rounded-2xl px-4 py-3.5 shadow-lg shadow-orange-200 active:scale-[0.98] transition-transform mb-2">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center flex-shrink-0">
                 <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
@@ -439,7 +439,7 @@ export default function Dashboard() {
           <VendorNoticeBanner message={config.content.vendorNotice} />
         )}
         {/* Desktop wallet bar */}
-        <div className="hidden md:flex items-center gap-4 px-6 py-4 bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl text-white shadow-sm mb-6">
+        <div className="hidden md:flex items-center gap-4 px-6 py-4 bg-gradient-to-r from-orange-500 to-blue-600 rounded-2xl text-white shadow-sm mb-6">
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <p className="text-orange-100 text-xs font-medium">{T("walletBalance")}</p>
@@ -593,11 +593,11 @@ export default function Dashboard() {
           <div>
             {pendingOrders.length > 0 ? (
               <div className={CARD}>
-                <div className="px-4 py-3.5 border-b border-orange-100 bg-orange-50 flex items-center gap-2">
+                <div className="px-4 py-3.5 border-b border-blue-100 bg-blue-50 flex items-center gap-2">
                   <span className="text-lg">🔔</span>
                   <div>
                     <p className="font-bold text-orange-800 text-sm">{pendingOrders.length} {T("newOrders")}!</p>
-                    <p className="text-orange-500 text-xs">{T("acceptWithinTime")}</p>
+                    <p className="text-blue-500 text-xs">{T("acceptWithinTime")}</p>
                   </div>
                 </div>
                 <div className="divide-y divide-gray-50">
@@ -605,7 +605,7 @@ export default function Dashboard() {
                     const isOrderPending = pendingOrderIds.has(o.id);
                     return (
                     <div key={o.id} className="px-4 py-3 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-xl flex-shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-xl flex-shrink-0">
                         {o.type === "food" ? "🍔" : "🛒"}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -669,7 +669,7 @@ export default function Dashboard() {
         </div>
 
         {/* Commission Banner — mobile only (desktop shows in header) */}
-        <div className="md:hidden bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-4 text-white shadow-sm">
+        <div className="md:hidden bg-gradient-to-r from-orange-500 to-blue-600 rounded-2xl p-4 text-white shadow-sm">
           <div className="flex justify-between items-center">
             <div>
               <p className="text-sm text-orange-100 font-medium">{T("yourCommission")}</p>
@@ -689,7 +689,7 @@ export default function Dashboard() {
         {/* Active Tracker Banner — bottom position */}
         {config.content.trackerBannerEnabled && config.content.trackerBannerPosition === "bottom" && activeOrders.length > 0 && (
           <Link href="/orders"
-            className="block bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl px-4 py-3.5 shadow-lg shadow-orange-200 active:scale-[0.98] transition-transform mt-4">
+            className="block bg-gradient-to-r from-orange-500 to-blue-600 rounded-2xl px-4 py-3.5 shadow-lg shadow-orange-200 active:scale-[0.98] transition-transform mt-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center flex-shrink-0">
                 <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
@@ -746,7 +746,7 @@ export default function Dashboard() {
               defaultValue={cancelReasonRef.current}
               onChange={e => { cancelReasonRef.current = e.target.value; }}
               placeholder="e.g. Item not available, store closing..."
-              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-orange-400 resize-none mb-4"
+              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 resize-none mb-4"
             />
             <div className="flex gap-3">
               <button onClick={() => setCancelDialog(null)} className="flex-1 h-11 border-2 border-gray-200 text-gray-600 font-bold rounded-xl text-sm">← {T("back")}</button>

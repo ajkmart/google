@@ -37,7 +37,7 @@ export function ProductImageUploader({
             />
           </div>
           <div className="flex gap-2">
-            <label className="flex-1 h-9 bg-orange-50 text-orange-600 font-bold rounded-xl text-sm flex items-center justify-center gap-1.5 cursor-pointer android-press">
+            <label className="flex-1 h-9 bg-blue-50 text-blue-600 font-bold rounded-xl text-sm flex items-center justify-center gap-1.5 cursor-pointer android-press">
               <span>🔄 Replace</span>
               <input
                 type="file"
@@ -62,14 +62,14 @@ export function ProductImageUploader({
         <label
           className={`flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
             videoUploading
-              ? "border-orange-300 bg-orange-50"
-              : "border-gray-200 hover:border-orange-300 hover:bg-orange-50/50"
+              ? "border-blue-300 bg-blue-50"
+              : "border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
           }`}
         >
           {videoUploading ? (
             <>
-              <div className="w-8 h-8 border-3 border-orange-400 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm font-semibold text-orange-600">Uploading video...</span>
+              <div className="w-8 h-8 border-3 border-blue-400 border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm font-semibold text-blue-600">Uploading video...</span>
             </>
           ) : (
             <>

@@ -54,18 +54,18 @@ export function NewOrderBanner({ order, onDismiss }: Props) {
       aria-live="assertive"
     >
       <div className="mx-auto max-w-lg m-2">
-        <div className="bg-white rounded-2xl shadow-2xl border border-orange-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-orange-500 to-orange-400 px-4 py-2 flex items-center gap-2">
+        <div className="bg-white rounded-2xl shadow-2xl border border-blue-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2 flex items-center gap-2">
             <span className="text-white text-lg">🛍️</span>
             <span className="text-white font-extrabold text-sm tracking-wide uppercase">New Order Arrived!</span>
-            <span className="ml-auto text-orange-100 text-xs font-medium capitalize">{orderType}</span>
+            <span className="ml-auto text-blue-100 text-xs font-medium capitalize">{orderType}</span>
           </div>
           <div className="px-4 py-3 flex items-center gap-3">
             <div className="flex-1 min-w-0">
               <p className="text-gray-800 font-bold text-sm truncate">
                 {itemCount > 0 ? `${itemCount} item${itemCount > 1 ? "s" : ""}` : "Order placed"}
                 {" · "}
-                <span className="text-orange-600">Rs {total}</span>
+                <span className="text-blue-600">Rs {total}</span>
               </p>
               {order.paymentMethod && (
                 <p className="text-gray-400 text-xs mt-0.5 capitalize">
@@ -75,7 +75,7 @@ export function NewOrderBanner({ order, onDismiss }: Props) {
             </div>
             <button
               onClick={handleView}
-              className="shrink-0 h-9 px-4 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold rounded-xl text-sm transition-all"
+              className="shrink-0 h-9 px-4 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold rounded-xl text-sm transition-all"
             >
               View
             </button>
@@ -87,9 +87,9 @@ export function NewOrderBanner({ order, onDismiss }: Props) {
               ×
             </button>
           </div>
-          <div className="h-1 bg-orange-100">
+          <div className="h-1 bg-blue-100">
             <div
-              className="h-full bg-orange-400 origin-left"
+              className="h-full bg-blue-500 origin-left"
               style={{ animation: `shrink ${AUTO_DISMISS_MS}ms linear forwards` }}
             />
           </div>

@@ -107,7 +107,7 @@ export default function Notifications() {
   });
 
   return (
-    <div className="bg-gray-50 md:bg-transparent">
+    <div className="bg-[#0A0F1A] md:bg-transparent">
       <PageHeader
         title={T("notifications")}
         subtitle={unread > 0 ? `${unread} ${T("unread")}` : T("allCaughtUp")}
@@ -119,7 +119,7 @@ export default function Notifications() {
             </button>
             {unread > 0 && (
               <button onClick={() => markAllMut.mutate()} disabled={markAllMut.isPending}
-                className="h-9 px-4 bg-white/20 md:bg-orange-50 md:text-orange-600 text-white text-sm font-bold rounded-xl android-press min-h-0">
+                className="h-9 px-4 bg-white/20 md:bg-blue-50 md:text-blue-600 text-white text-sm font-bold rounded-xl android-press min-h-0">
                 ✓ {T("markAllRead")}
               </button>
             )}
@@ -130,7 +130,7 @@ export default function Notifications() {
       <div className="px-4 py-4 md:px-0 md:py-4"
         onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
         <div ref={pullIndicatorRef} className="hidden justify-center py-2 mb-2" style={{ opacity: 0 }}>
-          <div className="w-6 h-6 border-2 border-orange-400 border-t-transparent rounded-full" />
+          <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full" />
         </div>
         {isLoading ? (
           <div className="space-y-3">
@@ -161,16 +161,16 @@ export default function Notifications() {
               {notifs.map((n) => (
                 <button
                   key={n.id}
-                  className={`w-full px-4 py-4 flex gap-3 transition-colors text-left android-press min-h-0 ${!n.isRead ? "bg-orange-50/40 hover:bg-orange-50/80" : "hover:bg-gray-50"}`}
+                  className={`w-full px-4 py-4 flex gap-3 transition-colors text-left android-press min-h-0 ${!n.isRead ? "bg-blue-50/40 hover:bg-blue-50/80" : "hover:bg-gray-50"}`}
                   onClick={() => { if (!n.isRead && !pendingNotifIds.has(n.id)) markOneMut.mutate(n.id); }}
                 >
-                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 text-xl ${!n.isRead ? "bg-orange-100" : "bg-gray-100"}`}>
+                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 text-xl ${!n.isRead ? "bg-blue-100" : "bg-gray-100"}`}>
                     {typeIcon(n.type)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <p className={`text-sm font-bold leading-snug ${!n.isRead ? "text-gray-900" : "text-gray-700"}`}>{n.title}</p>
-                      {!n.isRead && <div className="w-2 h-2 bg-orange-500 rounded-full flex-shrink-0 mt-1.5"/>}
+                      {!n.isRead && <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 mt-1.5"/>}
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{n.body}</p>
                     <p className="text-[10px] text-gray-400 mt-1.5 font-medium">{fd(n.createdAt)}</p>
