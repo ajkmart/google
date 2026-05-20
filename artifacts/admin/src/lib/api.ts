@@ -260,44 +260,69 @@ export const apiAbsoluteFetchRaw = async (path: string, options: RequestInit = {
  * Get helper
  */
 export async function apiGet(endpoint: string) {
-  return fetcher(endpoint, { method: 'GET' });
+  try {
+    return await fetcher(endpoint, { method: 'GET' });
+  } catch (err) {
+    log.error({ endpoint, err: err instanceof Error ? err.message : String(err) }, "[api] apiGet failed");
+    throw err;
+  }
 }
 
 /**
  * Post helper
  */
 export async function apiPost(endpoint: string, data: Record<string, unknown>) {
-  return fetcher(endpoint, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+  try {
+    return await fetcher(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  } catch (err) {
+    log.error({ endpoint, err: err instanceof Error ? err.message : String(err) }, "[api] apiPost failed");
+    throw err;
+  }
 }
 
 /**
  * Put helper
  */
 export async function apiPut(endpoint: string, data: Record<string, unknown>) {
-  return fetcher(endpoint, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
+  try {
+    return await fetcher(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  } catch (err) {
+    log.error({ endpoint, err: err instanceof Error ? err.message : String(err) }, "[api] apiPut failed");
+    throw err;
+  }
 }
 
 /**
  * Patch helper
  */
 export async function apiPatch(endpoint: string, data: Record<string, unknown>) {
-  return fetcher(endpoint, {
-    method: 'PATCH',
-    body: JSON.stringify(data),
-  });
+  try {
+    return await fetcher(endpoint, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  } catch (err) {
+    log.error({ endpoint, err: err instanceof Error ? err.message : String(err) }, "[api] apiPatch failed");
+    throw err;
+  }
 }
 
 /**
  * Delete helper
  */
 export async function apiDelete(endpoint: string) {
-  return fetcher(endpoint, { method: 'DELETE' });
+  try {
+    return await fetcher(endpoint, { method: 'DELETE' });
+  } catch (err) {
+    log.error({ endpoint, err: err instanceof Error ? err.message : String(err) }, "[api] apiDelete failed");
+    throw err;
+  }
 }
 
 // ============================================================================

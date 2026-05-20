@@ -31,23 +31,36 @@ try {
   if (typeof localStorage !== "undefined") {
     localStorage.removeItem(REFRESH_KEY);
   }
-} catch (err) { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
+} catch (err) { log.warn({ err: err instanceof Error ? err.message : String(err) }, "[api] legacy localStorage purge failed — non-critical"); } // eslint-disable-line no-console
 
 /* ── Preferences-backed async token storage ── */
 async function preferencesSet(key: string, value: string): Promise<void> {
-  const { Preferences } = await import("@capacitor/preferences");
-  await Preferences.set({ key, value });
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    await Preferences.set({ key, value });
+  } catch (err) {
+    log.warn({ key, err: err instanceof Error ? err.message : String(err) }, "[api] preferencesSet failed — token persistence unavailable");
+  }
 }
 
 async function preferencesGet(key: string): Promise<string> {
-  const { Preferences } = await import("@capacitor/preferences");
-  const { value } = await Preferences.get({ key });
-  return value ?? "";
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    const { value } = await Preferences.get({ key });
+    return value ?? "";
+  } catch (err) {
+    log.warn({ key, err: err instanceof Error ? err.message : String(err) }, "[api] preferencesGet failed — returning empty string");
+    return "";
+  }
 }
 
 async function preferencesRemove(key: string): Promise<void> {
-  const { Preferences } = await import("@capacitor/preferences");
-  await Preferences.remove({ key });
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    await Preferences.remove({ key });
+  } catch (err) {
+    log.warn({ key, err: err instanceof Error ? err.message : String(err) }, "[api] preferencesRemove failed — non-critical");
+  }
 }
 
 /* One-time migration: move any token from localStorage → Preferences at boot.
@@ -78,11 +91,11 @@ function sessionGet(): string {
 }
 function sessionSet(value: string): void {
   _inMemoryAccessToken = value;
-  preferencesSet(TOKEN_KEY, value).catch((err) => { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); }); // eslint-disable-line no-console
+  preferencesSet(TOKEN_KEY, value).catch((err) => { log.warn({ err: err instanceof Error ? err.message : String(err) }, "[api] sessionSet persistence failed"); });
 }
 function sessionRemove(): void {
   _inMemoryAccessToken = "";
-  preferencesRemove(TOKEN_KEY).catch((err) => { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); }); // eslint-disable-line no-console
+  preferencesRemove(TOKEN_KEY).catch((err) => { log.warn({ err: err instanceof Error ? err.message : String(err) }, "[api] sessionRemove persistence failed"); });
 }
 
 /* Refresh token helpers — Preferences-backed (identical to access token approach).
@@ -94,11 +107,11 @@ function localGet(): string {
 }
 function localSet(value: string): void {
   _inMemoryRefreshToken = value;
-  preferencesSet(REFRESH_KEY, value).catch((err) => { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); }); // eslint-disable-line no-console
+  preferencesSet(REFRESH_KEY, value).catch((err) => { log.warn({ err: err instanceof Error ? err.message : String(err) }, "[api] localSet persistence failed"); });
 }
 function localRemove(): void {
   _inMemoryRefreshToken = "";
-  preferencesRemove(REFRESH_KEY).catch((err) => { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); }); // eslint-disable-line no-console
+  preferencesRemove(REFRESH_KEY).catch((err) => { log.warn({ err: err instanceof Error ? err.message : String(err) }, "[api] localRemove persistence failed"); });
 }
 
 /* ── Rider token storage — Preferences-backed with in-memory cache ───────────
@@ -144,8 +157,8 @@ function sweepLegacyTokens(): void {
         keysToRemove.push(key);
       }
     }
-    keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch (err) { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); } }); // eslint-disable-line no-console
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
+    keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch (err) { log.warn({ key: k, err: err instanceof Error ? err.message : String(err) }, "[api] sweepLegacyTokens removeItem failed"); } });
+  } catch (err) { log.warn({ err: err instanceof Error ? err.message : String(err) }, "[api] sweepLegacyTokens failed — non-critical"); }
 }
 
 function clearTokens(): void {
@@ -187,7 +200,7 @@ function triggerLogout(reason: string) {
   /* Also dispatch CustomEvent for components that still listen to it */
   try {
     window.dispatchEvent(new CustomEvent("ajkmart:logout", { detail: { reason } }));
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
+  } catch (err) { log.warn({ err: err instanceof Error ? err.message : String(err) }, "[api] dispatchEvent(ajkmart:logout) failed — non-critical"); }
 }
 
 export interface ApiError extends Error {
@@ -227,7 +240,7 @@ const _resiClient = createResilientFetcher({
   setToken: (token: string | null) => {
     if (token) sessionSet(token);
     sweepLegacyTokens();
-    _tokenRefreshCallbacks.forEach(fn => { try { fn(); } catch (err) { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); } }); // eslint-disable-line no-console
+    _tokenRefreshCallbacks.forEach(fn => { try { fn(); } catch (err) { log.warn({ err: err instanceof Error ? err.message : String(err) }, "[api] tokenRefreshCallback threw — non-critical"); } });
   },
   getRefreshToken: localGet,
   setRefreshToken: localSet,
@@ -400,7 +413,7 @@ export async function apiFetch(path: string, opts: RequestInit = {}, _returnEnve
       try {
         const { reportApiError } = await import("./error-reporter");
         reportApiError(path, status, (err as Error).message || "Request failed");
-      } catch (reportErr) { console.warn('[artifacts/rider-app/src/lib/api.ts]', reportErr); } // eslint-disable-line no-console
+      } catch (reportErr) { log.warn({ err: reportErr instanceof Error ? reportErr.message : String(reportErr) }, "[api] error reporter threw — non-critical"); }
     }
     throw err;
   }

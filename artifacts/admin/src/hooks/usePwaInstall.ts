@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[usePwaInstall]");
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -12,7 +14,10 @@ export function usePwaInstall() {
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isDismissed, setIsDismissed] = useState(() => {
-    try { return localStorage.getItem(DISMISSED_KEY) === "1"; } catch { return false; }
+    try { return localStorage.getItem(DISMISSED_KEY) === "1"; } catch (err) {
+      log.debug({ err: err instanceof Error ? err.message : String(err) }, "[usePwaInstall] localStorage unavailable — defaulting dismissed=false");
+      return false;
+    }
   });
 
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -53,9 +58,8 @@ export function usePwaInstall() {
       await deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === "accepted") setIsInstalled(true);
-    // eslint-disable-next-line ajk-local/no-silent-catch -- prompt unavailable (sandboxed iframe or event already consumed)
-    } catch {
-      // Prompt unavailable (sandboxed iframe or event already consumed) — ignore silently.
+    } catch (err) {
+      log.debug({ err: err instanceof Error ? err.message : String(err) }, "[usePwaInstall] promptInstall failed — sandboxed or event already consumed");
     }
     setDeferredPrompt(null);
     setIsInstallable(false);
@@ -63,8 +67,9 @@ export function usePwaInstall() {
 
   const dismiss = () => {
     setIsDismissed(true);
-    // eslint-disable-next-line ajk-local/no-silent-catch -- localStorage unavailable in private browsing; non-critical
-    try { localStorage.setItem(DISMISSED_KEY, "1"); } catch {}
+    try { localStorage.setItem(DISMISSED_KEY, "1"); } catch (err) {
+      log.debug({ err: err instanceof Error ? err.message : String(err) }, "[usePwaInstall] localStorage unavailable — skipping persistence");
+    }
   };
 
   return { isInstallable, isInstalled, isIOS, isStandalone, isDismissed, promptInstall, dismiss };

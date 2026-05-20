@@ -508,7 +508,9 @@ router.get("/", async (req, res) => {
             .limit(1);
           if (!existing) {
             const id = crypto.randomBytes(10).toString("hex");
-            try { await db.insert(abAssignmentsTable).values({ id, experimentId: exp.id, userId, variant }); } catch (err) { /* intentional: non-fatal guard */ void err; }
+            try { await db.insert(abAssignmentsTable).values({ id, experimentId: exp.id, userId, variant }); } catch (err) {
+              logger.warn({ experimentId: exp.id, userId, variant, err: err instanceof Error ? err.message : String(err) }, "[platform-config] A/B assignment insert failed — non-fatal (possible race condition)");
+            }
           }
           assignments.push({ experimentId: exp.id, experimentName: exp.name, variant: existing?.variant ?? variant });
         }
@@ -569,7 +571,9 @@ router.get("/experiments", async (req, res) => {
             userId,
             variant,
           });
-        } catch (err) { /* intentional: non-fatal guard */ void err; }
+        } catch (err) {
+          logger.warn({ experimentId: exp.id, userId, variant, err: err instanceof Error ? err.message : String(err) }, "[platform-config] A/B assignment insert (alt path) failed — non-fatal (possible race condition)");
+        }
       }
 
       assignments.push({

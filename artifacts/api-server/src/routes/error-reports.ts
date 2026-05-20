@@ -1088,7 +1088,9 @@ export async function getAutoResolveSettings() {
         return { ...DEFAULT_AUTO_RESOLVE_SETTINGS };
       }
     }
-  } catch (err) { /* intentional: non-fatal guard */ void err; }
+  } catch (err) {
+    logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[error-reports] auto-resolve settings DB read failed — using defaults");
+  }
   return { ...DEFAULT_AUTO_RESOLVE_SETTINGS };
 }
 
@@ -1910,7 +1912,9 @@ export async function ensureErrorResolutionTables() {
       EXCEPTION WHEN duplicate_object THEN NULL;
       END $$
     `);
-  } catch (err) { /* intentional: non-fatal guard */ void err; }
+  } catch (err) {
+    logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[error-reports] CREATE TYPE resolution_method migration failed — may already exist");
+  }
   try {
     await db.execute(sql`ALTER TABLE error_reports ADD COLUMN IF NOT EXISTS resolution_method resolution_method`);
     await db.execute(sql`ALTER TABLE error_reports ADD COLUMN IF NOT EXISTS resolution_notes TEXT`);
@@ -1919,7 +1923,9 @@ export async function ensureErrorResolutionTables() {
     await db.execute(sql`ALTER TABLE error_reports ADD COLUMN IF NOT EXISTS error_hash TEXT`);
     await db.execute(sql`ALTER TABLE error_reports ADD COLUMN IF NOT EXISTS occurrence_count INTEGER NOT NULL DEFAULT 1`);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_error_reports_hash ON error_reports (error_hash, status, timestamp)`);
-  } catch (err) { /* intentional: non-fatal guard */ void err; }
+  } catch (err) {
+    logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[error-reports] ALTER TABLE error_reports migration failed — columns may already exist");
+  }
   try {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS error_resolution_backups (
@@ -1932,7 +1938,9 @@ export async function ensureErrorResolutionTables() {
         expires_at TIMESTAMP NOT NULL
       )
     `);
-  } catch (err) { /* intentional: non-fatal guard */ void err; }
+  } catch (err) {
+    logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[error-reports] CREATE TABLE error_resolution_backups migration failed — may already exist");
+  }
   try {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS auto_resolve_log (
@@ -1943,7 +1951,9 @@ export async function ensureErrorResolutionTables() {
         created_at TIMESTAMP DEFAULT NOW() NOT NULL
       )
     `);
-  } catch (err) { /* intentional: non-fatal guard */ void err; }
+  } catch (err) {
+    logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[error-reports] CREATE TABLE auto_resolve_log migration failed — may already exist");
+  }
   try {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS file_scan_results (
@@ -1955,7 +1965,9 @@ export async function ensureErrorResolutionTables() {
         triggered_by TEXT NOT NULL DEFAULT 'manual'
       )
     `);
-  } catch (err) { /* intentional: non-fatal guard */ void err; }
+  } catch (err) {
+    logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[error-reports] CREATE TABLE file_scan_results migration failed — may already exist");
+  }
   _resolutionMigrated = true;
 }
 

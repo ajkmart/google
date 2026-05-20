@@ -65,7 +65,9 @@ router.use(adminAuth);
 
 /* ── Auto-purge expired snapshots on every request ── */
 router.use(async (_req, _res, next) => {
-  try { await db.delete(systemSnapshotsTable).where(lt(systemSnapshotsTable.expiresAt, new Date())); } catch (err) { /* intentional: non-fatal guard */ void err; }
+  try { await db.delete(systemSnapshotsTable).where(lt(systemSnapshotsTable.expiresAt, new Date())); } catch (err) {
+    logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[system] expired snapshot purge failed — non-fatal");
+  }
   next();
 });
 

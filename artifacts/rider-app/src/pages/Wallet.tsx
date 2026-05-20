@@ -1,4 +1,6 @@
 import { formatCurrency as _sharedFcW } from "@workspace/api-zod";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[Wallet]");
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { useAuth } from "../lib/rider-auth";
@@ -962,7 +964,7 @@ export default function Wallet() {
             refetch();
             refetchCod();
             refetchDeposits();
-            refreshUser().catch((err) => { console.error('[artifacts/rider-app/src/pages/Wallet.tsx]', err); }); // eslint-disable-line no-console
+            refreshUser().catch((err) => { log.error({ err: err instanceof Error ? err.message : String(err) }, "[Wallet] refreshUser failed"); });
             /* Show "Under Review" message so rider knows the request is pending admin review
                and their balance will only be deducted after the request is approved. */
             showToast(`${T("withdrawalSubmitted")} ${T("underReview")}`, "success");

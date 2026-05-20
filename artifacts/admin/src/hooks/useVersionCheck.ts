@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[useVersionCheck]");
 
 const STORAGE_KEY = "ajk_admin_server_epoch";
 const POLL_INTERVAL_MS = 30_000;
@@ -18,8 +20,9 @@ function hardReload(): void {
   try {
     sessionStorage.clear();
     localStorage.removeItem(STORAGE_KEY);
-  // eslint-disable-next-line ajk-local/no-silent-catch -- storage unavailable in private browsing; reload proceeds regardless
-  } catch {}
+  } catch (err) {
+    log.debug({ err: err instanceof Error ? err.message : String(err) }, "[useVersionCheck] localStorage unavailable — skipping persistence, reload continues");
+  }
   window.location.reload();
 }
 

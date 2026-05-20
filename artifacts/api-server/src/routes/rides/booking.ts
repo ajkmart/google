@@ -54,7 +54,9 @@ router.get("/services", async (_req, res) => {
 });
 
 router.get("/stops", async (_req, res) => {
-  try { await ensureDefaultLocations(); } catch (err) { /* intentional: non-fatal guard */ void err; }
+  try { await ensureDefaultLocations(); } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[rides/stops] ensureDefaultLocations non-fatal — proceeding with DB data");
+  }
   const locs = await db.select().from(popularLocationsTable)
     .where(eq(popularLocationsTable.isActive, true))
     .orderBy(asc(popularLocationsTable.sortOrder));
@@ -1002,7 +1004,9 @@ router.get("/", customerAuth, async (req, res) => {
       try {
         const computed = await calcFare(parseFloat(String(r.distance)), r.type);
         fareBreakdown = { baseFare: computed.baseFare, gstAmount: computed.gstAmount };
-      } catch (err) { /* intentional: non-fatal guard */ void err; }
+      } catch (err) {
+        logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[rides/booking] calcFare non-fatal — fareBreakdown omitted from history entry");
+      }
     }
     return { ...base, fareBreakdown };
   }));

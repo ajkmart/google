@@ -918,11 +918,11 @@ router.get("/system/me/preferences", adminAuth, async (req, res, next) => {
         const raw = row.preferences;
         if (raw !== null && raw !== undefined) {
           if (typeof raw === "object") { prefs = raw as Record<string, unknown>; }
-          else { try { prefs = JSON.parse(raw as string); } catch { prefs = {}; } }
+          else { try { prefs = JSON.parse(raw as string); } catch (err) { logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[admin/system] preferences JSON parse failed — using empty object"); prefs = {}; } }
         }
       }
       sendSuccess(res, { preferences: prefs });
-    } catch { sendSuccess(res, { preferences: {} }); }
+    } catch (err) { logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[admin/system] GET preferences failed — returning empty"); sendSuccess(res, { preferences: {} }); }
   } catch (err) {
     next(err);
   }
@@ -3533,7 +3533,7 @@ router.get("/system/diagnostics", async (_req, res, next) => {
       const parts = line.trim().split(/\s+/);
       return { pid: parts[0] ?? "", args: parts.slice(1).join(" ") };
     });
-  } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] intentional: non-fatal guard`); }
+  } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[admin/system] ps process list failed — defaulting to empty process list`); }
 
   const processCounts = {
     nodeTotal: rawProcs.filter(p => p.args.includes("node")).length,

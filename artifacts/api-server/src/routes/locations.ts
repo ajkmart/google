@@ -154,7 +154,9 @@ async function processLocationUpdate(opts: {
               userId, reason, autoOffline: true, sentAt: now.toISOString(),
             });
           }
-        } catch (err) { /* intentional: non-fatal guard */ void err; }
+        } catch (err) {
+          logger.warn({ userId, reason, err: err instanceof Error ? err.message : String(err) }, "[locations] auto-offline DB/emit failed — non-fatal");
+        }
       }
 
       return { skip: true, spoofed: true, autoOffline };
@@ -213,7 +215,9 @@ async function processLocationUpdate(opts: {
                   sentAt: now.toISOString(),
                 });
               }
-            } catch (err) { /* intentional: non-fatal guard */ void err; }
+            } catch (err) {
+              logger.warn({ userId, reason, err: err instanceof Error ? err.message : String(err) }, "[locations] auto-offline DB write failed — non-fatal");
+            }
           }
 
           return { skip: true, spoofed: true, autoOffline };
@@ -316,7 +320,9 @@ async function processLocationUpdate(opts: {
               ))
               .limit(1);
             histRideId = activeRide?.id ?? null;
-          } catch (err) { /* intentional: non-fatal guard */ void err; }
+          } catch (err) {
+            logger.debug({ userId, err: err instanceof Error ? err.message : String(err) }, "[locations] active ride lookup for history failed — non-fatal");
+          }
 
           if (!histRideId) {
             try {
@@ -332,7 +338,9 @@ async function processLocationUpdate(opts: {
                 ))
                 .limit(1);
               histOrderId = activeOrder?.id ?? null;
-            } catch (err) { /* intentional: non-fatal guard */ void err; }
+            } catch (err) {
+              logger.debug({ userId, err: err instanceof Error ? err.message : String(err) }, "[locations] active order lookup for history failed — non-fatal");
+            }
           }
 
           await db.insert(locationHistoryTable).values({
@@ -384,7 +392,9 @@ async function broadcastRiderLocation(userId: string, lat: number, lon: number, 
       .where(eq(riderProfilesTable.userId, userId))
       .limit(1);
     vehicleType = riderProfile?.vehicleType ?? null;
-  } catch (err) { /* intentional: non-fatal guard */ void err; }
+  } catch (err) {
+    logger.debug({ userId, err: err instanceof Error ? err.message : String(err) }, "[locations] rider profile lookup for vehicle type failed — non-fatal");
+  }
 
   /* Find active ride (for currentTripId) */
   try {
@@ -404,7 +414,9 @@ async function broadcastRiderLocation(userId: string, lat: number, lon: number, 
       .limit(1);
     serverRideId = activeRide?.id ?? null;
     currentTripId = serverRideId;
-  } catch (err) { /* intentional: non-fatal guard */ void err; }
+  } catch (err) {
+    logger.debug({ userId, err: err instanceof Error ? err.message : String(err) }, "[locations] active ride lookup for emit failed — non-fatal");
+  }
 
   /* Find active order if no ride trip */
   try {
@@ -418,7 +430,9 @@ async function broadcastRiderLocation(userId: string, lat: number, lon: number, 
     serverVendorId = activeOrder?.vendorId ?? null;
     serverOrderId = activeOrder?.id ?? null;
     if (!currentTripId && serverOrderId) currentTripId = serverOrderId;
-  } catch (err) { /* intentional: non-fatal guard */ void err; }
+  } catch (err) {
+    logger.debug({ userId, err: err instanceof Error ? err.message : String(err) }, "[locations] active order lookup for emit failed — non-fatal");
+  }
 
   emitRiderLocation({
     userId,

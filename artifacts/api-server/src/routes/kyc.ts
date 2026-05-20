@@ -909,7 +909,9 @@ router.post("/admin/:id/approve", adminAuth, async (req, res) => {
         title: notifTitle, body: notifBody,
         type: "system", icon: "checkmark-circle",
       });
-      sendPushToUser(record.userId, { title: notifTitle, body: notifBody, tag: "kyc-update", data: { type: "kyc_status", status: "approved" } }).catch(() => {});
+      sendPushToUser(record.userId, { title: notifTitle, body: notifBody, tag: "kyc-update", data: { type: "kyc_status", status: "approved" } }).catch((err: unknown) => {
+        logger.warn({ userId: record.userId, err: err instanceof Error ? err.message : String(err) }, "[kyc] push notification failed for approval — non-fatal");
+      });
       void logAdminAudit("kyc_review_approved", { adminId, ip: getClientIp(req), result: "success", metadata: { userId: record.userId, reason: reason || "approved" } });
     });
     res.json({ success: true });
@@ -947,7 +949,9 @@ router.post("/admin/:id/reject", adminAuth, async (req, res) => {
         title: notifTitle, body: notifBody,
         type: "system", icon: "alert-circle",
       });
-      sendPushToUser(record.userId, { title: notifTitle, body: notifBody, tag: "kyc-update", data: { type: "kyc_status", status: "rejected" } }).catch(() => {});
+      sendPushToUser(record.userId, { title: notifTitle, body: notifBody, tag: "kyc-update", data: { type: "kyc_status", status: "rejected" } }).catch((err: unknown) => {
+        logger.warn({ userId: record.userId, err: err instanceof Error ? err.message : String(err) }, "[kyc] push notification failed for rejection — non-fatal");
+      });
       void logAdminAudit("kyc_review_rejected", { adminId, ip: getClientIp(req), result: "success", metadata: { userId: record.userId, reason } });
     });
     res.json({ success: true });

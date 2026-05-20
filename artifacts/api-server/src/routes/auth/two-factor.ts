@@ -462,7 +462,9 @@ router.post("/2fa/trust-device", sharedValidateBody(TrustDeviceSchema), async (r
   if (!user.totpEnabled) { sendError(res, "2FA is not enabled", 400); return; }
 
   let devices: Array<{ fp: string; expiresAt: number }> = [];
-  try { if (user.trustedDevices) devices = JSON.parse(user.trustedDevices); } catch (err) { /* intentional: non-fatal guard */ void err; }
+  try { if (user.trustedDevices) devices = JSON.parse(user.trustedDevices); } catch (err) {
+    logger.warn({ userId: user.id, err: err instanceof Error ? err.message : String(err) }, "[2fa] trustedDevices JSON.parse failed — resetting to empty list");
+  }
 
   const now = Date.now();
   devices = devices.filter(d => d.expiresAt > now && d.fp !== deviceFingerprint);

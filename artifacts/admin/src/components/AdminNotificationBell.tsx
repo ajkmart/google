@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[AdminNotificationBell]");
 import { Bell, ShoppingBag, AlertTriangle, ShieldCheck, X, Check, ExternalLink } from "lucide-react";
 import { type Socket } from "socket.io-client";
 import { useAdminAuth } from "@/lib/adminAuthContext";
@@ -43,11 +45,16 @@ const LS_KEY = "ajkmart_admin_bell_read";
 
 function loadReadTs(): number {
   try { return parseInt(localStorage.getItem(LS_KEY) ?? "0", 10) || 0; }
-  catch { return 0; }
+  catch (err) {
+    log.debug({ err: err instanceof Error ? err.message : String(err) }, "[AdminNotificationBell] localStorage unavailable — defaulting readTs=0");
+    return 0;
+  }
 }
 
 function saveReadTs(ts: number): void {
-  try { localStorage.setItem(LS_KEY, String(ts)); } catch {}
+  try { localStorage.setItem(LS_KEY, String(ts)); } catch (err) {
+    log.debug({ err: err instanceof Error ? err.message : String(err) }, "[AdminNotificationBell] localStorage unavailable — skipping persistence");
+  }
 }
 
 // ─── Row ─────────────────────────────────────────────────────────────────────

@@ -22,7 +22,9 @@ router.get("/", customerAuth, async (req, res) => {
           .where(eq(productsTable.id, productId))
           .limit(1);
         vendorId = prod?.vendorId ?? undefined;
-      } catch (err) { /* intentional: non-fatal guard */ void err; }
+      } catch (err) {
+        logger.warn({ productId, err: err instanceof Error ? err.message : String(err) }, "[delivery-eligibility] vendor lookup failed — proceeding without vendor context");
+      }
     }
 
     if (vendorId) {

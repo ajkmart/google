@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[StockNotificationBell]");
 import { Bell, Package, AlertTriangle, TrendingDown, X, RefreshCw, ExternalLink } from "lucide-react";
 import { type Socket } from "socket.io-client";
 import { useAdminAuth } from "@/lib/adminAuthContext";
@@ -209,8 +211,9 @@ export function StockNotificationBell() {
         const now = Date.now();
         setLastRead(now);
         setUnreadCount(0);
-        // eslint-disable-next-line ajk-local/no-silent-catch -- persisting bell read timestamp is non-critical
-        try { localStorage.setItem("ajkmart_stock_bell_read", String(now)); } catch {}
+        try { localStorage.setItem("ajkmart_stock_bell_read", String(now)); } catch (err) {
+          log.debug({ err: err instanceof Error ? err.message : String(err) }, "[StockNotificationBell] localStorage unavailable — skipping persistence");
+        }
       }
       return !o;
     });

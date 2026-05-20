@@ -95,7 +95,9 @@ async function buildRideSSEPayload(rideId: string): Promise<Record<string, unkno
     try {
       const computed = await calcFare(parseFloat(String(ride.distance)), ride.type);
       fareBreakdown = { baseFare: computed.baseFare, gstAmount: computed.gstAmount };
-    } catch (err) { /* intentional: non-fatal guard */ void err; }
+    } catch (err) {
+      logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[rides/tracking] calcFare non-fatal — fareBreakdown omitted from SSE payload");
+    }
   }
 
   return { ...formatRide(ride as Record<string, unknown>), riderName, riderPhone, bids: formattedBids, riderLat, riderLng, riderLocAge, riderAvgRating, fareBreakdown };
@@ -161,7 +163,9 @@ router.get("/:id/stream", customerAuth, async (req, res, next) => {
   if (cleaned) return;
   unsubscribeFn  = onRideUpdate(rideId, () => { pushUpdate().catch((e: Error) => logger.warn({ rideId, err: e.message }, "[rides/stream] pushUpdate failed")); });
   heartbeatTimer = setInterval(() => {
-    try { res.write(": heartbeat\n\n"); } catch (err) { /* intentional: non-fatal guard */ void err; }
+    try { res.write(": heartbeat\n\n"); } catch (err) {
+      logger.debug({ rideId, err: err instanceof Error ? err.message : String(err) }, "[rides/stream] SSE heartbeat write failed — client likely disconnected");
+    }
   }, SSE_HEARTBEAT_MS);
   } catch (err) {
     if (res.headersSent) {
@@ -262,7 +266,9 @@ router.get("/:id", customerAuth, verifyOwnership("ride"), async (req, res, next)
     try {
       const computed = await calcFare(parseFloat(String(ride.distance)), ride.type);
       fareBreakdown = { baseFare: computed.baseFare, gstAmount: computed.gstAmount };
-    } catch (err) { /* intentional: non-fatal guard */ void err; }
+    } catch (err) {
+      logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[rides/tracking] calcFare non-fatal — fareBreakdown omitted from ride response");
+    }
   }
 
   sendSuccess(res, { ...formatRide(ride), riderName, riderPhone, bids: formattedBids, riderLat, riderLng, riderLocAge, riderAvgRating, fareBreakdown });
