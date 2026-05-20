@@ -494,6 +494,9 @@ export const api = {
   updateSchedule:  (schedule: Array<{ dayOfWeek: number; openTime: string; closeTime: string; isEnabled: boolean }>) =>
     apiFetch("/vendors/schedule", { method: "PUT", body: JSON.stringify({ schedule }) }),
 
+  /* Chat / Conversations */
+  getConversations: () => apiFetch("/communication/conversations"),
+
   /* Notifications */
   getNotifications:  () => apiFetch("/vendors/notifications"),
   markAllRead:       () => apiFetch("/vendors/notifications/read-all", { method: "PATCH", body: "{}" }),

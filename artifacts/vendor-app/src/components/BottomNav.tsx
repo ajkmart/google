@@ -1,6 +1,9 @@
 import { Link, useLocation } from "wouter";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "../lib/auth";
+import { api } from "../lib/api";
 
 const navItems: { href: string; labelKey: TranslationKey; icon: string }[] = [
   { href: "/",           labelKey: "dashboard",      icon: "📊" },
@@ -11,10 +14,25 @@ const navItems: { href: string; labelKey: TranslationKey; icon: string }[] = [
   { href: "/profile",    labelKey: "account",        icon: "👤" },
 ];
 
+interface Conversation { unreadCount: number }
+
 export function BottomNav() {
   const [location] = useLocation();
   const { language } = useLanguage();
+  const { user } = useAuth();
   const T = (key: TranslationKey) => tDual(key, language);
+
+  const { data: conversations } = useQuery<Conversation[]>({
+    queryKey: ["vendor-conversations-unread"],
+    queryFn: () => api.getConversations(),
+    enabled: !!user,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    select: (data: unknown) => (Array.isArray(data) ? data : []),
+  });
+
+  const unreadCount = (conversations ?? []).filter(c => c.unreadCount > 0).length;
+  const badgeLabel = unreadCount > 99 ? "99+" : String(unreadCount);
 
   return (
     <nav
@@ -29,6 +47,7 @@ export function BottomNav() {
       <div className="flex">
         {navItems.map(item => {
           const active = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+          const isChatTab = item.href === "/chat";
           return (
             <Link
               key={item.href}
@@ -42,10 +61,25 @@ export function BottomNav() {
               )}
               {/* Icon container */}
               <span
-                className="flex items-center justify-center w-10 h-7 rounded-xl text-xl transition-all duration-200"
+                className="relative flex items-center justify-center w-10 h-7 rounded-xl text-xl transition-all duration-200"
                 style={active ? { background: "rgba(26,86,219,0.18)" } : {}}
               >
                 {item.icon}
+                {isChatTab && unreadCount > 0 && (
+                  <span
+                    className="absolute -top-1 -right-1 flex items-center justify-center rounded-full text-white font-bold leading-none"
+                    style={{
+                      minWidth: unreadCount > 9 ? "18px" : "16px",
+                      height: "16px",
+                      fontSize: "9px",
+                      padding: "0 3px",
+                      background: "#EF4444",
+                      boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
+                    }}
+                  >
+                    {badgeLabel}
+                  </span>
+                )}
               </span>
               {/* Label */}
               <span
