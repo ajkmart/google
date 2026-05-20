@@ -2,19 +2,19 @@
  * Tiered rate-limit middleware.
  *
  * All limiters are created through `createRateLimiter()` — a typed factory that:
- *   - Uses Redis (rate-limit-redis) for shared counters across instances when
- *     REDIS_URL is configured.  Note: rate-limit-redis uses a fixed-window
- *     algorithm (not sliding-window) — counters reset at the start of each
- *     window boundary rather than rolling forward continuously.  This is
- *     acceptable for auth rate-limiting; upgrade to a sorted-set Lua script
- *     if true sliding-window semantics are required in the future.
- *   - Falls back to express-rate-limit's built-in in-memory store when Redis is
- *     unavailable.  In multi-instance deployments this means per-instance counters;
- *     a startup warning is emitted so operators know to configure Redis.
+ *   - Uses Redis sorted-set + Lua for true **sliding-window** counters when
+ *     REDIS_URL is configured.  Each request is recorded as a scored member
+ *     (score = Unix-ms timestamp) and members older than `windowMs` are pruned
+ *     atomically in the same script, so the window rolls forward on every call.
+ *   - Falls back to express-rate-limit's built-in **fixed-window** in-memory
+ *     store when Redis is unavailable.  A startup warning is emitted so
+ *     operators know to configure Redis in multi-instance deployments.
  *   - Returns JSON 429 responses with `retryAfter` (seconds), `code`, and
  *     `tier`-adjusted human-readable messages — never raw "Too many requests".
- *   - Accepts a `tier` option ("strict" | "standard" | "lenient") that controls
- *     the 429 copy shown to the end-user.
+ *   - Accepts first-class `skipOnSuccess` — successful responses (HTTP < 400)
+ *     do not consume quota; the sorted-set member is removed on `res.finish`.
+ *   - Accepts a first-class `message` shape that overrides the default JSON 429
+ *     body (merged with `retryAfter` so callers always get that field).
  *
  * Tiers:
  *   globalLimiter           300 req / 15 min  — all /api traffic
@@ -29,11 +29,57 @@
  *   exportDataLimiter         3 req / 15 min / user — POST /api/users/export-data
  *   registerUploadLimiter    10 req / 60 min / IP  — POST /api/uploads/register (unauthenticated)
  */
+import crypto from "node:crypto";
 import rateLimit, { type Options, type Store } from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 import { redisClient } from "../lib/redis.js";
 import { logger } from "../lib/logger.js";
-import type { Request, Response } from "express";
+import type { Request, Response, NextFunction, RequestHandler } from "express";
+
+/* ── Lua sliding-window script ───────────────────────────────────────────────
+ *
+ * KEYS[1]  — sorted-set key for this limiter + client identity
+ * ARGV[1]  — current Unix timestamp in milliseconds
+ * ARGV[2]  — window size in milliseconds
+ * ARGV[3]  — maximum allowed count within the window
+ * ARGV[4]  — unique member ID for this request (UUID)
+ * ARGV[5]  — "1" to record the request; "0" to only check (e.g. dry-run)
+ *
+ * Returns array: { allowed (0|1), retryAfterSeconds (integer), currentCount }
+ */
+const SLIDING_WINDOW_LUA = `
+local key        = KEYS[1]
+local now        = tonumber(ARGV[1])
+local window_ms  = tonumber(ARGV[2])
+local max_count  = tonumber(ARGV[3])
+local member     = ARGV[4]
+local do_add     = tonumber(ARGV[5])
+
+-- Remove entries outside the rolling window
+redis.call('ZREMRANGEBYSCORE', key, 0, now - window_ms)
+
+local count = tonumber(redis.call('ZCARD', key))
+
+if count >= max_count then
+  -- Compute retry-after from the oldest surviving entry
+  local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
+  local retry_after = 1
+  if oldest and #oldest >= 2 then
+    local expires_at = tonumber(oldest[2]) + window_ms
+    retry_after = math.ceil((expires_at - now) / 1000)
+    if retry_after < 1 then retry_after = 1 end
+  end
+  return {0, retry_after, count}
+end
+
+if do_add == 1 then
+  redis.call('ZADD', key, now, member)
+  -- TTL slightly longer than the window so the key auto-expires after inactivity
+  redis.call('PEXPIRE', key, window_ms + 5000)
+end
+
+return {1, 0, count + (do_add == 1 and 1 or 0)}
+`;
 
 /**
  * Options for the `createRateLimiter` factory.
@@ -46,42 +92,28 @@ export interface RateLimiterOptions {
   /** Sliding-window duration in milliseconds. */
   windowMs: number;
   /**
-   * Controls the user-visible message in 429 responses:
+   * When `true`, successful responses (HTTP status < 400) do not consume quota.
+   * The sorted-set member is removed from Redis on `res.finish` when the status
+   * is below 400.  Defaults to `false`.
+   */
+  skipOnSuccess?: boolean;
+  /**
+   * Custom JSON body for 429 responses.  Merged with `{ retryAfter, code, tier }`
+   * so the `retryAfter` field is always present even if you override `message`.
+   */
+  message?: Record<string, unknown>;
+  /**
+   * Controls the user-visible message in 429 responses (used when `message` is
+   * not provided):
    * - "strict"   → "Too many attempts. Please wait before trying again."
    * - "standard" → "Too many requests. Please slow down."  (default)
    * - "lenient"  → "You're making requests too fast. Please wait a moment."
    */
   tier?: "strict" | "standard" | "lenient";
   /** Custom key generator. Defaults to client IP. */
-  keyGenerator?: (req: Request, res: Response) => string;
-  /** Any additional express-rate-limit options (e.g. `skip`, `skipSuccessfulRequests`). */
+  keyGenerator?: (req: Request) => string;
+  /** Any additional express-rate-limit options used only in the in-memory fallback path. */
   extra?: Partial<Options>;
-}
-
-function makeStore(prefix: string): Store | undefined {
-  if (!redisClient) return undefined;
-  try {
-    return new RedisStore({
-      prefix: `rl:${prefix}:`,
-      sendCommand: (...args: string[]) => {
-        /* Null-safe guard: if redisClient was cleared after store construction,
-           return a rejected Promise so express-rate-limit handles it gracefully
-           rather than crashing with a TypeError on null.call. */
-        if (!redisClient) {
-          return Promise.reject(new Error("[rate-limit] Redis client not available")) as ReturnType<import("rate-limit-redis").SendCommandFn>;
-        }
-        return (redisClient.call as (...a: string[]) => Promise<unknown>)(...args).catch((err: Error) => {
-          if (!err.message.includes("closed")) {
-            logger.error({ prefix, err: err.message }, "[rate-limit] Redis error");
-          }
-          throw err;
-        }) as ReturnType<import("rate-limit-redis").SendCommandFn>;
-      },
-    });
-  } catch (err) {
-    logger.error({ prefix, err }, "[rate-limit] Could not create Redis store");
-    return undefined;
-  }
 }
 
 const TIER_MESSAGES: Record<NonNullable<RateLimiterOptions["tier"]>, string> = {
@@ -90,13 +122,130 @@ const TIER_MESSAGES: Record<NonNullable<RateLimiterOptions["tier"]>, string> = {
   lenient:  "You're making requests too fast. Please wait a moment.",
 };
 
+/* ── IP helper (shared by key generators) ───────────────────────────────── */
+const ipKey = (req: Request): string =>
+  (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+  req.socket?.remoteAddress ||
+  "unknown";
+
+const userOrIpKey = (req: Request): string => {
+  const uid = req.userId ?? req.customerId ?? req.riderId ?? req.vendorId;
+  return uid ? `user:${uid}` : ipKey(req);
+};
+
+/* ── Fallback: express-rate-limit in-memory fixed-window ─────────────────── */
+function makeFallbackLimiter(options: RateLimiterOptions): RequestHandler {
+  const { prefix, max, windowMs, tier = "standard", keyGenerator, extra, message } = options;
+
+  if (process.env["MULTI_INSTANCE"] === "true") {
+    logger.warn(
+      { prefix },
+      "[rate-limit] Redis unavailable in multi-instance mode — counters are per-instance and not shared across replicas",
+    );
+  }
+
+  return rateLimit({
+    windowMs,
+    max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (_req: Request, res: Response) => {
+      const retryAfter = Math.ceil(windowMs / 1000);
+      res.status(429).json({
+        success: false,
+        error: TIER_MESSAGES[tier],
+        ...message,
+        retryAfter,
+        code: "RATE_LIMITED",
+        tier,
+      });
+    },
+    ...(keyGenerator ? { keyGenerator: (req: Request, _res: Response) => keyGenerator(req) } : {}),
+    ...extra,
+  });
+}
+
+/* ── Redis sliding-window middleware ────────────────────────────────────── */
+function makeRedisSlidingLimiter(options: RateLimiterOptions): RequestHandler {
+  const { prefix, max, windowMs, tier = "standard", keyGenerator, skipOnSuccess = false, message } = options;
+
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    if (!redisClient) {
+      next();
+      return;
+    }
+
+    const clientKey = keyGenerator ? keyGenerator(req) : ipKey(req);
+    const redisKey  = `rl:${prefix}:${clientKey}`;
+    const member    = crypto.randomUUID();
+    const now       = Date.now();
+
+    try {
+      const result = await (redisClient as import("ioredis").Redis).eval(
+        SLIDING_WINDOW_LUA,
+        1,
+        redisKey,
+        String(now),
+        String(windowMs),
+        String(max),
+        member,
+        "1",
+      ) as [number, number, number];
+
+      const allowed      = result[0] === 1;
+      const retryAfter   = result[1] ?? Math.ceil(windowMs / 1000);
+      const currentCount = result[2] ?? 0;
+
+      /* Standard rate-limit headers */
+      res.setHeader("RateLimit-Limit",     String(max));
+      res.setHeader("RateLimit-Remaining", String(Math.max(0, max - currentCount)));
+      res.setHeader("RateLimit-Reset",     String(Math.ceil((now + windowMs) / 1000)));
+
+      if (!allowed) {
+        res.setHeader("Retry-After", String(retryAfter));
+        res.status(429).json({
+          success: false,
+          error: TIER_MESSAGES[tier],
+          ...message,
+          retryAfter,
+          code: "RATE_LIMITED",
+          tier,
+        });
+        return;
+      }
+
+      /* skipOnSuccess: remove the member if the response completes successfully */
+      if (skipOnSuccess) {
+        res.on("finish", () => {
+          if (res.statusCode < 400 && redisClient) {
+            (redisClient as import("ioredis").Redis)
+              .zrem(redisKey, member)
+              .catch((err: unknown) => {
+                logger.warn({ prefix, err }, "[rate-limit] Failed to remove member on success");
+              });
+          }
+        });
+      }
+
+      next();
+    } catch (err) {
+      /* Redis error — fail open (let the request through) and log */
+      logger.error({ prefix, redisKey, err }, "[rate-limit] Redis eval failed — failing open");
+      next();
+    }
+  };
+}
+
 /**
  * Factory for all AJKMart rate limiters.
  *
- * Uses a Redis-backed sliding-window store when REDIS_URL is available, with an
- * automatic in-memory fallback (plus a startup warning in multi-instance mode).
- * All 429 responses are JSON with `retryAfter` (seconds), `code: "RATE_LIMITED"`,
- * and a tier-appropriate human-readable message.
+ * When REDIS_URL is available, the returned middleware uses a Redis sorted-set
+ * sliding-window (via Lua) so the counter rolls forward continuously rather than
+ * resetting at a fixed boundary.  When Redis is unavailable it falls back to
+ * express-rate-limit's in-memory fixed-window store.
+ *
+ * First-class options: `skipOnSuccess` (successful HTTP calls don't consume quota)
+ * and `message` (custom JSON shape merged into every 429 body).
  *
  * @example
  * ```typescript
@@ -105,40 +254,21 @@ const TIER_MESSAGES: Record<NonNullable<RateLimiterOptions["tier"]>, string> = {
  *   max: 5,
  *   windowMs: 60_000,
  *   tier: "strict",
- *   keyGenerator: (req) => req.body?.email ?? req.ip,
+ *   skipOnSuccess: true,
+ *   keyGenerator: (req) => req.body?.email ?? ipKey(req),
  * });
  * ```
  */
-export function createRateLimiter(options: RateLimiterOptions) {
-  const { prefix, max, windowMs, tier = "standard", keyGenerator, extra } = options;
-  const store = makeStore(prefix);
+export function createRateLimiter(options: RateLimiterOptions): RequestHandler {
+  const { prefix, tier = "standard" } = options;
 
-  if (!store && process.env["MULTI_INSTANCE"] === "true") {
-    logger.warn(
-      { prefix },
-      "[rate-limit] Redis unavailable in multi-instance mode — counters are per-instance and not shared across replicas",
-    );
+  if (redisClient) {
+    logger.info({ prefix, store: "Redis (sliding-window)", tier }, "[rate-limit] limiter configured");
+    return makeRedisSlidingLimiter(options);
   }
-  logger.info({ prefix, store: store ? "Redis" : "in-memory", tier }, "[rate-limit] limiter configured");
 
-  return rateLimit({
-    windowMs,
-    max,
-    standardHeaders: true,
-    legacyHeaders: false,
-    store,
-    handler: (_req: Request, res: Response) => {
-      res.status(429).json({
-        success: false,
-        error: TIER_MESSAGES[tier],
-        retryAfter: Math.ceil(windowMs / 1000),
-        code: "RATE_LIMITED",
-        tier,
-      });
-    },
-    ...(keyGenerator ? { keyGenerator } : {}),
-    ...extra,
-  });
+  logger.info({ prefix, store: "in-memory (fixed-window)", tier }, "[rate-limit] limiter configured");
+  return makeFallbackLimiter(options);
 }
 
 /** @deprecated Use `createRateLimiter()` instead. */
@@ -148,7 +278,18 @@ function makeOptions(prefix: string, max: number, windowMs: number, extra?: Part
     max,
     standardHeaders: true,
     legacyHeaders: false,
-    store: makeStore(prefix),
+    store: (() => {
+      if (!redisClient) return undefined;
+      try {
+        return new RedisStore({
+          prefix: `rl:${prefix}:`,
+          sendCommand: (...args: string[]) => {
+            if (!redisClient) return Promise.reject(new Error("[rate-limit] Redis client not available")) as ReturnType<import("rate-limit-redis").SendCommandFn>;
+            return (redisClient.call as (...a: string[]) => Promise<unknown>)(...args) as ReturnType<import("rate-limit-redis").SendCommandFn>;
+          },
+        });
+      } catch { return undefined; }
+    })(),
     handler: (_req: Request, res: Response) => {
       res.status(429).json({
         success: false,
@@ -166,18 +307,7 @@ const WINDOW_60_MIN = 60 * 60 * 1000;
 const WINDOW_15_MIN = 15 * 60 * 1000;
 const WINDOW_1_MIN  = 60 * 1000;
 
-/* ── Shared key-generator helpers ────────────────────────────────────── */
-const ipKey = (req: Request): string =>
-  (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
-  req.socket?.remoteAddress ||
-  "unknown";
-
-const userOrIpKey = (req: Request): string => {
-  const uid = req.userId ?? req.customerId ?? req.riderId ?? req.vendorId;
-  return uid ? `user:${uid}` : ipKey(req);
-};
-
-/* ── Broad traffic limiters ──────────────────────────────────────────── */
+/* ── Broad traffic limiters ──────────────────────────────────────────────── */
 
 /** 300 req / 15 min — blanket guard for all /api traffic. */
 export const globalLimiter = createRateLimiter({ prefix: "global", max: 300, windowMs: WINDOW_15_MIN });
@@ -198,7 +328,7 @@ export const paymentLimiter = createRateLimiter({ prefix: "payment", max: 30, wi
  */
 export const publicLimiter = createRateLimiter({ prefix: "public", max: 60, windowMs: WINDOW_15_MIN });
 
-/* ── Auth-specific tight limiters ────────────────────────────────────── */
+/* ── Auth-specific tight limiters ────────────────────────────────────────── */
 
 /**
  * loginLimiter — 5 login attempts / 60 s / IP.
