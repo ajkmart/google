@@ -235,12 +235,6 @@ export default function RegisterScreen() {
         setLoading(false);
         return;
       }
-      if (action && action !== "register") {
-        setError("An account already exists with this number. Please log in.");
-        setLoading(false);
-        return;
-      }
-
       const sendOtpRes = await fetch(`${API}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -255,13 +249,13 @@ export default function RegisterScreen() {
         setLoading(false);
         return;
       }
-      if (sendOtpData.otpRequired === false && sendOtpData.token) {
-        setAuthToken(sendOtpData.token);
+      if (sendOtpData.otpRequired === false && sendOtpData.accessToken) {
+        setAuthToken(sendOtpData.accessToken);
         if (sendOtpData.refreshToken) setAuthRefreshToken(sendOtpData.refreshToken);
         if (sendOtpData.user) setAuthUser(sendOtpData.user);
         try {
           const SecureStore = await import("expo-secure-store");
-          await SecureStore.setItemAsync("ajkmart_reg_token", sendOtpData.token);
+          await SecureStore.setItemAsync("ajkmart_reg_token", sendOtpData.accessToken);
         } catch {}
         setStep(2);
         setLoading(false);
@@ -288,15 +282,20 @@ export default function RegisterScreen() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Invalid OTP."); setLoading(false); return; }
-      if (data.token) {
-        setAuthToken(data.token);
+      if (data.accessToken) {
+        setAuthToken(data.accessToken);
         try {
           const SecureStore = await import("expo-secure-store");
-          await SecureStore.setItemAsync("ajkmart_reg_token", data.token);
+          await SecureStore.setItemAsync("ajkmart_reg_token", data.accessToken);
         } catch {}
       }
       if (data.refreshToken) setAuthRefreshToken(data.refreshToken);
-      if (data.user) setAuthUser(data.user);
+      if (data.user) {
+        const rawUser = data.user as Record<string, unknown>;
+        const rolesStr = typeof rawUser.roles === "string" ? rawUser.roles : "";
+        const derivedRole = (rolesStr.split(",")[0]?.trim() || rawUser.role || "customer") as AppUser["role"];
+        setAuthUser({ ...rawUser, role: derivedRole } as AppUser);
+      }
       setStep(2);
     } catch (e: unknown) { setError(e instanceof Error ? e.message : "Verification failed."); }
     setLoading(false);
