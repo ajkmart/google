@@ -10,7 +10,7 @@
  * Form drafts are saved to localStorage so users can resume.
  * Passwords are excluded from the draft to avoid plain-text storage.
  */
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation } from "wouter";
 import { RegisterScreen } from "@workspace/auth-react";
 import type { StepConfig, StepComponentProps } from "@workspace/auth-react";
@@ -333,6 +333,20 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
   );
 }
 
+/* ── Password strength helper ── */
+function getPasswordStrength(pw: string): { level: number; label: string; color: string; width: string } {
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/\d/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  if (score <= 1) return { level: 1, label: "Weak", color: "#ef4444", width: "25%" };
+  if (score <= 2) return { level: 2, label: "Fair", color: "#f97316", width: "50%" };
+  if (score <= 3) return { level: 3, label: "Good", color: "#F0B90B", width: "75%" };
+  return { level: 4, label: "Strong", color: "#10b981", width: "100%" };
+}
+
 /* ── Step 5: Password ──────────────────────────────────────────────── */
 function PasswordStep({ data, onChange, onError }: StepComponentProps) {
   const { language } = useLanguage();
@@ -340,6 +354,10 @@ function PasswordStep({ data, onChange, onError }: StepComponentProps) {
   const theme = useTheme();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  const pw = (data.password as string) ?? "";
+  const confirmPw = (data.confirmPassword as string) ?? "";
+  const strength = pw ? getPasswordStrength(pw) : null;
 
   return (
     <div className="space-y-4">
@@ -352,12 +370,28 @@ function PasswordStep({ data, onChange, onError }: StepComponentProps) {
           <input type={showPassword ? "text" : "password"}
             className="w-full h-12 px-4 pr-10 rounded-xl text-sm focus:outline-none transition-all"
             style={{ background: theme.background, border: `1px solid ${theme.border}`, color: theme.text }}
-            value={(data.password as string) ?? ""} onChange={e => { onChange("password", e.target.value); onError(""); }} placeholder="Min 8 characters" />
+            value={pw} onChange={e => { onChange("password", e.target.value); onError(""); }} placeholder="Min 8 characters" />
           <button type="button" tabIndex={-1} onClick={() => setShowPassword(v => !v)}
             className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors" style={{ color: theme.textMuted }}>
             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
+        {/* Password strength meter */}
+        {strength && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ flex: 1, height: 4, borderRadius: 4, background: theme.border, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: strength.width, background: strength.color, borderRadius: 4, transition: "all 0.3s" }} />
+              </div>
+              <span style={{ fontSize: 10, fontWeight: 700, color: strength.color, minWidth: 42, textAlign: "right" }}>
+                {strength.label}
+              </span>
+            </div>
+            <p style={{ fontSize: 10, color: theme.textMuted, marginTop: 4 }}>
+              {strength.level < 3 ? "Add uppercase, numbers, or special characters to strengthen" : "Great password!"}
+            </p>
+          </div>
+        )}
       </div>
 
       <div>
@@ -365,18 +399,28 @@ function PasswordStep({ data, onChange, onError }: StepComponentProps) {
         <div className="relative">
           <input type={showConfirm ? "text" : "password"}
             className="w-full h-12 px-4 pr-10 rounded-xl text-sm focus:outline-none transition-all"
-            style={{ background: theme.background, border: `1px solid ${theme.border}`, color: theme.text }}
-            value={(data.confirmPassword as string) ?? ""} onChange={e => { onChange("confirmPassword", e.target.value); onError(""); }} placeholder="Re-enter password" />
+            style={{
+              background: theme.background,
+              border: `1px solid ${confirmPw && pw !== confirmPw ? "#ef4444" : confirmPw && pw === confirmPw ? "#10b981" : theme.border}`,
+              color: theme.text,
+            }}
+            value={confirmPw} onChange={e => { onChange("confirmPassword", e.target.value); onError(""); }} placeholder="Re-enter password" />
           <button type="button" tabIndex={-1} onClick={() => setShowConfirm(v => !v)}
             className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors" style={{ color: theme.textMuted }}>
             {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
+        {confirmPw && pw !== confirmPw && (
+          <p style={{ fontSize: 10, color: "#ef4444", marginTop: 4 }}>Passwords do not match</p>
+        )}
+        {confirmPw && pw === confirmPw && (
+          <p style={{ fontSize: 10, color: "#10b981", marginTop: 4 }}>✓ Passwords match</p>
+        )}
       </div>
 
       <div className="rounded-xl p-3" style={{ background: theme.background, border: `1px solid ${theme.border}` }}>
         <p className="text-xs leading-relaxed" style={{ color: theme.textMuted }}>
-          Password must be at least 8 characters. Both fields must match.
+          Min 8 chars with at least one letter and one number.
         </p>
       </div>
     </div>
@@ -580,6 +624,16 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
     }
   };
 
+  const totalSteps = steps.length;
+
+  const currentStepIndex = useMemo(() => {
+    if ((draft.password as string)?.length > 0) return totalSteps - 1;
+    if (draft.vehiclePhoto || draft.cnicDocUrl || draft.licenseDocUrl) return totalSteps >= 5 ? 3 : 2;
+    if (draft.vehicleType) return 2;
+    if (draft.otp || draft.phone) return 1;
+    return 0;
+  }, [draft, totalSteps]);
+
   return (
     <div style={{ minHeight: "100vh", background: theme.background }}>
       <div className="max-w-sm mx-auto px-5 py-8">
@@ -590,6 +644,40 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
         >
           <ArrowLeft size={16} /> {T("backToLogin")}
         </button>
+
+        {/* Step progress bar */}
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-2">
+            <span style={{ fontSize: 11, fontWeight: 700, color: theme.primary, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              Step {currentStepIndex + 1} of {totalSteps}
+            </span>
+            <span style={{ fontSize: 11, color: theme.textMuted }}>
+              {Math.round(((currentStepIndex + 1) / totalSteps) * 100)}% complete
+            </span>
+          </div>
+          <div style={{ height: 4, borderRadius: 4, background: theme.border, overflow: "hidden" }}>
+            <div style={{
+              height: "100%", borderRadius: 4, transition: "width 0.4s ease",
+              background: `linear-gradient(90deg, ${theme.primary}, ${theme.primaryDark})`,
+              width: `${Math.round(((currentStepIndex + 1) / totalSteps) * 100)}%`,
+            }} />
+          </div>
+          <div className="flex justify-between mt-2">
+            {steps.map((s, i) => (
+              <div key={i} style={{
+                width: 24, height: 24, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 10, fontWeight: 700, transition: "all 0.3s",
+                background: i <= currentStepIndex ? theme.primary : theme.border,
+                color: i <= currentStepIndex ? theme.background : theme.textMuted,
+                boxShadow: i === currentStepIndex ? `0 0 0 3px ${theme.primary}30` : "none",
+              }}>
+                {i < currentStepIndex ? (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                ) : i + 1}
+              </div>
+            ))}
+          </div>
+        </div>
 
         <div
           style={{

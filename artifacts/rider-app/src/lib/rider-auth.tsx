@@ -70,6 +70,8 @@ interface AuthCtx {
   login: (token: string, user: AuthUser, refreshToken?: string) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  sessionExpired: boolean;
+  clearSessionExpired: () => void;
 }
 
 const Ctx = createContext<AuthCtx | null>(null);
@@ -111,6 +113,7 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [storageError, setStorageError] = useState(false);
   const [twoFactorPending, setTwoFactorPending] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const refreshUserInflightRef = useRef<Promise<void> | null>(null);
 
@@ -123,6 +126,7 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
     api.clearTokens();
     setToken(null); setUser(null);
     sharedAuth.logout();
+    setSessionExpired(true);
   }, [sharedAuth]);
 
   useTokenRefresh({
@@ -240,8 +244,10 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
     return p;
   }, [sharedAuth]);
 
+  const clearSessionExpired = useCallback(() => setSessionExpired(false), []);
+
   return (
-    <Ctx.Provider value={{ user, token, loading, storageError, twoFactorPending, setTwoFactorPending, login, logout, refreshUser }}>
+    <Ctx.Provider value={{ user, token, loading, storageError, twoFactorPending, setTwoFactorPending, login, logout, refreshUser, sessionExpired, clearSessionExpired }}>
       {children}
     </Ctx.Provider>
   );

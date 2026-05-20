@@ -93,13 +93,35 @@ const NOTIF_ASKED_KEY = "_ajkm_notifPermissionAsked";
 function PageFallback() {
   return (
     <div className="min-h-[60vh] flex items-center justify-center">
-      <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#252836", borderTopColor: "#F0B90B" }} />
+    </div>
+  );
+}
+
+function SessionExpiredOverlay({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(11,14,17,0.96)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 16 }}>
+      <div style={{ background: "#131720", border: "1px solid #252836", borderRadius: 20, padding: "28px 24px", width: "100%", maxWidth: 360, textAlign: "center", boxShadow: "0 24px 64px rgba(0,0,0,0.7)" }}>
+        <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(240,185,11,0.12)", border: "1px solid rgba(240,185,11,0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F0B90B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        </div>
+        <h2 style={{ color: "#E8E9EF", fontSize: 20, fontWeight: 700, margin: "0 0 8px" }}>Session Expired</h2>
+        <p style={{ color: "#6B7280", fontSize: 14, lineHeight: 1.6, margin: "0 0 24px" }}>
+          Your session has timed out for security. Please sign in again to continue.
+        </p>
+        <button onClick={onDismiss} style={{ width: "100%", height: 48, borderRadius: 12, border: "none", background: "linear-gradient(135deg, #F0B90B, #D97706)", color: "#0B0E11", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+          Sign In Again
+        </button>
+      </div>
     </div>
   );
 }
 
 function AppRoutes() {
-  const { user, loading, storageError, logout } = useAuth();
+  const { user, loading, storageError, logout, sessionExpired, clearSessionExpired } = useAuth();
   const { config } = usePlatformConfig();
   const modules = getRiderModules(config);
   const { language } = useLanguage();
@@ -368,15 +390,17 @@ function AppRoutes() {
   }, [loading]);
 
   if (storageError) return (
-    <div className="min-h-screen bg-gradient-to-br from-red-700 to-rose-900 flex items-center justify-center p-6">
-      <div className="bg-white rounded-3xl shadow-xl p-8 max-w-sm w-full text-center">
-        <div className="text-5xl mb-4">🔐</div>
-        <h2 className="text-xl font-bold text-gray-800 mb-2">Secure Storage Unavailable</h2>
-        <p className="text-gray-500 text-sm leading-relaxed mb-6">
+    <div style={{ minHeight: "100vh", background: "#0B0E11", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: "#131720", border: "1px solid #252836", borderRadius: 20, padding: "32px 24px", maxWidth: 360, width: "100%", textAlign: "center", boxShadow: "0 24px 64px rgba(0,0,0,0.6)" }}>
+        <div style={{ width: 64, height: 64, borderRadius: 16, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+        </div>
+        <h2 style={{ color: "#E8E9EF", fontSize: 20, fontWeight: 700, margin: "0 0 8px" }}>Secure Storage Unavailable</h2>
+        <p style={{ color: "#6B7280", fontSize: 14, lineHeight: 1.6, margin: "0 0 24px" }}>
           Login credentials cannot be stored safely on this device. Please clear the app's data or reinstall and try again.
         </p>
         <button onClick={() => window.location.reload()}
-          className="w-full py-3 rounded-2xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 transition-colors">
+          style={{ width: "100%", height: 46, borderRadius: 12, border: "none", background: "linear-gradient(135deg, #F0B90B, #D97706)", color: "#0B0E11", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
           Retry
         </button>
       </div>
@@ -384,32 +408,40 @@ function AppRoutes() {
   );
 
   if (loading) return (
-    <div className="min-h-screen bg-gradient-to-br from-green-600 to-emerald-800 flex items-center justify-center">
-      <div className="text-center px-6">
-        <div className="text-5xl mb-4">🏍️</div>
-        <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
-        <p className="text-white mt-3 font-medium">{T("loadingRiderPortal")}</p>
+    <div style={{ minHeight: "100vh", background: "#0B0E11", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ textAlign: "center", padding: "0 24px" }}>
+        <div style={{ width: 72, height: 72, borderRadius: 22, background: "linear-gradient(135deg, #F0B90B, #D97706)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", boxShadow: "0 8px 28px rgba(240,185,11,0.35)" }}>
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#0B0E11" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="5.5" cy="17.5" r="3.5" /><circle cx="18.5" cy="17.5" r="3.5" /><path d="M15 6H12L9 17.5" /><path d="M12 6l4 4-4 4" /><path d="M5.5 17.5L9 10l3 3" /><path d="M18.5 17.5L16 10h-3" /></svg>
+        </div>
+        <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid #252836", borderTopColor: "#F0B90B", animation: "spin 0.8s linear infinite", margin: "0 auto" }} />
+        <p style={{ color: "#E8E9EF", marginTop: 16, fontWeight: 600, fontSize: 15 }}>{T("loadingRiderPortal")}</p>
         {splashTimedOut && (
-          <div className="mt-6 bg-white/10 rounded-2xl p-4 text-white text-sm space-y-3 max-w-xs mx-auto">
-            <p>Couldn't reach server. Please check your connection.</p>
+          <div style={{ marginTop: 20, background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 16, maxWidth: 280, margin: "20px auto 0", border: "1px solid #252836" }}>
+            <p style={{ color: "#6B7280", fontSize: 13, marginBottom: 12 }}>Couldn't reach server. Please check your connection.</p>
             <button onClick={() => window.location.reload()}
-              className="w-full py-2 rounded-xl bg-white text-emerald-700 font-semibold text-sm hover:bg-gray-100 transition-colors">
+              style={{ width: "100%", height: 40, borderRadius: 10, border: "none", background: "#F0B90B", color: "#0B0E11", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
               {T("retry")}
             </button>
           </div>
         )}
       </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 
   if (!user) return (
-    <Switch>
-      <Route path="/" component={GuestLanding} />
-      <Route path="/register">{() => <Register />}</Route>
-      <Route path="/forgot-password" component={ForgotPassword} />
-      <Route path="/login">{() => <Login />}</Route>
-      <Route><GuestLanding /></Route>
-    </Switch>
+    <>
+      {sessionExpired && <SessionExpiredOverlay onDismiss={() => { clearSessionExpired(); navigate("/login"); }} />}
+      {!sessionExpired && (
+        <Switch>
+          <Route path="/" component={GuestLanding} />
+          <Route path="/register">{() => <Register />}</Route>
+          <Route path="/forgot-password" component={ForgotPassword} />
+          <Route path="/login">{() => <Login />}</Route>
+          <Route><GuestLanding /></Route>
+        </Switch>
+      )}
+    </>
   );
 
   /* S-Sec10: When entering a non-active branch (pending / rejected /

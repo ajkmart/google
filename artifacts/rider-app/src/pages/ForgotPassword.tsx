@@ -12,22 +12,39 @@ import {
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[ForgotPassword]");
 
+const BG = "#0B0E11";
+const SURFACE = "#131720";
+const BORDER = "#252836";
+const PRIMARY = "#F0B90B";
+const TEXT = "#E8E9EF";
+const TEXT_MUTED = "#6B7280";
+
 type ForgotStep = "choose-method" | "send-otp" | "enter-otp" | "new-password" | "totp-verify" | "success";
 
-function getPasswordStrength(pw: string): { level: number; label: TranslationKey; color: string; width: string } {
+function getPasswordStrength(pw: string): { level: number; label: TranslationKey; color: string; pct: number } {
   let score = 0;
   if (pw.length >= 8) score++;
   if (pw.length >= 12) score++;
   if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
   if (/\d/.test(pw)) score++;
   if (/[^A-Za-z0-9]/.test(pw)) score++;
-  if (score <= 1) return { level: 1, label: "passwordWeak", color: "bg-red-500", width: "w-1/4" };
-  if (score <= 2) return { level: 2, label: "passwordFair", color: "bg-orange-500", width: "w-2/4" };
-  if (score <= 3) return { level: 3, label: "passwordGood", color: "bg-yellow-500", width: "w-3/4" };
-  return { level: 4, label: "passwordStrong", color: "bg-green-500", width: "w-full" };
+  if (score <= 1) return { level: 1, label: "passwordWeak",   color: "#ef4444", pct: 25 };
+  if (score <= 2) return { level: 2, label: "passwordFair",   color: "#f97316", pct: 50 };
+  if (score <= 3) return { level: 3, label: "passwordGood",   color: PRIMARY,   pct: 75 };
+  return           { level: 4, label: "passwordStrong", color: "#10b981", pct: 100 };
 }
 
-const INPUT = "w-full h-12 px-4 bg-gray-950 border border-gray-800 text-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500/50 transition-all";
+const inputStyle: React.CSSProperties = {
+  width: "100%", height: 48, padding: "0 16px", borderRadius: 12,
+  background: BG, border: `1.5px solid ${BORDER}`, color: TEXT,
+  fontSize: 14, outline: "none", boxSizing: "border-box",
+};
+const btnPrimaryStyle: React.CSSProperties = {
+  width: "100%", height: 48, borderRadius: 12, border: "none",
+  background: `linear-gradient(135deg, ${PRIMARY}, #D97706)`,
+  color: BG, fontSize: 15, fontWeight: 700, cursor: "pointer",
+  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+};
 
 export default function ForgotPassword() {
   const { config } = usePlatformConfig();
@@ -42,7 +59,7 @@ export default function ForgotPassword() {
         const re = new RegExp(config.regional.phoneFormat);
         return (p: string) => re.test(p);
       }
-    } catch (err) { log.warn("phoneFormat regex compilation failed, using default:", err); }
+    } catch (err) { log.warn("phoneFormat regex failed:", err); }
     return (p: string) => /^0?3\d{9}$/.test(p.replace(/[\s\-()+]/g, ""));
   })();
 
@@ -76,7 +93,7 @@ export default function ForgotPassword() {
     try {
       let captchaToken: string | undefined;
       if (auth.captchaEnabled) {
-        try { captchaToken = await executeCaptcha("forgot_password", captchaSiteKey); } catch (err) { log.warn("captcha execution failed for forgot_password:", err); }
+        try { captchaToken = await executeCaptcha("forgot_password", captchaSiteKey); } catch (err) { log.warn("captcha failed:", err); }
         if (!captchaToken) { setError(T("captchaRequired")); setLoading(false); return; }
       }
       const res = await api.forgotPassword({
@@ -99,67 +116,63 @@ export default function ForgotPassword() {
     try {
       let captchaToken: string | undefined;
       if (auth.captchaEnabled) {
-        try { captchaToken = await executeCaptcha("reset_password", captchaSiteKey); } catch (err) { log.warn("captcha execution failed for reset_password:", err); }
+        try { captchaToken = await executeCaptcha("reset_password", captchaSiteKey); } catch (err) { log.warn("captcha failed:", err); }
         if (!captchaToken) { setError(T("captchaRequired")); setLoading(false); return; }
       }
       await api.resetPassword({
         ...(method === "phone" ? { phone: formatPhoneForApi(phone) } : { email }),
-        otp,
-        newPassword,
-        captchaToken,
+        otp, newPassword, captchaToken,
         ...(totpCode ? { totpCode } : {}),
       });
       setStep("success");
     } catch (e: unknown) {
       const errObj = e as { responseData?: { requires2FA?: boolean } };
-      if (errObj?.responseData?.requires2FA) {
-        setStep("totp-verify");
-        setLoading(false);
-        return;
-      }
+      if (errObj?.responseData?.requires2FA) { setStep("totp-verify"); setLoading(false); return; }
       setError(e instanceof Error ? e.message : T("verificationFailed"));
     }
     setLoading(false);
   };
 
   const handle2faVerify = useCallback(async (code: string) => {
-    setTwoFaLoading(true);
-    setTwoFaError("");
+    setTwoFaLoading(true); setTwoFaError("");
     try {
       let captchaToken: string | undefined;
       if (auth.captchaEnabled) {
-        try { captchaToken = await executeCaptcha("reset_password_2fa", captchaSiteKey); } catch (err) { log.warn("captcha execution failed for reset_password_2fa:", err); }
+        try { captchaToken = await executeCaptcha("reset_password_2fa", captchaSiteKey); } catch (err) { log.warn("captcha failed:", err); }
       }
       await api.resetPassword({
         ...(method === "phone" ? { phone: formatPhoneForApi(phone) } : { email }),
-        otp,
-        newPassword,
-        totpCode: code,
-        captchaToken,
+        otp, newPassword, totpCode: code, captchaToken,
       });
       setStep("success");
-    } catch (e: unknown) {
-      setTwoFaError(e instanceof Error ? e.message : T("verificationFailed"));
-    }
+    } catch (e: unknown) { setTwoFaError(e instanceof Error ? e.message : T("verificationFailed")); }
     setTwoFaLoading(false);
   }, [method, phone, email, otp, newPassword, auth.captchaEnabled, captchaSiteKey, T]);
 
-  const handle2faBackup = useCallback(async (code: string) => {
-    handle2faVerify(code);
-  }, [handle2faVerify]);
+  const handle2faBackup = useCallback(async (code: string) => { handle2faVerify(code); }, [handle2faVerify]);
+
+  const cardStyle: React.CSSProperties = {
+    background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 20,
+    padding: "24px 22px", width: "100%", maxWidth: 400,
+    boxShadow: "0 24px 64px rgba(0,0,0,0.5)",
+  };
+
+  const pageStyle: React.CSSProperties = {
+    minHeight: "100vh", background: BG,
+    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+    padding: "24px 16px",
+  };
 
   if (step === "success") {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 flex items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute top-[-20%] right-[-10%] w-72 h-72 rounded-full bg-white/[0.02]" />
-        <div className="absolute bottom-[-15%] left-[-10%] w-64 h-64 rounded-full bg-green-500/[0.04]" />
-        <div className="bg-gray-900 border border-white/10 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl relative z-10">
-          <div className="w-20 h-20 bg-yellow-500/10 border border-yellow-500/30 rounded-full flex items-center justify-center mx-auto mb-5">
-            <CheckCircle size={40} className="text-yellow-500" />
+      <div style={pageStyle}>
+        <div style={{ ...cardStyle, textAlign: "center" }}>
+          <div style={{ width: 72, height: 72, borderRadius: "50%", background: `${PRIMARY}15`, border: `1px solid ${PRIMARY}40`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+            <CheckCircle size={36} color={PRIMARY} />
           </div>
-          <h2 className="text-2xl font-bold text-gray-100 mb-3">{T("passwordResetSuccess")}</h2>
-          <p className="text-gray-400 text-sm leading-relaxed mb-5">{T("passwordResetSuccessMsg")}</p>
-          <Link href="/" className="w-full h-11 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold rounded-xl transition-colors text-sm flex items-center justify-center gap-2">
+          <h2 style={{ color: TEXT, fontSize: 22, fontWeight: 700, margin: "0 0 8px" }}>{T("passwordResetSuccess")}</h2>
+          <p style={{ color: TEXT_MUTED, fontSize: 14, lineHeight: 1.6, margin: "0 0 24px" }}>{T("passwordResetSuccessMsg")}</p>
+          <Link href="/" style={{ ...btnPrimaryStyle as React.CSSProperties, display: "flex", textDecoration: "none", justifyContent: "center", alignItems: "center", gap: 8 }}>
             <ArrowLeft size={15} /> {T("goToLogin")}
           </Link>
         </div>
@@ -169,12 +182,10 @@ export default function ForgotPassword() {
 
   if (step === "totp-verify") {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 flex items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute top-[-20%] right-[-10%] w-72 h-72 rounded-full bg-white/[0.02]" />
-        <div className="absolute bottom-[-15%] left-[-10%] w-64 h-64 rounded-full bg-green-500/[0.04]" />
-        <div className="bg-gray-900 border border-white/10 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative z-10">
+      <div style={pageStyle}>
+        <div style={cardStyle}>
           <button onClick={() => setStep("new-password")}
-            className="text-gray-300 text-sm font-semibold mb-4 flex items-center gap-1">
+            style={{ background: "none", border: "none", color: TEXT_MUTED, fontSize: 13, fontWeight: 600, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4, marginBottom: 16 }}>
             <ArrowLeft size={14} /> {T("back")}
           </button>
           <TwoFactorVerify
@@ -189,157 +200,178 @@ export default function ForgotPassword() {
     );
   }
 
+  const strength = newPassword ? getPasswordStrength(newPassword) : null;
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-[-20%] right-[-10%] w-72 h-72 rounded-full bg-white/[0.02]" />
-      <div className="absolute bottom-[-15%] left-[-10%] w-64 h-64 rounded-full bg-green-500/[0.04]" />
-      <div className="absolute top-[30%] left-[5%] w-40 h-40 rounded-full bg-white/[0.015]" />
-
-      <div className="w-full max-w-sm relative z-10">
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-white/[0.08] backdrop-blur-sm border border-white/[0.06] rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-xl">
-            <KeyRound size={32} className="text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-white">{T("forgotPassword")}</h1>
-          <p className="text-white/40 mt-1 text-sm">{T("forgotPasswordDesc")}</p>
+    <div style={pageStyle}>
+      {/* Branded header */}
+      <div style={{ textAlign: "center", marginBottom: 24 }}>
+        <div style={{
+          width: 60, height: 60, borderRadius: 18,
+          background: `linear-gradient(135deg, ${PRIMARY}, #D97706)`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          margin: "0 auto 12px", boxShadow: `0 8px 24px ${PRIMARY}40`,
+        }}>
+          <KeyRound size={26} color={BG} />
         </div>
+        <h1 style={{ color: TEXT, fontSize: 22, fontWeight: 800, margin: "0 0 4px" }}>{T("forgotPassword")}</h1>
+        <p style={{ color: TEXT_MUTED, fontSize: 13, margin: 0 }}>{T("forgotPasswordDesc")}</p>
+      </div>
 
-        <div className="bg-gray-900 border border-white/10 rounded-3xl p-6 shadow-2xl">
-          {step !== "choose-method" && (
-            <button onClick={() => {
-              if (step === "send-otp") setStep("choose-method");
-              else if (step === "enter-otp") setStep("send-otp");
-              else if (step === "new-password") setStep("enter-otp");
-              clearError();
-            }}
-              className="text-gray-300 text-sm font-semibold mb-4 flex items-center gap-1">
-              <ArrowLeft size={14} /> {T("back")}
-            </button>
-          )}
+      <div style={cardStyle}>
+        {step !== "choose-method" && (
+          <button onClick={() => {
+            if (step === "send-otp") setStep("choose-method");
+            else if (step === "enter-otp") setStep("send-otp");
+            else if (step === "new-password") setStep("enter-otp");
+            clearError();
+          }}
+            style={{ background: "none", border: "none", color: TEXT_MUTED, fontSize: 13, fontWeight: 600, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4, marginBottom: 16 }}>
+            <ArrowLeft size={14} /> {T("back")}
+          </button>
+        )}
 
-          {step === "choose-method" && (
-            <div className="space-y-3">
-              <h3 className="text-lg font-bold text-gray-100 mb-1">{T("chooseResetMethod")}</h3>
-              {hasPhoneOtp && (
-                <button onClick={() => { setMethod("phone"); setStep("send-otp"); }}
-                  className="w-full h-14 border border-gray-800 rounded-xl text-sm font-semibold text-gray-300 hover:border-yellow-500/50 hover:bg-white/5 transition-all flex items-center gap-3 px-4">
-                  <Phone size={20} className="text-yellow-500" />
-                  <div className="text-left">
-                    <div className="font-bold">{T("resetViaPhone")}</div>
-                    <div className="text-[11px] text-gray-500">OTP via SMS</div>
-                  </div>
-                </button>
-              )}
-              {hasEmailOtp && (
-                <button onClick={() => { setMethod("email"); setStep("send-otp"); }}
-                  className="w-full h-14 border border-gray-800 rounded-xl text-sm font-semibold text-gray-300 hover:border-yellow-500/50 hover:bg-white/5 transition-all flex items-center gap-3 px-4">
-                  <Mail size={20} className="text-yellow-500" />
-                  <div className="text-left">
-                    <div className="font-bold">{T("resetViaEmail")}</div>
-                    <div className="text-[11px] text-gray-500">OTP via Email</div>
-                  </div>
-                </button>
-              )}
-            </div>
-          )}
-
-          {step === "send-otp" && (
-            <div className="space-y-3">
-              {method === "phone" ? (
-                <>
-                  <h3 className="text-lg font-bold text-gray-100 mb-1">{T("resetViaPhone")}</h3>
-                  <div className="flex gap-2">
-                    <div className="h-12 px-3 bg-gray-800 border border-gray-700 rounded-xl flex items-center text-sm font-medium text-gray-300">+92</div>
-                    <input type="tel" value={phone}
-                      onChange={e => {
-                        let v = e.target.value.replace(/\D/g, "");
-                        if (v.startsWith("92")) v = v.slice(2);
-                        if (v.startsWith("0")) v = v.slice(1);
-                        setPhone(v.slice(0, 10));
-                      }}
-                      placeholder={phoneHint}
-                      onKeyDown={e => e.key === "Enter" && sendOtp()}
-                      className={`flex-1 ${INPUT}`} autoFocus />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h3 className="text-lg font-bold text-gray-100 mb-1">{T("resetViaEmail")}</h3>
-                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com"
-                    onKeyDown={e => e.key === "Enter" && sendOtp()}
-                    className={INPUT} autoFocus />
-                </>
-              )}
-              <button onClick={sendOtp} disabled={loading}
-                className="w-full h-12 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
-                {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-                {loading ? T("pleaseWait") : T("sendResetOtp")}
-              </button>
-            </div>
-          )}
-
-          {step === "enter-otp" && (
-            <div className="space-y-3">
-              <h3 className="text-lg font-bold text-gray-100 mb-1">{T("enterResetOtp")}</h3>
-              <p className="text-sm text-gray-400">{method === "phone" ? `+92${phone}` : email}</p>
-              {import.meta.env.DEV && devOtp && (
-                <div className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300">
-                  <strong>{T("devOtp")}:</strong> {devOtp}
+        {step === "choose-method" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <h3 style={{ color: TEXT, fontSize: 17, fontWeight: 700, margin: "0 0 4px" }}>{T("chooseResetMethod")}</h3>
+            {hasPhoneOtp && (
+              <button onClick={() => { setMethod("phone"); setStep("send-otp"); }}
+                style={{ height: 56, border: `1px solid ${BORDER}`, borderRadius: 14, background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: "0 16px", transition: "all 0.15s" }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = `${PRIMARY}60`)}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = BORDER)}>
+                <Phone size={20} color={PRIMARY} />
+                <div style={{ textAlign: "left" }}>
+                  <div style={{ color: TEXT, fontSize: 14, fontWeight: 700 }}>{T("resetViaPhone")}</div>
+                  <div style={{ color: TEXT_MUTED, fontSize: 11 }}>OTP via SMS</div>
                 </div>
-              )}
-              <input type="number" placeholder={T("enterOtpDigits")} value={otp} onChange={e => setOtp(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && setStep("new-password")}
-                className="w-full h-14 px-4 bg-gray-950 border border-gray-800 text-gray-100 rounded-xl text-center text-2xl font-bold tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-                maxLength={6} autoFocus />
-              <button onClick={() => { if (otp.length >= 6) setStep("new-password"); else setError(T("enterOtpDigits")); }}
-                disabled={loading}
-                className="w-full h-12 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
-                {T("nextStep")}
               </button>
-              <button onClick={sendOtp} className="w-full text-sm text-gray-500 hover:text-yellow-500 py-1 transition-colors">
-                {T("resendOtp")}
-              </button>
-            </div>
-          )}
-
-          {step === "new-password" && (
-            <div className="space-y-3">
-              <h3 className="text-lg font-bold text-gray-100 mb-1">{T("newPassword")}</h3>
-              <div className="relative">
-                <input type={showPwd ? "text" : "password"} value={newPassword} onChange={e => setNewPassword(e.target.value)}
-                  placeholder={T("newPassword")} className={`${INPUT} pr-12`} autoFocus />
-                <button onClick={() => setShowPwd(v => !v)} className="absolute right-3 top-3 text-gray-400 hover:text-gray-200">
-                  {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-              {newPassword && (
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${getPasswordStrength(newPassword).color} ${getPasswordStrength(newPassword).width}`} />
-                  </div>
-                  <span className="text-[10px] font-bold text-gray-400">{T(getPasswordStrength(newPassword).label)}</span>
+            )}
+            {hasEmailOtp && (
+              <button onClick={() => { setMethod("email"); setStep("send-otp"); }}
+                style={{ height: 56, border: `1px solid ${BORDER}`, borderRadius: 14, background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: "0 16px", transition: "all 0.15s" }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = `${PRIMARY}60`)}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = BORDER)}>
+                <Mail size={20} color={PRIMARY} />
+                <div style={{ textAlign: "left" }}>
+                  <div style={{ color: TEXT, fontSize: 14, fontWeight: 700 }}>{T("resetViaEmail")}</div>
+                  <div style={{ color: TEXT_MUTED, fontSize: 11 }}>OTP via Email</div>
                 </div>
-              )}
-              <input type={showPwd ? "text" : "password"} value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
-                placeholder={T("confirmNewPassword")} className={INPUT} />
-              {confirmPw && newPassword !== confirmPw && (
-                <p className="text-[10px] text-red-400">{T("passwordsDoNotMatch")}</p>
-              )}
-              <button onClick={() => verifyOtpAndSetPassword()} disabled={loading}
-                className="w-full h-12 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
-                {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-                {loading ? T("pleaseWait") : T("resetPassword")}
               </button>
-            </div>
-          )}
-
-          {error && <p role="alert" aria-live="polite" className="text-red-400 text-sm mt-3 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
-
-          <div className="mt-5 text-center">
-            <Link href="/" className="text-sm text-gray-400 font-semibold hover:text-yellow-500 transition-colors">
-              {T("backToLogin")}
-            </Link>
+            )}
           </div>
+        )}
+
+        {step === "send-otp" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {method === "phone" ? (
+              <>
+                <h3 style={{ color: TEXT, fontSize: 17, fontWeight: 700, margin: 0 }}>{T("resetViaPhone")}</h3>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ height: 48, padding: "0 12px", background: BG, border: `1.5px solid ${BORDER}`, borderRadius: 12, display: "flex", alignItems: "center", fontSize: 13, fontWeight: 600, color: TEXT_MUTED }}>+92</div>
+                  <input type="tel" value={phone}
+                    onChange={e => {
+                      let v = e.target.value.replace(/\D/g, "");
+                      if (v.startsWith("92")) v = v.slice(2);
+                      if (v.startsWith("0")) v = v.slice(1);
+                      setPhone(v.slice(0, 10));
+                    }}
+                    placeholder={phoneHint}
+                    onKeyDown={e => e.key === "Enter" && void sendOtp()}
+                    style={{ ...inputStyle, flex: 1 }} autoFocus />
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 style={{ color: TEXT, fontSize: 17, fontWeight: 700, margin: 0 }}>{T("resetViaEmail")}</h3>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  onKeyDown={e => e.key === "Enter" && void sendOtp()}
+                  style={inputStyle} autoFocus />
+              </>
+            )}
+            <button onClick={() => void sendOtp()} disabled={loading}
+              style={{ ...btnPrimaryStyle, opacity: loading ? 0.7 : 1 }}>
+              {loading ? <Loader2 size={18} className="animate-spin" /> : null}
+              {loading ? T("pleaseWait") : T("sendResetOtp")}
+            </button>
+          </div>
+        )}
+
+        {step === "enter-otp" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <h3 style={{ color: TEXT, fontSize: 17, fontWeight: 700, margin: 0 }}>{T("enterResetOtp")}</h3>
+            <p style={{ color: TEXT_MUTED, fontSize: 13, margin: 0 }}>{method === "phone" ? `+92${phone}` : email}</p>
+            {import.meta.env.DEV && devOtp && (
+              <div style={{ background: "#1a2035", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#94a3b8" }}>
+                <strong>{T("devOtp")}:</strong> <span style={{ color: PRIMARY }}>{devOtp}</span>
+              </div>
+            )}
+            <input type="number" placeholder={T("enterOtpDigits")} value={otp} onChange={e => setOtp(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && setStep("new-password")}
+              style={{ ...inputStyle, textAlign: "center", fontSize: 22, fontWeight: 700, letterSpacing: "0.3em", height: 56 }}
+              maxLength={6} autoFocus />
+            <button onClick={() => { if (otp.length >= 6) setStep("new-password"); else setError(T("enterOtpDigits")); }}
+              style={btnPrimaryStyle}>
+              {T("nextStep")}
+            </button>
+            <button onClick={() => void sendOtp()}
+              style={{ background: "none", border: "none", color: TEXT_MUTED, fontSize: 12, cursor: "pointer", padding: "4px 0", textAlign: "center" }}
+              onMouseEnter={e => (e.currentTarget.style.color = PRIMARY)}
+              onMouseLeave={e => (e.currentTarget.style.color = TEXT_MUTED)}>
+              {T("resendOtp")}
+            </button>
+          </div>
+        )}
+
+        {step === "new-password" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <h3 style={{ color: TEXT, fontSize: 17, fontWeight: 700, margin: 0 }}>{T("newPassword")}</h3>
+            <div style={{ position: "relative" }}>
+              <input type={showPwd ? "text" : "password"} value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                placeholder={T("newPassword")} style={{ ...inputStyle, paddingRight: 44 }} autoFocus />
+              <button onClick={() => setShowPwd(v => !v)}
+                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: TEXT_MUTED, cursor: "pointer", padding: 0 }}>
+                {showPwd ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </div>
+            {strength && (
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ flex: 1, height: 4, borderRadius: 4, background: BORDER, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${strength.pct}%`, background: strength.color, borderRadius: 4, transition: "all 0.3s" }} />
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: strength.color, minWidth: 40 }}>{T(strength.label)}</span>
+                </div>
+              </div>
+            )}
+            <input type={showPwd ? "text" : "password"} value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
+              placeholder={T("confirmNewPassword")} style={{
+                ...inputStyle,
+                borderColor: confirmPw && newPassword !== confirmPw ? "#ef4444" : confirmPw && newPassword === confirmPw ? "#10b981" : BORDER,
+              }} />
+            {confirmPw && newPassword !== confirmPw && (
+              <p style={{ fontSize: 10, color: "#ef4444", margin: "-8px 0 0" }}>{T("passwordsDoNotMatch")}</p>
+            )}
+            <button onClick={() => void verifyOtpAndSetPassword()} disabled={loading}
+              style={{ ...btnPrimaryStyle, opacity: loading ? 0.7 : 1 }}>
+              {loading ? <Loader2 size={18} className="animate-spin" /> : null}
+              {loading ? T("pleaseWait") : T("resetPassword")}
+            </button>
+          </div>
+        )}
+
+        {error && (
+          <p role="alert" aria-live="polite" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "10px 14px", color: "#fca5a5", fontSize: 13, marginTop: 12 }}>
+            {error}
+          </p>
+        )}
+
+        <div style={{ textAlign: "center", marginTop: 20 }}>
+          <Link href="/" style={{ color: TEXT_MUTED, fontSize: 13, fontWeight: 600, textDecoration: "none" }}
+            onMouseEnter={e => (e.currentTarget.style.color = PRIMARY)}
+            onMouseLeave={e => (e.currentTarget.style.color = TEXT_MUTED)}>
+            {T("backToLogin")}
+          </Link>
         </div>
       </div>
     </div>

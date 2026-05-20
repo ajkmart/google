@@ -67,8 +67,14 @@ export interface RegisterScreenProps {
 
 const ROLE_ACCENT: Record<RegisterRole, string> = {
   customer: '#0066ff',
-  rider:    '#22c55e',
+  rider:    '#F0B90B',
   vendor:   '#f97316',
+};
+
+const ROLE_ACCENT_TEXT: Record<RegisterRole, string> = {
+  customer: '#fff',
+  rider:    '#0B0E11',
+  vendor:   '#fff',
 };
 
 const ROLE_LABELS: Record<RegisterRole, string> = {
@@ -128,13 +134,13 @@ const s = {
     background: '#fff',
   },
   checkboxRow: { display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' } as React.CSSProperties,
-  btnPrimary: (accent: string): React.CSSProperties => ({
+  btnPrimary: (accent: string, textColor = '#fff'): React.CSSProperties => ({
     width: '100%',
     padding: '13px',
     borderRadius: '8px',
     border: 'none',
     background: accent,
-    color: '#fff',
+    color: textColor,
     fontWeight: 700,
     fontSize: '15px',
     cursor: 'pointer',
@@ -196,6 +202,7 @@ export function RegisterScreen({
   bare = false,
 }: RegisterScreenProps) {
   const accent = ROLE_ACCENT[role];
+  const accentText = ROLE_ACCENT_TEXT[role];
   const displayTitle = title ?? ROLE_LABELS[role];
 
   const [stepIndex, setStepIndex] = useState(0);
@@ -444,7 +451,7 @@ export function RegisterScreen({
           />
           <button
             type="button"
-            style={{ ...s.btnPrimary(accent), ...(loading ? s.btnDisabled : {}) }}
+            style={{ ...s.btnPrimary(accent, accentText), ...(loading ? s.btnDisabled : {}) }}
             disabled={loading}
             onClick={() => void handleNext()}
           >
@@ -537,7 +544,7 @@ export function RegisterScreen({
 
           <button
             type="submit"
-            style={{ ...s.btnPrimary(accent), ...(loading ? s.btnDisabled : {}) }}
+            style={{ ...s.btnPrimary(accent, accentText), ...(loading ? s.btnDisabled : {}) }}
             disabled={loading}
           >
             {loading
@@ -569,7 +576,7 @@ export function RegisterScreen({
         <form onSubmit={(e) => void handleNext(e)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <button
             type="submit"
-            style={{ ...s.btnPrimary(accent), ...(loading ? s.btnDisabled : {}) }}
+            style={{ ...s.btnPrimary(accent, accentText), ...(loading ? s.btnDisabled : {}) }}
             disabled={loading}
           >
             {loading ? 'Sending…' : 'Send Verification Code'}
