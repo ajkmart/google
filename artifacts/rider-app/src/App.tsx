@@ -421,29 +421,101 @@ function AppRoutes() {
   /* ── Approval status guard — shown after session rehydration if still pending/rejected ── */
   if (user.approvalStatus === "pending") {
     qc.clear(); /* S-Sec10 */
+    const submittedAt = user.createdAt ? new Date(user.createdAt) : null;
+    const submittedLabel = submittedAt
+      ? (() => {
+          const diffMs = Date.now() - submittedAt.getTime();
+          const diffMin = Math.floor(diffMs / 60000);
+          if (diffMin < 2) return "Submitted just now";
+          if (diffMin < 60) return `Submitted ${diffMin} minutes ago`;
+          const diffHr = Math.floor(diffMin / 60);
+          if (diffHr < 24) return `Submitted ${diffHr} hour${diffHr > 1 ? "s" : ""} ago`;
+          return `Submitted on ${submittedAt.toLocaleDateString("en-PK", { day: "numeric", month: "short" })}`;
+        })()
+      : null;
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-6">
-        <div className="bg-white rounded-3xl shadow-xl p-8 max-w-sm w-full text-center">
-          <div className="text-5xl mb-4">
-            <span>⏳</span>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50 flex items-center justify-center p-5">
+        <div className="bg-white rounded-3xl shadow-xl max-w-sm w-full overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 px-6 pt-8 pb-6 text-white">
+            <div className="w-16 h-16 bg-amber-500/15 border border-amber-500/30 rounded-2xl flex items-center justify-center mb-4">
+              <span className="text-3xl">⏳</span>
+            </div>
+            <h2 className="text-xl font-extrabold mb-1">Application Submitted</h2>
+            <p className="text-gray-400 text-sm">
+              Welcome, <span className="text-white font-semibold">{user.name || "Rider"}</span>
+            </p>
+            {submittedLabel && (
+              <p className="text-gray-500 text-xs mt-1">{submittedLabel}</p>
+            )}
           </div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Account Under Review</h2>
-          <p className="text-gray-500 text-sm leading-relaxed mb-6">
-            Your rider account is pending admin approval. You will be able to access the app once your account is approved.
-          </p>
-          {/* U6: Contact support CTA on approval/rejection screens */}
-          {supportPhone && (
-            <a href={`tel:${supportPhone}`}
-              className="block w-full py-3 mb-2 rounded-2xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 transition-colors">
-              {T("contactSupport")}
-            </a>
-          )}
-          {/* A8: Use auth.logout() (which awaits the server-side revoke) instead of
-              local-only api.clearTokens(). The reload happens in onSettled. */}
-          <button onClick={async () => { try { logout(); } finally { window.location.reload(); } }}
-            className="w-full py-3 rounded-2xl bg-gray-100 text-gray-700 font-semibold text-sm hover:bg-gray-200 transition-colors">
-            {T("signOutLabel")}
-          </button>
+
+          {/* Progress checklist */}
+          <div className="px-6 py-5 space-y-3">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Application Progress</p>
+            {[
+              {
+                num: 1, label: "Registration submitted",
+                sub: "Your account details are saved",
+                done: true, locked: false, pulse: false,
+              },
+              {
+                num: 2, label: "Documents under review",
+                sub: "Admin is reviewing your documents",
+                done: false, locked: false, pulse: true,
+              },
+              {
+                num: 3, label: "Go online & accept rides",
+                sub: "Unlocks after admin approval",
+                done: false, locked: true, pulse: false,
+              },
+              {
+                num: 4, label: "Withdraw earnings",
+                sub: "Unlocks after approval + bank info",
+                done: false, locked: true, pulse: false,
+              },
+            ].map(item => (
+              <div key={item.num} className={`flex items-start gap-3 p-3 rounded-2xl ${
+                item.done ? "bg-green-50 border border-green-100"
+                : item.locked ? "bg-gray-50 border border-gray-100"
+                : "bg-amber-50 border border-amber-100"
+              }`}>
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-extrabold ${
+                  item.done ? "bg-green-500 text-white"
+                  : item.locked ? "bg-gray-200 text-gray-400"
+                  : "bg-amber-400 text-white"
+                }`}>
+                  {item.done ? "✓" : item.locked ? "🔒" : item.num}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-bold ${
+                    item.done ? "text-green-700"
+                    : item.locked ? "text-gray-400"
+                    : "text-amber-700"
+                  }`}>{item.label}</p>
+                  <p className={`text-xs mt-0.5 ${
+                    item.done ? "text-green-600"
+                    : item.locked ? "text-gray-400"
+                    : "text-amber-600"
+                  } ${item.pulse ? "animate-pulse" : ""}`}>{item.sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Actions */}
+          <div className="px-6 pb-6 space-y-2">
+            {supportPhone && (
+              <a href={`tel:${supportPhone}`}
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 transition-colors">
+                📞 {T("contactSupport")}
+              </a>
+            )}
+            <button onClick={async () => { try { logout(); } finally { window.location.reload(); } }}
+              className="w-full py-3 rounded-2xl bg-gray-100 text-gray-600 font-semibold text-sm hover:bg-gray-200 transition-colors">
+              {T("signOutLabel")}
+            </button>
+          </div>
         </div>
       </div>
     );

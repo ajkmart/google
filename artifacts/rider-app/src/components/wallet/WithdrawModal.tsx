@@ -407,6 +407,33 @@ export default function WithdrawModal({
                 <h3 className="text-xl font-extrabold text-gray-800">{T("withdrawFunds")}</h3>
                 <button onClick={onClose} className="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center text-gray-500"><X size={18}/></button>
               </div>
+
+              {/* KYC gate — shown when wallet_kyc_required=on and rider is not yet verified */}
+              {config?.wallet?.kycRequired && (user as { kycStatus?: string } | null)?.kycStatus !== "verified" && (
+                <div className="mb-4 bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3">
+                  <AlertTriangle size={16} className="text-blue-500 flex-shrink-0 mt-0.5"/>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-blue-800">KYC Required</p>
+                    <p className="text-xs text-blue-600 mt-0.5">
+                      {(user as { kycStatus?: string } | null)?.kycStatus === "pending"
+                        ? "Your documents are under review. Withdrawals will unlock once verified."
+                        : "Complete KYC verification in your Profile to enable withdrawals."}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Bank info gate — shown when no bank account is set */}
+              {!(user?.bankName && user?.bankAccount) && (
+                <div className="mb-4 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+                  <AlertTriangle size={16} className="text-amber-500 flex-shrink-0 mt-0.5"/>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-amber-800">Bank Account Needed</p>
+                    <p className="text-xs text-amber-600 mt-0.5">Add your bank or mobile wallet account in Profile to withdraw earnings.</p>
+                  </div>
+                </div>
+              )}
+
               <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-5 text-white mb-5">
                 <p className="text-sm text-green-200">{T("availableBalance")}</p>
                 <p className="text-4xl font-extrabold mt-0.5">{fc(balance)}</p>

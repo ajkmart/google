@@ -70,6 +70,9 @@ export default function Home() {
   const [toastType, setToastType] = useState<"success" | "error">("success");
   const [newFlash, setNewFlash] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set<string>());
+  const [profileBannerDismissed, setProfileBannerDismissed] = useState(() => {
+    try { return sessionStorage.getItem("_ajkm_profileBannerDismissed") === "1"; } catch { return false; }
+  });
 
 
   const [audioLocked, setAudioLocked] = useState(false);
@@ -865,6 +868,57 @@ export default function Home() {
           minBalance={config.rider?.minBalance ?? 0}
           walletBalance={Number(user?.walletBalance) || 0}
         />
+
+        {/* Incomplete profile banner — dismissible per session */}
+        {(() => {
+          const hasBankInfo = !!(user?.bankName && user?.bankAccount);
+          const kycStatus = (user as { kycStatus?: string } | null)?.kycStatus ?? "none";
+          const kycVerified = kycStatus === "verified" || kycStatus === "pending";
+          const showBankBanner = !hasBankInfo;
+          const showKycBanner = config.wallet?.kycRequired && !kycVerified;
+          if (profileBannerDismissed || (!showBankBanner && !showKycBanner)) return null;
+
+          const dismissBanner = () => {
+            try { sessionStorage.setItem("_ajkm_profileBannerDismissed", "1"); } catch { /* ignore */ }
+            setProfileBannerDismissed(true);
+          };
+
+          return (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-3">
+              <AlertTriangle size={15} className="text-amber-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-amber-800">Complete your profile to unlock withdrawals</p>
+                <div className="mt-1 space-y-0.5">
+                  {showBankBanner && (
+                    <p className="text-[10px] text-amber-700 flex items-center gap-1">
+                      <span className="w-1 h-1 rounded-full bg-amber-500 flex-shrink-0" />
+                      Bank account not added
+                    </p>
+                  )}
+                  {showKycBanner && (
+                    <p className="text-[10px] text-amber-700 flex items-center gap-1">
+                      <span className="w-1 h-1 rounded-full bg-amber-500 flex-shrink-0" />
+                      KYC not verified
+                    </p>
+                  )}
+                </div>
+                <Link
+                  to="/profile"
+                  className="mt-1.5 text-[10px] font-bold text-amber-800 underline underline-offset-2"
+                >
+                  Go to Profile →
+                </Link>
+              </div>
+              <button
+                onClick={dismissBanner}
+                className="flex-shrink-0 text-amber-400 hover:text-amber-600 transition-colors p-0.5"
+                aria-label="Dismiss banner"
+              >
+                ✕
+              </button>
+            </div>
+          );
+        })()}
 
         <GoalSection
           adminGoal={config.rider?.dailyGoal ?? 5000}

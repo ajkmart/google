@@ -150,6 +150,7 @@ export interface PlatformConfig {
     withdrawalProcessingDays?: number;
     maxDailyWithdrawal?: number;
     maxDailyTransactionCount?: number;
+    kycRequired?: boolean;
   };
   geofence?: {
     polygon?: Array<[number, number]>;

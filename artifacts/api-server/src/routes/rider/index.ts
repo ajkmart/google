@@ -345,8 +345,13 @@ router.get("/me", async (req, res) => {
     ...(() => {
       try {
         const docs = JSON.parse(riderProfile?.documents || "{}");
-        return { cnicDocUrl: docs.cnicDocUrl || null, licenseDocUrl: docs.licenseDocUrl || null, regDocUrl: docs.regDocUrl || null };
-      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback return"); return { cnicDocUrl: null, licenseDocUrl: null, regDocUrl: null }; }
+        return {
+          cnicDocUrl:     docs.cnicDocUrl     || null,
+          cnicBackDocUrl: docs.cnicBackDocUrl || null,
+          licenseDocUrl:  docs.licenseDocUrl  || null,
+          regDocUrl:      docs.regDocUrl      || null,
+        };
+      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback return"); return { cnicDocUrl: null, cnicBackDocUrl: null, licenseDocUrl: null, regDocUrl: null }; }
     })(),
     stats: {
       deliveriesToday,
@@ -358,6 +363,53 @@ router.get("/me", async (req, res) => {
   });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    sendError(res, "Internal server error", 500);
+  }
+});
+
+/* ── POST /rider/kyc/request — Submit KYC review from existing registration docs ── */
+router.post("/kyc/request", async (req, res) => {
+  try {
+    const riderId = req.riderId!;
+    const [riderProfile] = await db
+      .select({ documents: riderProfilesTable.documents })
+      .from(riderProfilesTable)
+      .where(eq(riderProfilesTable.userId, riderId))
+      .limit(1);
+
+    let hasDocs = false;
+    if (riderProfile?.documents) {
+      try {
+        const docs = JSON.parse(riderProfile.documents);
+        hasDocs = !!(docs.cnicDocUrl || docs.licenseDocUrl || docs.vehiclePhoto);
+      } catch { hasDocs = false; }
+    }
+    if (!hasDocs) {
+      sendForbidden(res, "No documents found. Please upload your documents in the Vehicle tab first."); return;
+    }
+
+    const [user] = await db
+      .select({ kycStatus: usersTable.kycStatus })
+      .from(usersTable)
+      .where(eq(usersTable.id, riderId))
+      .limit(1);
+
+    if (user?.kycStatus === "verified") {
+      sendError(res, "Your documents are already verified.", 400); return;
+    }
+    if (user?.kycStatus === "pending") {
+      sendError(res, "Your KYC review is already in progress.", 400); return;
+    }
+
+    await db
+      .update(usersTable)
+      .set({ kycStatus: "pending", updatedAt: new Date() })
+      .where(eq(usersTable.id, riderId));
+
+    logger.info({ riderId }, "[kyc] rider requested KYC review from registration docs");
+    sendSuccess(res, { message: "KYC review requested. Our team will review your documents shortly." });
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err) }, "[kyc/request] error");
     sendError(res, "Internal server error", 500);
   }
 });

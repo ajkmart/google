@@ -571,31 +571,69 @@ export default function Wallet() {
             </p>
           )}
 
-          <div className="flex gap-2.5">
-            {withdrawalEnabled ? (
-              <button onClick={() => setShowWithdraw(true)}
-                className="flex-1 bg-white text-gray-900 font-black rounded-2xl py-3.5 text-sm flex items-center justify-center gap-2 active:bg-gray-100 transition-all shadow-lg shadow-white/10">
-                <ArrowUpFromLine size={15}/> {T("withdraw")}
-              </button>
-            ) : (
-              <button disabled className="flex-1 bg-white/10 text-white/40 font-bold rounded-2xl py-3.5 text-sm flex items-center justify-center gap-2 cursor-not-allowed border border-white/10">
-                <Lock size={14}/> {T("withdrawalsPaused")}
-              </button>
-            )}
-            {depositEnabled && (
-              <button onClick={() => setShowDeposit(true)}
-                className="flex-1 bg-white/10 text-white font-bold rounded-2xl py-3.5 text-sm flex items-center justify-center gap-2 border border-white/[0.08] active:bg-white/15 transition-all backdrop-blur-sm">
-                <ArrowDownToLine size={15}/> {T("deposit")}
-              </button>
-            )}
-          </div>
+          {(() => {
+            const kycRequired = config.wallet?.kycRequired === true;
+            const kycVerified = (user as { kycStatus?: string } | null)?.kycStatus === "verified";
+            const hasBankInfo = !!(user?.bankName && user?.bankAccount);
+            const kycBlocked = kycRequired && !kycVerified;
+            const bankBlocked = !hasBankInfo;
 
-          {!withdrawalEnabled && (
-            <div className="mt-3 bg-red-500/15 rounded-2xl px-3 py-2 flex items-center gap-2 border border-red-500/15">
-              <XCircle size={12} className="text-red-400 flex-shrink-0"/>
-              <p className="text-[10px] text-red-300 font-medium">{T("withdrawalsDisabled")}</p>
-            </div>
-          )}
+            return (
+              <>
+                {/* Bank info gate */}
+                {bankBlocked && withdrawalEnabled && (
+                  <div className="mb-3 bg-amber-500/15 border border-amber-500/20 rounded-2xl px-3.5 py-3 flex items-start gap-2.5">
+                    <AlertTriangle size={14} className="text-amber-400 flex-shrink-0 mt-0.5"/>
+                    <div>
+                      <p className="text-xs text-amber-300 font-bold">Bank account required</p>
+                      <p className="text-[10px] text-amber-400/70 mt-0.5">Add your bank details in Profile → Bank tab to enable withdrawals.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* KYC gate */}
+                {kycBlocked && withdrawalEnabled && (
+                  <div className="mb-3 bg-blue-500/15 border border-blue-500/20 rounded-2xl px-3.5 py-3 flex items-start gap-2.5">
+                    <ShieldCheck size={14} className="text-blue-400 flex-shrink-0 mt-0.5"/>
+                    <div>
+                      <p className="text-xs text-blue-300 font-bold">KYC verification required</p>
+                      <p className="text-[10px] text-blue-400/70 mt-0.5">Your documents must be verified before withdrawing. Status: <span className="font-semibold capitalize">{(user as { kycStatus?: string } | null)?.kycStatus ?? "none"}</span>.</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2.5">
+                  {withdrawalEnabled && !kycBlocked && !bankBlocked ? (
+                    <button onClick={() => setShowWithdraw(true)}
+                      className="flex-1 bg-white text-gray-900 font-black rounded-2xl py-3.5 text-sm flex items-center justify-center gap-2 active:bg-gray-100 transition-all shadow-lg shadow-white/10">
+                      <ArrowUpFromLine size={15}/> {T("withdraw")}
+                    </button>
+                  ) : withdrawalEnabled ? (
+                    <button disabled className="flex-1 bg-white/10 text-white/40 font-bold rounded-2xl py-3.5 text-sm flex items-center justify-center gap-2 cursor-not-allowed border border-white/10">
+                      <Lock size={14}/> {bankBlocked ? "Add Bank Info" : kycBlocked ? "KYC Required" : T("withdrawalsPaused")}
+                    </button>
+                  ) : (
+                    <button disabled className="flex-1 bg-white/10 text-white/40 font-bold rounded-2xl py-3.5 text-sm flex items-center justify-center gap-2 cursor-not-allowed border border-white/10">
+                      <Lock size={14}/> {T("withdrawalsPaused")}
+                    </button>
+                  )}
+                  {depositEnabled && (
+                    <button onClick={() => setShowDeposit(true)}
+                      className="flex-1 bg-white/10 text-white font-bold rounded-2xl py-3.5 text-sm flex items-center justify-center gap-2 border border-white/[0.08] active:bg-white/15 transition-all backdrop-blur-sm">
+                      <ArrowDownToLine size={15}/> {T("deposit")}
+                    </button>
+                  )}
+                </div>
+
+                {!withdrawalEnabled && (
+                  <div className="mt-3 bg-red-500/15 rounded-2xl px-3 py-2 flex items-center gap-2 border border-red-500/15">
+                    <XCircle size={12} className="text-red-400 flex-shrink-0"/>
+                    <p className="text-[10px] text-red-300 font-medium">{T("withdrawalsDisabled")}</p>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
 

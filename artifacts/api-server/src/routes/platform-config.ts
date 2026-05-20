@@ -272,6 +272,7 @@ router.get("/", async (req, res) => {
       withdrawalProcessingDays: s["wallet_withdrawal_processing"]
         ? Math.ceil(parseInt(s["wallet_withdrawal_processing"]) / 24)
         : null,
+      kycRequired: (s["wallet_kyc_required"] ?? "off") === "on",
     },
     integrations: {
       jazzcash:  { enabled: jazzcashEnabled },

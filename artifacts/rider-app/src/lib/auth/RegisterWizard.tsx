@@ -2,7 +2,7 @@
  * RegisterWizard.tsx — rider-app
  *
  * Multi-step registration wizard for riders:
- *   Phone → OTP → CNIC/Vehicle → Password → Done
+ *   Phone → OTP → CNIC/Vehicle → Documents → Password → Done
  *
  * Wraps @workspace/auth-react RegisterScreen with rider-specific
  * step configuration, API wiring, and theme tokens.
@@ -21,23 +21,19 @@ import { usePlatformConfig } from "../useConfig";
 import { useRiderAuthConfig } from "../AuthConfigContext";
 import { useLanguage } from "../useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
-import { executeCaptcha } from "@workspace/auth-utils";
-import { useAuth as useAuthContext } from "../rider-auth";
-import { Lock, Phone, ArrowLeft, Clock, Shield, Eye, EyeOff } from "lucide-react";
+import { Lock, Phone, ArrowLeft, Clock, Shield, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { RegisterStepDocuments, type UploadedDoc } from "../../pages/register/RegisterStepDocuments";
 import { isValidPhone, isValidCnic } from "@workspace/phone-utils";
 
 const DRAFT_KEY = "rider_reg_draft";
 
 /* ── Validate Pakistani phone: 03XXXXXXXXX (11 digits, starts with 03) ── */
 function isValidPakistaniPhone(phone: string): boolean {
-  /* Delegates to the shared phone-utils validator — single source of truth. */
   return isValidPhone(phone);
 }
 
 /* ── Step 1: Phone + Personal Info ──────────────────────────────────────────── */
 function PhoneInfoStep({ data, onChange, onError }: StepComponentProps) {
-  const { config } = usePlatformConfig();
-  const auth = useRiderAuthConfig();
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
 
@@ -58,7 +54,6 @@ function PhoneInfoStep({ data, onChange, onError }: StepComponentProps) {
         setUsernameStatus(res.username && !res.username.available ? "taken" : "available");
       } catch (e: unknown) {
         if (e instanceof Error && e.name === "AbortError") return;
-        /* Network error — don't falsely mark as taken, just reset to idle */
         setUsernameStatus("idle");
       }
     }, 600);
@@ -104,7 +99,6 @@ function OtpStep({ data, onChange, onError, onComplete }: StepComponentProps & {
   const [resendCooldown, setResendCooldown] = useState(0);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  /* ── Start cooldown on mount ── */
   useEffect(() => {
     setResendCooldown(30);
   }, []);
@@ -236,7 +230,94 @@ function VehicleStep({ data, onChange, onError }: StepComponentProps) {
   );
 }
 
-/* ── Step 4: Password ──────────────────────────────────────────────── */
+/* ── Step 4: KYC Document Uploads — wraps RegisterStepDocuments ──────── */
+function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
+  const uploadTokenRef = useRef<string | null>(null);
+  const [optimisingField, setOptimisingField] = useState("");
+  const [uploadingField, setUploadingField]   = useState("");
+  const [uploadErrors, setUploadErrors]       = useState<Record<string, string>>({});
+  const [lastFiles, setLastFiles]             = useState<Record<string, File>>({});
+
+  /* Pre-fetch a single upload token on mount; all 4 uploads reuse it. */
+  useEffect(() => {
+    if (uploadTokenRef.current) return;
+    api.getRegistrationUploadToken()
+      .then(t => { uploadTokenRef.current = t; })
+      .catch(() => {});
+  }, []);
+
+  /* Derive UploadedDoc from step data (keyed by backend field names). */
+  const makeDoc = (dataKey: string): UploadedDoc | null => {
+    const url = (data[dataKey] as string) ?? "";
+    return url ? { label: dataKey, url, preview: url } : null;
+  };
+
+  /* handleFileUpload satisfies RegisterStepDocuments.handleFileUpload signature.
+     Uses the pre-fetched token; refreshes once on 401. */
+  const handleFileUpload = async (
+    file: File,
+    field: string,
+    setter: (d: UploadedDoc) => void,
+  ) => {
+    setLastFiles(prev => ({ ...prev, [field]: file }));
+    setUploadingField(field);
+    setUploadErrors(prev => ({ ...prev, [field]: "" }));
+    try {
+      let token = uploadTokenRef.current;
+      if (!token) {
+        token = await api.getRegistrationUploadToken();
+        uploadTokenRef.current = token;
+      }
+      let res: { url?: string };
+      try {
+        res = await api.uploadRegistrationDocWithToken(file, token) as { url?: string };
+      } catch (e: unknown) {
+        if ((e as { status?: number })?.status === 401) {
+          token = await api.getRegistrationUploadToken();
+          uploadTokenRef.current = token;
+          res = await api.uploadRegistrationDocWithToken(file, token) as { url?: string };
+        } else throw e;
+      }
+      if (!res?.url) throw new Error("No URL returned from upload");
+      const preview = URL.createObjectURL(file);
+      setter({ label: field, url: res.url, preview });
+      onError("");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Upload failed";
+      setUploadErrors(prev => ({ ...prev, [field]: msg }));
+      onError(`Upload failed: ${field}`);
+    } finally {
+      setUploadingField("");
+      setOptimisingField("");
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-gray-100 font-bold text-lg mb-1">Document Upload</h3>
+      <p className="text-gray-500 text-sm mb-4">
+        Upload clear photos of your documents. All 4 are required for KYC verification.
+      </p>
+      <RegisterStepDocuments
+        vehiclePhoto={makeDoc("vehiclePhoto")}
+        setVehiclePhoto={d => onChange("vehiclePhoto", d.url)}
+        cnicPhoto={makeDoc("cnicDocUrl")}
+        setCnicPhoto={d => onChange("cnicDocUrl", d.url)}
+        cnicBackPhoto={makeDoc("cnicBackDocUrl")}
+        setCnicBackPhoto={d => onChange("cnicBackDocUrl", d.url)}
+        licensePhoto={makeDoc("licenseDocUrl")}
+        setLicensePhoto={d => onChange("licenseDocUrl", d.url)}
+        handleFileUpload={handleFileUpload}
+        uploadErrors={uploadErrors}
+        lastFiles={lastFiles}
+        optimisingField={optimisingField}
+        uploadingField={uploadingField}
+      />
+    </div>
+  );
+}
+
+/* ── Step 5: Password ──────────────────────────────────────────────── */
 function PasswordStep({ data, onChange, onError }: StepComponentProps) {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
@@ -283,7 +364,7 @@ function PasswordStep({ data, onChange, onError }: StepComponentProps) {
   );
 }
 
-/* ── Step 5: Success ────────────────────────────────────────────────── */
+/* ── Step 6: Success ────────────────────────────────────────────────── */
 function SuccessStep({ data }: StepComponentProps) {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
@@ -295,15 +376,45 @@ function SuccessStep({ data }: StepComponentProps) {
       </div>
       <h3 className="text-gray-100 font-bold text-2xl mb-3">{T("registrationComplete")}</h3>
       <p className="text-gray-500 text-sm leading-relaxed mb-6">{T("riderApprovalMsg")}</p>
-      <div className="bg-gray-950 border border-gray-800 rounded-xl p-4">
-        <p className="text-yellow-500 text-xs font-bold uppercase tracking-wider mb-2">{T("nextSteps")}</p>
-        <p className="text-gray-400 text-xs leading-relaxed">{T("approvalReviewMsg")}</p>
+      <div className="bg-gray-950 border border-gray-800 rounded-xl p-4 text-left space-y-2">
+        {[
+          { label: "Registration submitted", done: true },
+          { label: "Documents under review", done: false, pulse: true },
+          { label: "Go online & accept rides", done: false, locked: true },
+          { label: "Withdraw earnings", done: false, locked: true },
+        ].map((item, i) => (
+          <div key={i} className="flex items-center gap-3">
+            {item.done ? (
+              <CheckCircle2 size={16} className="text-green-500 flex-shrink-0" />
+            ) : item.locked ? (
+              <Lock size={16} className="text-gray-600 flex-shrink-0" />
+            ) : (
+              <Clock size={16} className={`text-yellow-500 flex-shrink-0 ${item.pulse ? "animate-pulse" : ""}`} />
+            )}
+            <span className={`text-xs font-medium ${item.done ? "text-green-400" : item.locked ? "text-gray-600" : "text-yellow-400"}`}>
+              {item.label}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
 /* ── Wizard config ─────────────────────────────────────────────────────────── */
+const DOCUMENTS_STEP: StepConfig = {
+  id: "documents",
+  title: "Documents",
+  component: DocumentsStep,
+  validate: (data) => {
+    if (!String(data.vehiclePhoto   ?? "").trim()) return "Please upload your Vehicle Photo";
+    if (!String(data.cnicDocUrl     ?? "").trim()) return "Please upload your CNIC (front side)";
+    if (!String(data.cnicBackDocUrl ?? "").trim()) return "Please upload your CNIC (back side)";
+    if (!String(data.licenseDocUrl  ?? "").trim()) return "Please upload your Driving License photo";
+    return null;
+  },
+};
+
 const BASE_STEPS: StepConfig[] = [
   {
     id: "phone",
@@ -332,6 +443,7 @@ const BASE_STEPS: StepConfig[] = [
       return null;
     },
   },
+  DOCUMENTS_STEP,
   { id: "success", title: "Done", component: SuccessStep },
 ];
 
@@ -361,19 +473,24 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
   const T = (key: TranslationKey) => tDual(key, language);
   const auth = useRiderAuthConfig();
 
+  /* Insert password step before success when username/password login is enabled */
   const steps: StepConfig[] = auth.usernamePassword
-    ? [BASE_STEPS[0], BASE_STEPS[1], BASE_STEPS[2], PASSWORD_STEP, BASE_STEPS[3]]
+    ? [BASE_STEPS[0], BASE_STEPS[1], BASE_STEPS[2], BASE_STEPS[3], PASSWORD_STEP, BASE_STEPS[4]]
     : BASE_STEPS;
 
   const [draft, setDraft] = useState<Record<string, unknown>>(() => {
     try { const raw = localStorage.getItem(DRAFT_KEY); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
   });
 
-  /* ── Save draft on every change, but never persist password fields ── */
+  /* Save draft on every change — exclude passwords and uploaded document URLs */
   const handleDataChange = useCallback((key: string, value: unknown) => {
     setDraft(prev => {
       const next = { ...prev, [key]: value };
-      const { password: _pw, confirmPassword: _cpw, ...safe } = next as Record<string, unknown>;
+      const {
+        password: _pw, confirmPassword: _cpw,
+        vehiclePhoto: _vp, cnicDocUrl: _cd, cnicBackDocUrl: _cbd, licenseDocUrl: _ld,
+        ...safe
+      } = next as Record<string, unknown>;
       localStorage.setItem(DRAFT_KEY, JSON.stringify(safe));
       return next;
     });
@@ -388,6 +505,13 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
   /* ── Submit handler ── */
   const handleSubmit = async (data: Record<string, unknown>) => {
     try {
+      /* Build the documents JSON — field names match what /rider/me parses */
+      const documents = JSON.stringify({
+        cnicDocUrl:     data.cnicDocUrl     || null,
+        cnicBackDocUrl: data.cnicBackDocUrl || null,
+        licenseDocUrl:  data.licenseDocUrl  || null,
+      });
+
       const payload: Parameters<typeof api.registerRider>[0] = {
         name: data.name as string,
         phone: data.phone as string,
@@ -396,6 +520,8 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
         vehicleType: data.vehicleType as string,
         vehicleRegistration: data.vehicleRegistration as string,
         drivingLicense: data.drivingLicense as string,
+        vehiclePhoto: data.vehiclePhoto as string | undefined,
+        documents,
       };
       if (auth.usernamePassword && data.password) {
         payload.password = data.password as string;

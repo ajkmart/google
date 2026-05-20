@@ -1,7 +1,7 @@
 import { formatCurrency as _sharedFcP } from "@workspace/api-zod";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Bell, MapPin, Circle, Bike, User, Landmark, Home, Wallet,
   ClipboardList, BarChart2, Pencil, Star, Camera, Truck,
@@ -57,6 +57,12 @@ export default function Profile() {
     staleTime: 30000,
   });
   const unread: number = notifData?.unread || 0;
+
+  const queryClient = useQueryClient();
+  const kycMut = useMutation({
+    mutationFn: () => api.requestKycReview(),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["rider-me"] }); },
+  });
 
   const { data: citiesData } = useQuery({
     queryKey: ["popular-cities"],
@@ -669,6 +675,90 @@ export default function Profile() {
                     <InfoRow label={T("cityLabel")}           value={user?.city}             empty={T("notSet")} icon={<MapPin size={12} className="text-red-500"/>}/>
                     <InfoRow label={T("homeAddress")}         value={user?.address}          empty={T("notSet")} icon={<Home size={12} className="text-teal-500"/>}/>
                     <InfoRow label={T("emergencyContactLabel")} value={user?.emergencyContact} empty={T("notSet")} icon={<Phone size={12} className="text-orange-500"/>}/>
+
+                    {/* KYC Verification Status card */}
+                    {(() => {
+                      const kycStatus = (user as { kycStatus?: string } | null)?.kycStatus ?? "none";
+                      const cnicDocUrl     = (user as { cnicDocUrl?: string }     | null)?.cnicDocUrl;
+                      const cnicBackDocUrl = (user as { cnicBackDocUrl?: string } | null)?.cnicBackDocUrl;
+                      const licenseDocUrl  = (user as { licenseDocUrl?: string }  | null)?.licenseDocUrl;
+                      const vehiclePhotoUrl = user?.vehiclePhoto;
+                      const statusConfig = {
+                        verified: { bg: "bg-green-50 border-green-200",  badge: "bg-green-100 text-green-700",  icon: "✓", label: "Verified" },
+                        pending:  { bg: "bg-amber-50 border-amber-200",  badge: "bg-amber-100 text-amber-700",  icon: "⏳", label: "Under Review" },
+                        rejected: { bg: "bg-red-50 border-red-200",      badge: "bg-red-100 text-red-600",      icon: "✗", label: "Rejected" },
+                        none:     { bg: "bg-gray-50 border-gray-200",    badge: "bg-gray-100 text-gray-600",    icon: "?", label: "Not Submitted" },
+                      }[kycStatus] ?? { bg: "bg-gray-50 border-gray-200", badge: "bg-gray-100 text-gray-600", icon: "?", label: kycStatus };
+
+                      const docs = [
+                        { label: "CNIC Front",  done: !!cnicDocUrl },
+                        { label: "CNIC Back",   done: !!cnicBackDocUrl },
+                        { label: "License",     done: !!licenseDocUrl },
+                        { label: "Vehicle",     done: !!vehiclePhotoUrl },
+                      ];
+
+                      const canRequest = kycStatus === "none" || kycStatus === "rejected";
+                      const hasDocs = !!(cnicDocUrl || licenseDocUrl || vehiclePhotoUrl);
+
+                      return (
+                        <div className={`mx-4 my-3 rounded-2xl border p-3.5 ${statusConfig.bg}`}>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <Shield size={14} className="text-gray-600"/>
+                              <p className="text-xs font-bold text-gray-700">Verification Status</p>
+                            </div>
+                            <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${statusConfig.badge}`}>
+                              {statusConfig.icon} {statusConfig.label}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-4 gap-1.5">
+                            {docs.map(d => (
+                              <div key={d.label} className={`text-center py-1.5 rounded-xl text-[9px] font-semibold ${
+                                d.done ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400"
+                              }`}>
+                                <div className="text-sm mb-0.5">{d.done ? "✓" : "—"}</div>
+                                {d.label}
+                              </div>
+                            ))}
+                          </div>
+                          {kycStatus === "rejected" && (
+                            <p className="text-[10px] text-red-600 mt-2 font-medium">
+                              {(user as { rejectionReason?: string } | null)?.rejectionReason
+                                ? `Rejected: ${(user as { rejectionReason?: string }).rejectionReason}`
+                                : "Your documents were rejected. Please re-upload in the Vehicle tab."}
+                            </p>
+                          )}
+                          {kycStatus === "none" && (
+                            <p className="text-[10px] text-gray-500 mt-2">
+                              Upload your CNIC, driving licence, and vehicle photo to start KYC.
+                            </p>
+                          )}
+                          {canRequest && hasDocs && (
+                            <button
+                              onClick={() => kycMut.mutate()}
+                              disabled={kycMut.isPending}
+                              className="mt-2.5 w-full h-9 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+                            >
+                              {kycMut.isPending ? (
+                                <><Clock size={12} className="animate-spin"/> Submitting…</>
+                              ) : (
+                                <><Shield size={12}/> Request KYC Review</>
+                              )}
+                            </button>
+                          )}
+                          {kycMut.isError && (
+                            <p className="text-[10px] text-red-500 mt-1.5 text-center">
+                              {(kycMut.error as Error)?.message ?? "Failed to submit KYC request"}
+                            </p>
+                          )}
+                          {kycMut.isSuccess && (
+                            <p className="text-[10px] text-blue-600 mt-1.5 text-center font-semibold">
+                              Request submitted — your documents are under review.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>

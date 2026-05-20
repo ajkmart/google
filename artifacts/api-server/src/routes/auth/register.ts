@@ -579,7 +579,14 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
   const requireApproval = (settings["user_require_approval"] ?? "off") === "on";
   const autoApproveRider = userRole === "rider" && settings["rider_auto_approve"] === "on";
   const autoApproveVendor = userRole === "vendor" && settings["vendor_auto_approve"] === "on";
-  const needsApproval = requireApproval && !autoApproveRider && !autoApproveVendor;
+  /* Riders always start as pending unless rider_auto_approve=on (regardless of user_require_approval).
+     Vendors always start as pending unless vendor_auto_approve=on.
+     Customers use the generic user_require_approval setting. */
+  const needsApproval = userRole === "rider"
+    ? !autoApproveRider
+    : userRole === "vendor"
+      ? !autoApproveVendor
+      : requireApproval;
 
   /* ── OTP bypass detection — mirrors send-otp bypass logic ──────────────── */
   const otpGlobalBypass = settings["security_otp_bypass"] === "on";

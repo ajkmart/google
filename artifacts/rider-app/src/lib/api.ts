@@ -457,6 +457,23 @@ export const api = {
     form.append("purpose", "delivery_proof");
     return apiFetch("/uploads/proof", { method: "POST", body: form });
   },
+  /* Pre-fetch a registration upload session token once and reuse across multiple uploads. */
+  getRegistrationUploadToken: async (): Promise<string> => {
+    const tokenRes = await apiFetch("/uploads/register-token", { method: "POST" });
+    const token: string = tokenRes?.token ?? "";
+    if (!token) throw new Error("Failed to obtain upload session token");
+    return token;
+  },
+  /* Upload a single document using a pre-fetched token (avoids fetching a new token per file). */
+  uploadRegistrationDocWithToken: async (file: File, uploadToken: string) => {
+    const form = new FormData();
+    form.append("file", file, file.name || "document.jpg");
+    return apiFetch("/uploads/register", {
+      method: "POST",
+      body: form,
+      headers: { "x-upload-token": uploadToken },
+    });
+  },
   uploadRegistrationDoc: async (file: File) => {
     /* Obtain a short-lived upload session token (required by the server
        to bind the upload to an active onboarding flow). */
@@ -479,8 +496,6 @@ export const api = {
     try {
       return await doUpload(firstToken);
     } catch (e: unknown) {
-      /* Token may have expired during a slow onboarding step (e.g., the
-         rider spent > 60 s on a form page). Retry once with a fresh token. */
       const status = (e as { status?: number })?.status;
       if (status === 401) {
         const freshToken = await fetchToken();
@@ -489,6 +504,8 @@ export const api = {
       throw e;
     }
   },
+  /* Request a KYC review from the rider's already-uploaded registration documents. */
+  requestKycReview: () => apiFetch("/rider/kyc/request", { method: "POST" }),
   forgotPassword: (data: { method: "phone" | "email"; phone?: string; email?: string; captchaToken?: string }) =>
     apiFetch("/auth/forgot-password", { method: "POST", body: JSON.stringify(data) }),
   resetPassword: (data: { phone?: string; email?: string; otp: string; newPassword: string; totpCode?: string; captchaToken?: string }) =>
