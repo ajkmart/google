@@ -67,7 +67,7 @@ export function useAuth() {
     return wrap(async () => {
       try {
         const res = await api.verifyOtp(phone, otp) as Record<string, unknown>;
-        return { success: true, data: { token: res.token as string, refreshToken: res.refreshToken as string | undefined } };
+        return { success: true, data: { token: ((res.accessToken ?? res.token) as string), refreshToken: res.refreshToken as string | undefined } };
       } catch (err: unknown) {
         await captureException(err);
         return { success: false, error: networkError(err) };

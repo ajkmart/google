@@ -565,7 +565,6 @@ router.post("/register", registrationLimiter, verifyCaptcha, sharedValidateBody(
   }
 
   if (userRole === "rider") {
-    if (!cnicValue) { sendError(res, "CNIC is required for rider registration", 400); return; }
     if (!vehicleType) { sendError(res, "Vehicle type is required for rider registration", 400); return; }
   }
 

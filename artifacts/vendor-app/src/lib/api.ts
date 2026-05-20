@@ -125,6 +125,7 @@ async function authPost(path: string, body?: unknown): Promise<unknown> {
     throw err;
   }
   const csrfToken = readCsrfFromCookie();
+  const accessToken = _tokenStorage.getAccessToken();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), _apiTimeoutMs);
   let res: Response;
@@ -136,6 +137,7 @@ async function authPost(path: string, body?: unknown): Promise<unknown> {
       headers: {
         "Content-Type": "application/json",
         ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+        ...(accessToken ? { "Authorization": `Bearer ${accessToken}` } : {}),
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
