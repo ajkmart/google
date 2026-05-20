@@ -24,7 +24,7 @@ import { clearSpoofHits } from "../rider/index.js";
 import { canonicalizePhone } from "@workspace/phone-utils";
 import { isAuthMethodEnabled, isAuthMethodEnabledStrict } from "@workspace/auth-utils/server";
 import { validateBody as sharedValidateBody } from "../../middleware/validate.js";
-import { authLimiter, loginLimiter, otpLimiter } from "../../middleware/rate-limit.js";
+import { authLimiter, loginLimiter, otpLimiter, magicLinkLimiter } from "../../middleware/rate-limit.js";
 import { hashOtp, isValidCanonicalPhone, normalizeVehicleTypeForStorage, generateVerificationToken, hashVerificationToken, tryEncrypt, decryptPii, setRiderRefreshCookie, clearRiderRefreshCookie, setVendorRefreshCookie, clearVendorRefreshCookie, RIDER_REFRESH_COOKIE, RIDER_REFRESH_COOKIE_PATH, VENDOR_REFRESH_COOKIE, VENDOR_REFRESH_COOKIE_PATH } from "./helpers.js";
 import { rotateRefreshToken, invalidateTokenFamily } from "../../services/auth/tokenRotation.js";
 import {
@@ -47,7 +47,7 @@ import {
 const router: IRouter = Router();
 
 const magicLinkRateMap = new Map<string, { count: number; windowStart: number }>();
-  router.post("/magic-link/send", sharedValidateBody(MagicLinkSendSchema), async (req, res) => {
+  router.post("/magic-link/send", magicLinkLimiter, sharedValidateBody(MagicLinkSendSchema), async (req, res) => {
   try {
   const { email } = req.body;
   if (!email || !email.includes("@")) { sendError(res, "Valid email address required", 400); return; }

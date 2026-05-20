@@ -149,7 +149,7 @@ router.post("/vendor-register", registrationLimiter, loginLimiter, sharedValidat
       roles: newRoles.join(","),
       name: name || user.name,
       username: username ? normalizeUsername(username) : user.username || null,
-      cnic: cnic || user.cnic || null,
+      cnic: cnic ? (tryEncrypt(cnic) ?? cnic) : (user.cnic || null),
       address: address || user.address || null,
       city: city || user.city || null,
       bankName: bankName || user.bankName || null,
@@ -370,12 +370,13 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
   const [updated] = await db.update(usersTable).set(updates).where(eq(usersTable.id, userId)).returning();
 
   if (updates.passwordHash) {
-    fireAndForget(
-      revokeAllUserRefreshTokens(userId, "PASSWORD_CHANGED"),
-      "auth:revoke-tokens-on-password-change",
-      logger,
-      { userId, code: "AUTH_REVOKE_TOKENS_FAILED" },
-    );
+    /* Revoke all existing refresh tokens BEFORE minting the new one so no
+       timing window exists where a stolen token could survive a password change.
+       Awaited intentionally — issuing a new token before revocation completes is
+       a session-integrity risk. */
+    await revokeAllUserRefreshTokens(userId, "PASSWORD_CHANGED").catch((err: unknown) => {
+      logger.warn({ userId, err }, "[auth] revokeAllUserRefreshTokens after password change failed — tokens may outlive the password change");
+    });
   }
 
   if (updates.acceptedTermsVersion) {

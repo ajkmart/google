@@ -24,7 +24,7 @@ import { clearSpoofHits } from "../rider/index.js";
 import { canonicalizePhone } from "@workspace/phone-utils";
 import { isAuthMethodEnabled, isAuthMethodEnabledStrict } from "@workspace/auth-utils/server";
 import { validateBody as sharedValidateBody } from "../../middleware/validate.js";
-import { authLimiter, loginLimiter, otpLimiter } from "../../middleware/rate-limit.js";
+import { authLimiter, loginLimiter, otpLimiter, passwordResetLimiter } from "../../middleware/rate-limit.js";
 import { hashOtp, isValidCanonicalPhone, normalizeVehicleTypeForStorage, generateVerificationToken, hashVerificationToken, tryEncrypt, decryptPii, setRiderRefreshCookie, clearRiderRefreshCookie, setVendorRefreshCookie, clearVendorRefreshCookie, RIDER_REFRESH_COOKIE, RIDER_REFRESH_COOKIE_PATH, VENDOR_REFRESH_COOKIE, VENDOR_REFRESH_COOKIE_PATH } from "./helpers.js";
 import { rotateRefreshToken, invalidateTokenFamily } from "../../services/auth/tokenRotation.js";
 import { AuditService } from "../../services/admin-audit.service.js";
@@ -175,7 +175,7 @@ router.post("/set-password", loginLimiter, sharedValidateBody(SetPasswordSchema)
    Keys: otp_acct:<identifier>  and  otp_ip:<ip>
 ══════════════════════════════════════════════════════════════════════ */
 
-router.post("/forgot-password", verifyCaptcha, sharedValidateBody(forgotPasswordSchema), async (req, res) => {
+router.post("/forgot-password", passwordResetLimiter, verifyCaptcha, sharedValidateBody(forgotPasswordSchema), async (req, res) => {
   try {
   let { phone, email, identifier } = req.body;
   const ip = getClientIp(req);

@@ -24,7 +24,7 @@ import { clearSpoofHits } from "../rider/index.js";
 import { canonicalizePhone } from "@workspace/phone-utils";
 import { isAuthMethodEnabled, isAuthMethodEnabledStrict } from "@workspace/auth-utils/server";
 import { validateBody as sharedValidateBody } from "../../middleware/validate.js";
-import { authLimiter, loginLimiter, otpLimiter } from "../../middleware/rate-limit.js";
+import { authLimiter, loginLimiter, otpLimiter, emailOtpLimiter } from "../../middleware/rate-limit.js";
 import { hashOtp, isValidCanonicalPhone, normalizeVehicleTypeForStorage, generateVerificationToken, hashVerificationToken, tryEncrypt, decryptPii, setRiderRefreshCookie, clearRiderRefreshCookie, setVendorRefreshCookie, clearVendorRefreshCookie, RIDER_REFRESH_COOKIE, RIDER_REFRESH_COOKIE_PATH, VENDOR_REFRESH_COOKIE, VENDOR_REFRESH_COOKIE_PATH } from "./helpers.js";
 import { rotateRefreshToken, invalidateTokenFamily } from "../../services/auth/tokenRotation.js";
 import { AuditService } from "../../services/admin-audit.service.js";
@@ -47,7 +47,7 @@ import {
 
 const router: IRouter = Router();
 
-router.post("/send-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(SendEmailOtpSchema), async (req, res) => {
+router.post("/send-email-otp", emailOtpLimiter, verifyCaptcha, sharedValidateBody(SendEmailOtpSchema), async (req, res) => {
   try {
   const { email } = req.body;
   if (!email || !email.includes("@")) {
@@ -159,7 +159,7 @@ router.post("/send-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(Sen
    Login via email OTP. Body: { email, otp }
 ══════════════════════════════════════════════════════════════ */
 
-router.post("/verify-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(VerifyEmailOtpSchema), async (req, res) => {
+router.post("/verify-email-otp", emailOtpLimiter, verifyCaptcha, sharedValidateBody(VerifyEmailOtpSchema), async (req, res) => {
   try {
   const { email, otp } = req.body;
   if (!email || !otp) { sendError(res, "Email and OTP are required", 400); return; }
