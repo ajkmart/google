@@ -401,7 +401,7 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
 
   sendSuccess(res, {
     success: true,
-    message: t("passwordUpdated", await getPlatformDefaultLanguage()),
+    message: t("profileUpdated", await getPlatformDefaultLanguage()),
     token: accessToken,
     refreshToken: refreshRaw,
     user: { id: updated!.id, phone: updated!.phone, name: updated!.name, email: updated!.email, username: updated!.username, role: updated!.roles, roles: updated!.roles, avatar: updated!.avatar, cnic: updated!.cnic, city: updated!.city, area: updated!.area, address: updated!.address, latitude: updated!.latitude, longitude: updated!.longitude, kycStatus: updated!.kycStatus, accountLevel: updated!.accountLevel, totpEnabled: updated!.totpEnabled ?? false, emailVerified: updated!.emailVerified, phoneVerified: updated!.phoneVerified, walletBalance: parseFloat(updated!.walletBalance ?? "0"), isActive: updated!.isActive, createdAt: updated!.createdAt.toISOString() },

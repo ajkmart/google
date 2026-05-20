@@ -57,6 +57,21 @@ async function authPost(path: string, body: object) {
   return data;
 }
 
+interface AuthLoginResponse {
+  requires2FA?: boolean;
+  tempToken?: string;
+  userId?: string;
+  pendingApproval?: boolean;
+  token?: string;
+  refreshToken?: string;
+  user?: Partial<AppUser>;
+  otpRequired?: boolean;
+  otp?: string;
+  channel?: string;
+  fallbackChannels?: string[];
+  action?: string;
+}
+
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
   const {
@@ -159,7 +174,7 @@ export default function AuthScreen() {
 
   const clearError = () => setError("");
 
-  const getDeviceFingerprint = async (): Promise<string> => {
+  const getDeviceFingerprint = useCallback(async (): Promise<string> => {
     try {
       const SecureStore = await import("expo-secure-store");
       const existing = await SecureStore.getItemAsync("device_fingerprint");
@@ -178,24 +193,9 @@ export default function AuthScreen() {
     } catch {
       return `${Platform.OS}_${Platform.Version}_unknown`;
     }
-  };
+  }, []);
 
-  interface AuthLoginResponse {
-    requires2FA?: boolean;
-    tempToken?: string;
-    userId?: string;
-    pendingApproval?: boolean;
-    token?: string;
-    refreshToken?: string;
-    user?: Partial<AppUser>;
-    otpRequired?: boolean;
-    otp?: string;
-    channel?: string;
-    fallbackChannels?: string[];
-    action?: string;
-  }
-
-  const handleLoginResult = async (res: AuthLoginResponse) => {
+  const handleLoginResult = useCallback(async (res: AuthLoginResponse) => {
     if (res.requires2FA) {
       setTotpTempToken(res.tempToken);
       setTotpUserId(res.userId);
@@ -226,7 +226,7 @@ export default function AuthScreen() {
       await login(res.user as AppUser, res.token, res.refreshToken);
       router.replace("/(tabs)");
     }
-  };
+  }, [login]);
   /* FIX 2: Magic link is handled centrally in _layout.tsx MagicLinkHandler.
      Duplicate listener removed to prevent double API calls and race conditions. */
 
@@ -241,27 +241,22 @@ export default function AuthScreen() {
 
       if (res.action === "blocked" || res.isBanned) {
         setError("This account has been suspended. Please contact support.");
-        setLoading(false);
         return;
       }
       if (res.action === "locked") {
         setError(`Account locked. Try again in ${res.lockedMinutes} minute(s).`);
-        setLoading(false);
         return;
       }
       if (res.action === "registration_closed") {
         setError("New registrations are currently closed.");
-        setLoading(false);
         return;
       }
       if (res.action === "no_method") {
         setError("No login methods are currently available. Please contact support.");
-        setLoading(false);
         return;
       }
       if (res.action === "register") {
         router.push("/auth/register");
-        setLoading(false);
         return;
       }
       if (res.action === "force_google") {
@@ -271,7 +266,6 @@ export default function AuthScreen() {
         } else {
           setError("This account is linked to Google. Please sign in with Google.");
         }
-        setLoading(false);
         return;
       }
       if (res.action === "force_facebook") {
@@ -281,14 +275,13 @@ export default function AuthScreen() {
         } else {
           setError("This account is linked to Facebook. Please sign in with Facebook.");
         }
-        setLoading(false);
         return;
       }
       if (res.action === "send_phone_otp") {
         const normalized = normalizePhone(id);
         setPhone(normalized);
         setMethod("phone");
-        setLoading(false);
+        setLoading(false); // unblock UI before secondary async send-otp
         const r = await authPost("/auth/send-otp", { phone: `0${normalized}` }).catch((e: unknown) => {
           setError(e instanceof Error ? e.message : "Failed to send OTP");
           return null;
@@ -296,7 +289,6 @@ export default function AuthScreen() {
         if (r) {
           if (r.otpRequired === false && r.token) {
             await handleLoginResult(r);
-            setLoading(false);
             return;
           }
           if (r.otp) setDevOtp(r.otp);
@@ -305,13 +297,12 @@ export default function AuthScreen() {
           setResendCooldown(60);
           animateTransition(() => setStep("otp"));
         }
-        setLoading(false);
         return;
       }
       if (res.action === "send_email_otp") {
         setEmail(id);
         setMethod("email");
-        setLoading(false);
+        setLoading(false); // unblock UI before secondary async send-email-otp
         const r = await authPost("/auth/send-email-otp", { email: id }).catch((e: unknown) => {
           setError(e instanceof Error ? e.message : "Failed to send OTP");
           return null;
@@ -323,14 +314,12 @@ export default function AuthScreen() {
           setEmailResendCooldown(60);
           animateTransition(() => setStep("otp"));
         }
-        setLoading(false);
         return;
       }
       if (res.action === "send_magic_link" || res.action === "login_password") {
         setUsername(id);
         setMethod(res.action === "send_magic_link" ? "magic" : "username");
         setStep("method");
-        setLoading(false);
         return;
       }
       setUsername(id);
@@ -344,8 +333,9 @@ export default function AuthScreen() {
         const secs = parseInt(match[1]!, 10) * (match[2]!.toLowerCase().startsWith("m") ? 60 : 1);
         setResendCooldown(secs);
       }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const enabledMethods: { key: LoginMethod; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [];

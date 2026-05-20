@@ -129,6 +129,7 @@ router.post("/validate-token", sharedValidateBody(ValidateTokenSchema), async (r
  */
 router.post("/refresh", sharedValidateBody(refreshTokenSchema), handleRefreshToken);
 
+/** @deprecated Use POST /auth/refresh instead. This alias is kept for legacy clients and will be removed in a future version. */
 router.post("/refresh-token", sharedValidateBody(refreshTokenSchema), handleRefreshToken);
 
 /* ─────────────────────────────────────────────────────────────
