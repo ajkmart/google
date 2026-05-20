@@ -15,6 +15,7 @@ import { useLocation } from "wouter";
 import { RegisterScreen } from "@workspace/auth-react";
 import type { StepConfig, StepComponentProps } from "@workspace/auth-react";
 import { useTheme } from "./ThemeContext";
+import { captureDeviceMeta } from "../deviceMeta";
 import { useAuthOps } from "./useAuth";
 import { api } from "../api";
 import { usePlatformConfig } from "../useConfig";
@@ -88,8 +89,8 @@ function PhoneInfoStep({ data, onChange, onError }: StepComponentProps) {
           style={{ background: theme.background, border: `1px solid ${theme.border}`, color: theme.text }}
           value={(data.username as string) ?? ""} onChange={e => { onChange("username", e.target.value); onError(""); }} placeholder="ali_rider" />
         {usernameStatus === "checking" && <p className="text-xs mt-1" style={{ color: theme.textMuted }}>Checking availability…</p>}
-        {usernameStatus === "taken" && <p className="text-red-400 text-xs mt-1">Username already taken</p>}
-        {usernameStatus === "available" && <p className="text-green-400 text-xs mt-1">Username available</p>}
+        {usernameStatus === "taken" && <p role="alert" aria-live="polite" className="text-red-400 text-xs mt-1">Username already taken</p>}
+        {usernameStatus === "available" && <p role="status" aria-live="polite" className="text-green-400 text-xs mt-1">Username available</p>}
       </div>
     </div>
   );
@@ -153,27 +154,29 @@ function OtpStep({ data, onChange, onError, onComplete }: StepComponentProps & {
     setResendCooldown(30);
   };
 
+  const theme = useTheme();
   return (
     <div className="text-center">
-      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-yellow-500/30" style={{ backgroundColor: "rgba(234,179,8,0.08)" }}>
-        <Phone size={28} className="text-yellow-500" />
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ border: `1px solid ${theme.primary}4D`, backgroundColor: `${theme.primary}14` }}>
+        <Phone size={28} style={{ color: theme.primary }} />
       </div>
-      <h3 className="text-gray-100 font-bold text-xl mb-2">{T("verifyPhone")}</h3>
-      <p className="text-gray-500 text-sm mb-6">{T("enterOtpSentTo")} <strong className="text-gray-300">{(data.phone as string) ?? ""}</strong></p>
+      <h3 className="font-bold text-xl mb-2" style={{ color: theme.text }}>{T("verifyPhone")}</h3>
+      <p className="text-sm mb-6" style={{ color: theme.textMuted }}>{T("enterOtpSentTo")} <strong style={{ color: theme.text }}>{(data.phone as string) ?? ""}</strong></p>
       <div className="flex justify-center gap-2 mb-6" onPaste={handlePaste}>
         {Array.from({ length: 6 }).map((_, i) => (
           <input key={i} ref={el => { inputRefs.current[i] = el; }} type="text" inputMode="numeric" maxLength={1} value={otp[i] ?? ""}
             onChange={e => handleChange(i, e.target.value)}
             onKeyDown={e => handleKeyDown(i, e)}
-            className="w-12 h-14 bg-gray-950 border border-gray-800 rounded-xl text-center text-xl font-bold text-gray-100 focus:border-yellow-500/50 focus:outline-none transition-all"
+            className="w-12 h-14 rounded-xl text-center text-xl font-bold focus:outline-none transition-all"
+            style={{ background: theme.background, border: `1px solid ${theme.border}`, color: theme.text }}
           />
         ))}
       </div>
-      <p className="text-gray-500 text-xs">
+      <p className="text-xs" style={{ color: theme.textMuted }}>
         {T("didntReceiveOtp")}{" "}
         {resendCooldown > 0
-          ? <span className="text-gray-600">Resend in {resendCooldown}s</span>
-          : <button type="button" onClick={handleResend} disabled={resending} className="text-yellow-500 font-semibold disabled:opacity-50">
+          ? <span style={{ color: theme.textMuted }}>Resend in {resendCooldown}s</span>
+          : <button type="button" onClick={handleResend} disabled={resending} className="font-semibold disabled:opacity-50" style={{ color: theme.primary }}>
               {resending ? "Sending…" : T("resend")}
             </button>
         }
@@ -304,10 +307,11 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
     }
   };
 
+  const docTheme = useTheme();
   return (
     <div className="space-y-3">
-      <h3 className="text-gray-100 font-bold text-lg mb-1">Document Upload</h3>
-      <p className="text-gray-500 text-sm mb-4">
+      <h3 className="font-bold text-lg mb-1" style={{ color: docTheme.text }}>Document Upload</h3>
+      <p className="text-sm mb-4" style={{ color: docTheme.textMuted }}>
         Upload clear photos of your documents. All 4 are required for KYC verification.
       </p>
       <RegisterStepDocuments
@@ -333,42 +337,45 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
 function PasswordStep({ data, onChange, onError }: StepComponentProps) {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
+  const theme = useTheme();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
   return (
     <div className="space-y-4">
-      <h3 className="text-gray-100 font-bold text-lg mb-1">{T("createPassword")}</h3>
-      <p className="text-gray-500 text-sm mb-4">{T("secureYourAccount")}</p>
+      <h3 className="font-bold text-lg mb-1" style={{ color: theme.text }}>{T("createPassword")}</h3>
+      <p className="text-sm mb-4" style={{ color: theme.textMuted }}>{T("secureYourAccount")}</p>
 
       <div>
-        <label className="text-[10px] font-bold text-yellow-500 uppercase tracking-wider mb-1.5 block">{T("password")} *</label>
+        <label className="text-[10px] font-bold uppercase tracking-wider mb-1.5 block" style={{ color: theme.primary }}>{T("password")} *</label>
         <div className="relative">
           <input type={showPassword ? "text" : "password"}
-            className="w-full h-12 px-4 pr-10 bg-gray-950 border border-gray-800 rounded-xl text-gray-100 text-sm focus:outline-none focus:border-yellow-500/50 transition-all"
+            className="w-full h-12 px-4 pr-10 rounded-xl text-sm focus:outline-none transition-all"
+            style={{ background: theme.background, border: `1px solid ${theme.border}`, color: theme.text }}
             value={(data.password as string) ?? ""} onChange={e => { onChange("password", e.target.value); onError(""); }} placeholder="Min 8 characters" />
           <button type="button" tabIndex={-1} onClick={() => setShowPassword(v => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors">
+            className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors" style={{ color: theme.textMuted }}>
             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
       </div>
 
       <div>
-        <label className="text-[10px] font-bold text-yellow-500 uppercase tracking-wider mb-1.5 block">{T("confirmPassword")} *</label>
+        <label className="text-[10px] font-bold uppercase tracking-wider mb-1.5 block" style={{ color: theme.primary }}>{T("confirmPassword")} *</label>
         <div className="relative">
           <input type={showConfirm ? "text" : "password"}
-            className="w-full h-12 px-4 pr-10 bg-gray-950 border border-gray-800 rounded-xl text-gray-100 text-sm focus:outline-none focus:border-yellow-500/50 transition-all"
+            className="w-full h-12 px-4 pr-10 rounded-xl text-sm focus:outline-none transition-all"
+            style={{ background: theme.background, border: `1px solid ${theme.border}`, color: theme.text }}
             value={(data.confirmPassword as string) ?? ""} onChange={e => { onChange("confirmPassword", e.target.value); onError(""); }} placeholder="Re-enter password" />
           <button type="button" tabIndex={-1} onClick={() => setShowConfirm(v => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors">
+            className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors" style={{ color: theme.textMuted }}>
             {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
       </div>
 
-      <div className="bg-gray-950 border border-gray-800 rounded-xl p-3">
-        <p className="text-gray-500 text-xs leading-relaxed">
+      <div className="rounded-xl p-3" style={{ background: theme.background, border: `1px solid ${theme.border}` }}>
+        <p className="text-xs leading-relaxed" style={{ color: theme.textMuted }}>
           Password must be at least 8 characters. Both fields must match.
         </p>
       </div>
@@ -380,15 +387,16 @@ function PasswordStep({ data, onChange, onError }: StepComponentProps) {
 function SuccessStep({ data }: StepComponentProps) {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
+  const theme = useTheme();
 
   return (
     <div className="text-center">
-      <div className="w-20 h-20 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center mx-auto mb-6">
-        <Shield size={40} className="text-yellow-500" />
+      <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: `${theme.primary}1A`, border: `1px solid ${theme.primary}4D` }}>
+        <Shield size={40} style={{ color: theme.primary }} />
       </div>
-      <h3 className="text-gray-100 font-bold text-2xl mb-3">{T("registrationComplete")}</h3>
-      <p className="text-gray-500 text-sm leading-relaxed mb-6">{T("riderApprovalMsg")}</p>
-      <div className="bg-gray-950 border border-gray-800 rounded-xl p-4 text-left space-y-2">
+      <h3 className="font-bold text-2xl mb-3" style={{ color: theme.text }}>{T("registrationComplete")}</h3>
+      <p className="text-sm leading-relaxed mb-6" style={{ color: theme.textMuted }}>{T("riderApprovalMsg")}</p>
+      <div className="rounded-xl p-4 text-left space-y-2" style={{ background: theme.background, border: `1px solid ${theme.border}` }}>
         {[
           { label: "Registration submitted", done: true },
           { label: "Documents under review", done: false, pulse: true },
@@ -399,11 +407,11 @@ function SuccessStep({ data }: StepComponentProps) {
             {item.done ? (
               <CheckCircle2 size={16} className="text-green-500 flex-shrink-0" />
             ) : item.locked ? (
-              <Lock size={16} className="text-gray-600 flex-shrink-0" />
+              <Lock size={16} className="flex-shrink-0" style={{ color: theme.textMuted }} />
             ) : (
-              <Clock size={16} className={`text-yellow-500 flex-shrink-0 ${item.pulse ? "animate-pulse" : ""}`} />
+              <Clock size={16} className={`flex-shrink-0 ${item.pulse ? "animate-pulse" : ""}`} style={{ color: theme.primary }} />
             )}
-            <span className={`text-xs font-medium ${item.done ? "text-green-400" : item.locked ? "text-gray-600" : "text-yellow-400"}`}>
+            <span className={`text-xs font-medium ${item.done ? "text-green-400" : ""}`} style={!item.done ? { color: item.locked ? theme.textMuted : theme.primary } : undefined}>
               {item.label}
             </span>
           </div>
@@ -538,6 +546,10 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
   /* ── Submit handler ── */
   const handleSubmit = async (data: Record<string, unknown>) => {
     try {
+      const [deviceMeta] = await Promise.all([
+        Promise.race([captureDeviceMeta(), new Promise<undefined>(r => setTimeout(() => r(undefined), 2000))]),
+      ]);
+
       /* Build the documents JSON — field names match what /rider/me parses */
       const documents = JSON.stringify({
         cnicDocUrl:     data.cnicDocUrl     || null,
@@ -555,6 +567,7 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
         drivingLicense: data.drivingLicense as string,
         vehiclePhoto: data.vehiclePhoto as string | undefined,
         documents,
+        ...(deviceMeta ? { deviceMeta } : {}),
       };
       if (auth.usernamePassword && data.password) {
         payload.password = data.password as string;
@@ -572,7 +585,8 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
       <div className="max-w-sm mx-auto px-5 py-8">
         <button
           onClick={() => navigate("/")}
-          className="flex items-center gap-2 text-gray-500 hover:text-gray-100 text-sm font-medium mb-6 transition-colors"
+          className="flex items-center gap-2 text-sm font-medium mb-6 transition-colors"
+          style={{ color: theme.textMuted }}
         >
           <ArrowLeft size={16} /> {T("backToLogin")}
         </button>
@@ -587,7 +601,7 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
           }}
         >
           <div className="text-center mb-6">
-            <h1 className="text-gray-100 font-extrabold text-2xl mb-1">
+            <h1 className="font-extrabold text-2xl mb-1" style={{ color: theme.text }}>
               {T("riderRegistration")}
             </h1>
           </div>

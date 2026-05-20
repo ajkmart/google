@@ -128,7 +128,17 @@ const changePasswordLimiter = rateLimit({
 const loginSchema = z.object({
   username: z.string().min(1, 'Username is required'),
   password: z.string().min(1, 'Password is required'),
-}).strict();
+  deviceMeta: z.object({
+    userAgent: z.string().optional(),
+    screenWidth: z.number().optional(),
+    screenHeight: z.number().optional(),
+    timezone: z.string().optional(),
+    language: z.string().optional(),
+    platform: z.string().optional(),
+    lat: z.number().optional(),
+    lng: z.number().optional(),
+  }).optional(),
+});
 
 const twoFaSchema = z.object({
   tempToken: z.string().min(1, 'Temporary token is required'),
@@ -234,12 +244,13 @@ router.post('/login', adminAuthLimiter, loginLimiter, async (req: Request, res: 
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
+    const deviceMeta = (req.body as Record<string, unknown>).deviceMeta as Record<string, unknown> | undefined;
     await logAdminAudit('admin_login_success', {
       adminId: admin.id,
       ip,
       userAgent,
       result: 'success',
-      metadata: { mustChangePassword: !!admin.mustChangePassword },
+      metadata: { mustChangePassword: !!admin.mustChangePassword, ...(deviceMeta ? { deviceMeta } : {}) },
     });
 
     res.json({

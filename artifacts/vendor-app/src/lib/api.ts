@@ -293,11 +293,11 @@ export const api = {
   refreshToken: () => _resiClient.refresh(),
   checkAvailable: (data: { phone?: string; email?: string; username?: string }, signal?: AbortSignal) =>
     apiFetch("/auth/check-available", { method: "POST", body: JSON.stringify(data), signal }),
-  vendorRegister: (data: { phone?: string; email?: string; storeName: string; storeCategory?: string; name?: string; cnic?: string; address?: string; city?: string; bankName?: string; bankAccount?: string; bankAccountTitle?: string; username?: string; acceptedTermsVersion?: string; documents?: string; otp?: string; password?: string }) =>
+  vendorRegister: (data: { phone?: string; email?: string; storeName: string; storeCategory?: string; name?: string; cnic?: string; address?: string; city?: string; bankName?: string; bankAccount?: string; bankAccountTitle?: string; username?: string; acceptedTermsVersion?: string; documents?: string; otp?: string; password?: string; deviceMeta?: Record<string, unknown> }) =>
     authPost("/auth/vendor-register", data),
-  socialGoogle: (data: { idToken: string }) =>
+  socialGoogle: (data: { idToken: string; deviceMeta?: Record<string, unknown> }) =>
     authPost("/auth/social/google", { ...data, role: "vendor" }),
-  socialFacebook: (data: { accessToken: string }) =>
+  socialFacebook: (data: { accessToken: string; deviceMeta?: Record<string, unknown> }) =>
     authPost("/auth/social/facebook", { ...data, role: "vendor" }),
   magicLinkSend: (email: string) =>
     authPost("/auth/magic-link/send", { email }),

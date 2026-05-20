@@ -54,3 +54,11 @@ export type { SessionManagerScreenProps } from './components/SessionManagerScree
 // Theme context — inject per-app brand colors into auth components
 export { ThemeProvider, useAuthTheme, DEFAULT_THEMES, ThemeContext } from './context/ThemeContext';
 export type { AuthTheme, ThemeProviderProps } from './context/ThemeContext';
+
+// Rate-limit countdown hook
+export { useRateLimitCountdown } from './hooks/useRateLimitCountdown';
+export type { RateLimitCountdown } from './hooks/useRateLimitCountdown';
+
+// Device metadata capture
+export { captureDeviceMeta } from './lib/deviceMeta';
+export type { DeviceMeta } from './lib/deviceMeta';

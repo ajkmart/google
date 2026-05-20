@@ -272,7 +272,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
    * Supports both password-only and MFA flow
    */
   const login = useCallback(
-    async (username: string, password: string, totp?: string, tempToken?: string) => {
+    async (username: string, password: string, totp?: string, tempToken?: string, deviceMeta?: Record<string, unknown>) => {
       setState((prev) => ({
         ...prev,
         isLoading: true,
@@ -323,6 +323,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify({
             username,
             password,
+            ...(deviceMeta ? { deviceMeta } : {}),
           }),
         });
 

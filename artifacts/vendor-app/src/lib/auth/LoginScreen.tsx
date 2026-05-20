@@ -20,6 +20,8 @@ import { tDual, type TranslationKey } from "@workspace/i18n";
 import { loadGoogleGSIToken, loadFacebookAccessToken } from "@workspace/auth-utils";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
+import { useRateLimitCountdown } from "@workspace/auth-react";
+import { captureDeviceMeta } from "../deviceMeta";
 
 export interface LoginScreenProps {
   onSuccess?: (token: string, profile: SDKAuthUser) => void;
@@ -35,6 +37,8 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const vendorAuth = getVendorAuthConfig(config);
   const { language } = useLanguage();
   const T = useCallback((k: TranslationKey) => tDual(k, language), [language]);
+
+  const { isRateLimited, secondsLeft, triggerRateLimit } = useRateLimitCountdown();
 
   const [overlay, setOverlay] = useState<"pending" | "rejected" | "biometric" | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
@@ -58,7 +62,8 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     check();
   }, []);
 
-  const doLogin = useCallback(async (res: { token?: string; refreshToken?: string; pendingApproval?: boolean; approvalStatus?: string; rejectionReason?: string | null; user?: unknown }) => {
+  const doLogin = useCallback(async (res: { token?: string; refreshToken?: string; pendingApproval?: boolean; approvalStatus?: string; rejectionReason?: string | null; user?: unknown; rateLimitSeconds?: number }) => {
+    if (res.rateLimitSeconds) { triggerRateLimit(res.rateLimitSeconds); return; }
     if (res.pendingApproval || res.approvalStatus === "pending") {
       setOverlay("pending"); return;
     }
@@ -125,8 +130,11 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     const cfg = getVendorAuthConfig(config);
     if (!cfg.googleClientId) { setLoginError(T("socialLoginComingSoon")); return; }
     try {
-      const idToken = await loadGoogleGSIToken(cfg.googleClientId);
-      await doLogin(await api.socialGoogle({ idToken }) as never);
+      const [idToken, deviceMeta] = await Promise.all([
+        loadGoogleGSIToken(cfg.googleClientId),
+        Promise.race([captureDeviceMeta(), new Promise<undefined>(r => setTimeout(() => r(undefined), 2000))]),
+      ]);
+      await doLogin(await api.socialGoogle({ idToken, deviceMeta }) as never);
     } catch (e: unknown) { setLoginError(e instanceof Error ? e.message : "Google sign-in failed"); }
   }, [config, doLogin, T]);
 
@@ -134,8 +142,11 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     const cfg = getVendorAuthConfig(config);
     if (!cfg.facebookAppId) { setLoginError(T("socialLoginComingSoon")); return; }
     try {
-      const accessToken = await loadFacebookAccessToken(cfg.facebookAppId);
-      await doLogin(await api.socialFacebook({ accessToken }) as never);
+      const [accessToken, deviceMeta] = await Promise.all([
+        loadFacebookAccessToken(cfg.facebookAppId),
+        Promise.race([captureDeviceMeta(), new Promise<undefined>(r => setTimeout(() => r(undefined), 2000))]),
+      ]);
+      await doLogin(await api.socialFacebook({ accessToken, deviceMeta }) as never);
     } catch (e: unknown) { setLoginError(e instanceof Error ? e.message : "Facebook sign-in failed"); }
   }, [config, doLogin, T]);
 
@@ -155,14 +166,14 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
   /* ── Main login ── */
   return (
-    <div style={{ background: theme.background, minHeight: "100vh", display: "flex", pointerEvents: isProcessing ? "none" : "auto", opacity: isProcessing ? 0.7 : 1 }}>
-      {loginError && (
+    <div style={{ background: theme.background, minHeight: "100vh", display: "flex", pointerEvents: (isProcessing || isRateLimited) ? "none" : "auto", opacity: (isProcessing || isRateLimited) ? 0.7 : 1 }}>
+      {(loginError || isRateLimited) && (
         <div role="alert" aria-live="assertive" style={{
           position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", zIndex: 50,
           background: theme.rejectedOverlay, border: `1px solid rgba(239,68,68,0.3)`, borderRadius: 12,
           padding: "10px 16px", color: theme.error ?? "#dc2626", fontSize: 13, fontWeight: 500,
         }}>
-          {loginError}
+          {isRateLimited ? `Too many attempts. Try again in ${secondsLeft}s` : loginError}
         </div>
       )}
       <SDKLoginScreen

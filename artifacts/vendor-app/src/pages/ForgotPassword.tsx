@@ -14,6 +14,7 @@
  */
 import { useState, useCallback } from "react";
 import { Link } from "wouter";
+import { useRateLimitCountdown } from "@workspace/auth-react";
 import { api } from "../lib/api";
 import { usePlatformConfig, getVendorAuthConfig } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
@@ -60,6 +61,8 @@ export default function ForgotPassword() {
     return (p: string) => /^0?3\d{9}$/.test(p.replace(/[\s\-()+]/g, ""));
   })();
 
+  const { isRateLimited, secondsLeft, triggerRateLimit } = useRateLimitCountdown();
+
   const [step, setStep] = useState<ForgotStep>("choose-method");
   const [method, setMethod] = useState<"phone" | "email">("phone");
   const [loading, setLoading] = useState(false);
@@ -84,6 +87,7 @@ export default function ForgotPassword() {
 
   const sendOtp = async () => {
     clearError();
+    if (isRateLimited) return;
     if (method === "phone" && (!phone || !isValidPhone(phone))) { setError(`${T("enterValidPhone")} (e.g. ${phoneHint})`); return; }
     if (method === "email" && (!email || !email.includes("@"))) { setError(T("enterValidEmail")); return; }
     setLoading(true);
@@ -100,7 +104,15 @@ export default function ForgotPassword() {
       });
       if ((res as Record<string, unknown>).otp) setDevOtp((res as Record<string, unknown>).otp as string);
       setStep("enter-otp");
-    } catch (e: unknown) { setError(e instanceof Error ? e.message : T("sendOtpFailed")); }
+    } catch (e: unknown) {
+      const errMsg = e instanceof Error ? e.message : T("sendOtpFailed");
+      const status = (e as Record<string, unknown>)?.status as number | undefined;
+      const retryAfter = ((e as Record<string, unknown>)?.responseData as Record<string, unknown> | undefined)?.retryAfter;
+      if (status === 429 || /too many|rate limit|lockout/.test(errMsg.toLowerCase())) {
+        triggerRateLimit(typeof retryAfter === "number" ? retryAfter : 60);
+      }
+      setError(errMsg);
+    }
     setLoading(false);
   };
 
@@ -284,10 +296,10 @@ export default function ForgotPassword() {
                     className={INPUT} autoFocus />
                 </>
               )}
-              <button onClick={sendOtp} disabled={loading}
+              <button onClick={sendOtp} disabled={loading || isRateLimited}
                 className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
                 {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-                {loading ? T("pleaseWait") : T("sendResetOtp")}
+                {loading ? T("pleaseWait") : isRateLimited ? `Try again in ${secondsLeft}s` : T("sendResetOtp")}
               </button>
             </div>
           )}

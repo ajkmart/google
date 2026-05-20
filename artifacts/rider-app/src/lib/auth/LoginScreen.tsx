@@ -22,6 +22,8 @@ import { loadGoogleGSIToken, loadFacebookAccessToken } from "@workspace/auth-uti
 import { normalizeRoles } from "../rider-auth";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useLocation } from "wouter";
+import { useRateLimitCountdown } from "@workspace/auth-react";
+import { captureDeviceMeta } from "../deviceMeta";
 
 export interface LoginScreenProps {
   onSuccess?: (token: string, profile: SDKAuthUser) => void;
@@ -38,17 +40,22 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const { language } = useLanguage();
   const T = useCallback((k: TranslationKey) => tDual(k, language), [language]);
 
-  /** Map a raw English API error string to the active language */
+  const { isRateLimited, secondsLeft, triggerRateLimit } = useRateLimitCountdown();
+
+  /** Map a raw English API error string to the active language; triggers countdown on 429 */
   const translateApiError = useCallback((raw: string): string => {
     const lower = raw.toLowerCase();
-    if (/too many|attempts|locked|rate limit|lockout/.test(lower)) return T("accountLocked") as string;
+    if (/too many|attempts|locked|rate limit|lockout/.test(lower)) {
+      if (!isRateLimited) triggerRateLimit(60);
+      return T("accountLocked") as string;
+    }
     if (/banned|suspended|blocked/.test(lower)) return T("accountSuspended") as string;
     if (/network|fetch|connection|timeout|offline/.test(lower)) return T("networkError") as string;
     if (/otp.*send|send.*otp|failed to send/.test(lower)) return T("sendOtpFailed") as string;
     if (/access.*denied|role|riders? only|vendors? only/.test(lower)) return T("accessDenied") as string;
     if (/توثیق|validation|input|check.*input|خرابی/.test(lower)) return T("loginFailed") as string;
     return T("loginFailed") as string;
-  }, [T]);
+  }, [T, isRateLimited, triggerRateLimit]);
 
   /** All UI strings for the login form, in the active language */
   const loginStrings = useMemo((): Partial<LoginScreenStrings> => ({
@@ -192,8 +199,11 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const handleGoogle = useCallback(async () => {
     if (!auth.googleClientId) { setLoginError(T("socialLoginComingSoon") as string); return; }
     try {
-      const idToken = await loadGoogleGSIToken(auth.googleClientId);
-      const res = await api.socialGoogle({ idToken });
+      const [idToken, deviceMeta] = await Promise.all([
+        loadGoogleGSIToken(auth.googleClientId),
+        Promise.race([captureDeviceMeta(), new Promise<undefined>(r => setTimeout(() => r(undefined), 2000))]),
+      ]);
+      const res = await api.socialGoogle({ idToken, deviceMeta });
       await handleSuccess(res.user as SDKAuthUser, res.token as string);
     } catch (e: unknown) { setLoginError(e instanceof Error ? translateApiError(e.message) : T("loginFailed") as string); }
   }, [auth.googleClientId, handleSuccess, T, translateApiError]);
@@ -201,14 +211,18 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const handleFacebook = useCallback(async () => {
     if (!auth.facebookAppId) { setLoginError(T("socialLoginComingSoon") as string); return; }
     try {
-      const accessToken = await loadFacebookAccessToken(auth.facebookAppId);
-      const res = await api.socialFacebook({ accessToken });
+      const [accessToken, deviceMeta] = await Promise.all([
+        loadFacebookAccessToken(auth.facebookAppId),
+        Promise.race([captureDeviceMeta(), new Promise<undefined>(r => setTimeout(() => r(undefined), 2000))]),
+      ]);
+      const res = await api.socialFacebook({ accessToken, deviceMeta });
       await handleSuccess(res.user as SDKAuthUser, res.token as string);
     } catch (e: unknown) { setLoginError(e instanceof Error ? translateApiError(e.message) : T("loginFailed") as string); }
   }, [auth.facebookAppId, handleSuccess, T, translateApiError]);
 
   const handleMagicLink = useCallback(async (identifier: string) => {
-    await api.sendMagicLink(identifier);
+    const deviceMeta = await Promise.race([captureDeviceMeta(), new Promise<undefined>(r => setTimeout(() => r(undefined), 2000))]);
+    await api.sendMagicLink(identifier, deviceMeta as Record<string, unknown> | undefined);
   }, []);
 
   /* ── Overlays ── */
@@ -234,14 +248,14 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
   /* ── Main login screen ── */
   return (
-    <div style={{ background: theme.background, pointerEvents: isProcessing ? "none" : "auto", opacity: isProcessing ? 0.7 : 1 }}>
-      {loginError && (
-        <div style={{
+    <div style={{ background: theme.background, pointerEvents: (isProcessing || isRateLimited) ? "none" : "auto", opacity: (isProcessing || isRateLimited) ? 0.7 : 1 }}>
+      {(loginError || isRateLimited) && (
+        <div role="alert" aria-live="assertive" style={{
           background: "rgba(239,68,68,0.08)", border: `1px solid ${theme.error ?? "rgba(239,68,68,0.25)"}`,
           borderRadius: 12, padding: "10px 14px", marginBottom: 12,
           color: theme.error ?? "#fca5a5", fontSize: 13, fontWeight: 500,
         }}>
-          {loginError}
+          {isRateLimited ? `Too many attempts. Try again in ${secondsLeft}s` : loginError}
         </div>
       )}
 

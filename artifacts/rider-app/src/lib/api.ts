@@ -435,6 +435,7 @@ export const api = {
     captchaToken?: string; username?: string;
     address?: string; city?: string; emergencyContact?: string;
     vehiclePlate?: string; vehiclePhoto?: string; documents?: string;
+    deviceMeta?: Record<string, unknown>;
   }) =>
     apiFetch("/auth/register", { method: "POST", body: JSON.stringify({ ...data, role: "rider", vehicleRegNo: data.vehicleRegistration }) }),
   emailRegisterRider: (data: {
@@ -510,9 +511,9 @@ export const api = {
     apiFetch("/auth/forgot-password", { method: "POST", body: JSON.stringify(data) }),
   resetPassword: (data: { phone?: string; email?: string; otp: string; newPassword: string; totpCode?: string; captchaToken?: string }) =>
     apiFetch("/auth/reset-password", { method: "POST", body: JSON.stringify(data) }),
-  socialGoogle: (data: { idToken: string }) =>
+  socialGoogle: (data: { idToken: string; deviceMeta?: Record<string, unknown> }) =>
     apiFetch("/auth/social/google", { method: "POST", body: JSON.stringify({ ...data, role: "rider" }) }),
-  socialFacebook: (data: { accessToken: string }) =>
+  socialFacebook: (data: { accessToken: string; deviceMeta?: Record<string, unknown> }) =>
     apiFetch("/auth/social/facebook", { method: "POST", body: JSON.stringify({ ...data, role: "rider" }) }),
   magicLinkVerify: (data: { token: string }) =>
     apiFetch("/auth/magic-link/verify", { method: "POST", body: JSON.stringify(data) }),
@@ -526,8 +527,8 @@ export const api = {
     apiFetch("/auth/2fa/recovery", { method: "POST", body: JSON.stringify(data) }),
   twoFactorDisable: (data: { code: string }) =>
     apiFetch("/auth/2fa/disable", { method: "POST", body: JSON.stringify(data) }),
-  sendMagicLink: (email: string) =>
-    apiFetch("/auth/magic-link/send", { method: "POST", body: JSON.stringify({ email }) }),
+  sendMagicLink: (email: string, deviceMeta?: Record<string, unknown>) =>
+    apiFetch("/auth/magic-link/send", { method: "POST", body: JSON.stringify({ email, ...(deviceMeta ? { deviceMeta } : {}) }) }),
 
   /* Token helpers */
   storeTokens: (token: string, refreshToken?: string) => {

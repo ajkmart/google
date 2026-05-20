@@ -11,7 +11,7 @@
  */
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
-import { RegisterScreen } from "@workspace/auth-react";
+import { RegisterScreen, captureDeviceMeta } from "@workspace/auth-react";
 import type { StepConfig, StepComponentProps } from "@workspace/auth-react";
 import { useTheme } from "./ThemeContext";
 import { useAuth } from "./useAuth";
@@ -367,6 +367,10 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
     if (isSubmittingRef.current) return { success: false, error: "Submission already in progress" };
     isSubmittingRef.current = true;
     try {
+      const deviceMeta = await Promise.race([
+        captureDeviceMeta(),
+        new Promise<undefined>(r => setTimeout(() => r(undefined), 2000)),
+      ]);
       const res = await api.vendorRegister({
         phone: data.phone as string,
         storeName: data.storeName as string,
@@ -379,6 +383,7 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
         bankAccountTitle: data.bankAccountTitle as string | undefined,
         ...(data.otp      ? { otp:      data.otp      as string } : {}),
         ...(data.password ? { password: data.password as string } : {}),
+        ...(deviceMeta    ? { deviceMeta }                        : {}),
       }) as { token?: string; user?: unknown };
       localStorage.removeItem(DRAFT_KEY);
       return { success: true, data: res };

@@ -13,6 +13,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "./useAuth";
 import { useRateLimitCountdown } from "./useRateLimitCountdown";
 import { useAppStatus } from "./useAppStatus";
+import { captureDeviceMeta } from "../deviceMeta";
 import { useTheme } from "./ThemeContext";
 import { useAdminAuth } from "../adminAuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -61,7 +62,11 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     setError(null);
     if (!username.trim() || !password.trim()) return;
     if (isRateLimited) return;
-    const result = await loginWithPassword(username.trim(), password);
+    const deviceMeta = await Promise.race([
+      captureDeviceMeta(),
+      new Promise<undefined>(r => setTimeout(() => r(undefined), 2000)),
+    ]);
+    const result = await loginWithPassword(username.trim(), password, undefined, undefined, deviceMeta as Record<string, unknown> | undefined);
     if (result.error === "mfa_required") {
       setTempToken(result.data?.tempToken ?? null);
       setStep("mfa");
