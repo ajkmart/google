@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Ban, Clock, ChevronDown, ChevronUp, RefreshCcw } from "lucide-react";
+import { Ban, Clock, ChevronDown, ChevronUp, ArrowRight } from "lucide-react";
 import { formatCurrency as _sharedFcP } from "@workspace/api-zod";
+import { Link } from "wouter";
 import { api } from "../../lib/api";
 
 const fc = (n: string | number | null | undefined, currencySymbol = "Rs.") =>
@@ -82,6 +83,13 @@ export function ProfilePenaltyHistory({ currency }: ProfilePenaltyHistoryProps) 
               </div>
             );
           })()}
+          <div className="px-5 py-3 border-t border-gray-50">
+            <Link href="/penalty-history">
+              <button className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-red-500 hover:text-red-600 transition-colors py-1">
+                View Full History <ArrowRight size={13} />
+              </button>
+            </Link>
+          </div>
         </div>
       )}
     </div>

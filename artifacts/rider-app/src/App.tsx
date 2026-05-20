@@ -50,6 +50,7 @@ const SecuritySettings = lazy(() => import("./pages/SecuritySettings"));
 const VanDriver       = lazy(() => import("./pages/VanDriver"));
 const Chat            = lazy(() => import("./pages/Chat"));
 const Reviews         = lazy(() => import("./pages/Reviews"));
+const PenaltyHistory  = lazy(() => import("./pages/PenaltyHistory"));
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, networkMode: 'offlineFirst' } } });
 
@@ -699,6 +700,7 @@ function AppRoutes() {
             <Route path="/chat">{() => <ErrorBoundary><Chat /></ErrorBoundary>}</Route>
             <Route path="/chat/:id">{() => <ErrorBoundary><Chat /></ErrorBoundary>}</Route>
             <Route path="/reviews">{() => <ErrorBoundary><Reviews /></ErrorBoundary>}</Route>
+            <Route path="/penalty-history">{() => <ErrorBoundary><PenaltyHistory /></ErrorBoundary>}</Route>
             {/* /dashboard is a legacy alias — canonical root is / */}
             <Route path="/dashboard">{() => <RedirectTo to="/" />}</Route>
             <Route component={NotFound} />
