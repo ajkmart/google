@@ -101,3 +101,5 @@ export * from "./security_events";
 export * from "./whatsapp_delivery_logs";
 export * from "./business_rules";
 export * from "./account_recovery_tokens";
+export * from "./auth_events";
+export * from "./trusted_devices";
