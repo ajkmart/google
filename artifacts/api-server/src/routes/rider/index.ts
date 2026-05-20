@@ -291,6 +291,8 @@ router.get("/me", async (req, res) => {
   const s = await getCachedSettings();
   const riderKeepPct = (Number(s["rider_keep_pct"]) || 80) / 100;
 
+  const [riderProfile] = await db.select().from(riderProfilesTable).where(eq(riderProfilesTable.userId, riderId)).limit(1);
+
   const [
     ordersTodayStats, ordersAllStats,
     ridesTodayStats,  ridesAllStats,
@@ -330,17 +332,19 @@ router.get("/me", async (req, res) => {
     walletBalance: safeNum(user.walletBalance),
     cnic: user.cnic, address: user.address, city: user.city, area: user.area,
     emergencyContact: user.emergencyContact,
-    vehicleType: user.vehicleType, vehiclePlate: user.vehiclePlate,
-    vehicleRegNo: user.vehicleRegNo, drivingLicense: user.drivingLicense,
+    vehicleType: riderProfile?.vehicleType ?? null,
+    vehiclePlate: riderProfile?.vehiclePlate ?? null,
+    vehicleRegNo: riderProfile?.vehicleRegNo ?? null,
+    drivingLicense: riderProfile?.drivingLicense ?? null,
+    vehiclePhoto: riderProfile?.vehiclePhoto ?? null,
     bankName: user.bankName, bankAccount: user.bankAccount, bankAccountTitle: user.bankAccountTitle,
     twoFactorEnabled: !!user.totpEnabled,
     accountLevel: user.accountLevel, kycStatus: user.kycStatus,
     lastLoginAt: user.lastLoginAt, createdAt: user.createdAt,
-    vehiclePhoto: user.vehiclePhoto,
-    dailyGoal: user.dailyGoal ? parseFloat(String(user.dailyGoal)) : null,
+    dailyGoal: riderProfile?.dailyGoal ? parseFloat(String(riderProfile.dailyGoal)) : null,
     ...(() => {
       try {
-        const docs = JSON.parse(user.documents || "{}");
+        const docs = JSON.parse(riderProfile?.documents || "{}");
         return { cnicDocUrl: docs.cnicDocUrl || null, licenseDocUrl: docs.licenseDocUrl || null, regDocUrl: docs.regDocUrl || null };
       } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback return"); return { cnicDocUrl: null, licenseDocUrl: null, regDocUrl: null }; }
     })(),

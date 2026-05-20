@@ -304,7 +304,7 @@ function SuccessStep({ data }: StepComponentProps) {
 }
 
 /* ── Wizard config ─────────────────────────────────────────────────────────── */
-const STEPS: StepConfig[] = [
+const BASE_STEPS: StepConfig[] = [
   {
     id: "phone",
     title: "Phone",
@@ -332,20 +332,21 @@ const STEPS: StepConfig[] = [
       return null;
     },
   },
-  {
-    id: "password",
-    title: "Password",
-    component: PasswordStep,
-    validate: (data) => {
-      const pw = String(data.password ?? "");
-      if (!pw) return "Password is required";
-      if (pw.length < 8) return "Password must be at least 8 characters";
-      if (pw !== String(data.confirmPassword ?? "")) return "Passwords do not match";
-      return null;
-    },
-  },
   { id: "success", title: "Done", component: SuccessStep },
 ];
+
+const PASSWORD_STEP: StepConfig = {
+  id: "password",
+  title: "Password",
+  component: PasswordStep,
+  validate: (data) => {
+    const pw = String(data.password ?? "");
+    if (!pw) return "Password is required";
+    if (pw.length < 8) return "Password must be at least 8 characters";
+    if (pw !== String(data.confirmPassword ?? "")) return "Passwords do not match";
+    return null;
+  },
+};
 
 export interface RegisterWizardProps {
   onDone?: () => void;
@@ -359,6 +360,10 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const auth = useRiderAuthConfig();
+
+  const steps: StepConfig[] = auth.usernamePassword
+    ? [BASE_STEPS[0], BASE_STEPS[1], BASE_STEPS[2], PASSWORD_STEP, BASE_STEPS[3]]
+    : BASE_STEPS;
 
   const [draft, setDraft] = useState<Record<string, unknown>>(() => {
     try { const raw = localStorage.getItem(DRAFT_KEY); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
@@ -383,7 +388,7 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
   /* ── Submit handler ── */
   const handleSubmit = async (data: Record<string, unknown>) => {
     try {
-      const res = await api.registerRider({
+      const payload: Parameters<typeof api.registerRider>[0] = {
         name: data.name as string,
         phone: data.phone as string,
         username: data.username as string | undefined,
@@ -391,8 +396,11 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
         vehicleType: data.vehicleType as string,
         vehicleRegistration: data.vehicleRegistration as string,
         drivingLicense: data.drivingLicense as string,
-        password: data.password as string,
-      }) as { token?: string; user?: unknown };
+      };
+      if (auth.usernamePassword && data.password) {
+        payload.password = data.password as string;
+      }
+      const res = await api.registerRider(payload) as { token?: string; user?: unknown };
       localStorage.removeItem(DRAFT_KEY);
       return { success: true, data: res };
     } catch (err: unknown) {
@@ -427,7 +435,7 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
 
           <RegisterScreen
             role="rider"
-            steps={STEPS}
+            steps={steps}
             bare
             initialData={draft}
             onDataChange={handleDataChange}

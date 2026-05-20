@@ -418,7 +418,7 @@ export const api = {
 
   registerRider: (data: {
     name: string; phone?: string; email?: string; cnic: string; vehicleType: string;
-    vehicleRegistration: string; drivingLicense: string; password: string;
+    vehicleRegistration: string; drivingLicense: string; password?: string;
     captchaToken?: string; username?: string;
     address?: string; city?: string; emergencyContact?: string;
     vehiclePlate?: string; vehiclePhoto?: string; documents?: string;
