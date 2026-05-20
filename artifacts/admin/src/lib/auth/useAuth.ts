@@ -33,7 +33,6 @@ export function useAuth() {
     password: string,
     totp?: string,
     tempToken?: string | null,
-    deviceMeta?: Record<string, unknown>,
   ): Promise<AuthResult<AdminLoginData>> {
     try {
       clearError();

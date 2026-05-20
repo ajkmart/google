@@ -33,6 +33,7 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [twoFactor, setTwoFactor] = useState<{ tempToken: string; identifier: string } | null>(null);
   const [twoFactorCode, setTwoFactorCode] = useState("");
@@ -83,6 +84,7 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
       return;
     }
     setOtp("");
+    setOtpSent(true);
     setResendCooldown(60);
   };
 
@@ -199,7 +201,7 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
 
         <div style={{ display: "flex", gap: 4, background: theme.background, borderRadius: 12, padding: 4, marginBottom: 18 }}>
           {(["otp", "password"] as const).map(m => (
-            <button key={m} onClick={() => { setMode(m); setError(null); }} style={{ flex: 1, height: 36, borderRadius: 9, border: "none", background: mode === m ? theme.surface : "transparent", color: mode === m ? theme.primary : theme.textMuted, fontWeight: 700, cursor: "pointer" }}>
+            <button key={m} onClick={() => { setMode(m); setError(null); setOtpSent(false); setOtp(""); }} style={{ flex: 1, height: 36, borderRadius: 9, border: "none", background: mode === m ? theme.surface : "transparent", color: mode === m ? theme.primary : theme.textMuted, fontWeight: 700, cursor: "pointer" }}>
               {m === "otp" ? "Phone" : "Password"}
             </button>
           ))}
@@ -220,7 +222,7 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
           </div>
         )}
 
-        {mode === "otp" && otp.length > 0 && (
+        {mode === "otp" && otpSent && (
           <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 14 }}>
             <div style={{ textAlign: "center" }}>
               <p style={{ color: theme.textMuted, fontSize: 13, margin: 0 }}>OTP sent to</p>
@@ -232,7 +234,7 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
             </button>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               {resendCooldown > 0 ? <span style={{ color: theme.textMuted, fontSize: 12 }}>Resend in {resendCooldown}s</span> : <button onClick={() => void sendPhoneOtp()} style={{ background: "none", border: "none", color: theme.primary, fontWeight: 600, fontSize: 12, cursor: "pointer" }}>Resend OTP</button>}
-              <button onClick={() => setOtp("")} style={{ background: "none", border: "none", color: theme.textMuted, fontSize: 12, cursor: "pointer" }}>Change Number</button>
+              <button onClick={() => { setOtp(""); setOtpSent(false); }} style={{ background: "none", border: "none", color: theme.textMuted, fontSize: 12, cursor: "pointer" }}>Change Number</button>
             </div>
           </div>
         )}

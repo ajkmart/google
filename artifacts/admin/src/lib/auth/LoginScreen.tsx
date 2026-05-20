@@ -84,11 +84,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     setError(null);
     if (!username.trim() || !password.trim()) return;
     if (isRateLimited) return;
-    const deviceMeta = await Promise.race([
-      captureDeviceMeta(),
-      new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 1200)),
-    ]);
-    const result = await loginWithPassword(username.trim(), password, undefined, undefined, deviceMeta as Record<string, unknown> | undefined);
+    const result = await loginWithPassword(username.trim(), password, undefined, undefined);
     if (result.error === "mfa_required") {
       setTempToken(result.data?.tempToken ?? null);
       setStep("mfa");
