@@ -216,12 +216,12 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       return;
     }
 
-    login(_sdkToken, profile, api.getRefreshToken() ?? undefined);
+    setIsProcessing(false);
     if (!biometricEnabled) {
-      setIsProcessing(false);
       setOverlay("biometric");
       return;
     }
+    login(_sdkToken, profile, api.getRefreshToken() ?? undefined);
     onSuccess?.(_sdkToken, profile as unknown as SDKAuthUser);
     navigate("/");
   }, [biometricEnabled, login, navigate, T, translateApiError, onSuccess]);

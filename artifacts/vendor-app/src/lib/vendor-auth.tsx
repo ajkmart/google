@@ -25,6 +25,7 @@
  *   [ ] GET /api/users/profile?appRole=vendor returns 403 for non-vendor tokens (server-side gate)
  */
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AuthProvider as SharedAuthProvider,
@@ -92,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 function VendorAuthInner({ children }: { children: ReactNode }) {
   const sharedAuth = useAuthContext();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
 
   const [user, setUser]   = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -107,6 +109,7 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
     setToken(null); setUser(null);
     setSessionExpired(true);
     sharedAuth.logout();
+    navigate("/login");
   };
 
   const { refreshToken: sdkRefreshToken } = useTokenRefresh({
@@ -181,7 +184,11 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
 
   /* ── Register logout callback + DOM event ── */
   useEffect(() => {
-    const clearAuth = () => { setToken(null); setUser(null); sharedAuth.logout(); };
+    const clearAuth = () => {
+      setToken(null); setUser(null);
+      sharedAuth.logout();
+      navigate("/login");
+    };
     const unregister = api.registerLogoutCallback(clearAuth);
     const handleLogout = () => clearAuth();
     window.addEventListener("ajkmart:logout", handleLogout);
@@ -219,6 +226,7 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
     setToken(null);
     setUser(null);
     queryClient.clear();
+    navigate("/login");
     if (refreshTok) {
       api.logout(refreshTok).catch((err) => log.warn("server token revocation failed (local session already cleared):", err));
     }

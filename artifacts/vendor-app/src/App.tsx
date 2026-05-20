@@ -367,7 +367,7 @@ function AppRoutes() {
   }, [config.platform.appStatus]);
 
   if (!loading && !user) {
-    if (sessionExpired) return <SessionExpiredOverlay onLogin={() => { clearSessionExpired(); }} />;
+    if (sessionExpired) return <SessionExpiredOverlay onLogin={() => { clearSessionExpired(); navigate("/login"); }} />;
     if (location === "/register") return <Register />;
     if (location === "/login") return <Login />;
     if (location === "/forgot-password") return <ForgotPassword />;
@@ -558,10 +558,10 @@ function SessionExpiredOverlay({ onLogin }: { onLogin: () => void }) {
         </div>
         <h2 style={{ color: "#E2E8F0", fontSize: 20, fontWeight: 800, margin: "0 0 8px" }}>Session Expired</h2>
         <p style={{ color: "#6B7280", fontSize: 14, lineHeight: 1.6, margin: "0 0 24px" }}>Your session has expired for security reasons. Please sign in again to continue.</p>
-        <a href="/login" onClick={onLogin}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: 48, borderRadius: 12, background: "linear-gradient(135deg, #F97316, #EA580C)", color: "#fff", fontWeight: 700, fontSize: 15, textDecoration: "none", boxSizing: "border-box" }}>
+        <button onClick={onLogin}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: 48, borderRadius: 12, border: "none", background: "linear-gradient(135deg, #F97316, #EA580C)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", boxSizing: "border-box" }}>
           Sign In Again
-        </a>
+        </button>
       </div>
     </div>
   );
