@@ -61,7 +61,7 @@ interface MethodDef {
 const METHODS: MethodDef[] = [
   {
     key: "auth_phone_otp_enabled",
-    label: "Phone OTP",
+    label: "Phone",
     description: "Send a one-time passcode via SMS to verify the user's phone number.",
     icon: Phone,
     defaultOn: true,
@@ -69,7 +69,7 @@ const METHODS: MethodDef[] = [
   },
   {
     key: "auth_email_otp_enabled",
-    label: "Email OTP",
+    label: "Email",
     description: "Send a one-time passcode via email to verify the user's email address.",
     icon: Mail,
     defaultOn: true,

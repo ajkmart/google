@@ -96,7 +96,7 @@ type UserTimeline = {
 
 const SEC_TABS: { id: SecTab; label: string; emoji: string; active: string; desc: string }[] = [
   { id: "auth",        label: "Auth & Sessions",  emoji: "🔐", active: "bg-indigo-600",  desc: "OTP bypass, MFA, login lockout, session durations, live lockouts" },
-  { id: "authmethods", label: "Auth Methods",      emoji: "🔑", active: "bg-cyan-600",    desc: "Per-role login method toggles: Phone OTP, Email OTP, Username/Password, Social, Magic Link, 2FA, Biometric" },
+  { id: "authmethods", label: "Auth Methods",      emoji: "🔑", active: "bg-cyan-600",    desc: "Per-role login method toggles: Phone, Email, Username/Password, Social, Magic Link, 2FA, Biometric" },
   { id: "ratelimit",   label: "Rate Limiting",     emoji: "🛡️", active: "bg-blue-600",    desc: "API throttling and VPN/TOR blocking" },
   { id: "gps",         label: "GPS & Location",    emoji: "📍", active: "bg-green-600",   desc: "Rider tracking, spoof detection, geofence" },
   { id: "passwords",   label: "Passwords",         emoji: "🔑", active: "bg-amber-600",   desc: "Password policy, JWT rotation, token expiry" },
@@ -689,8 +689,8 @@ export default function SecurityPage() {
 
           {(() => {
             const ROLE_AUTH_KEYS: { key: string; label: string; sub: string }[] = [
-              { key: "auth_phone_otp_enabled",         label: "Phone OTP Login",          sub: "Send OTP via SMS to verify phone number" },
-              { key: "auth_email_otp_enabled",         label: "Email OTP Login",          sub: "Send OTP via email to verify address" },
+              { key: "auth_phone_otp_enabled",         label: "Phone Login",              sub: "Send OTP via SMS to verify phone number" },
+              { key: "auth_email_otp_enabled",         label: "Email Login",              sub: "Send OTP via email to verify address" },
               { key: "auth_username_password_enabled", label: "Username / Password Login", sub: "Traditional username + password credentials" },
               { key: "auth_email_register_enabled",    label: "Email Registration",       sub: "Allow sign-up with email (no phone OTP)" },
               { key: "auth_magic_link_enabled",        label: "Magic Link Login",         sub: "Send one-click login link via email" },

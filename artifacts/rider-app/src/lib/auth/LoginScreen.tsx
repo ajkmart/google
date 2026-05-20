@@ -471,7 +471,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
                 color: loginMode === mode ? theme.primary : theme.textMuted,
                 boxShadow: loginMode === mode ? "0 2px 8px rgba(0,0,0,0.2)" : "none",
               }}>
-              {mode === "otp" ? "Phone OTP" : "Password"}
+              {mode === "otp" ? "Phone" : "Password"}
             </button>
           ))}
         </div>

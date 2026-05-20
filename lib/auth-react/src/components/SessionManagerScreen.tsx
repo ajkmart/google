@@ -233,8 +233,8 @@ function deviceIcon(os: string | null): string {
 function methodLabel(method: string | null): string {
   const m = method ?? '';
   const map: Record<string, string> = {
-    phone_otp: 'Phone OTP',
-    email_otp: 'Email OTP',
+    phone_otp: 'Phone',
+    email_otp: 'Email',
     password: 'Password',
     google: 'Google',
     facebook: 'Facebook',

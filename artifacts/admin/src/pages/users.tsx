@@ -903,7 +903,7 @@ function SecurityModal({ user, onClose }: { user: any; onClose: () => void }) {
                 {showOtpData && otpQuery.data && (
                   <div className="bg-violet-50 border border-violet-200 rounded-lg px-3 py-2 space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-violet-700">Phone OTP:</span>
+                      <span className="text-xs font-semibold text-violet-700">Phone:</span>
                       {otpQuery.data.phone?.active ? (
                         <div className="flex items-center gap-2">
                           <code className="font-mono font-bold text-violet-900 bg-violet-100 px-2 py-0.5 rounded text-sm tracking-widest">{otpQuery.data.phone?.code}</code>
@@ -912,7 +912,7 @@ function SecurityModal({ user, onClose }: { user: any; onClose: () => void }) {
                       ) : <span className="text-xs text-muted-foreground italic">No active OTP</span>}
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-violet-700">Email OTP:</span>
+                      <span className="text-xs font-semibold text-violet-700">Email:</span>
                       {otpQuery.data.email?.active ? (
                         <div className="flex items-center gap-2">
                           <code className="font-mono font-bold text-violet-900 bg-violet-100 px-2 py-0.5 rounded text-sm tracking-widest">{otpQuery.data.email.code}</code>
