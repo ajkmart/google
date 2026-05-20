@@ -49,7 +49,7 @@ export type { BiometricPromptProps } from './components/BiometricPrompt';
 export { LoginCard } from './components/LoginCard';
 export type { LoginCardProps } from './components/LoginCard';
 export { MethodSelector } from './components/MethodSelector';
-export type { MethodSelectorItem, MethodSelectorProps, LoginMethod } from './components/MethodSelector';
+export type { MethodSelectorItem, MethodSelectorProps } from './components/MethodSelector';
 export { ApprovalOverlay } from './components/ApprovalOverlay';
 export type { ApprovalOverlayProps } from './components/ApprovalOverlay';
 export { SessionExpiredOverlay } from './components/SessionExpiredOverlay';

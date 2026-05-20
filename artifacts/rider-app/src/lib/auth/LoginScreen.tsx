@@ -174,7 +174,7 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
             <p style={{ color: theme.textMuted, fontSize: 13, margin: "6px 0 0" }}>Enter the 6-digit code from your authenticator app</p>
           </div>
           {error && <div role="alert" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, color: "#fca5a5", fontSize: 13 }}>{error}</div>}
-          <OtpInput value={twoFactorCode} onChangeText={v => { setTwoFactorCode(v); setError(null); }} onComplete={() => void verifyTwoFactor()} length={6} label="2FA code" />
+          <OtpInput onComplete={v => { setTwoFactorCode(v); setError(null); }} length={6} label="2FA code" />
           <button onClick={() => void verifyTwoFactor()} disabled={twoFactorLoading || twoFactorCode.length < 6} style={{ width: "100%", height: 48, borderRadius: 12, border: "none", marginTop: 18, background: twoFactorLoading || twoFactorCode.length < 6 ? `${theme.primary}60` : `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`, color: "#fff", fontSize: 15, fontWeight: 700, cursor: twoFactorLoading || twoFactorCode.length < 6 ? "not-allowed" : "pointer" }}>
             {twoFactorLoading ? "Verifying…" : "Verify"}
           </button>
@@ -226,7 +226,7 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
               <p style={{ color: theme.textMuted, fontSize: 13, margin: 0 }}>OTP sent to</p>
               <p style={{ color: theme.text, fontSize: 15, fontWeight: 700, margin: "4px 0 0" }}>{phone}</p>
             </div>
-            <OtpInput value={otp} onChangeText={v => { setOtp(v); setError(null); }} onComplete={v => void verifyPhoneOtp(v)} length={6} label="OTP" />
+            <OtpInput onComplete={v => { setOtp(v); setError(null); void verifyPhoneOtp(v); }} length={6} label="OTP" />
             <button onClick={() => void verifyPhoneOtp()} disabled={verifying || otp.length < 6} style={{ width: "100%", height: 48, borderRadius: 12, border: "none", background: verifying || otp.length < 6 ? `${theme.primary}60` : `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`, color: "#fff", fontSize: 15, fontWeight: 700, cursor: verifying || otp.length < 6 ? "not-allowed" : "pointer" }}>
               {verifying ? "Verifying…" : "Verify & Sign In"}
             </button>
@@ -259,7 +259,7 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
           </div>
         )}
 
-        {(auth.google || biometricAvailable) && (
+        {(auth.googleEnabled || biometricAvailable) && (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "18px 0" }}>
               <div style={{ flex: 1, height: 1, background: theme.border }} />
@@ -267,7 +267,7 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
               <div style={{ flex: 1, height: 1, background: theme.border }} />
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {auth.google && (
+              {auth.googleEnabled && (
                 <button onClick={() => {}} style={{ width: "100%", height: 44, borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.background, color: theme.text, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Continue with Google</button>
               )}
               {biometricAvailable && (

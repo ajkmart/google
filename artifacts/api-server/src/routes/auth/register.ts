@@ -377,6 +377,8 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
     sendError(res, t("noUpdateProvided", lang), 400); return;
   }
 
+  const bonusAmount = await getCachedSettings().then(s => parseFloat(s["signup_bonus_amount"] ?? "0") || 0).catch(() => 0);
+
   const [updated] = await db.transaction(async (tx) => {
     if (cnic && cnic.trim()) {
       const cnicClean = cnic.trim();

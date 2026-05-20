@@ -37,7 +37,7 @@ export function useAuth() {
   ): Promise<AuthResult<AdminLoginData>> {
     try {
       clearError();
-      await login(username, password, totp, tempToken ?? undefined, deviceMeta);
+      await login(username, password, totp, tempToken ?? undefined);
       return { success: true };
     } catch (err: unknown) {
       if (err && typeof err === "object" && "requiresMfa" in err) {

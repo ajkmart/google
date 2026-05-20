@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft, CheckCircle2, Clock, Eye, EyeOff, Fingerprint, Lock, Shield, Smartphone, Upload } from "lucide-react";
+import { OtpInput } from "@workspace/auth-react";
 import { api } from "../api";
 import { useAuthOps } from "./useAuth";
 import { useTheme } from "./ThemeContext";
@@ -218,7 +219,7 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
 
           {step === 2 && <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div style={{ textAlign: "center" }}><p style={{ color: theme.textMuted, fontSize: 13, margin: 0 }}>OTP sent to</p><p style={{ color: theme.text, fontSize: 15, fontWeight: 700, margin: "4px 0 0" }}>{draft.phone}</p></div>
-            <OtpInput value={draft.otp ?? ""} onChangeText={v => update("otp", v)} onComplete={v => update("otp", v)} length={6} label="OTP" />
+            <OtpInput onComplete={v => update("otp", v)} length={6} label="OTP" />
             <button onClick={() => setStep(3)} disabled={(draft.otp ?? "").length !== 6} style={{ height: 48, borderRadius: 12, border: "none", background: (draft.otp ?? "").length === 6 ? `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})` : `${theme.primary}60`, color: "#fff", fontWeight: 800, cursor: (draft.otp ?? "").length === 6 ? "pointer" : "not-allowed" }}>Verify OTP</button>
             <div style={{ display: "flex", justifyContent: "space-between" }}><button onClick={() => setStep(1)} style={{ background: "none", border: "none", color: theme.textMuted, cursor: "pointer" }}>Back</button>{otpCooldown > 0 ? <span style={{ color: theme.textMuted, fontSize: 12 }}>Resend in {otpCooldown}s</span> : <button onClick={() => void sendPhoneOtp()} style={{ background: "none", border: "none", color: theme.primary, cursor: "pointer", fontWeight: 600 }}>Resend OTP</button>}</div>
           </div>}

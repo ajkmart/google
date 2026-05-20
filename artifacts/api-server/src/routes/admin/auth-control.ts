@@ -108,7 +108,7 @@ router.patch("/auth/methods", adminAuth, async (req, res, next) => {
     addAuditEntry({ action: "auth_methods_update", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Updated ${updates.map(u => u.key).join(", ")}`, result: "success" });
 
     try {
-      getIO().emit("platform-config:updated", { scope: "auth", keys: updates.map(u => u.key) });
+      getIO()?.emit("platform-config:updated", { scope: "auth", keys: updates.map(u => u.key) });
     } catch (err) {
       logger.warn({ err }, "[admin/auth-control] failed to emit platform-config:updated");
     }
@@ -234,7 +234,7 @@ router.post("/auth/broadcast-logout", adminAuth, async (req, res, next) => {
       sendValidationError(res, "role must be customer, rider, vendor, or omitted");
       return;
     }
-    if (!(req as AdminRequest).permissions?.includes("system.super_admin")) {
+    if (!(req as AdminRequest).adminPermissions?.includes("system.super_admin")) {
       sendError(res, "Super-admin permission required", 403);
       return;
     }

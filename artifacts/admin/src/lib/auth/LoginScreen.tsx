@@ -198,8 +198,6 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
               </div>
               <OtpInput
                 length={6}
-                value={totp}
-                onChangeText={setTotp}
                 onComplete={setTotp}
                 label="Authenticator code"
               />

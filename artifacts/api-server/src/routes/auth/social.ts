@@ -78,7 +78,7 @@ router.post("/social/google", sharedValidateBody(SocialGoogleSchema), async (req
   try {
     const resp = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`, { signal: AbortSignal.timeout(10_000) });
     if (!resp.ok) throw new Error("Invalid token");
-    googlePayload = await resp.json();
+    googlePayload = await resp.json() as typeof googlePayload;
   } catch (err) {
     logger.warn({ error: err instanceof Error ? err.message : String(err), code: "GOOGLE_TOKEN_INVALID", timestamp: new Date().toISOString() }, "[auth] Google token verification failed");
     addSecurityEvent({ type: "social_google_invalid_token", ip, details: "Invalid Google ID token", severity: "medium" });
@@ -178,7 +178,7 @@ router.post("/social/facebook", sharedValidateBody(SocialFacebookSchema), async 
   try {
     const resp = await fetch(`https://graph.facebook.com/me?fields=id,name,email,picture&access_token=${encodeURIComponent(fbToken)}`, { signal: AbortSignal.timeout(10_000) });
     if (!resp.ok) throw new Error("Invalid token");
-    fbPayload = await resp.json();
+    fbPayload = await resp.json() as typeof fbPayload;
   } catch (err) {
     logger.warn({ error: err instanceof Error ? err.message : String(err), code: "FACEBOOK_TOKEN_INVALID", timestamp: new Date().toISOString() }, "[auth] Facebook token verification failed");
     addSecurityEvent({ type: "social_facebook_invalid_token", ip, details: "Invalid Facebook access token", severity: "medium" });
@@ -399,7 +399,7 @@ router.post("/biometric/register", async (req, res) => {
       });
     }
     const biometricToken = randomBytes(48).toString("hex");
-    logAuthEvent({ eventType: "device_trusted", userId: auth.userId, ip: getClientIp(req), userAgent: req.headers["user-agent"] as string | undefined, channel: "biometric", role: auth.roles ?? "customer", success: true, metadata: { deviceId } });
+    logAuthEvent({ eventType: "device_trusted", userId: auth.userId, ip: getClientIp(req), userAgent: req.headers["user-agent"] as string | undefined, channel: "biometric", role: auth.role ?? "customer", success: true, metadata: { deviceId } });
     sendSuccess(res, { biometricToken });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[route] unhandled error");

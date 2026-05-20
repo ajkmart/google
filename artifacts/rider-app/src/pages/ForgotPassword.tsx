@@ -124,7 +124,7 @@ export default function ForgotPassword() {
       <div style={{ minHeight: "100vh", background: theme.background, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
         <div style={card}>
           <button onClick={() => setStep("new-password")} style={{ background: "none", border: "none", color: theme.textMuted, fontSize: 13, fontWeight: 600, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4, marginBottom: 16 }}><ArrowLeft size={14} /> {T("back")}</button>
-          <TwoFactorVerify onVerify={async code => { setTwoFaLoading(true); setTwoFaError(""); try { await resetPassword(code); } catch (e) { setTwoFaError(e instanceof Error ? e.message : T("verificationFailed") as string); } finally { setTwoFaLoading(false); }} onBackupCode={async code => { await resetPassword(code); }} verifyLoading={twoFaLoading} verifyError={twoFaError} showTrustDevice={false} />
+          <TwoFactorVerify onVerify={async code => { setTwoFaLoading(true); setTwoFaError(""); try { await resetPassword(code); } catch (e) { setTwoFaError(e instanceof Error ? e.message : String(T("verificationFailed"))); } finally { setTwoFaLoading(false); }}} onBackupCode={async code => { await resetPassword(code); }} verifyLoading={twoFaLoading} verifyError={twoFaError} showTrustDevice={false} />
         </div>
       </div>
     );

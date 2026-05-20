@@ -1,5 +1,5 @@
 import React from 'react';
-import { readCsrfFromCookie } from './adminAuthContext.js';
+import { readCsrfFromCookie } from './adminAuthContext';
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[adminFetcher]");
 import { safeSessionSet } from './safeStorage';

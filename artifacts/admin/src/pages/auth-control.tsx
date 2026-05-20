@@ -222,7 +222,7 @@ export default function AuthControlPage() {
   return (
     <ErrorBoundary>
       <div className="space-y-6">
-        <PageHeader title="Auth Control Center" description="Unified auth, registration, OTP, and security controls." />
+        <PageHeader title="Auth Control Center" subtitle="Unified auth, registration, OTP, and security controls." />
         <div className="flex items-center gap-3">
           <Button onClick={() => void load()} variant="outline"><RefreshCw className="mr-2 h-4 w-4" />Reload</Button>
           <Button onClick={() => void save()} disabled={!dirty || saving}><Save className="mr-2 h-4 w-4" />{saving ? "Saving…" : "Save"}</Button>
