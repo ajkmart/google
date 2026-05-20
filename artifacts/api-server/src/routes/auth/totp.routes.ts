@@ -21,8 +21,8 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { usersTable, trustedDevicesTable } from "@workspace/db/schema";
+import { eq, and } from "drizzle-orm";
 import {
   getClientIp,
   getCachedSettings,
@@ -59,6 +59,7 @@ import {
   deletePendingTotpSecret,
   generateRecoveryCodes,
   countUnusedRecoveryCodes,
+  verifyRecoveryCode,
 } from "../../modules/otp/index.js";
 import { AuditService } from "../../services/admin-audit.service.js";
 
@@ -98,7 +99,7 @@ router.get("/2fa/setup", async (req, res) => {
       logger.error({ error: e instanceof Error ? e.message : String(e) }, "[totp/setup] QR code generation failed");
     }
 
-    sendSuccess(res, { secret, uri, qrDataUrl });
+    sendSuccess(res, { secret, uri, qrCode: qrDataUrl, qrDataUrl });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err) }, "[totp] setup error");
     res.status(500).json({ success: false, error: "Internal server error" });
@@ -132,7 +133,7 @@ router.post("/totp/setup", async (req, res) => {
       logger.error({ error: e instanceof Error ? e.message : String(e) }, "[totp/setup] QR code generation failed");
     }
 
-    sendSuccess(res, { secret, uri, qrDataUrl });
+    sendSuccess(res, { secret, uri, qrCode: qrDataUrl, qrDataUrl });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err) }, "[totp] setup error");
     res.status(500).json({ success: false, error: "Internal server error" });
@@ -169,7 +170,7 @@ router.post("/2fa/verify-setup", validateBody(TotpCodeSchema), async (req, res) 
 
     const { plainCodes: backupCodes } = await generateRecoveryCodes(auth.userId);
 
-    await db.update(usersTable).set({ totpEnabled: true, backupCodes: null, updatedAt: new Date() }).where(eq(usersTable.id, auth.userId));
+    await db.update(usersTable).set({ totpEnabled: true, updatedAt: new Date() }).where(eq(usersTable.id, auth.userId));
 
     const ip = getClientIp(req);
     writeAuthAuditLog("2fa_enabled", { userId: auth.userId, ip, userAgent: req.headers["user-agent"] as string });
@@ -283,8 +284,9 @@ router.post("/2fa/disable", validateBody(TotpCodeSchema), async (req, res) => {
     }
 
     await db.update(usersTable).set({
-      totpEnabled: false, totpSecret: null, backupCodes: null, trustedDevices: null, updatedAt: new Date(),
+      totpEnabled: false, totpSecret: null, updatedAt: new Date(),
     }).where(eq(usersTable.id, auth.userId));
+    await db.update(trustedDevicesTable).set({ isRevoked: true }).where(eq(trustedDevicesTable.userId, auth.userId));
 
     const ip = getClientIp(req);
     writeAuthAuditLog("2fa_disabled", { userId: auth.userId, ip, userAgent: req.headers["user-agent"] as string });
@@ -318,12 +320,18 @@ router.post("/2fa/recovery", validateBody(TwoFaRecoverySchema), async (req, res)
     }
     if (!user.totpEnabled) { sendError(res, "2FA is not enabled", 400); return; }
 
-    const outcome = await consumeRecoveryCode(user, backupCode, ip, "/auth/2fa/recovery");
-    if ("error" in outcome) { sendError(res, outcome.error, outcome.status); return; }
+    const valid = await verifyRecoveryCode(user.id, backupCode);
+    if (!valid) { sendError(res, "Invalid or already used backup code", 400); return; }
+    const remaining = await countUnusedRecoveryCodes(user.id);
+    if (remaining <= 2) {
+      await db.update(usersTable).set({ totpEnabled: false, totpSecret: null, updatedAt: new Date() }).where(eq(usersTable.id, user.id));
+      await db.update(trustedDevicesTable).set({ isRevoked: true }).where(eq(trustedDevicesTable.userId, user.id));
+    }
 
     const method = challengePayload.authMethod ?? "phone_otp";
     const result = await issueTokensForUser(user, ip, method, req.headers["user-agent"] as string | undefined, req, res);
-    sendSuccess(res, { ...result, codesRemaining: outcome.codesRemaining });
+    logAuthEvent({ eventType: "login_success", userId: user.id, ip, userAgent: req.headers["user-agent"] as string | undefined, channel: "totp", role: user.roles ?? "customer", success: true, metadata: { recoveryCode: true, codesRemaining: remaining } });
+    sendSuccess(res, { ...result, codesRemaining: remaining });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err) }, "[totp] recovery error");
     res.status(500).json({ success: false, error: "Internal server error" });
@@ -351,12 +359,18 @@ router.post("/totp/recover", validateBody(TwoFaRecoverySchema), async (req, res)
     }
     if (!user.totpEnabled) { sendError(res, "2FA is not enabled", 400); return; }
 
-    const outcome = await consumeRecoveryCode(user, backupCode, ip, "/auth/totp/recover");
-    if ("error" in outcome) { sendError(res, outcome.error, outcome.status); return; }
+    const valid = await verifyRecoveryCode(user.id, backupCode);
+    if (!valid) { sendError(res, "Invalid or already used backup code", 400); return; }
+    const remaining = await countUnusedRecoveryCodes(user.id);
+    if (remaining <= 2) {
+      await db.update(usersTable).set({ totpEnabled: false, totpSecret: null, updatedAt: new Date() }).where(eq(usersTable.id, user.id));
+      await db.update(trustedDevicesTable).set({ isRevoked: true }).where(eq(trustedDevicesTable.userId, user.id));
+    }
 
     const method = challengePayload.authMethod ?? "phone_otp";
     const result = await issueTokensForUser(user, ip, method, req.headers["user-agent"] as string | undefined, req, res);
-    sendSuccess(res, { ...result, codesRemaining: outcome.codesRemaining });
+    logAuthEvent({ eventType: "login_success", userId: user.id, ip, userAgent: req.headers["user-agent"] as string | undefined, channel: "totp", role: user.roles ?? "customer", success: true, metadata: { recoveryCode: true, codesRemaining: remaining } });
+    sendSuccess(res, { ...result, codesRemaining: remaining });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err) }, "[totp] totp/recover error");
     res.status(500).json({ success: false, error: "Internal server error" });
@@ -382,22 +396,21 @@ router.post("/2fa/trust-device", validateBody(TrustDeviceSchema), async (req, re
     if (!user.totpEnabled) { sendError(res, "2FA is not enabled", 400); return; }
 
     const { deviceFingerprint } = req.body;
-    let devices: Array<{ fp: string; expiresAt: number }> = [];
-    try { if (user.trustedDevices) devices = JSON.parse(user.trustedDevices); } catch (e) {
-      logger.warn({ userId: user.id }, "[totp] trustedDevices JSON.parse failed — resetting");
-    }
-
-    const now = Date.now();
-    devices = devices.filter(d => d.expiresAt > now && d.fp !== deviceFingerprint);
-    devices.push({ fp: deviceFingerprint, expiresAt: now + trustedDays * 24 * 60 * 60 * 1000 });
-    if (devices.length > 10) devices = devices.slice(-10);
-
-    await db.update(usersTable).set({ trustedDevices: JSON.stringify(devices), updatedAt: new Date() }).where(eq(usersTable.id, auth.userId));
+    await db.insert(trustedDevicesTable).values({
+      id: crypto.randomUUID(),
+      userId: auth.userId,
+      deviceId: deviceFingerprint,
+      fingerprint: deviceFingerprint,
+      expiresAt: new Date(Date.now() + trustedDays * 24 * 60 * 60 * 1000),
+    }).onConflictDoUpdate({
+      target: [trustedDevicesTable.userId, trustedDevicesTable.deviceId],
+      set: { fingerprint: deviceFingerprint, expiresAt: new Date(Date.now() + trustedDays * 24 * 60 * 60 * 1000), isRevoked: false, lastUsedAt: new Date() },
+    });
 
     const ip = getClientIp(req);
     writeAuthAuditLog("device_trusted", { userId: auth.userId, ip, userAgent: req.headers["user-agent"] as string });
 
-    sendSuccess(res, { success: true, message: `Device trusted for ${trustedDays} days`, trustedDevices: devices.length });
+    sendSuccess(res, { success: true, message: `Device trusted for ${trustedDays} days`, trustedDevices: 1 });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err) }, "[totp] trust-device error");
     res.status(500).json({ success: false, error: "Internal server error" });
@@ -411,16 +424,12 @@ router.get("/2fa/status", async (req, res) => {
     const auth = extractAuthUser(req);
     if (!auth) { sendUnauthorized(res, "Authentication required"); return; }
 
-    const [user] = await db
-      .select({ totpEnabled: usersTable.totpEnabled, trustedDevices: usersTable.trustedDevices })
-      .from(usersTable).where(eq(usersTable.id, auth.userId)).limit(1);
+    const [user] = await db.select({ totpEnabled: usersTable.totpEnabled }).from(usersTable).where(eq(usersTable.id, auth.userId)).limit(1);
 
     if (!user) { sendNotFound(res, "User not found"); return; }
 
-    let deviceCount = 0;
-    try { if (user.trustedDevices) deviceCount = JSON.parse(user.trustedDevices).length; } catch (_) {}
-
-    sendSuccess(res, { totpEnabled: user.totpEnabled ?? false, trustedDeviceCount: deviceCount });
+    const trustedDevices = await db.select().from(trustedDevicesTable).where(and(eq(trustedDevicesTable.userId, auth.userId), eq(trustedDevicesTable.isRevoked, false)));
+    sendSuccess(res, { enabled: user.totpEnabled ?? false, trustedDevices: trustedDevices.map((d) => ({ deviceId: d.deviceId, deviceName: d.deviceName, deviceType: d.deviceType, trustedAt: d.trustedAt, expiresAt: d.expiresAt })), backupCodesRemaining: await countUnusedRecoveryCodes(auth.userId) });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err) }, "[totp] status error");
     res.status(500).json({ success: false, error: "Internal server error" });

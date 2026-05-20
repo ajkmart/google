@@ -187,12 +187,10 @@ export async function generateQrCodeDataUrl(secret: string, accountName: string)
 export async function savePendingTotpSecret(userId: string, encryptedSecret: string): Promise<void> {
   // Delete any prior pending entry (idempotent)
   await db.delete(userTotpSetupTable).where(eq(userTotpSetupTable.userId, userId));
-
-  const { secret } = { secret: decryptTotpSecret(encryptedSecret) };
   await db.insert(userTotpSetupTable).values({
     id:              generateId(),
     userId,
-    secret,
+    secret: decryptTotpSecret(encryptedSecret),
     encryptedSecret,
   });
 }
@@ -253,13 +251,7 @@ export async function generateRecoveryCodes(userId: string): Promise<RecoveryCod
  * Returns true if valid, false otherwise.
  */
 export async function verifyRecoveryCode(userId: string, code: string): Promise<boolean> {
-  const unused = await db
-    .select()
-    .from(totpRecoveryCodesTable)
-    .where(
-      eq(totpRecoveryCodesTable.userId, userId),
-      // only unused codes
-    );
+  const unused = await db.select().from(totpRecoveryCodesTable).where(eq(totpRecoveryCodesTable.userId, userId));
 
   const unusedCodes = unused.filter((row) => row.usedAt === null);
 
