@@ -188,8 +188,8 @@ export default function RegisterScreen() {
       } catch {
         setGpsStatus("Coordinates captured (address lookup unavailable)");
       }
-    } catch (e: any) {
-      setGpsStatus(e.message || "Could not get location");
+    } catch (e: unknown) {
+      setGpsStatus(e instanceof Error ? e.message : "Could not get location");
     }
     setGpsLoading(false);
   };

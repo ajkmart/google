@@ -297,11 +297,15 @@ export function PhoneInput({
       <TextInput
         style={phoneS.input}
         value={value}
-        onChangeText={onChangeText}
+        onChangeText={v => {
+          const digits = v.replace(/\D/g, "");
+          const normalized = digits.replace(/^92/, "").replace(/^0/, "");
+          onChangeText(normalized.slice(0, 10));
+        }}
         placeholder="3XX XXX XXXX"
         placeholderTextColor={C.textMuted}
         keyboardType="phone-pad"
-        maxLength={11}
+        maxLength={10}
         autoFocus={autoFocus}
         accessibilityLabel="Phone number"
       />

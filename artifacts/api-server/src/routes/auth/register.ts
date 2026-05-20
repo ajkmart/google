@@ -357,7 +357,7 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
   }
 
   if (Object.keys(updates).length === 1) {
-    sendError(res, "Koi update nahi kiya — name, email, username ya password provide karein", 400); return;
+    sendError(res, "No fields to update — please provide at least a name, email, username, or password.", 400); return;
   }
 
   const [updated] = await db.update(usersTable).set(updates).where(eq(usersTable.id, userId)).returning();
