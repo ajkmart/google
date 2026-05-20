@@ -36,6 +36,34 @@ export async function getCachedSettings(): Promise<Record<string, string>> {
   return settingsCache;
 }
 
+export async function isAdminIpWhitelisted(ip: string): Promise<boolean> {
+  try {
+    const settings = await getCachedSettings();
+    const raw = (settings["security_admin_ip_whitelist"] ?? "").trim();
+    if (!raw) return true;
+    if (ip === "unknown") return false;
+    const entries = raw.split(",").map((s) => s.trim()).filter(Boolean);
+    const [ipAddr, ipPort] = ip.split(":");
+    for (const entry of entries) {
+      if (!entry.includes("/")) {
+        if (entry === ipAddr) return true;
+        continue;
+      }
+      const [cidrIp, prefixRaw] = entry.split("/");
+      const prefix = parseInt(prefixRaw, 10);
+      if (!Number.isFinite(prefix)) continue;
+      const toNum = (value: string) => value.split(".").reduce((acc, part) => ((acc << 8) + (parseInt(part, 10) & 255)) >>> 0, 0);
+      const mask = prefix === 0 ? 0 : (~((1 << (32 - prefix)) - 1)) >>> 0;
+      if ((toNum(cidrIp) & mask) === (toNum(ipAddr) & mask)) return true;
+      void ipPort;
+    }
+    return false;
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err), ip }, "[auth] admin IP whitelist check failed");
+    return false;
+  }
+}
+
 /* Non-blocking warm-up at startup */
 setImmediate(() => {
   getCachedSettings().catch((err: unknown) => {

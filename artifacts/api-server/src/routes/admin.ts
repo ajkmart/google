@@ -39,45 +39,17 @@ import whitelistRoutes from "./admin/whitelist.js";
 import inventorySettingsRoutes from "./admin/inventory-settings.js";
 import securityRoutes from "./admin/security.js";
 import broadcastsRoutes from "./admin/broadcasts.js";
-
-export {
-  DEFAULT_PLATFORM_SETTINGS,
-  ensureAuthMethodColumn,
-  ensureRideBidsMigration,
-  ensureOrdersGpsColumns,
-  ensurePromotionsTables,
-  ensureSupportMessagesTable,
-  ensureFaqsTable,
-  ensureCommunicationTables,
-  ensureVendorLocationColumns,
-  ensureVanServiceUpgrade,
-  ensureWalletP2PColumns,
-  ensureComplianceTables,
-  getPlatformSettings,
-  getCachedSettings,
-  getAdminSecret,
-  adminAuth,
-  DEFAULT_RIDE_SERVICES,
-  ensureDefaultRideServices,
-  ensureDefaultLocations,
-  type AdminRequest,
-} from "./admin-shared.js";
-
+export { DEFAULT_PLATFORM_SETTINGS, ensureAuthMethodColumn, ensureRideBidsMigration, ensureOrdersGpsColumns, ensurePromotionsTables, ensureSupportMessagesTable, ensureFaqsTable, ensureCommunicationTables, ensureVendorLocationColumns, ensureVanServiceUpgrade, ensureWalletP2PColumns, ensureComplianceTables, getPlatformSettings, getCachedSettings, getAdminSecret, adminAuth, DEFAULT_RIDE_SERVICES, ensureDefaultRideServices, ensureDefaultLocations, type AdminRequest } from "./admin-shared.js";
 export { ensureLaunchData };
-
 const router: IRouter = Router();
-
 router.use(adminAuth);
 router.use(csrfProtection);
-
 router.use(usersRoutes);
 router.use(ordersRoutes);
 router.use(ridesRoutes);
 router.use(financeRoutes);
 router.use(contentRoutes);
 router.use(systemRoutes);
-// New RBAC management routes (Task #2). Mounted explicitly because the legacy
-// systemRoutes monolith above predates the admin/system/* sub-router split.
 router.use("/system/rbac", rbacRoutes);
 router.use("/service-zones", serviceZonesRoutes);
 router.use(deliveryAccessRoutes);
@@ -106,55 +78,19 @@ router.use("/whitelist", whitelistRoutes);
 router.use(inventorySettingsRoutes);
 router.use(securityRoutes);
 router.use(broadcastsRoutes);
-
-/**
- * GET /api/admin/pending-counts
- * Returns sidebar badge counts for pending riders, orders, withdrawals, and deposits.
- * Protected by the blanket adminAuth middleware above.
- */
 router.get("/pending-counts", async (_req: Request, res: Response) => {
   try {
-    const [[pendingRiders], [pendingOrders], [pendingWithdrawals], [pendingDeposits], [pendingProducts]] =
-      await Promise.all([
-        db.select({ count: count() })
-          .from(usersTable)
-          .where(and(
-            eq(usersTable.approvalStatus, "pending"),
-            sql`roles LIKE '%rider%'`,
-          )),
-        db.select({ count: count() })
-          .from(ordersTable)
-          .where(eq(ordersTable.status, "pending")),
-        db.select({ count: count() })
-          .from(walletTransactionsTable)
-          .where(and(
-            eq(walletTransactionsTable.type, "withdrawal"),
-            eq(walletTransactionsTable.reference, "pending"),
-          )),
-        db.select({ count: count() })
-          .from(walletTransactionsTable)
-          .where(and(
-            sql`type IN ('topup', 'deposit')`,
-            eq(walletTransactionsTable.reference, "pending"),
-          )),
-        db.select({ count: count() })
-          .from(productsTable)
-          .where(and(
-            eq(productsTable.approvalStatus, "pending"),
-            sql`deleted_at IS NULL`,
-          )),
-      ]);
-    res.json({
-      pendingRiders:      Number(pendingRiders?.count      ?? 0),
-      pendingOrders:      Number(pendingOrders?.count      ?? 0),
-      pendingWithdrawals: Number(pendingWithdrawals?.count  ?? 0),
-      pendingDeposits:    Number(pendingDeposits?.count    ?? 0),
-      pendingProducts:    Number(pendingProducts?.count    ?? 0),
-    });
+    const [[pendingRiders], [pendingOrders], [pendingWithdrawals], [pendingDeposits], [pendingProducts]] = await Promise.all([
+      db.select({ count: count() }).from(usersTable).where(and(eq(usersTable.approvalStatus, "pending"), sql`roles LIKE '%rider%'`)),
+      db.select({ count: count() }).from(ordersTable).where(eq(ordersTable.status, "pending")),
+      db.select({ count: count() }).from(walletTransactionsTable).where(and(eq(walletTransactionsTable.type, "withdrawal"), eq(walletTransactionsTable.reference, "pending"))),
+      db.select({ count: count() }).from(walletTransactionsTable).where(and(sql`type IN ('topup', 'deposit')`, eq(walletTransactionsTable.reference, "pending"))),
+      db.select({ count: count() }).from(productsTable).where(and(eq(productsTable.approvalStatus, "pending"), sql`deleted_at IS NULL`)),
+    ]);
+    res.json({ pendingRiders: Number(pendingRiders?.count ?? 0), pendingOrders: Number(pendingOrders?.count ?? 0), pendingWithdrawals: Number(pendingWithdrawals?.count ?? 0), pendingDeposits: Number(pendingDeposits?.count ?? 0), pendingProducts: Number(pendingProducts?.count ?? 0) });
   } catch (err) {
     logger.warn({ err }, "[pending-counts] query failed");
     res.json({ pendingRiders: 0, pendingOrders: 0, pendingWithdrawals: 0, pendingDeposits: 0, pendingProducts: 0 });
   }
 });
-
 export default router;
