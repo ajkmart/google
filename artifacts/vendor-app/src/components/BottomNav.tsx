@@ -5,7 +5,7 @@ import { tDual, type TranslationKey } from "@workspace/i18n";
 const navItems: { href: string; labelKey: TranslationKey; icon: string }[] = [
   { href: "/",           labelKey: "dashboard",      icon: "📊" },
   { href: "/orders",     labelKey: "orders",         icon: "📦" },
-  { href: "/chat",       labelKey: "chat" as TranslationKey, icon: "💬" },
+  { href: "/chat",       labelKey: "chat", icon: "💬" },
   { href: "/products",   labelKey: "products",       icon: "🍽️" },
   { href: "/wallet",     labelKey: "wallet",         icon: "💰" },
   { href: "/profile",    labelKey: "account",        icon: "👤" },

@@ -225,7 +225,7 @@ export default function Profile() {
   };
 
   const completionFields = [user?.name, user?.email, user?.cnic, user?.city, user?.bankName, user?.bankAccount,
-    (user as Record<string, unknown>)?.cnicFrontUrl, (user as Record<string, unknown>)?.cnicBackUrl];
+    (user as unknown as Record<string, unknown>)?.cnicFrontUrl, (user as unknown as Record<string, unknown>)?.cnicBackUrl];
   const completedCount   = completionFields.filter(Boolean).length;
   const completionPct    = Math.round((completedCount / completionFields.length) * 100);
 
@@ -713,7 +713,7 @@ export default function Profile() {
 
             {/* Business Documents */}
             {(() => {
-              const u = user as Record<string, unknown> | undefined;
+              const u = user as unknown as Record<string, unknown> | undefined;
               const docs: { key: DocKey; label: string; desc: string; icon: string }[] = [
                 { key: "cnicFrontUrl",   label: "CNIC — Front Side",          desc: "National ID card front photo", icon: "🪪" },
                 { key: "cnicBackUrl",    label: "CNIC — Back Side",           desc: "National ID card back photo",  icon: "🪪" },
