@@ -49,8 +49,58 @@ const queryClient = new QueryClient({
 
 const MAINTENANCE_GRACE_MS = 5 * 60 * 1000; /* 5-minute grace period */
 
+function PendingApprovalScreen({ supportPhone, onRefresh, onSignOut }: {
+  supportPhone?: string;
+  onRefresh: () => Promise<void>;
+  onSignOut: () => void;
+}) {
+  const [checking, setChecking] = useState(false);
+  const [checkedOnce, setCheckedOnce] = useState(false);
+
+  const handleCheckStatus = async () => {
+    setChecking(true);
+    try {
+      await onRefresh();
+      setCheckedOnce(true);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0F1117", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: "#161B22", border: "1px solid #252D3A", borderRadius: 22, padding: "32px 24px", maxWidth: 380, width: "100%", textAlign: "center", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}>
+        <div style={{ width: 68, height: 68, borderRadius: 18, background: "rgba(249,115,22,0.12)", border: "1px solid rgba(249,115,22,0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <h2 style={{ color: "#E2E8F0", fontSize: 20, fontWeight: 800, margin: "0 0 8px" }}>Application Pending</h2>
+        <p style={{ color: "#6B7280", fontSize: 14, lineHeight: 1.6, margin: "0 0 8px" }}>Your vendor account is pending admin approval. You will be notified once your account is approved.</p>
+        {checkedOnce && (
+          <p style={{ color: "#9CA3AF", fontSize: 13, margin: "0 0 16px" }}>Still pending — please check back later.</p>
+        )}
+        <button
+          onClick={handleCheckStatus}
+          disabled={checking}
+          style={{ display: "block", width: "100%", padding: "12px 0", marginBottom: 10, borderRadius: 12, background: "linear-gradient(135deg, #F97316, #EA580C)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: checking ? "not-allowed" : "pointer", opacity: checking ? 0.7 : 1, border: "none" }}
+        >
+          {checking ? "Checking…" : "Check Approval Status"}
+        </button>
+        {supportPhone && (
+          <a href={`tel:${supportPhone}`} style={{ display: "block", width: "100%", padding: "11px 0", marginBottom: 10, borderRadius: 12, background: "transparent", border: "1px solid #374151", color: "#9CA3AF", fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
+            Contact Support
+          </a>
+        )}
+        <button onClick={onSignOut}
+          style={{ width: "100%", padding: "11px 0", borderRadius: 12, border: "1px solid #252D3A", background: "#0F1117", color: "#6B7280", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
+          Sign Out
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AppRoutes() {
-  const { user, loading, logout, storageError, sessionExpired, clearSessionExpired } = useAuth();
+  const { user, loading, logout, storageError, sessionExpired, clearSessionExpired, refreshUser } = useAuth();
   const { config } = usePlatformConfig();
   useLanguage(); /* initialises RTL + language from API on mount */
 
@@ -307,24 +357,11 @@ function AppRoutes() {
     || (config.content as Record<string, unknown>)?.supportPhone as string | undefined;
 
   if (user.approvalStatus === "pending") return (
-    <div style={{ minHeight: "100vh", background: "#0F1117", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ background: "#161B22", border: "1px solid #252D3A", borderRadius: 22, padding: "32px 24px", maxWidth: 380, width: "100%", textAlign: "center", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}>
-        <div style={{ width: 68, height: 68, borderRadius: 18, background: "rgba(249,115,22,0.12)", border: "1px solid rgba(249,115,22,0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        </div>
-        <h2 style={{ color: "#E2E8F0", fontSize: 20, fontWeight: 800, margin: "0 0 8px" }}>Application Pending</h2>
-        <p style={{ color: "#6B7280", fontSize: 14, lineHeight: 1.6, margin: "0 0 22px" }}>Your vendor account is pending admin approval. You will be notified once your account is approved.</p>
-        {supportPhone && (
-          <a href={`tel:${supportPhone}`} style={{ display: "block", width: "100%", padding: "12px 0", marginBottom: 10, borderRadius: 12, background: "linear-gradient(135deg, #F97316, #EA580C)", color: "#fff", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
-            Contact Support
-          </a>
-        )}
-        <button onClick={() => { try { logout(); } finally { window.location.reload(); } }}
-          style={{ width: "100%", padding: "11px 0", borderRadius: 12, border: "1px solid #252D3A", background: "#0F1117", color: "#6B7280", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
-          Sign Out
-        </button>
-      </div>
-    </div>
+    <PendingApprovalScreen
+      supportPhone={supportPhone}
+      onRefresh={refreshUser}
+      onSignOut={() => { try { logout(); } finally { window.location.reload(); } }}
+    />
   );
 
   if (user.approvalStatus === "rejected") return (

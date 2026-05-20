@@ -185,7 +185,7 @@ function VendorVerificationDrawer({ vendor, onClose }: { vendor: any; onClose: (
   );
 
   const handleApprove = () => {
-    statusMutation.mutate({ id: vendor.id, isActive: true, isBanned: false, banReason: null }, {
+    statusMutation.mutate({ id: vendor.id, isActive: true, isBanned: false, banReason: null, approvalStatus: "approved", approvalNote: note.trim() || null }, {
       onSuccess: () => { toast({ title: "Vendor approved", description: `${vendor.storeName || vendor.name} is now active.` }); onClose(); },
       onError: (e: any) => toast({ title: "Failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
     });
@@ -193,7 +193,7 @@ function VendorVerificationDrawer({ vendor, onClose }: { vendor: any; onClose: (
 
   const handleReject = () => {
     if (!note.trim()) { toast({ title: "Rejection note required", variant: "destructive" }); return; }
-    statusMutation.mutate({ id: vendor.id, isActive: false, isBanned: false, banReason: note.trim() }, {
+    statusMutation.mutate({ id: vendor.id, isActive: false, isBanned: false, banReason: note.trim(), approvalStatus: "rejected", approvalNote: note.trim() }, {
       onSuccess: () => { toast({ title: "Vendor rejected", description: "Vendor has been notified." }); onClose(); },
       onError: (e: any) => toast({ title: "Failed", description: (e instanceof Error ? e.message : String(e)), variant: "destructive" }),
     });
@@ -474,7 +474,7 @@ export default function Vendors() {
   const handleBulkApprove = useCallback(async () => {
     const ids = Array.from(selectedIds);
     const results = await Promise.allSettled(
-      ids.map(id => adminFetch(`/vendors/${id}/status`, { method: "PATCH", body: JSON.stringify({ isActive: true, isBanned: false }) }))
+      ids.map(id => adminFetch(`/vendors/${id}/status`, { method: "PATCH", body: JSON.stringify({ isActive: true, isBanned: false, approvalStatus: "approved" }) }))
     );
     const succeeded = results.filter(r => r.status === "fulfilled").length;
     const failed = results.filter(r => r.status === "rejected").length;
