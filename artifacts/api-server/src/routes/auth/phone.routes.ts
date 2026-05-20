@@ -62,6 +62,7 @@ import {
   OtpBlockedError,
   OtpInvalidError,
   OtpExpiredError,
+  OtpDeliveryError,
 } from "../../modules/otp/index.js";
 
 const router: IRouter = Router();
@@ -154,6 +155,10 @@ router.post("/send-otp", otpLimiter, verifyCaptcha, validateBody(SendOtpSchema),
     }
     if (err instanceof OtpRateLimitError) {
       sendErrorWithData(res, err.message, { retryAfterSeconds: Math.ceil(err.retryAfterMs / 1000) }, 429); return;
+    }
+    if (err instanceof OtpDeliveryError) {
+      logger.error({ error: err.message, channel: err.channel }, "[phone.routes] OTP delivery failed");
+      sendErrorWithData(res, "Unable to send OTP. Please try a different delivery method or try again later.", { code: "DELIVERY_FAILED", channel: err.channel }, 503); return;
     }
     logger.error({ error: err instanceof Error ? err.message : String(err) }, "[phone.routes] send-otp error");
     res.status(500).json({ success: false, error: "Internal server error" });

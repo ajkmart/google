@@ -52,6 +52,7 @@ import {
   OtpBlockedError,
   OtpInvalidError,
   OtpExpiredError,
+  OtpDeliveryError,
 } from "../../modules/otp/index.js";
 import { AuditService } from "../../services/admin-audit.service.js";
 
@@ -134,6 +135,10 @@ router.post("/send-email-otp", emailOtpLimiter, verifyCaptcha, validateBody(Send
     }
     if (err instanceof OtpRateLimitError) {
       sendErrorWithData(res, err.message, { retryAfterSeconds: Math.ceil(err.retryAfterMs / 1000) }, 429); return;
+    }
+    if (err instanceof OtpDeliveryError) {
+      logger.error({ error: err.message, channel: err.channel }, "[email.routes] OTP delivery failed");
+      sendErrorWithData(res, "Unable to send OTP email. Please try again later.", { code: "DELIVERY_FAILED", channel: err.channel }, 503); return;
     }
     logger.error({ error: err instanceof Error ? err.message : String(err) }, "[email.routes] send-email-otp error");
     res.status(500).json({ success: false, error: "Internal server error" });
