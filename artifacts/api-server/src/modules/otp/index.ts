@@ -44,3 +44,21 @@ export { getAvailableChannels } from "./otp.deliver.js";
 
 // ── Cleanup (used by scheduler) ──
 export { cleanupExpiredTokens } from "./otp.store.js";
+
+// ── TOTP / 2FA ──
+export {
+  generateTotpSecret,
+  encryptTotpSecret,
+  decryptTotpSecret,
+  verifyTotpToken,
+  getTotpUri,
+  generateQrCodeDataUrl,
+  savePendingTotpSecret,
+  getPendingTotpSecret,
+  deletePendingTotpSecret,
+  generateRecoveryCodes,
+  verifyRecoveryCode,
+  countUnusedRecoveryCodes,
+} from "./otp.totp.js";
+
+export type { RecoveryCodeSet } from "./otp.totp.js";
