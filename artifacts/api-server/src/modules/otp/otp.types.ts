@@ -20,6 +20,7 @@ export interface OtpVerifyOptions {
   otpType: OtpType;
   code: string;
   ipAddress?: string;
+  deviceFingerprint?: string;
 }
 
 export interface OtpSendResult {
