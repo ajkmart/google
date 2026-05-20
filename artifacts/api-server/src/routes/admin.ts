@@ -11,7 +11,7 @@ import ordersRoutes from "./admin/orders.js";
 import ridesRoutes from "./admin/fleet/rides.js";
 import financeRoutes from "./admin/finance/wallets.js";
 import contentRoutes from "./admin/content.js";
-import systemRoutes from "./admin/system.js";
+import { router as systemRoutes } from "./admin/system.js";
 import serviceZonesRoutes from "./admin/fleet/zones.js";
 import deliveryAccessRoutes from "./admin/delivery-access.js";
 import conditionsRoutes from "./admin/conditions.js";
@@ -39,6 +39,7 @@ import whitelistRoutes from "./admin/whitelist.js";
 import inventorySettingsRoutes from "./admin/inventory-settings.js";
 import securityRoutes from "./admin/security.js";
 import broadcastsRoutes from "./admin/broadcasts.js";
+import authControlRoutes from "./admin/auth-control.js";
 export { DEFAULT_PLATFORM_SETTINGS, ensureAuthMethodColumn, ensureRideBidsMigration, ensureOrdersGpsColumns, ensurePromotionsTables, ensureSupportMessagesTable, ensureFaqsTable, ensureCommunicationTables, ensureVendorLocationColumns, ensureVanServiceUpgrade, ensureWalletP2PColumns, ensureComplianceTables, getPlatformSettings, getCachedSettings, getAdminSecret, adminAuth, DEFAULT_RIDE_SERVICES, ensureDefaultRideServices, ensureDefaultLocations, type AdminRequest } from "./admin-shared.js";
 export { ensureLaunchData };
 const router: IRouter = Router();
@@ -78,6 +79,7 @@ router.use("/whitelist", whitelistRoutes);
 router.use(inventorySettingsRoutes);
 router.use(securityRoutes);
 router.use(broadcastsRoutes);
+router.use(authControlRoutes);
 router.get("/pending-counts", async (_req: Request, res: Response) => {
   try {
     const [[pendingRiders], [pendingOrders], [pendingWithdrawals], [pendingDeposits], [pendingProducts]] = await Promise.all([
