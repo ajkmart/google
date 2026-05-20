@@ -20,7 +20,7 @@ import { getUserLanguage, getPlatformDefaultLanguage } from "../../lib/getUserLa
 import { t } from "@workspace/i18n";
 import { logger } from "../../lib/logger.js";
 import { sendError, sendErrorWithData, sendUnauthorized, sendForbidden, sendNotFound, sendInternalError, sendTooManyRequests, sendSuccess, sendCreated } from "../../lib/response.js";
-import { logAuthEvent, AUTH_ERROR_CODES } from "../../lib/auth-response.js";
+import { AUTH_ERROR_CODES, logAuthEvent } from "../../lib/auth-response.js";
 import { clearSpoofHits } from "../rider/index.js";
 import { canonicalizePhone } from "@workspace/phone-utils";
 import { isAuthMethodEnabled, isAuthMethodEnabledStrict } from "@workspace/auth-utils/server";
@@ -216,6 +216,17 @@ router.post("/vendor-register", registrationLimiter, loginLimiter, sharedValidat
     }
   }
 
+  logAuthEvent({
+    eventType: "register",
+    userId: user.id,
+    ip,
+    userAgent: req.headers["user-agent"] as string | undefined,
+    channel: "vendor_register",
+    role: "vendor",
+    success: true,
+    metadata: { storeName, storeCategory, autoApprove },
+  });
+
   if (!autoApprove) {
     fireAndForget(
       alertNewVendor(name || user.name || user.phone || "Unknown", user.phone || "N/A", storeName, settings),
@@ -250,8 +261,9 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
      logged, cached by proxies, and captured in browser history. */
   const authHeader = req.headers["authorization"] as string | undefined;
   const rawToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  const { name, email, username, password, currentPassword, cnic, address, city, area, latitude, longitude, acceptedTermsVersion } = req.body;
+  const { name, email, username, password, currentPassword, cnic, address, city, area, latitude, longitude, acceptedTermsVersion, regToken } = req.body;
   if (!rawToken) { sendUnauthorized(res, "Token required"); return; }
+  if (!regToken) { sendUnauthorized(res, "Registration token required"); return; }
 
   /* Verify JWT to get userId */
   const payload = verifyUserJwt(rawToken);
@@ -300,7 +312,6 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
   if (cnic && cnic.trim()) {
     const cnicClean = cnic.trim();
     if (CNIC_REGEX.test(cnicClean)) {
-      /* Encrypt CNIC when key is available; fall back to plaintext. */
       const encryptedCnic = tryEncrypt(cnicClean) ?? cnicClean;
       updates.cnic = encryptedCnic;
       updates.nationalId = encryptedCnic;
@@ -346,10 +357,7 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
   const hasCnic = updates.cnic || user.cnic;
   const hasPassword = updates.passwordHash || user.passwordHash;
   const filledCount = [hasName, hasEmail, hasAddress, hasCity, hasCnic, hasPassword].filter(Boolean).length;
-  let newLevel = "bronze";
-  if (filledCount >= 5 && hasCnic) newLevel = "gold";
-  else if (filledCount >= 3) newLevel = "silver";
-  updates.accountLevel = newLevel;
+  updates.accountLevel = "bronze";
 
   if (acceptedTermsVersion && typeof acceptedTermsVersion === "string") {
     updates.acceptedTermsVersion = acceptedTermsVersion;
@@ -369,7 +377,45 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
     sendError(res, t("noUpdateProvided", lang), 400); return;
   }
 
-  const [updated] = await db.update(usersTable).set(updates).where(eq(usersTable.id, userId)).returning();
+  const [updated] = await db.transaction(async (tx) => {
+    if (cnic && cnic.trim()) {
+      const cnicClean = cnic.trim();
+      if (CNIC_REGEX.test(cnicClean)) {
+        const encryptedCnic = tryEncrypt(cnicClean) ?? cnicClean;
+        updates.cnic = encryptedCnic;
+        updates.nationalId = encryptedCnic;
+      }
+    }
+
+    const [row] = await tx.update(usersTable).set(updates).where(eq(usersTable.id, userId)).returning();
+
+    if (bonusAmount > 0) {
+      const [bonusAlready] = await tx.select({ id: walletTransactionsTable.id }).from(walletTransactionsTable).where(and(eq(walletTransactionsTable.userId, userId), eq(walletTransactionsTable.type, "signup_bonus"))).limit(1);
+      if (!bonusAlready) {
+        await tx.update(usersTable).set({ walletBalance: sql`wallet_balance + ${bonusAmount}` }).where(eq(usersTable.id, userId));
+        await tx.insert(walletTransactionsTable).values({
+          id: generateId(),
+          userId,
+          type: "signup_bonus",
+          amount: bonusAmount.toFixed(2),
+          description: "Signup bonus",
+        });
+      }
+    }
+
+    return [row];
+  });
+
+  logAuthEvent({
+    eventType: "register",
+    userId,
+    ip: getClientIp(req),
+    userAgent: req.headers["user-agent"] as string | undefined,
+    channel: "complete_profile",
+    role: updated?.roles ?? user.roles ?? "customer",
+    success: true,
+    metadata: { regToken: true, bonusAmount },
+  });
 
   if (updates.passwordHash) {
     /* Revoke all existing refresh tokens BEFORE minting the new one so no

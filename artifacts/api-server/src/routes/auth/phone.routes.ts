@@ -213,7 +213,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, validateBody(VerifyOtpSche
     if (verified.isNewUser) {
       const requestedRoleForNew: string | undefined = typeof req.body?.role === "string" ? req.body.role : undefined;
       if (requestedRoleForNew && requestedRoleForNew !== "customer") {
-        sendErrorWithData(res, `No ${requestedRoleForNew} account found for this phone number.`, { wrongApp: true }, 403);
+        sendErrorWithData(res, `No ${requestedRoleForNew} account found for this phone number.`, { wrongApp: true, redirectTo: requestedRoleForNew === "rider" ? "/rider" : "/vendor", code: AUTH_ERROR_CODES.WRONG_APP }, 403);
         return;
       }
 
@@ -313,7 +313,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, validateBody(VerifyOtpSche
       const userRoles = (user.roles || "customer").split(",").map((r: string) => r.trim());
       if (!userRoles.includes(requestedRole)) {
         addSecurityEvent({ type: "cross_role_login_attempt", ip, userId: user.id, details: `User [${user.roles}] tried to log in as ${requestedRole}`, severity: "high" });
-        sendErrorWithData(res, `This account is not registered as a ${requestedRole}. Please use the correct app.`, { wrongApp: true }, 403);
+        sendErrorWithData(res, `This account is not registered as a ${requestedRole}. Please use the correct app.`, { wrongApp: true, redirectTo: requestedRole === "rider" ? "/rider" : requestedRole === "vendor" ? "/vendor" : "/customer", code: AUTH_ERROR_CODES.WRONG_APP }, 403);
         return;
       }
     }

@@ -20,6 +20,7 @@ import { getUserLanguage, getPlatformDefaultLanguage } from "../../lib/getUserLa
 import { t } from "@workspace/i18n";
 import { logger } from "../../lib/logger.js";
 import { sendError, sendErrorWithData, sendUnauthorized, sendForbidden, sendNotFound, sendInternalError, sendTooManyRequests, sendSuccess, sendCreated } from "../../lib/response.js";
+import { AUTH_ERROR_CODES, logAuthEvent } from "../../lib/auth-response.js";
 import { clearSpoofHits } from "../rider/index.js";
 import { canonicalizePhone } from "@workspace/phone-utils";
 import { isAuthMethodEnabled, isAuthMethodEnabledStrict } from "@workspace/auth-utils/server";
@@ -237,7 +238,7 @@ router.post("/check-available", sharedValidateBody(CheckAvailableSchema), async 
   }
 
   const { phone, email, username } = req.body;
-  const result: Record<string, { available: boolean; message: string }> = {};
+  const result: Record<string, { available: boolean; suggestions?: string[] }> = {};
 
   const lang = await getPlatformDefaultLanguage();
 
@@ -245,26 +246,34 @@ router.post("/check-available", sharedValidateBody(CheckAvailableSchema), async 
     const canonPhone = canonicalizePhone(phone);
     const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, canonPhone)).limit(1);
     result.phone = existing
-      ? { available: false, message: t("phoneAlreadyExists", lang) }
-      : { available: true,  message: "Available" };
+      ? { available: false }
+      : { available: true };
   }
 
   if (email && email.length > 3) {
     const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim())).limit(1);
     result.email = existing
-      ? { available: false, message: t("emailAlreadyExists", lang) }
-      : { available: true,  message: "Available" };
+      ? { available: false }
+      : { available: true };
   }
 
   if (username && username.length > 2) {
     const clean = username.toLowerCase().trim();
     const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(sql`lower(${usersTable.username}) = ${clean}`).limit(1);
     result.username = existing
-      ? { available: false, message: t("usernameTaken", lang) }
-      : { available: true,  message: "Available" };
+      ? { available: false, suggestions: [
+          `${clean}1`,
+          `${clean}_pk`,
+          `${clean}_${randomInt(100, 999)}`,
+        ] }
+      : { available: true };
   }
 
-  sendSuccess(res, result);
+  sendSuccess(res, {
+    available: Object.values(result).every((entry) => entry.available),
+    suggestions: result.username?.suggestions ?? [],
+    ...result,
+  });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
