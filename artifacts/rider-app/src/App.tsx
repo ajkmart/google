@@ -404,6 +404,7 @@ function AppRoutes() {
 
   if (!user) return (
     <Switch>
+      <Route path="/" component={GuestLanding} />
       <Route path="/register">{() => <Register />}</Route>
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/login">{() => <Login />}</Route>

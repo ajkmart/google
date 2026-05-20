@@ -46,6 +46,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     if (/network|fetch|connection|timeout|offline/.test(lower)) return T("networkError") as string;
     if (/otp.*send|send.*otp|failed to send/.test(lower)) return T("sendOtpFailed") as string;
     if (/access.*denied|role|riders? only|vendors? only/.test(lower)) return T("accessDenied") as string;
+    if (/توثیق|validation|input|check.*input|خرابی/.test(lower)) return T("loginFailed") as string;
     return T("loginFailed") as string;
   }, [T]);
 
@@ -77,6 +78,12 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const capturedTokenRef = useRef("");
+  const sdkStrings = useMemo(() => ({
+    ...loginStrings,
+    loginFailed: T("loginFailed") as string,
+    registrationFailed: T("registrationFailed") as string,
+    accessDenied: T("accessDenied") as string,
+  }), [loginStrings, T]);
 
   /* ── check biometric enrollment ── */
   useEffect(() => {
@@ -233,7 +240,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
         enableMagicLink={auth.magicLinkEnabled}
         onMagicLink={auth.magicLinkEnabled ? handleMagicLink : undefined}
         title={T("riderPortal") as string}
-        strings={loginStrings}
+        strings={sdkStrings}
         translateError={translateApiError}
       />
     </div>

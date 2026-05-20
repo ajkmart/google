@@ -682,10 +682,8 @@ export function LoginScreen({
                   onPress={onRegisterPress}
                   accessibilityRole="link"
                 >
-                  <Text style={styles.linkBtnText}>
-                    New user?{' '}
-                    <Text style={styles.linkBtnBold}>Create account</Text>
-                  </Text>
+                  <Text style={styles.linkBtnText}>New user?</Text>
+                  <Text style={styles.linkBtnBold}>Create account</Text>
                 </TouchableOpacity>
               ) : null}
             </Animated.View>
