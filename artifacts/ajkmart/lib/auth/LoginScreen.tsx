@@ -60,9 +60,11 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     check();
   }, []);
 
-  const completeLogin = useCallback((token: string, user: SDKAuthUser) => {
+  const completeLogin = useCallback(async (token: string, user: SDKAuthUser) => {
     /* AuthContext.login signature: (user: AppUser, token: string, refreshToken?) */
-    login(user as never, token);
+    /* Await login() so setUser() runs before navigation — prevents tabs mounting
+       with user === null and flashing guest content. */
+    await login(user as never, token);
     onSuccess?.(token, user);
     router.replace("/(tabs)");
   }, [login, onSuccess]);
@@ -98,7 +100,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
         setBiometricError("Biometric verification failed. Please log in again to continue.");
         return;
       }
-      completeLogin(token, sdkUser);
+      await completeLogin(token, sdkUser);
       return;
     }
 
@@ -110,7 +112,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       return;
     }
 
-    completeLogin(token, sdkUser);
+    await completeLogin(token, sdkUser);
   }, [biometricEnabled, completeLogin]);
 
   const confirmBiometric = async (enable: boolean) => {
@@ -129,7 +131,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       } catch { /* biometric setup failed — proceed without it */ }
     }
     setOverlay(null);
-    completeLogin(pendingTokenRef.current, pendingUserRef.current);
+    await completeLogin(pendingTokenRef.current, pendingUserRef.current);
   };
 
   /* Social OAuth — not yet implemented for the customer Expo app.
