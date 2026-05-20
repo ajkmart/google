@@ -172,6 +172,20 @@ function BankStep({ data, onChange, onError }: StepComponentProps) {
   );
 }
 
+/* ── Password strength helper ── */
+function getPasswordStrength(pw: string): { level: number; label: string; color: string; width: string } {
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/\d/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  if (score <= 1) return { level: 1, label: "Weak", color: "#ef4444", width: "25%" };
+  if (score <= 2) return { level: 2, label: "Fair", color: "#f97316", width: "50%" };
+  if (score <= 3) return { level: 3, label: "Good", color: "#F0B90B", width: "75%" };
+  return { level: 4, label: "Strong", color: "#10b981", width: "100%" };
+}
+
 /* ── Step 4: OTP + Password ──────────────────────────────────────────────── */
 function OtpPasswordStep({ data, onChange, onError, onComplete }: StepComponentProps & { onComplete?: (otp: string) => void }) {
   const { language } = useLanguage();
@@ -223,10 +237,20 @@ function OtpPasswordStep({ data, onChange, onError, onComplete }: StepComponentP
     const phone = (data.phone as string) ?? "";
     if (!phone || resending || resendCooldown > 0) return;
     setResending(true);
-    await sendOtp(phone);
+    const result = await sendOtp(phone);
     setResending(false);
+    if (!result.success) {
+      onError(result.error ?? "Failed to resend OTP. Please try again.");
+      return;
+    }
     setResendCooldown(30);
   };
+
+  const pw = (data.password as string) ?? "";
+  const confirmPw = (data.confirmPassword as string) ?? "";
+  const strength = pw ? getPasswordStrength(pw) : null;
+  const passwordsMatch = confirmPw.length > 0 && pw === confirmPw;
+  const passwordsMismatch = confirmPw.length > 0 && pw !== confirmPw;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -268,25 +292,43 @@ function OtpPasswordStep({ data, onChange, onError, onComplete }: StepComponentP
         <div style={{ position: "relative" }}>
           <input type={showPassword ? "text" : "password"}
             style={darkInput({ paddingRight: 44 })}
-            value={(data.password as string) ?? ""} onChange={e => { onChange("password", e.target.value); onError(""); }} placeholder="Min 8 characters" />
+            value={pw} onChange={e => { onChange("password", e.target.value); onError(""); }} placeholder="Min 8 characters" />
           <button type="button" tabIndex={-1} onClick={() => setShowPassword(v => !v)}
             style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#6B7280", cursor: "pointer", padding: 0 }}>
             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
+        {/* Password strength meter */}
+        {strength && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ flex: 1, height: 4, borderRadius: 4, background: "#252D3A", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: strength.width, background: strength.color, borderRadius: 4, transition: "all 0.3s" }} />
+              </div>
+              <span style={{ fontSize: 10, fontWeight: 700, color: strength.color, minWidth: 42, textAlign: "right" }}>
+                {strength.label}
+              </span>
+            </div>
+            <p style={{ fontSize: 10, color: "#6B7280", marginTop: 4 }}>
+              {strength.level < 3 ? "Add uppercase, numbers, or special characters to strengthen" : "Great password!"}
+            </p>
+          </div>
+        )}
       </div>
 
       <div>
         <label style={labelStyle(pr)}>{T("confirmPassword")} *</label>
         <div style={{ position: "relative" }}>
           <input type={showConfirm ? "text" : "password"}
-            style={darkInput({ paddingRight: 44 })}
-            value={(data.confirmPassword as string) ?? ""} onChange={e => { onChange("confirmPassword", e.target.value); onError(""); }} placeholder="Re-enter password" />
+            style={darkInput({ paddingRight: 44, border: `1.5px solid ${passwordsMismatch ? "#ef4444" : passwordsMatch ? "#10b981" : "#252D3A"}` })}
+            value={confirmPw} onChange={e => { onChange("confirmPassword", e.target.value); onError(""); }} placeholder="Re-enter password" />
           <button type="button" tabIndex={-1} onClick={() => setShowConfirm(v => !v)}
             style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#6B7280", cursor: "pointer", padding: 0 }}>
             {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
+        {passwordsMismatch && <p style={{ fontSize: 10, color: "#ef4444", marginTop: 4 }}>Passwords do not match</p>}
+        {passwordsMatch && <p style={{ fontSize: 10, color: "#10b981", marginTop: 4 }}>✓ Passwords match</p>}
       </div>
     </div>
   );

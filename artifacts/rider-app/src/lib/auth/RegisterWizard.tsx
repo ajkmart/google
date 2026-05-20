@@ -582,9 +582,9 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
   }, []);
 
   /* ── OTP send handler ── */
-  const handleOtpRequest = async (phone: string) => {
+  const handleOtpRequest = async (phone: string): Promise<{ success: boolean; error?: string }> => {
     const result = await sendOtp(phone);
-    return result.success;
+    return { success: result.success, error: result.error };
   };
 
   /* ── Submit handler ── */
@@ -611,6 +611,7 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
         drivingLicense: data.drivingLicense as string,
         vehiclePhoto: data.vehiclePhoto as string | undefined,
         documents,
+        ...(data.otp ? { otp: data.otp as string } : {}),
         ...(deviceMeta ? { deviceMeta } : {}),
       };
       if (auth.usernamePassword && data.password) {

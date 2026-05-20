@@ -151,6 +151,11 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [devOtp, setDevOtp] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
 
+  /* ── 2FA state ── */
+  const [twoFaData, setTwoFaData] = useState<{ tempToken: string; identifier: string } | null>(null);
+  const [twoFaCode, setTwoFaCode] = useState("");
+  const [twoFaVerifying, setTwoFaVerifying] = useState(false);
+
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const t = setTimeout(() => setResendCooldown(c => c - 1), 1000);
@@ -314,9 +319,32 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     const result = await loginWithPassword(localIdentifier.trim(), localPassword);
     setSigningIn(false);
     if (!result.success) { setLoginError(translateApiError(result.error ?? "")); return; }
-    const { token, refreshToken } = result.data!;
+    const { token, refreshToken, requires2FA, tempToken } = result.data!;
+    if (requires2FA && tempToken) {
+      setTwoFaData({ tempToken, identifier: localIdentifier.trim() });
+      return;
+    }
     api.storeTokens(token, refreshToken);
     await handleSuccess({ id: "", phone: localIdentifier } as unknown as SDKAuthUser, token);
+  };
+
+  const handleVerify2fa = async () => {
+    if (twoFaCode.length !== 6) { setLoginError("Enter the 6-digit authenticator code"); return; }
+    setLoginError(null);
+    setTwoFaVerifying(true);
+    try {
+      const res = await api.twoFactorVerify({ code: twoFaCode, tempToken: twoFaData!.tempToken }) as Record<string, unknown>;
+      const token = (res.accessToken ?? res.token) as string;
+      const refreshToken = res.refreshToken as string | undefined;
+      api.storeTokens(token, refreshToken);
+      setTwoFaData(null);
+      setTwoFaCode("");
+      await handleSuccess({ id: "", phone: twoFaData!.identifier, roles: [] } as unknown as SDKAuthUser, token);
+    } catch (err: unknown) {
+      setLoginError(err instanceof Error ? translateApiError(err.message) : "Invalid code. Please try again.");
+    } finally {
+      setTwoFaVerifying(false);
+    }
   };
 
   const isBlocked = isProcessing || isRateLimited;
@@ -328,6 +356,37 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   if (overlay === "pending") return <PendingOverlay appName={config.platform.appName} onBack={() => setOverlay(null)} />;
   if (overlay === "rejected") return <RejectedOverlay reason={rejectionReason} onBack={() => { setOverlay(null); setRejectionReason(null); }} />;
   if (overlay === "biometric") return <BiometricPromptOverlay onAccept={() => void confirmBiometric(true)} onDecline={() => void confirmBiometric(false)} loading={isBiometricLoading} />;
+
+  /* ── 2FA overlay ── */
+  if (twoFaData) {
+    return (
+      <div style={{ minHeight: "100vh", background: theme.background, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px" }}>
+        <div style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 20, padding: "28px 24px", width: "100%", maxWidth: 400, boxShadow: "0 24px 64px rgba(0,0,0,0.3)" }}>
+          <div style={{ textAlign: "center", marginBottom: 20 }}>
+            <div style={{ width: 56, height: 56, borderRadius: 16, background: `${theme.primary}15`, border: `1px solid ${theme.primary}40`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={theme.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+            </div>
+            <h2 style={{ color: theme.text, fontSize: 20, fontWeight: 700, margin: "0 0 6px" }}>Two-Factor Authentication</h2>
+            <p style={{ color: theme.textMuted, fontSize: 13, margin: 0 }}>Enter the 6-digit code from your authenticator app</p>
+          </div>
+          {loginError && (
+            <div role="alert" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, color: "#f87171", fontSize: 13 }}>
+              {loginError}
+            </div>
+          )}
+          <OtpBoxes value={twoFaCode} onChange={v => { setTwoFaCode(v); setLoginError(null); }} onComplete={() => void handleVerify2fa()} disabled={twoFaVerifying} />
+          <button onClick={() => void handleVerify2fa()} disabled={twoFaVerifying || twoFaCode.length < 6}
+            style={{ width: "100%", height: 48, borderRadius: 12, border: "none", marginTop: 18, background: twoFaVerifying || twoFaCode.length < 6 ? `${theme.primary}60` : `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`, color: "#fff", fontSize: 15, fontWeight: 700, cursor: twoFaVerifying || twoFaCode.length < 6 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            {twoFaVerifying ? <><Spinner color="#fff" /> Verifying…</> : "Verify"}
+          </button>
+          <button onClick={() => { setTwoFaData(null); setTwoFaCode(""); setLoginError(null); }}
+            style={{ width: "100%", background: "none", border: "none", color: theme.textMuted, fontSize: 13, cursor: "pointer", marginTop: 12, padding: 8 }}>
+            ← Back to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   /* ── Shared styles ── */
   const inputStyle: React.CSSProperties = {
