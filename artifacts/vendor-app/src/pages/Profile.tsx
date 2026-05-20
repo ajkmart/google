@@ -194,7 +194,7 @@ export default function Profile() {
   const uploadDoc = async (key: DocKey, file: File) => {
     setDocUploading(key);
     try {
-      const { url } = await api.uploadImage(file) as { url: string };
+      const { url } = await api.uploadVendorDoc(file) as { url: string };
       await api.updateProfile({ [key]: url });
       await refreshUser();
       showToast("✅ Document uploaded successfully!");

@@ -394,6 +394,14 @@ export const api = {
     return { url: result.url };
   },
 
+  uploadVendorDoc: async (file: File): Promise<{ url: string }> => {
+    const compressed = await compressImage(file);
+    const formData = new FormData();
+    formData.append("file", compressed, file.name || "document.jpg");
+    const result = await apiFetch("/uploads/doc", { method: "POST", body: formData });
+    return { url: result.url };
+  },
+
   uploadRegistrationDoc: async (file: File): Promise<{ url: string }> => {
     const fetchToken = async (): Promise<string> => {
       const tokenRes = await apiFetch("/uploads/register-token", { method: "POST" });

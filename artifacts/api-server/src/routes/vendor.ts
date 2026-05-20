@@ -138,28 +138,33 @@ router.patch("/profile", validateBody(patchProfileSchema), async (req, res, next
   const vendorId = req.vendorId!;
   const { name, email, cnic, address, city, bankName, bankAccount, bankAccountTitle, businessType,
           cnicFrontUrl, cnicBackUrl, businessDocUrl } = req.body;
-  const updates: Record<string, unknown> = { updatedAt: new Date() };
-  if (name             !== undefined) updates.name             = name;
-  if (email            !== undefined) updates.email            = email;
-  if (cnic             !== undefined) updates.cnic             = cnic;
-  if (address          !== undefined) updates.address          = address;
-  if (city             !== undefined) updates.city             = city;
-  if (bankName         !== undefined) updates.bankName         = bankName;
-  if (bankAccount      !== undefined) updates.bankAccount      = bankAccount;
-  if (bankAccountTitle !== undefined) updates.bankAccountTitle = bankAccountTitle;
-  if (businessType     !== undefined) updates.businessType     = businessType;
-  const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, vendorId)).returning();
-  const docUpdates: Record<string, unknown> = { updatedAt: new Date() };
-  if (cnicFrontUrl   !== undefined) docUpdates.cnicFrontUrl   = cnicFrontUrl;
-  if (cnicBackUrl    !== undefined) docUpdates.cnicBackUrl    = cnicBackUrl;
-  if (businessDocUrl !== undefined) docUpdates.businessDocUrl = businessDocUrl;
-  if (Object.keys(docUpdates).length > 1) {
+  const userUpdates: Record<string, unknown> = { updatedAt: new Date() };
+  if (name             !== undefined) userUpdates.name             = name;
+  if (email            !== undefined) userUpdates.email            = email;
+  if (cnic             !== undefined) userUpdates.cnic             = cnic;
+  if (address          !== undefined) userUpdates.address          = address;
+  if (city             !== undefined) userUpdates.city             = city;
+  if (bankName         !== undefined) userUpdates.bankName         = bankName;
+  if (bankAccount      !== undefined) userUpdates.bankAccount      = bankAccount;
+  if (bankAccountTitle !== undefined) userUpdates.bankAccountTitle = bankAccountTitle;
+  const [user] = await db.update(usersTable).set(userUpdates).where(eq(usersTable.id, vendorId)).returning();
+  const profileUpdates: Record<string, unknown> = { updatedAt: new Date() };
+  if (businessType   !== undefined) profileUpdates.businessType   = businessType;
+  if (cnicFrontUrl   !== undefined) profileUpdates.cnicFrontUrl   = cnicFrontUrl;
+  if (cnicBackUrl    !== undefined) profileUpdates.cnicBackUrl    = cnicBackUrl;
+  if (businessDocUrl !== undefined) profileUpdates.businessDocUrl = businessDocUrl;
+  if (Object.keys(profileUpdates).length > 1) {
     await db.insert(vendorProfilesTable)
-      .values({ userId: vendorId, ...docUpdates })
-      .onConflictDoUpdate({ target: vendorProfilesTable.userId, set: docUpdates });
+      .values({ userId: vendorId, ...profileUpdates })
+      .onConflictDoUpdate({ target: vendorProfilesTable.userId, set: profileUpdates });
   }
-  const [profile] = await db.select().from(vendorProfilesTable).where(eq(vendorProfilesTable.userId, vendorId));
-  sendSuccess(res, formatUser({ ...user, ...profile }));
+  const [profile] = await db.select({
+    cnicFrontUrl:  vendorProfilesTable.cnicFrontUrl,
+    cnicBackUrl:   vendorProfilesTable.cnicBackUrl,
+    businessDocUrl: vendorProfilesTable.businessDocUrl,
+    businessType:  vendorProfilesTable.businessType,
+  }).from(vendorProfilesTable).where(eq(vendorProfilesTable.userId, vendorId));
+  sendSuccess(res, formatUser({ ...user, ...(profile ?? {}) }));
   } catch (err) {
     next(err);
   }

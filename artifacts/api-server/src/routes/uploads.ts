@@ -745,6 +745,49 @@ router.post(
   },
 );
 
+/* ── POST /uploads/doc — multipart document upload (vendors only) ──
+   Accepts JPEG, PNG, WebP images up to 5MB.
+   Field name: "file". Returns { url }.
+*/
+router.post(
+  "/doc",
+  requireRole("vendor", { vendorApprovalCheck: false }),
+  (req, res, next) => {
+    upload.single("file")(req as any, res as any, (err) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === "LIMIT_FILE_SIZE") { sendValidationError(res, "File too large. Maximum 5MB allowed"); return; }
+        sendValidationError(res, err.message);
+        return;
+      }
+      if (err) { sendValidationError(res, err instanceof Error ? err.message : "Upload failed"); return; }
+      next();
+    });
+  },
+  async (req, res) => {
+    try {
+      if (!req.file) { sendValidationError(res, "No file uploaded"); return; }
+      const { mimetype, buffer, originalname } = req.file;
+      const limits = await getUploadLimits();
+      if (!limits.imageFormats.includes(mimetype)) {
+        sendValidationError(res, "Only JPEG, PNG, and WebP images are allowed");
+        return;
+      }
+      if (buffer.length > limits.maxImageSize) {
+        sendValidationError(res, `File too large. Maximum ${Math.round(limits.maxImageSize / (1024 * 1024))}MB allowed`);
+        return;
+      }
+      if (!validateFileMagicBytes(buffer, mimetype)) {
+        sendValidationError(res, "File content does not match the declared MIME type");
+        return;
+      }
+      const url = await saveBuffer(buffer, "vendor-doc", mimetype);
+      sendCreated(res, { url, filename: originalname || path.basename(url), size: buffer.length });
+    } catch (e: unknown) {
+      sendError(res, e instanceof Error ? e.message : "Document upload failed");
+    }
+  },
+);
+
 export { prescriptionRefMap };
 
 export default router;
