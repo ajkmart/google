@@ -170,21 +170,31 @@ router.get("/vendors", requirePermission("vendors.view"), async (_req, res) => {
 });
 
 router.patch("/vendors/:id/status", requirePermission("vendors.edit"), async (req, res) => {
-  const { isActive, isBanned, banReason, securityNote } = req.body;
+  const { isActive, isBanned, banReason, securityNote, approvalStatus, approvalNote } = req.body;
   const updates: Partial<typeof usersTable.$inferInsert> = { updatedAt: new Date() };
-  if (isActive    !== undefined) updates.isActive    = isActive;
-  if (isBanned    !== undefined) updates.isBanned    = isBanned;
-  if (banReason   !== undefined) updates.banReason   = banReason || null;
-  if (securityNote !== undefined) updates.securityNote = securityNote || null;
-  const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, req.params["id"] as string)).returning();
+  if (isActive        !== undefined) updates.isActive       = isActive;
+  if (isBanned        !== undefined) updates.isBanned       = isBanned;
+  if (banReason       !== undefined) updates.banReason      = banReason || null;
+  if (securityNote    !== undefined) updates.securityNote   = securityNote || null;
+  if (approvalStatus  !== undefined) updates.approvalStatus = approvalStatus;
+  if (approvalNote    !== undefined) updates.approvalNote   = approvalNote || null;
+  const vendorId = req.params["id"] as string;
+  const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, vendorId)).returning();
   if (!user) { res.status(404).json({ error: "Vendor not found" }); return; }
   if (isBanned || isActive === false) {
-    revokeAllUserSessions(req.params["id"] as string).catch((e: Error) => {
-      logger.warn({ err: e.message, userId: req.params["id"] as string }, "[admin] session revocation failed after vendor ban/deactivation");
+    revokeAllUserSessions(vendorId).catch((e: Error) => {
+      logger.warn({ err: e.message, userId: vendorId }, "[admin] session revocation failed after vendor ban/deactivation");
     });
     if (isBanned) {
-      await sendUserNotification(req.params["id"] as string, "Store Account Suspended ⚠️", banReason || "Your vendor account has been suspended. Contact support.", "warning", "warning-outline");
+      await sendUserNotification(vendorId, "Store Account Suspended ⚠️", banReason || "Your vendor account has been suspended. Contact support.", "warning", "warning-outline");
     }
+  }
+  if (approvalStatus === "approved") {
+    await sendUserNotification(vendorId, "Store Approved! 🎉", "Congratulations! Your vendor account has been approved. Start adding products and manage your store.", "system", "checkmark-circle-outline");
+  }
+  if (approvalStatus === "rejected") {
+    const reason = approvalNote || banReason || "Your application did not meet our requirements.";
+    await sendUserNotification(vendorId, "Application Not Approved ❌", `Your vendor application was not approved. Reason: ${reason}`, "warning", "close-circle-outline");
   }
   res.json({ ...stripUser(user), walletBalance: parseFloat(String(user.walletBalance ?? "0")) });
 });
