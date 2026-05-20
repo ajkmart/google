@@ -100,6 +100,7 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
     setVerifying(false);
     if (!result.success || !result.data) {
       setError(result.error ?? T("loginFailed") as string);
+      setOtp("");
       return;
     }
     await handleLoginSuccess(result.data.token, { id: "", phone, roles: ["rider"] });

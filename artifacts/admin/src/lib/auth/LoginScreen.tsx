@@ -15,7 +15,6 @@ import { OtpInput } from "@workspace/auth-react";
 import { useAuth } from "./useAuth";
 import { useRateLimitCountdown } from "./useRateLimitCountdown";
 import { useAppStatus } from "./useAppStatus";
-import { captureDeviceMeta } from "../deviceMeta";
 import { useTheme } from "./ThemeContext";
 import { useAdminAuth } from "../adminAuthContext";
 import { useToast } from "@/hooks/use-toast";
