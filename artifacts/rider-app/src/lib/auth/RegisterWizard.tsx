@@ -15,7 +15,7 @@ import { useLocation } from "wouter";
 import { RegisterScreen } from "@workspace/auth-react";
 import type { StepConfig, StepComponentProps } from "@workspace/auth-react";
 import { useTheme } from "./ThemeContext";
-import { useAuth } from "./useAuth";
+import { useAuthOps } from "./useAuth";
 import { api } from "../api";
 import { usePlatformConfig } from "../useConfig";
 import { useRiderAuthConfig } from "../AuthConfigContext";
@@ -26,6 +26,8 @@ import { RegisterStepDocuments, type UploadedDoc } from "../../pages/register/Re
 import { isValidPhone, isValidCnic } from "@workspace/phone-utils";
 
 const DRAFT_KEY = "rider_reg_draft";
+const DRAFT_TTL_KEY = "rider_reg_draft_ts";
+const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
 
 /* ── Validate Pakistani phone: 03XXXXXXXXX (11 digits, starts with 03) ── */
 function isValidPakistaniPhone(phone: string): boolean {
@@ -93,7 +95,7 @@ function PhoneInfoStep({ data, onChange, onError }: StepComponentProps) {
 function OtpStep({ data, onChange, onError, onComplete }: StepComponentProps & { onComplete?: (otp: string) => void }) {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
-  const { sendOtp } = useAuth();
+  const { sendOtp } = useAuthOps();
   const [otp, setOtp] = useState("");
   const [resending, setResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -142,8 +144,12 @@ function OtpStep({ data, onChange, onError, onComplete }: StepComponentProps & {
     const phone = (data.phone as string) ?? "";
     if (!phone || resending || resendCooldown > 0) return;
     setResending(true);
-    await sendOtp(phone);
+    const result = await sendOtp(phone);
     setResending(false);
+    if (!result.success) {
+      onError(result.error ?? "Failed to resend OTP. Please try again.");
+      return;
+    }
     setResendCooldown(30);
   };
 
@@ -428,7 +434,16 @@ const BASE_STEPS: StepConfig[] = [
       return null;
     },
   },
-  { id: "otp", title: "Verify", component: OtpStep },
+  {
+    id: "otp",
+    title: "Verify",
+    component: OtpStep,
+    validate: (data) => {
+      const otp = String(data.otp ?? "").trim();
+      if (otp.length !== 6) return "Please enter the 6-digit OTP sent to your phone";
+      return null;
+    },
+  },
   {
     id: "vehicle",
     title: "Vehicle",
@@ -455,6 +470,8 @@ const PASSWORD_STEP: StepConfig = {
     const pw = String(data.password ?? "");
     if (!pw) return "Password is required";
     if (pw.length < 8) return "Password must be at least 8 characters";
+    if (!/[a-zA-Z]/.test(pw)) return "Password must contain at least one letter";
+    if (!/[0-9]/.test(pw)) return "Password must contain at least one number";
     if (pw !== String(data.confirmPassword ?? "")) return "Passwords do not match";
     return null;
   },
@@ -466,7 +483,7 @@ export interface RegisterWizardProps {
 
 export function RegisterWizard({ onDone }: RegisterWizardProps) {
   const theme = useTheme();
-  const { sendOtp } = useAuth();
+  const { sendOtp } = useAuthOps();
   const [, navigate] = useLocation();
   const { config } = usePlatformConfig();
   const { language } = useLanguage();
@@ -479,7 +496,16 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
     : BASE_STEPS;
 
   const [draft, setDraft] = useState<Record<string, unknown>>(() => {
-    try { const raw = localStorage.getItem(DRAFT_KEY); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      const ts = parseInt(localStorage.getItem(DRAFT_TTL_KEY) ?? "0", 10);
+      if (raw && Date.now() - ts > DRAFT_TTL_MS) {
+        localStorage.removeItem(DRAFT_KEY);
+        localStorage.removeItem(DRAFT_TTL_KEY);
+        return {};
+      }
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
   });
 
   /* Save draft on every change — exclude passwords and uploaded document URLs */
@@ -492,6 +518,7 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
         ...safe
       } = next as Record<string, unknown>;
       localStorage.setItem(DRAFT_KEY, JSON.stringify(safe));
+      localStorage.setItem(DRAFT_TTL_KEY, Date.now().toString());
       return next;
     });
   }, []);

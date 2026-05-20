@@ -50,11 +50,11 @@ export const useOTPBypass = (phone?: string) => {
     const fetchStatus = async () => {
       if (abortController.signal.aborted) return;
       try {
-        const cacheTime = localStorage.getItem(cacheTimeKey);
+        const cacheTime = sessionStorage.getItem(cacheTimeKey);
         if (cacheTime && Date.now() - parseInt(cacheTime, 10) < CACHE_TTL_MS) {
-          const cached = localStorage.getItem(cacheKey);
+          const cached = sessionStorage.getItem(cacheKey);
           if (cached) {
-            try { applyData(JSON.parse(cached)); } catch (err) { console.warn('[artifacts/rider-app/src/hooks/useOTPBypass.ts]', err); } // eslint-disable-line no-console
+            try { applyData(JSON.parse(cached)); } catch (err) { log.warn("OTP bypass cache parse failed:", err); }
             setLoading(false);
             return;
           }
@@ -68,14 +68,14 @@ export const useOTPBypass = (phone?: string) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         applyData(data);
-        localStorage.setItem(cacheKey, JSON.stringify(data));
-        localStorage.setItem(cacheTimeKey, Date.now().toString());
+        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        sessionStorage.setItem(cacheTimeKey, Date.now().toString());
       } catch (error) {
         log.error("Failed to fetch otp-status:", error);
-        const cacheTime = localStorage.getItem(cacheTimeKey);
+        const cacheTime = sessionStorage.getItem(cacheTimeKey);
         if (cacheTime && Date.now() - parseInt(cacheTime, 10) < CACHE_TTL_MS) {
-          const cached = localStorage.getItem(cacheKey);
-          if (cached) { try { applyData(JSON.parse(cached)); } catch (err) { console.warn('[artifacts/rider-app/src/hooks/useOTPBypass.ts]', err); } } // eslint-disable-line no-console
+          const cached = sessionStorage.getItem(cacheKey);
+          if (cached) { try { applyData(JSON.parse(cached)); } catch (err) { log.warn("OTP bypass cache parse failed:", err); } }
         }
       } finally {
         setLoading(false);

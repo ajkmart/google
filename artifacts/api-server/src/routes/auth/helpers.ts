@@ -59,9 +59,7 @@ export async function isValidCanonicalPhone(phone: string): Promise<boolean> {
   }
 }
 
-export function isRiderSession(req: Request, user?: { role?: string | null; roles?: string | null } | null): boolean {
-  const bodyRole: string | undefined = typeof req.body?.role === "string" ? req.body.role : undefined;
-  if (bodyRole === "rider") return true;
+export function isRiderSession(_req: Request, user?: { role?: string | null; roles?: string | null } | null): boolean {
   const rolesStr = (user?.roles ?? user?.role ?? "") as string;
   if (!rolesStr) return false;
   return rolesStr.split(",").map((r) => r.trim()).includes("rider");
@@ -91,9 +89,7 @@ export function clearRiderRefreshCookie(res: Response): void {
   });
 }
 
-export function isVendorSession(req: Request, user?: { role?: string | null; roles?: string | null } | null): boolean {
-  const bodyRole: string | undefined = typeof req.body?.role === "string" ? req.body.role : undefined;
-  if (bodyRole === "vendor") return true;
+export function isVendorSession(_req: Request, user?: { role?: string | null; roles?: string | null } | null): boolean {
   const rolesStr = (user?.roles ?? user?.role ?? "") as string;
   if (!rolesStr) return false;
   return rolesStr.split(",").map((r) => r.trim()).includes("vendor");
@@ -130,7 +126,7 @@ export const forgotPasswordSchema = z.object({
 
 export const registerSchema = z.object({
   phone: z.string().min(7, "Phone number is required"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters").optional(),
   name: z.string().max(80).optional(),
   role: z.enum(["customer", "rider", "vendor"]).optional(),
   email: z.string().email().optional().or(z.literal("")),

@@ -40,11 +40,24 @@ const DEFAULT_AUTH_CONFIG: AuthConfig = {
   lockoutDurationSec: 300,
 };
 
+const SAFE_DEGRADED_CONFIG: AuthConfig = {
+  ...DEFAULT_AUTH_CONFIG,
+  usernamePassword: false,
+  googleEnabled: false,
+  facebookEnabled: false,
+  magicLinkEnabled: false,
+};
+
 const AuthConfigContext = createContext<AuthConfig | null>(null);
 
 async function fetchAuthConfig(): Promise<AuthConfig> {
-  const res = await fetch("/api/auth/config", { credentials: "include" });
-  if (!res.ok) return DEFAULT_AUTH_CONFIG;
+  let res: Response;
+  try {
+    res = await fetch("/api/auth/config", { credentials: "include" });
+  } catch {
+    return SAFE_DEGRADED_CONFIG;
+  }
+  if (!res.ok) return SAFE_DEGRADED_CONFIG;
   const json = await res.json();
   const d = json?.data ?? json;
   return {

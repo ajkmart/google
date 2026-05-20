@@ -38,7 +38,7 @@ async function captureException(err: unknown) {
   } catch (e) { log.debug("[useAuth] Sentry capture failed (not available):", e); }
 }
 
-export function useAuth() {
+export function useAuthOps() {
   const { logout: appLogout } = useAuthContext();
   const [isLoading, setIsLoading] = useState(false);
 

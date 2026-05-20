@@ -9,7 +9,7 @@ import { LoginScreen as SDKLoginScreen, type LoginScreenStrings } from "@workspa
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[login]");
 import type { AuthUser as SDKAuthUser } from "@workspace/auth-react";
-import { useAuth } from "./useAuth";
+import { useAuthOps } from "./useAuth";
 import { useAppStatus } from "./useAppStatus";
 import { useTheme } from "./ThemeContext";
 import { api } from "../api";
@@ -28,7 +28,7 @@ export interface LoginScreenProps {
 }
 
 export function LoginScreen({ onSuccess }: LoginScreenProps) {
-  const { sendOtp, verifyOtp, loginWithPassword, refreshToken } = useAuth();
+  const { sendOtp, verifyOtp, loginWithPassword, refreshToken } = useAuthOps();
   const { maintenance, maintenanceMsg, supportPhone, supportEmail } = useAppStatus();
   const theme = useTheme();
   const { login } = useAuthContext();
@@ -78,6 +78,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const capturedTokenRef = useRef("");
+  const capturedProfileRef = useRef<AuthUser | null>(null);
   const sdkStrings = useMemo(() => ({
     ...loginStrings,
     loginFailed: T("loginFailed") as string,
@@ -106,12 +107,14 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
     const accessToken = _sdkToken ?? "";
     capturedTokenRef.current = accessToken;
+    capturedProfileRef.current = null;
 
     /* Block re-interaction while the post-auth profile fetch is in-flight */
     setIsProcessing(true);
     let profile: AuthUser;
     try {
       profile = await api.getMe() as AuthUser;
+      capturedProfileRef.current = profile;
     } catch (fetchErr: unknown) {
       const err = fetchErr as { code?: string; approvalStatus?: string; rejectionReason?: string | null };
       if (err.code === "APPROVAL_PENDING") {
@@ -140,7 +143,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       return;
     }
 
-    login(accessToken, profile, api.getRefreshToken?.() ?? undefined);
+    login(accessToken, profile, api.getRefreshToken() ?? undefined);
     if (!biometricEnabled) {
       /* Offer biometric enrollment on first successful login */
       setIsProcessing(false);
@@ -163,7 +166,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       if (setBiometricEnabled) await setBiometricEnabled(true);
     }
     try {
-      const profile = await api.getMe() as AuthUser;
+      const profile = capturedProfileRef.current ?? await api.getMe() as AuthUser;
       /* Role guard — login() also enforces this, but catching here lets us
          surface a meaningful error instead of silently navigating. */
       const roles = normalizeRoles(profile);
@@ -176,7 +179,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
         setOverlay(null);
         return;
       }
-      login(capturedTokenRef.current, profile, api.getRefreshToken?.() ?? undefined);
+      login(capturedTokenRef.current, profile, api.getRefreshToken() ?? undefined);
       setOverlay(null);
       navigate("/");
     } catch (err: unknown) {

@@ -227,7 +227,7 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
         }
         u.roles = roles;
         setUser(u);
-      } catch (err) { console.warn('[artifacts/rider-app/src/lib/rider-auth.tsx]', err); } // eslint-disable-line no-console
+      } catch (err) { log.warn("refreshUser failed:", err); }
       finally {
         refreshUserInflightRef.current = null;
       }
