@@ -135,6 +135,7 @@ ERROR_REPORT_HMAC_SECRET = "01f8e2dd33f8ffc7473fff9201fe8c72ea2cba12b156e03b72b1
 ENCRYPTION_MASTER_KEY = "7679a42a8c4a1a2bc106d5b24bc1c1235d34794fcdac1fa95be4d82159275dd3"
 VAPID_PRIVATE_KEY = "b3egnGyDJYSVsOB4z-PGhf5YbGeuVKcHtNpJPQ-r-eM"
 ADMIN_SEED_PASSWORD = "SuperAdmin@2024!"
+DATABASE_URL = "postgresql://neondb_owner:npg_8CZnNQxSivM4@ep-withered-pond-aod3mqmg-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 
 [[ports]]
 localPort = 3000
