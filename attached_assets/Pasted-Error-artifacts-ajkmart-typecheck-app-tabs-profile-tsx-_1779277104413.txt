@@ -1,0 +1,26 @@
+Error: artifacts/ajkmart typecheck: app/(tabs)/profile.tsx(731,61): error TS2367: This comparison appears to be unintentional because the types '"en" | "roman"' and '"en_ur"' have no overlap.
+Error: artifacts/ajkmart typecheck: app/auth/index.tsx(200,24): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'SetStateAction<string>'.
+artifacts/ajkmart typecheck:   Type 'undefined' is not assignable to type 'SetStateAction<string>'.
+Error: artifacts/ajkmart typecheck: app/auth/index.tsx(201,21): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'SetStateAction<string>'.
+artifacts/ajkmart typecheck:   Type 'undefined' is not assignable to type 'SetStateAction<string>'.
+Error: artifacts/ajkmart typecheck: app/auth/index.tsx(206,23): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'SetStateAction<string>'.
+artifacts/ajkmart typecheck:   Type 'undefined' is not assignable to type 'SetStateAction<string>'.
+Error: artifacts/ajkmart typecheck: app/auth/index.tsx(208,22): error TS2345: Argument of type 'Partial<AppUser> | undefined' is not assignable to parameter of type 'SetStateAction<AppUser | null>'.
+artifacts/ajkmart typecheck:   Type 'undefined' is not assignable to type 'SetStateAction<AppUser | null>'.
+Error: artifacts/ajkmart typecheck: app/auth/index.tsx(216,23): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'SetStateAction<string>'.
+artifacts/ajkmart typecheck:   Type 'undefined' is not assignable to type 'SetStateAction<string>'.
+Error: artifacts/ajkmart typecheck: app/auth/index.tsx(218,22): error TS2345: Argument of type 'Partial<AppUser>' is not assignable to parameter of type 'SetStateAction<AppUser | null>'.
+artifacts/ajkmart typecheck:   Type 'Partial<AppUser>' is not assignable to type 'AppUser'.
+artifacts/ajkmart typecheck:     Types of property 'id' are incompatible.
+artifacts/ajkmart typecheck:       Type 'string | undefined' is not assignable to type 'string'.
+artifacts/ajkmart typecheck:         Type 'undefined' is not assignable to type 'string'.
+Error: artifacts/ajkmart typecheck: app/landing.tsx(73,38): error TS2367: This comparison appears to be unintentional because the types '"en" | "roman"' and '"en_ur"' have no overlap.
+Error: artifacts/ajkmart typecheck: components/profile/PrivacyModal.tsx(235,61): error TS2367: This comparison appears to be unintentional because the types '"en" | "roman"' and '"en_ur"' have no overlap.
+Error: artifacts/ajkmart typecheck: context/LanguageContext.tsx(88,36): error TS2367: This comparison appears to be unintentional because the types '"en" | "roman"' and '"en_ur"' have no overlap.
+artifacts/ajkmart typecheck: Failed
+/home/runner/work/google/google/artifacts/ajkmart:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/ajkmart@0.0.0 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+artifacts/vendor-app typecheck$ tsc -p tsconfig.json --noEmit
+ ELIFECYCLE  Command failed with exit code 2.
+Error: Process completed with exit code 2.
