@@ -90,7 +90,7 @@ const magicLinkRateMap = new Map<string, { count: number; windowStart: number }>
   if (!user.isActive && user.approvalStatus !== "pending") { sendForbidden(res, "Account inactive"); return; }
 
   const rawToken = crypto.randomBytes(32).toString("hex");
-  const tokenHash = hashPassword(rawToken);
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
   const magicLinkTtlMin = Math.max(5, parseInt(settings["auth_magic_link_ttl_min"] ?? "30", 10));
   const expiresAt = new Date(Date.now() + magicLinkTtlMin * 60 * 1000);
 
@@ -100,6 +100,7 @@ const magicLinkRateMap = new Map<string, { count: number; windowStart: number }>
     tokenHash,
     expiresAt,
   });
+  logAuthEvent({ eventType: "magic_link_sent", userId: user.id, ip, userAgent: req.headers["user-agent"] as string | undefined, channel: "magic_link", role: user.roles ?? "customer", success: true, metadata: { expiresAt: expiresAt.toISOString() } });
 
   const magicLinkLang = await getUserLanguage(user.id);
   await sendMagicLinkEmail(normalized, rawToken, settings, magicLinkLang);
@@ -142,7 +143,7 @@ router.post("/magic-link/verify", sharedValidateBody(MagicLinkVerifySchema), asy
 
   let matchedRow: typeof allTokens[0] | null = null;
   for (const row of allTokens) {
-    if (verifyPassword(token, row.tokenHash)) { matchedRow = row; break; }
+    if (createHash("sha256").update(token).digest("hex") === row.tokenHash) { matchedRow = row; break; }
   }
 
   if (!matchedRow) {
@@ -185,6 +186,7 @@ router.post("/magic-link/verify", sharedValidateBody(MagicLinkVerifySchema), asy
 
   addAuditEntry({ action: "magic_link_login", ip, details: `Magic link login: ${user.email ?? matchedRow.userId}`, result: "success" });
   const result = await issueTokensForUser(user, ip, "magic_link", req.headers["user-agent"] as string, req, res);
+  logAuthEvent({ eventType: "login_success", userId: user.id, ip, userAgent: req.headers["user-agent"] as string | undefined, channel: "magic_link", role: user.roles ?? "customer", success: true });
   sendSuccess(res, result);
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');

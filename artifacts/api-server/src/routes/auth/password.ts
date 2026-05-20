@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import crypto, { randomBytes, createHash, randomInt } from "crypto";
 import { z } from "zod";
@@ -51,6 +52,8 @@ import {
   findUserByIdentifier,
 } from "./helpers.js";
 import { handleUnifiedLogin } from "./auth-common.js";
+
+const resetTokenBlacklist = new Set<string>();
 
 const router: IRouter = Router();
 
@@ -178,6 +181,16 @@ router.post("/set-password", loginLimiter, sharedValidateBody(SetPasswordSchema)
   }
 });
 
+function issueResetToken(userId: string): string {
+  const jti = generateId();
+  const payload = {
+    userId,
+    purpose: "password_reset",
+    jti,
+  };
+  return jwt.sign(payload, process.env["JWT_SECRET"]!, { expiresIn: "10m" });
+}
+
 /* isAuthMethodEnabled is now exported from @workspace/auth-utils/server
    so the same logic is shared with any future server-side helpers. */
 
@@ -235,9 +248,8 @@ router.post("/forgot-password", passwordResetLimiter, verifyCaptcha, sharedValid
     user = found;
   }
 
-  const isDev = process.env.NODE_ENV !== "production";
   if (!user) {
-    sendSuccess(res, { message: "If an account exists, a reset code has been sent.", ...(isDev ? { hint: "No account found" } : {}) });
+    sendSuccess(res, { message: "If an account exists, a reset code has been sent." });
     return;
   }
 
@@ -288,6 +300,7 @@ router.post("/forgot-password", passwordResetLimiter, verifyCaptcha, sharedValid
   }
 
   writeAuthAuditLog("forgot_password", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined });
+  logAuthEvent({ eventType: "password_reset_requested", userId: user.id, ip, userAgent: req.headers["user-agent"] as string | undefined, channel: phone ? "sms" : "email", role: user.roles ?? "customer", success: true, metadata: { identifier: phone ? canonicalizePhone(phone) : email!.toLowerCase().trim(), expiresAt: otpExpiry.toISOString() } });
 
   sendSuccess(res, {
     message: "If an account exists, a reset code has been sent.",
@@ -353,8 +366,15 @@ router.post("/verify-reset-otp", otpLimiter, verifyCaptcha, sharedValidateBody(V
     return;
   }
 
+  const resetToken = issueResetToken(user.id);
+  await db.insert(rateLimitsTable).values({
+    key: `reset_token:${user.id}:${resetToken.slice(0, 16)}`,
+    attempts: 1,
+    windowStart: new Date(),
+    updatedAt: new Date(),
+  }).catch(() => undefined);
   writeAuthAuditLog("verify_reset_otp", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined });
-  sendSuccess(res, { valid: true });
+  sendSuccess(res, { resetToken, requires2FA: !!(user.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", user.roles ?? undefined)) });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
@@ -364,12 +384,12 @@ router.post("/verify-reset-otp", otpLimiter, verifyCaptcha, sharedValidateBody(V
 
 router.post("/reset-password", verifyCaptcha, sharedValidateBody(ResetPasswordSchema), async (req, res) => {
   try {
-  let { phone, email, identifier, otp, newPassword, totpCode } = req.body;
+  let { phone, email, identifier, resetToken, newPassword, totpCode } = req.body;
   const ip = getClientIp(req);
   const settings = await getCachedSettings();
 
-  if (!otp || typeof otp !== "string" || !/^\d{6}$/.test(otp)) {
-    sendError(res, "OTP must be exactly 6 digits", 400);
+  if (!resetToken || typeof resetToken !== "string") {
+    sendError(res, "resetToken is required", 400);
     return;
   }
   if (!newPassword) {
@@ -443,20 +463,18 @@ router.post("/reset-password", verifyCaptcha, sharedValidateBody(ResetPasswordSc
     return;
   }
 
-  const resetIdentifier = phone ? canonicalizePhone(phone) : email!.toLowerCase().trim();
-  const resetIdentifierType = phone ? "phone" : "email";
-  const resetToken = await getActiveOtpToken({ identifier: resetIdentifier, identifierType: resetIdentifierType, otpType: "reset" });
-  if (!resetToken || !verifyOtpHash(otp, resetToken.otpHash)) {
-    await recordFailedAttempt(lockoutKey, maxAttempts, lockoutMinutes);
-    AuditService.log({ action: "reset_password_failed", ip, details: `Invalid OTP for password reset: ${user.id}`, result: "fail" });
-    sendUnauthorized(res, "Invalid or expired OTP");
+  let payload: { userId: string; purpose: string; jti: string };
+  try {
+    payload = jwt.verify(resetToken, process.env["JWT_SECRET"]!) as { userId: string; purpose: string; jti: string };
+  } catch {
+    sendUnauthorized(res, "Invalid or expired reset token");
     return;
   }
-
-  /* Mark the OTP as consumed immediately after validation, before any
-     further checks (2FA). This prevents an attacker from retrying the
-     same OTP code while a 2FA challenge is pending. */
-  await markOtpUsed(resetToken.id);
+  if (payload.purpose !== "password_reset" || payload.userId !== user.id || resetTokenBlacklist.has(payload.jti)) {
+    sendUnauthorized(res, "Invalid or expired reset token");
+    return;
+  }
+  resetTokenBlacklist.add(payload.jti);
 
   if (user.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", userRole)) {
     if (!totpCode) {
@@ -504,8 +522,8 @@ router.post("/reset-password", verifyCaptcha, sharedValidateBody(ResetPasswordSc
   await resetAttempts(lockoutKey);
 
   writeAuthAuditLog("password_reset", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined });
-
-  sendSuccess(res, undefined, "Password has been reset successfully. Please login with your new password.");
+  logAuthEvent({ eventType: "password_reset_completed", userId: user.id, ip, userAgent: req.headers["user-agent"] as string | undefined, channel: phone ? "sms" : "email", role: user.roles ?? "customer", success: true });
+  sendSuccess(res, undefined, "Password updated. Please login again.");
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
