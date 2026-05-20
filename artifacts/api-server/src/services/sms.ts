@@ -195,6 +195,36 @@ export async function sendOrderSMS(
   return dispatchSMS(phone, message, settings);
 }
 
+/* ── Registration approval / rejection SMS ── */
+
+export async function sendApprovalSMS(
+  phone: string,
+  name: string | null | undefined,
+  role: string,
+  settings: Record<string, string>,
+): Promise<SMSResult> {
+  const appName = settings["app_name"]?.trim() || "AJKMart";
+  const roleName = role === "rider" ? "Rider" : role === "vendor" ? "Vendor" : "Account";
+  const greeting = name ? `Hi ${name}` : "Hello";
+  const message = `[${appName}] ${greeting}, your ${roleName} registration has been APPROVED! You can now log in to the app and get started.`;
+  return dispatchSMS(phone, message, settings);
+}
+
+export async function sendRejectionSMS(
+  phone: string,
+  name: string | null | undefined,
+  role: string,
+  reason: string,
+  settings: Record<string, string>,
+): Promise<SMSResult> {
+  const appName = settings["app_name"]?.trim() || "AJKMart";
+  const roleName = role === "rider" ? "Rider" : role === "vendor" ? "Vendor" : "Account";
+  const greeting = name ? `Hi ${name}` : "Hello";
+  const reasonPart = reason ? ` Reason: ${reason}.` : "";
+  const message = `[${appName}] ${greeting}, your ${roleName} registration could not be approved at this time.${reasonPart} Contact support for help.`;
+  return dispatchSMS(phone, message, settings);
+}
+
 /* ── Generic dispatch wrapper for NotificationService ── */
 export async function sendSms(
   input: { to: string; message: string; templateId?: string }

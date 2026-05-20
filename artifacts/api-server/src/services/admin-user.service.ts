@@ -30,6 +30,8 @@ import {
   validatePasswordStrength,
   verifyAdminSecret,
 } from "./password.js";
+import { sendApprovalEmail, sendRejectionEmail } from "./email.js";
+import { sendApprovalSMS, sendRejectionSMS } from "./sms.js";
 import { recordAdminPasswordSnapshot } from "./admin-password-watch.service.js";
 import { verifyTotpToken, generateTotpSecret, generateTotpQr } from "./totp.js";
 import { canonicalizePhone } from "@workspace/phone-utils";
@@ -302,6 +304,25 @@ export class UserService {
 
     logger.info({ userId }, "[UserService] User approved");
 
+    // Send approval notifications (non-blocking)
+    void (async () => {
+      try {
+        const settings = await getPlatformSettings();
+        const role = user.role ?? "user";
+        const notifications: Promise<unknown>[] = [];
+        if (user.email) {
+          notifications.push(sendApprovalEmail(user.email, user.name, role, settings));
+        }
+        if (user.phone) {
+          notifications.push(sendApprovalSMS(user.phone, user.name, role, settings));
+        }
+        await Promise.allSettled(notifications);
+        logger.info({ userId, role }, "[UserService] Approval notifications dispatched");
+      } catch (err: unknown) {
+        logger.warn({ userId, err }, "[UserService] Failed to send approval notifications");
+      }
+    })();
+
     return { success: true };
   }
 
@@ -331,6 +352,25 @@ export class UserService {
       .where(eq(usersTable.id, userId));
 
     logger.info({ userId, reason }, "[UserService] User rejected");
+
+    // Send rejection notifications (non-blocking)
+    void (async () => {
+      try {
+        const settings = await getPlatformSettings();
+        const role = user.role ?? "user";
+        const notifications: Promise<unknown>[] = [];
+        if (user.email) {
+          notifications.push(sendRejectionEmail(user.email, user.name, role, reason, settings));
+        }
+        if (user.phone) {
+          notifications.push(sendRejectionSMS(user.phone, user.name, role, reason, settings));
+        }
+        await Promise.allSettled(notifications);
+        logger.info({ userId, role }, "[UserService] Rejection notifications dispatched");
+      } catch (err: unknown) {
+        logger.warn({ userId, err }, "[UserService] Failed to send rejection notifications");
+      }
+    })();
 
     return { success: true };
   }

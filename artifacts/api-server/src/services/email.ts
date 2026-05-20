@@ -730,6 +730,95 @@ export async function sendAdminPasswordOutOfBandResetEmail(
   }
 }
 
+/* ── Registration approval / rejection emails ── */
+
+export async function sendApprovalEmail(
+  to: string,
+  name: string | null | undefined,
+  role: string,
+  settings: Record<string, string>,
+): Promise<EmailResult> {
+  const tr = buildTransporterFromSettings(settings);
+  const transport = tr || getEnvTransporter();
+  const appName = settings["app_name"]?.trim() || "AJKMart";
+  const roleName = role === "rider" ? "Rider" : role === "vendor" ? "Vendor" : "Account";
+  const greeting = name ? `Dear ${name}` : "Hello";
+
+  const subject = `Your ${roleName} Registration is Approved — ${appName}`;
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;">
+      <h2 style="color:#10B981;">Congratulations! Your registration is approved.</h2>
+      <p>${greeting},</p>
+      <p>Great news! Your <strong>${roleName}</strong> registration on <strong>${appName}</strong> has been reviewed and <strong style="color:#10B981;">approved</strong>.</p>
+      <p>You can now log in to the app and start using your account.</p>
+      <p style="color:#6b7280;font-size:13px;">If you have any questions, please contact our support team.</p>
+      <p>Welcome aboard!<br/><strong>${appName} Team</strong></p>
+    </div>
+  `;
+  const text = `${greeting},\n\nYour ${roleName} registration on ${appName} has been approved. You can now log in to the app.\n\nWelcome aboard!\n${appName} Team`;
+
+  if (!transport) {
+    logger.info(`[EMAIL] Approval email for ${to} — SMTP not configured. ${text}`);
+    return { sent: false, reason: "SMTP not configured" };
+  }
+
+  try {
+    await transport.sendMail({ from: resolveFrom(settings), to, subject, html, text });
+    logger.info(`[EMAIL] Approval email sent to ${to}`);
+    return { sent: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`[EMAIL] Failed to send approval email to ${to}: ${msg}`);
+    return { sent: false, error: msg };
+  }
+}
+
+export async function sendRejectionEmail(
+  to: string,
+  name: string | null | undefined,
+  role: string,
+  reason: string,
+  settings: Record<string, string>,
+): Promise<EmailResult> {
+  const tr = buildTransporterFromSettings(settings);
+  const transport = tr || getEnvTransporter();
+  const appName = settings["app_name"]?.trim() || "AJKMart";
+  const roleName = role === "rider" ? "Rider" : role === "vendor" ? "Vendor" : "Account";
+  const greeting = name ? `Dear ${name}` : "Hello";
+
+  const subject = `Your ${roleName} Registration Status — ${appName}`;
+  const reasonLine = reason
+    ? `<p><strong>Reason:</strong> ${reason}</p>`
+    : "";
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;">
+      <h2 style="color:#EF4444;">Registration Not Approved</h2>
+      <p>${greeting},</p>
+      <p>We have reviewed your <strong>${roleName}</strong> registration on <strong>${appName}</strong> and unfortunately we are unable to approve it at this time.</p>
+      ${reasonLine}
+      <p>If you believe this is a mistake or would like to provide additional information, please contact our support team.</p>
+      <p>Thank you for your interest in ${appName}.<br/><strong>${appName} Team</strong></p>
+    </div>
+  `;
+  const reasonText = reason ? `\nReason: ${reason}` : "";
+  const text = `${greeting},\n\nYour ${roleName} registration on ${appName} could not be approved.${reasonText}\n\nPlease contact support if you have questions.\n${appName} Team`;
+
+  if (!transport) {
+    logger.info(`[EMAIL] Rejection email for ${to} — SMTP not configured. ${text}`);
+    return { sent: false, reason: "SMTP not configured" };
+  }
+
+  try {
+    await transport.sendMail({ from: resolveFrom(settings), to, subject, html, text });
+    logger.info(`[EMAIL] Rejection email sent to ${to}`);
+    return { sent: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`[EMAIL] Failed to send rejection email to ${to}: ${msg}`);
+    return { sent: false, error: msg };
+  }
+}
+
 /* ── Generic transactional email sender (env-var SMTP only) ── */
 export async function sendEmail(
   input: { to: string; subject: string; html: string; text?: string },
