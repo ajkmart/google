@@ -20,6 +20,7 @@ const BANKS  = ["EasyPaisa","JazzCash","MCB","HBL","UBL","Meezan Bank","Bank Alf
 const BIZ_TYPES = ["Sole Proprietorship","Partnership","Private Limited","Trust / NGO","Individual / Freelancer"];
 
 type EditSection = "personal" | "bank" | null;
+type DocKey = "cnicFrontUrl" | "cnicBackUrl" | "businessDocUrl";
 
 export default function Profile() {
   const { user, logout, refreshUser } = useAuth();
@@ -39,6 +40,7 @@ export default function Profile() {
   const [editing, setEditing] = useState<EditSection>(null);
   const [saving, setSaving]   = useState(false);
   const [toast, setToast]     = useState("");
+  const [docUploading, setDocUploading] = useState<DocKey | null>(null);
 
   const { language, setLanguage, loading: langLoading } = useLanguage();
   const { isDark, toggleDark } = useTheme();
@@ -189,7 +191,32 @@ export default function Profile() {
     </div>
   );
 
-  const completionFields = [user?.name, user?.email, user?.cnic, user?.city, user?.bankName, user?.bankAccount];
+  const uploadDoc = async (key: DocKey, file: File) => {
+    setDocUploading(key);
+    try {
+      const { url } = await api.uploadImage(file) as { url: string };
+      await api.updateProfile({ [key]: url });
+      await refreshUser();
+      showToast("✅ Document uploaded successfully!");
+    } catch (e) {
+      showToast(`❌ Upload failed: ${errMsg(e)}`);
+    } finally {
+      setDocUploading(null);
+    }
+  };
+
+  const removeDoc = async (key: DocKey) => {
+    try {
+      await api.updateProfile({ [key]: null });
+      await refreshUser();
+      showToast("🗑️ Document removed.");
+    } catch (e) {
+      showToast(`❌ ${errMsg(e)}`);
+    }
+  };
+
+  const completionFields = [user?.name, user?.email, user?.cnic, user?.city, user?.bankName, user?.bankAccount,
+    (user as Record<string, unknown>)?.cnicFrontUrl, (user as Record<string, unknown>)?.cnicBackUrl];
   const completedCount   = completionFields.filter(Boolean).length;
   const completionPct    = Math.round((completedCount / completionFields.length) * 100);
 
@@ -600,6 +627,89 @@ export default function Profile() {
                 </AccordionItem>
               </Accordion>
             </div>
+
+            {/* Business Documents */}
+            {(() => {
+              const u = user as Record<string, unknown> | undefined;
+              const docs: { key: DocKey; label: string; desc: string; icon: string }[] = [
+                { key: "cnicFrontUrl",   label: "CNIC — Front Side",          desc: "National ID card front photo", icon: "🪪" },
+                { key: "cnicBackUrl",    label: "CNIC — Back Side",           desc: "National ID card back photo",  icon: "🪪" },
+                { key: "businessDocUrl", label: "Business Registration / NTN", desc: "Company reg. or NTN certificate", icon: "📄" },
+              ];
+              return (
+                <div className={CARD}>
+                  <Accordion type="single" collapsible defaultValue="docs">
+                    <AccordionItem value="docs" className="border-0">
+                      <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100">
+                        <AccordionTrigger className="hover:no-underline p-0 flex-1 border-0">
+                          <div className="text-left">
+                            <span className="font-bold text-gray-800 text-sm block">📋 Business Documents</span>
+                            <span className="text-xs text-gray-400 mt-0.5">CNIC photos &amp; business registration</span>
+                          </div>
+                        </AccordionTrigger>
+                        {docs.filter(d => u?.[d.key]).length > 0 && (
+                          <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full ml-3 flex-shrink-0">
+                            {docs.filter(d => u?.[d.key]).length}/{docs.length} uploaded
+                          </span>
+                        )}
+                      </div>
+                      <AccordionContent className="pt-0 pb-0">
+                        <div className="p-4 space-y-4">
+                          {docs.map(doc => {
+                            const url = u?.[doc.key] as string | undefined;
+                            const busy = docUploading === doc.key;
+                            return (
+                              <div key={doc.key}>
+                                <label className={LABEL}>{doc.icon} {doc.label}</label>
+                                <p className="text-[10px] text-gray-400 mb-2">{doc.desc}</p>
+                                {url ? (
+                                  <div className="relative group rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                                    <img src={url} alt={doc.label}
+                                      className="w-full h-32 object-cover"
+                                      onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                                    />
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                                      <a href={url} target="_blank" rel="noopener noreferrer"
+                                        className="bg-white text-gray-700 text-xs font-bold px-3 py-1.5 rounded-lg shadow">
+                                        View
+                                      </a>
+                                      <button onClick={() => removeDoc(doc.key)}
+                                        className="bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow">
+                                        Remove
+                                      </button>
+                                    </div>
+                                    <span className="absolute top-2 right-2 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">✓ Uploaded</span>
+                                  </div>
+                                ) : (
+                                  <label className={`flex items-center justify-center gap-2 h-20 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${busy ? "border-orange-300 bg-orange-50" : "border-gray-200 hover:border-orange-300 hover:bg-orange-50"}`}>
+                                    {busy ? (
+                                      <span className="text-sm text-orange-500 font-medium animate-pulse">Uploading…</span>
+                                    ) : (
+                                      <>
+                                        <span className="text-xl">📤</span>
+                                        <span className="text-sm text-gray-500 font-medium">Tap to upload</span>
+                                      </>
+                                    )}
+                                    <input type="file" accept="image/*" className="sr-only" disabled={!!docUploading}
+                                      onChange={e => { const f = e.target.files?.[0]; if (f) { uploadDoc(doc.key, f); e.target.value = ""; } }}
+                                    />
+                                  </label>
+                                )}
+                              </div>
+                            );
+                          })}
+                          <div className="bg-amber-50 rounded-xl p-3">
+                            <p className="text-xs text-amber-700 font-medium">
+                              🔒 Documents are reviewed by admin for KYC verification. Use clear, well-lit photos.
+                            </p>
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </div>
+              );
+            })()}
 
             {/* Payout Policy */}
             <Accordion type="single" collapsible>

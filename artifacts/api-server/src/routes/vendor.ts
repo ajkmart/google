@@ -49,6 +49,9 @@ const patchProfileSchema = z.object({
   bankAccount:      z.string().max(50).optional(),
   bankAccountTitle: z.string().max(100).optional(),
   businessType:     z.string().max(50).optional(),
+  cnicFrontUrl:     z.string().url().optional().nullable(),
+  cnicBackUrl:      z.string().url().optional().nullable(),
+  businessDocUrl:   z.string().url().optional().nullable(),
 }).strict();
 
 const patchStoreSchema = z.object({
@@ -72,6 +75,7 @@ function formatUser(user: any) {
     id: user.id, phone: user.phone, name: user.name, email: user.email,
     username: user.username,
     avatar: user.avatar,
+    cnicFrontUrl: user.cnicFrontUrl, cnicBackUrl: user.cnicBackUrl, businessDocUrl: user.businessDocUrl,
     storeName: user.storeName, storeCategory: user.storeCategory,
     storeBanner: user.storeBanner, storeDescription: user.storeDescription,
     storeHours: user.storeHours ? (typeof user.storeHours === "string" ? (() => { try { return JSON.parse(user.storeHours); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback return"); return null; } })() : user.storeHours) : null,
@@ -132,7 +136,8 @@ router.get("/me", async (req, res, next) => {
 router.patch("/profile", validateBody(patchProfileSchema), async (req, res, next) => {
   try {
   const vendorId = req.vendorId!;
-  const { name, email, cnic, address, city, bankName, bankAccount, bankAccountTitle, businessType } = req.body;
+  const { name, email, cnic, address, city, bankName, bankAccount, bankAccountTitle, businessType,
+          cnicFrontUrl, cnicBackUrl, businessDocUrl } = req.body;
   const updates: Record<string, unknown> = { updatedAt: new Date() };
   if (name             !== undefined) updates.name             = name;
   if (email            !== undefined) updates.email            = email;
@@ -144,7 +149,17 @@ router.patch("/profile", validateBody(patchProfileSchema), async (req, res, next
   if (bankAccountTitle !== undefined) updates.bankAccountTitle = bankAccountTitle;
   if (businessType     !== undefined) updates.businessType     = businessType;
   const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, vendorId)).returning();
-  sendSuccess(res, formatUser(user));
+  const docUpdates: Record<string, unknown> = { updatedAt: new Date() };
+  if (cnicFrontUrl   !== undefined) docUpdates.cnicFrontUrl   = cnicFrontUrl;
+  if (cnicBackUrl    !== undefined) docUpdates.cnicBackUrl    = cnicBackUrl;
+  if (businessDocUrl !== undefined) docUpdates.businessDocUrl = businessDocUrl;
+  if (Object.keys(docUpdates).length > 1) {
+    await db.insert(vendorProfilesTable)
+      .values({ userId: vendorId, ...docUpdates })
+      .onConflictDoUpdate({ target: vendorProfilesTable.userId, set: docUpdates });
+  }
+  const [profile] = await db.select().from(vendorProfilesTable).where(eq(vendorProfilesTable.userId, vendorId));
+  sendSuccess(res, formatUser({ ...user, ...profile }));
   } catch (err) {
     next(err);
   }

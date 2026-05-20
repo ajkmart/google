@@ -21,6 +21,10 @@ export const vendorProfilesTable = pgTable("vendor_profiles", {
   businessType:      text("business_type"),
   businessName:      text("business_name"),
   ntn:               text("ntn"),
+  /* document photo URLs (added by migration 0039) */
+  cnicFrontUrl:      text("cnic_front_url"),
+  cnicBackUrl:       text("cnic_back_url"),
+  businessDocUrl:    text("business_doc_url"),
   /* quick reply templates (added by drizzle migration 0003) */
   quickReplies:      text("quick_replies"),
   createdAt:         timestamp("created_at").notNull().defaultNow(),
