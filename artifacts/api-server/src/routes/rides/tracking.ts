@@ -170,7 +170,7 @@ router.get("/:id/stream", customerAuth, async (req, res, next) => {
   } catch (err) {
     if (res.headersSent) {
       logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[rides/stream] SSE error after headers sent");
-      try { res.end(); } catch { /* already closed */ }
+      try { res.end(); } catch (err) { logger.warn({ err }, "[rides/stream] res.end failed"); }
     } else {
       next(err);
     }

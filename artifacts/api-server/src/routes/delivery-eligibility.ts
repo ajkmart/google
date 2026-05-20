@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { customerAuth } from "../middleware/security.js";
 import { checkDeliveryEligibility, checkUserOnlyEligibility } from "../lib/delivery-access.js";
 import { sendSuccess } from "../lib/response.js";
+import { logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
 

@@ -9,18 +9,4 @@
   },
   "include": ["src"],
   "exclude": ["src/routes/admin/_archive"],
-  "references": [
-    {
-      "path": "../../lib/db"
-    },
-    {
-      "path": "../../lib/api-zod"
-    },
-    {
-      "path": "../../lib/phone-utils"
-    },
-    {
-      "path": "../../lib/integrations-gemini-ai"
-    }
-  ]
 }

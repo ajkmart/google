@@ -308,7 +308,7 @@ export class UserService {
     void (async () => {
       try {
         const settings = await getPlatformSettings();
-        const role = user.role ?? "user";
+        const role = user.roles ?? "user";
         const notifications: Promise<unknown>[] = [];
         if (user.email) {
           notifications.push(sendApprovalEmail(user.email, user.name, role, settings));
@@ -357,7 +357,7 @@ export class UserService {
     void (async () => {
       try {
         const settings = await getPlatformSettings();
-        const role = user.role ?? "user";
+        const role = user.roles ?? "user";
         const notifications: Promise<unknown>[] = [];
         if (user.email) {
           notifications.push(sendRejectionEmail(user.email, user.name, role, reason, settings));

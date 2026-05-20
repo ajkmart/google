@@ -1,5 +1,7 @@
 import { formatCurrency as _sharedFcP } from "@workspace/api-zod";
+import { createLogger } from "@/lib/logger";
 import { useState, useCallback, useEffect, useRef } from "react";
+const log = createLogger("[Profile]");
 import { Capacitor } from "@capacitor/core";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -400,12 +402,12 @@ export default function Profile() {
     }
     // Explicitly clear all client storage layers before the auth-context logout
     // so no stale credentials or session data survive on the device.
-    try { sessionStorage.clear(); } catch {}
-    try { localStorage.clear(); } catch {}
+    try { sessionStorage.clear(); } catch (err) { log.warn("[Profile] sessionStorage.clear failed:", err); }
+    try { localStorage.clear(); } catch (err) { log.warn("[Profile] localStorage.clear failed:", err); }
     if (Capacitor.isNativePlatform()) {
       import("@capacitor/preferences")
-        .then(({ Preferences }) => { Preferences.clear().catch(() => {}); })
-        .catch(() => {});
+        .then(({ Preferences }) => { Preferences.clear().catch((err: unknown) => { log.warn("[Profile] Preferences.clear failed:", err); }); })
+        .catch((err: unknown) => { log.warn("[Profile] @capacitor/preferences import failed:", err); });
     }
     logout();
   };

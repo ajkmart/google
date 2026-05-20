@@ -226,7 +226,7 @@ export async function doRefresh(refreshToken: string, ip: string, req: Request, 
      received from the first concurrent call. */
   const inFlight = refreshInFlight.get(tokenHash);
   if (inFlight) {
-    await inFlight.catch(() => {});
+    await inFlight.catch((err) => { logger.warn({ err }, "[auth] concurrent refresh mutex swallowed error"); });
     writeAuthAuditLog("concurrent_refresh_blocked", { ip, userAgent: req.headers["user-agent"] ?? undefined });
     sendUnauthorized(res, "Token already refreshed. Please retry with your latest token.");
     return;

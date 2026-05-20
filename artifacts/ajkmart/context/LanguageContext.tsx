@@ -85,7 +85,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   function applyRTL(lang: Language) {
-    const isRtl = lang === "ur" || lang === "en_ur";
+    const isRtl = lang === "ur";
     if (I18nManager.isRTL !== isRtl) {
       I18nManager.forceRTL(isRtl);
     }

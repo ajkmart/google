@@ -581,7 +581,7 @@ router.post("/", customerAuth, validateBody(orderCreateSchema, { status: 422 }),
       try {
         const elig = await checkDeliveryEligibility(customerId, vendorId ?? null, orderType);
         if (!elig.eligible) { sendForbidden(res, elig.reason || "Delivery not available in your area"); return; }
-      } catch { /* non-critical — proceed if eligibility service unavailable */ }
+      } catch (err) { logger.warn({ err }, "[orders] delivery eligibility check failed, proceeding"); }
     }
 
     const orderId = generateId();

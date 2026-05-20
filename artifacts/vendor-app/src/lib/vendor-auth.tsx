@@ -214,7 +214,7 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
   const logout = () => {
     const refreshTok = api.getRefreshToken();
     api.clearTokens();
-    try { sessionStorage.clear(); } catch {}
+    try { sessionStorage.clear(); } catch (err) { log.warn("[vendor-auth] sessionStorage.clear failed:", err); }
     sharedAuth.logout();
     setToken(null);
     setUser(null);

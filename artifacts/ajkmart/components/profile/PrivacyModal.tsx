@@ -232,7 +232,7 @@ export function PrivacyModal({ visible, userId, token, onClose }: { visible: boo
                   <Text style={{ fontSize: 12, color: C.textMuted, marginBottom: 8 }}>Choose your preferred language</Text>
                   {LANGUAGE_OPTIONS.filter(opt => config.language.enabledLanguages.includes(opt.value)).map((opt) => {
                     const selected = currentLang === opt.value;
-                    const isUrduOpt = opt.value === "ur" || opt.value === "en_ur";
+                    const isUrduOpt = opt.value === "ur";
                     return (
                       <TouchableOpacity activeOpacity={0.7}
                         key={opt.value}

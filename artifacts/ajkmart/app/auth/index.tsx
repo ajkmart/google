@@ -197,15 +197,15 @@ export default function AuthScreen() {
 
   const handleLoginResult = useCallback(async (res: AuthLoginResponse) => {
     if (res.requires2FA) {
-      setTotpTempToken(res.tempToken);
-      setTotpUserId(res.userId);
+      setTotpTempToken(res.tempToken ?? "");
+      setTotpUserId(res.userId ?? "");
       setStep("totp");
       return;
     }
     if (res.pendingApproval) {
-      setPendingToken(res.token);
+      setPendingToken(res.token ?? "");
       setPendingRefreshToken(res.refreshToken);
-      setPendingUser(res.user);
+      setPendingUser((res.user as AppUser) ?? null);
       if (res.token) {
         import("expo-secure-store").then(SS => SS.setItemAsync("ajkmart_pending_token", res.token!)).catch(() => {});
       }
@@ -213,9 +213,9 @@ export default function AuthScreen() {
       return;
     }
     if (res.user && !res.user.name) {
-      setPendingToken(res.token);
+      setPendingToken(res.token ?? "");
       setPendingRefreshToken(res.refreshToken);
-      setPendingUser(res.user);
+      setPendingUser((res.user as AppUser) ?? null);
       if (res.token) {
         import("expo-secure-store").then(SS => SS.setItemAsync("ajkmart_pending_token", res.token!)).catch(() => {});
       }

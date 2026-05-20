@@ -70,7 +70,7 @@ export default function LandingScreen() {
   const { language, setLanguage } = useLanguage();
 
   const C = CONTENT[language as keyof typeof CONTENT] ?? CONTENT.en;
-  const isRTL = language === "ur" || language === "en_ur";
+  const isRTL = language === "ur";
 
   function handleLangCycle() {
     const idx = LANG_CYCLE.indexOf(language as Language);

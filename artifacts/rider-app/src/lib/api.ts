@@ -31,7 +31,7 @@ try {
   if (typeof localStorage !== "undefined") {
     localStorage.removeItem(REFRESH_KEY);
   }
-} catch (err) { log.warn({ err: err instanceof Error ? err.message : String(err) }, "[api] legacy localStorage purge failed — non-critical"); } // eslint-disable-line no-console
+} catch (err) { log.warn({ err: err instanceof Error ? err.message : String(err) }, "[api] legacy localStorage purge failed — non-critical"); }
 
 /* ── Preferences-backed async token storage ── */
 async function preferencesSet(key: string, value: string): Promise<void> {
