@@ -117,6 +117,44 @@ function PendingApprovalScreen({ supportPhone, onRefresh, onSignOut }: {
   );
 }
 
+function KycGate({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const [, navigate] = useLocation();
+  if (user?.kycStatus === "verified") return <>{children}</>;
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
+      <div className="bg-white rounded-2xl shadow-sm max-w-sm w-full p-6 text-center">
+        <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">🔒</div>
+        <h2 className="text-lg font-extrabold text-gray-800 mb-2">Identity Verification Required</h2>
+        <p className="text-sm text-gray-500 leading-relaxed mb-4">
+          Complete KYC verification to unlock this feature and other premium capabilities.
+        </p>
+        <div className="bg-gray-50 rounded-xl p-3 mb-5 text-left space-y-1.5">
+          {["📊 Business Analytics", "🏷️ Discount Promotions", "📢 Ad Campaigns", "💸 Wallet Withdrawals"].map(f => (
+            <div key={f} className="flex items-center gap-2 text-sm text-gray-600">
+              <span className="w-4 h-4 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 font-bold">✓</span>
+              <span>{f}</span>
+            </div>
+          ))}
+        </div>
+        {user?.kycStatus === "pending" ? (
+          <div className="bg-blue-50 rounded-xl p-3 text-center">
+            <p className="text-sm font-bold text-blue-700">⏳ Verification Under Review</p>
+            <p className="text-xs text-blue-500 mt-1">Our team will notify you within 24 hours once your documents are approved.</p>
+          </div>
+        ) : (
+          <button
+            onClick={() => navigate("/profile")}
+            className="w-full h-11 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-xl text-sm"
+          >
+            Verify My Identity →
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AppRoutes() {
   const { user, loading, logout, storageError, sessionExpired, clearSessionExpired, refreshUser } = useAuth();
   const { config } = usePlatformConfig();
@@ -474,10 +512,10 @@ function AppRoutes() {
                 <Route path="/orders"><ErrorBoundary><Orders /></ErrorBoundary></Route>
                 <Route path="/products"><ErrorBoundary><Products /></ErrorBoundary></Route>
                 <Route path="/wallet"><ErrorBoundary><Wallet /></ErrorBoundary></Route>
-                <Route path="/analytics"><ErrorBoundary><Analytics /></ErrorBoundary></Route>
+                <Route path="/analytics"><ErrorBoundary><KycGate><Analytics /></KycGate></ErrorBoundary></Route>
                 <Route path="/reviews"><ErrorBoundary><Reviews /></ErrorBoundary></Route>
-                <Route path="/promos"><ErrorBoundary><Promos /></ErrorBoundary></Route>
-                <Route path="/campaigns"><ErrorBoundary><Campaigns /></ErrorBoundary></Route>
+                <Route path="/promos"><ErrorBoundary><KycGate><Promos /></KycGate></ErrorBoundary></Route>
+                <Route path="/campaigns"><ErrorBoundary><KycGate><Campaigns /></KycGate></ErrorBoundary></Route>
                 <Route path="/chat"><ErrorBoundary><Chat /></ErrorBoundary></Route>
                 <Route path="/store"><ErrorBoundary><Store /></ErrorBoundary></Route>
                 <Route path="/notifications"><ErrorBoundary><Notifications /></ErrorBoundary></Route>

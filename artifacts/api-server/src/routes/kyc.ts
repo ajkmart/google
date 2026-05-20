@@ -9,7 +9,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, desc, and, ne, or, ilike } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { customerAuth } from "../middleware/security.js";
+import { customerAuth, requireRole } from "../middleware/security.js";
 import { adminAuth } from "./admin.js";
 import { getCachedSettings } from "./admin-shared.js";
 import multer from "multer";
@@ -611,6 +611,191 @@ router.post("/submit-base64", customerAuth, validateBody(KycSubmitBase64Schema),
     }
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+/* ─── Vendor: GET /api/kyc/vendor/status ─── */
+router.get("/vendor/status", requireRole("vendor"), async (req, res) => {
+  try {
+    const userId = req.vendorId!;
+    const [record] = await db
+      .select()
+      .from(kycVerificationsTable)
+      .where(eq(kycVerificationsTable.userId, userId))
+      .orderBy(desc(kycVerificationsTable.createdAt))
+      .limit(1);
+
+    const [user] = await db
+      .select({ kycStatus: usersTable.kycStatus })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1);
+
+    if (!record) {
+      res.json({ status: user?.kycStatus ?? "none", record: null });
+      return;
+    }
+
+    res.json({
+      status: record.status,
+      record: {
+        id: record.id,
+        status: record.status,
+        fullName: record.fullName,
+        cnic: record.cnic,
+        dateOfBirth: record.dateOfBirth,
+        gender: record.gender,
+        address: record.address,
+        city: record.city,
+        hasFrontId: !!record.frontIdPhoto,
+        hasBackId: !!record.backIdPhoto,
+        hasSelfie: !!record.selfiePhoto,
+        rejectionReason: record.rejectionReason,
+        submittedAt: record.submittedAt.toISOString(),
+        reviewedAt: record.reviewedAt?.toISOString() ?? null,
+      },
+    });
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err) }, "Vendor KYC status error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+/* ─── Vendor: POST /api/kyc/vendor/submit-base64 ─── */
+router.post("/vendor/submit-base64", requireRole("vendor"), validateBody(KycSubmitBase64Schema), async (req, res) => {
+  try {
+    const userId = req.vendorId!;
+
+    const { allowed, reason } = await canSubmitKyc(userId);
+    if (!allowed) {
+      sendForbidden(res, reason ?? "KYC not required for your account type.");
+      return;
+    }
+
+    const { fullName, cnic: cnicClean, dateOfBirth, gender, address, city, frontIdPhoto, backIdPhoto, selfiePhoto } = req.body;
+
+    const kycLimits = await getKycUploadLimits();
+
+    function base64ToBuffer(dataUrl: string, fieldName: string): { buffer: Buffer; mime: string } {
+      const match = dataUrl.match(/^data:(image\/[\w]+);base64,(.+)$/);
+      if (!match)
+        throw Object.assign(new Error(`Invalid image data for ${fieldName}`), { statusCode: 400 });
+      const claimedMime = match[1]!;
+      if (!kycLimits.allowedTypes.includes(claimedMime)) {
+        throw Object.assign(new Error(`${fieldName}: Only JPEG, PNG, or WebP images are allowed`), { statusCode: 400 });
+      }
+      const buffer = Buffer.from(match[2]!, "base64");
+      if (buffer.length > kycLimits.maxSize) {
+        throw Object.assign(
+          new Error(`${fieldName}: Image too large. Maximum ${Math.round(kycLimits.maxSize / (1024 * 1024))}MB allowed`),
+          { statusCode: 400 },
+        );
+      }
+      const actualMime = detectMime(buffer);
+      const mimeOk = actualMime === claimedMime || (actualMime === "image/webp" && claimedMime === "image/jpeg");
+      if (!actualMime) throw Object.assign(new Error(`${fieldName}: File appears corrupted or is not a valid image`), { statusCode: 400 });
+      if (!mimeOk) throw Object.assign(new Error(`${fieldName}: Image content does not match its declared type`), { statusCode: 400 });
+      return { buffer, mime: claimedMime };
+    }
+
+    try {
+      const front = base64ToBuffer(frontIdPhoto, "Front CNIC photo");
+      const back = base64ToBuffer(backIdPhoto, "Back CNIC photo");
+      const selfie = base64ToBuffer(selfiePhoto, "Selfie photo");
+
+      await db.transaction(async (tx) => {
+        const [existing] = await tx
+          .select({ id: kycVerificationsTable.id, status: kycVerificationsTable.status })
+          .from(kycVerificationsTable)
+          .where(eq(kycVerificationsTable.userId, userId))
+          .orderBy(desc(kycVerificationsTable.createdAt))
+          .limit(1);
+
+        if (existing?.status === "approved") {
+          throw Object.assign(new Error("KYC already verified"), { statusCode: 400 });
+        }
+        if (existing?.status === "pending") {
+          throw Object.assign(
+            new Error("A KYC submission is already under review. Please wait for a decision before submitting again."),
+            { statusCode: 409 },
+          );
+        }
+
+        const [cnicDuplicate] = await tx
+          .select({ userId: kycVerificationsTable.userId })
+          .from(kycVerificationsTable)
+          .where(and(eq(kycVerificationsTable.cnic, cnicClean), ne(kycVerificationsTable.userId, userId)))
+          .limit(1);
+
+        if (cnicDuplicate) {
+          throw Object.assign(new Error("This CNIC is already registered to another account."), { statusCode: 409 });
+        }
+
+        const [frontUrl, backUrl, selfieUrl] = await Promise.all([
+          saveKycPhoto(userId, "front", front.buffer, front.mime),
+          saveKycPhoto(userId, "back", back.buffer, back.mime),
+          saveKycPhoto(userId, "selfie", selfie.buffer, selfie.mime),
+        ]);
+
+        const id = randomUUID();
+        const now = new Date();
+
+        if (existing?.status === "rejected" || existing?.status === "resubmit") {
+          await tx
+            .update(kycVerificationsTable)
+            .set({
+              status: "pending",
+              fullName,
+              cnic: cnicClean,
+              dateOfBirth,
+              gender,
+              address: address ?? null,
+              city: city ?? null,
+              frontIdPhoto: frontUrl,
+              backIdPhoto: backUrl,
+              selfiePhoto: selfieUrl,
+              rejectionReason: null,
+              reviewedBy: null,
+              reviewedAt: null,
+              submittedAt: now,
+              updatedAt: now,
+            })
+            .where(eq(kycVerificationsTable.userId, userId));
+        } else {
+          await tx.insert(kycVerificationsTable).values({
+            id,
+            userId,
+            status: "pending",
+            fullName,
+            cnic: cnicClean,
+            dateOfBirth,
+            gender,
+            address: address ?? null,
+            city: city ?? null,
+            frontIdPhoto: frontUrl,
+            backIdPhoto: backUrl,
+            selfiePhoto: selfieUrl,
+            submittedAt: now,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+
+        await tx.update(usersTable).set({ kycStatus: "pending", updatedAt: now }).where(eq(usersTable.id, userId));
+      });
+
+      res.json({ success: true, message: "KYC submitted successfully. Our team will review within 24 hours." });
+      emitKycSubmitted({ userId, submittedAt: new Date().toISOString() });
+    } catch (err: unknown) {
+      const e = err as { statusCode?: number; message?: string };
+      if (e?.statusCode === 400) { res.status(400).json({ error: e.message }); return; }
+      if (e?.statusCode === 409) { res.status(409).json({ error: e.message }); return; }
+      logger.error({ err }, "Vendor KYC submit-base64 error");
+      res.status(500).json({ error: "Failed to submit KYC. Please try again." });
+    }
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err) }, "Vendor KYC submit-base64 unhandled error");
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

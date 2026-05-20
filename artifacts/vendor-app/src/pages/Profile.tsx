@@ -14,6 +14,7 @@ import {
   Accordion, AccordionItem, AccordionTrigger, AccordionContent,
 } from "../components/ui/accordion";
 import { registerPush } from "../lib/push";
+import { VendorKycModal } from "../components/VendorKycModal";
 
 const CITIES = ["Muzaffarabad","Mirpur","Rawalakot","Bagh","Kotli","Bhimber","Jhelum","Rawalpindi","Islamabad","Lahore","Karachi","Other"];
 const BANKS  = ["EasyPaisa","JazzCash","MCB","HBL","UBL","Meezan Bank","Bank Alfalah","NBP","Allied Bank","Other"];
@@ -41,6 +42,14 @@ export default function Profile() {
   const [saving, setSaving]   = useState(false);
   const [toast, setToast]     = useState("");
   const [docUploading, setDocUploading] = useState<DocKey | null>(null);
+  const [kycModalOpen, setKycModalOpen] = useState(false);
+
+  const { data: kycData } = useQuery({
+    queryKey: ["vendor-kyc-status"],
+    queryFn: () => api.getKycStatus() as Promise<{ status: string; record: { rejectionReason?: string | null; submittedAt?: string } | null }>,
+    enabled: !!user && user.kycStatus !== "verified",
+    staleTime: 60000,
+  });
 
   const { language, setLanguage, loading: langLoading } = useLanguage();
   const { isDark, toggleDark } = useTheme();
@@ -222,6 +231,12 @@ export default function Profile() {
 
   return (
     <div className="bg-gray-50 md:bg-transparent">
+      {kycModalOpen && (
+        <VendorKycModal
+          onClose={() => setKycModalOpen(false)}
+          rejectionReason={user?.kycStatus === "rejected" ? kycData?.record?.rejectionReason : null}
+        />
+      )}
       <PageHeader
         title={T("account")}
         subtitle={T("profileSecurity")}
@@ -626,6 +641,74 @@ export default function Profile() {
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
+            </div>
+
+            {/* KYC Identity Verification */}
+            <div className={CARD}>
+              <div className="px-4 py-3.5 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                  <p className="font-bold text-gray-800 text-sm">🛡️ Identity Verification (KYC)</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Required for withdrawals &amp; advanced features</p>
+                </div>
+                {user?.kycStatus === "verified" && (
+                  <span className="text-xs bg-green-100 text-green-700 font-bold px-2.5 py-1 rounded-full flex-shrink-0">✓ Verified</span>
+                )}
+                {user?.kycStatus === "pending" && (
+                  <span className="text-xs bg-blue-100 text-blue-700 font-bold px-2.5 py-1 rounded-full flex-shrink-0 animate-pulse">⏳ Reviewing</span>
+                )}
+                {user?.kycStatus === "rejected" && (
+                  <span className="text-xs bg-red-100 text-red-600 font-bold px-2.5 py-1 rounded-full flex-shrink-0">✗ Rejected</span>
+                )}
+                {(!user?.kycStatus || user.kycStatus === "none") && (
+                  <span className="text-xs bg-gray-100 text-gray-500 font-bold px-2.5 py-1 rounded-full flex-shrink-0">Not done</span>
+                )}
+              </div>
+              <div className="p-4">
+                {user?.kycStatus === "verified" ? (
+                  <div className="flex items-center gap-3 bg-green-50 rounded-xl p-3.5">
+                    <span className="text-2xl flex-shrink-0">✅</span>
+                    <div>
+                      <p className="font-bold text-green-800 text-sm">Identity Verified</p>
+                      <p className="text-xs text-green-600 mt-0.5">Full access to all features is unlocked</p>
+                    </div>
+                  </div>
+                ) : user?.kycStatus === "pending" ? (
+                  <div className="flex items-center gap-3 bg-blue-50 rounded-xl p-3.5">
+                    <span className="text-2xl flex-shrink-0">⏳</span>
+                    <div>
+                      <p className="font-bold text-blue-800 text-sm">Under Review</p>
+                      <p className="text-xs text-blue-600 mt-0.5">Our team will review your documents within 24 hours</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {user?.kycStatus === "rejected" && kycData?.record?.rejectionReason && (
+                      <div className="bg-red-50 rounded-xl p-3">
+                        <p className="text-xs font-bold text-red-700 mb-0.5">Rejection Reason</p>
+                        <p className="text-xs text-red-600">{kycData.record.rejectionReason}</p>
+                      </div>
+                    )}
+                    <div className="bg-amber-50 rounded-xl p-3 space-y-1.5">
+                      <p className="text-xs font-bold text-amber-800 mb-1.5">Unlock after verification:</p>
+                      {["💸 Wallet withdrawals", "📊 Business analytics", "🏷️ Discount promotions", "📢 Ad campaigns"].map(f => (
+                        <div key={f} className="flex items-center gap-2">
+                          <span className="w-3.5 h-3.5 bg-amber-200 rounded-full flex items-center justify-center text-[9px] text-amber-800 font-bold flex-shrink-0">✓</span>
+                          <span className="text-xs text-amber-700">{f}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setKycModalOpen(true)}
+                      className="w-full h-11 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-xl text-sm hover:opacity-95 transition-opacity"
+                    >
+                      {user?.kycStatus === "rejected" ? "🔄 Re-submit Verification" : "🛡️ Start Identity Verification"}
+                    </button>
+                    <p className="text-[10px] text-gray-400 text-center leading-relaxed">
+                      Required by Pakistani regulations for payment processing. Your data is encrypted and secure.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Business Documents */}

@@ -386,6 +386,14 @@ export const api = {
   updateVendorReply:   (reviewId: string, reply: string) => apiFetch(`/reviews/${reviewId}/vendor-reply`, { method: "PUT", body: JSON.stringify({ reply }) }),
   deleteVendorReply:   (reviewId: string) => apiFetch(`/reviews/${reviewId}/vendor-reply`, { method: "DELETE" }),
 
+  /* KYC */
+  getKycStatus: () => apiFetch("/kyc/vendor/status"),
+  submitKycBase64: (data: {
+    fullName: string; cnic: string; dateOfBirth?: string;
+    gender?: string; address?: string; city?: string;
+    frontIdPhoto: string; backIdPhoto: string; selfiePhoto: string;
+  }) => apiFetch("/kyc/vendor/submit-base64", { method: "POST", body: JSON.stringify(data) }),
+
   /* Wallet */
   getWallet:      () => apiFetch("/vendors/wallet/transactions"),
   withdrawWallet: (data: { amount: number; bankName: string; accountNumber: string; accountTitle: string; note?: string }) =>

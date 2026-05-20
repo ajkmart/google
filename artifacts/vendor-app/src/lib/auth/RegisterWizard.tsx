@@ -116,8 +116,8 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
-        <p style={{ color: "#E2E8F0", fontWeight: 800, fontSize: 17, margin: "0 0 2px" }}>{T("documents")}</p>
-        <p style={{ color: "#6B7280", fontSize: 13, margin: "0 0 12px" }}>{T("uploadRequiredDocuments")}</p>
+        <p style={{ color: "#E2E8F0", fontWeight: 800, fontSize: 17, margin: "0 0 2px" }}>Contact Details</p>
+        <p style={{ color: "#6B7280", fontSize: 13, margin: "0 0 12px" }}>Your mobile number for OTP verification</p>
       </div>
       <div>
         <label style={labelStyle(pr)}>{T("cnicNumber")}</label>
@@ -136,8 +136,8 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
           placeholder="03XXXXXXXXX or +92XXXXXXXXXX" inputMode="tel" maxLength={15} />
       </div>
       <div style={{ background: `${pr}0d`, border: `1px solid ${pr}25`, borderRadius: 12, padding: "12px 14px" }}>
-        <p style={{ color: pr, fontSize: 11, fontWeight: 700, margin: "0 0 4px" }}>Document Upload</p>
-        <p style={{ color: "#6B7280", fontSize: 12, margin: 0, lineHeight: 1.5 }}>Your CNIC copy and business registration documents will be required after approval. You can submit them from your profile settings.</p>
+        <p style={{ color: pr, fontSize: 11, fontWeight: 700, margin: "0 0 4px" }}>📋 KYC Verification (After Approval)</p>
+        <p style={{ color: "#6B7280", fontSize: 12, margin: 0, lineHeight: 1.5 }}>Once your vendor account is approved, you can complete full KYC identity verification from your Profile to unlock wallet withdrawals and advanced features.</p>
       </div>
     </div>
   );
@@ -522,7 +522,7 @@ const STEPS: StepConfig[] = [
   },
   {
     id: "documents",
-    title: "Docs",
+    title: "Contact",
     component: DocumentsStep,
     validate: (data) => {
       const cnic = String(data.cnic ?? "").trim();
