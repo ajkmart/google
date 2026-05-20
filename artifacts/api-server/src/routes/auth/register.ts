@@ -275,7 +275,7 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
     if (normalized !== user.email) {
       const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, normalized)).limit(1);
       if (existing && existing.id !== userId) {
-        sendError(res, "Is email se pehle se ek account bana hua hai", 409); return;
+        sendError(res, "An account already exists with this email address.", 409); return;
       }
     }
     updates.email = normalized;
@@ -287,7 +287,7 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
     if (clean !== user.username) {
       const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(sql`lower(${usersTable.username}) = ${clean}`).limit(1);
       if (existing && existing.id !== userId) {
-        sendError(res, "Yeh username pehle se liya hua hai", 409); return;
+        sendError(res, "This username is already taken. Please choose another.", 409); return;
       }
     }
     updates.username = clean;
@@ -323,7 +323,7 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
         sendError(res, "Current password required to change password", 400); return;
       }
       if (!verifyPassword(currentPassword, user.passwordHash)) {
-        sendUnauthorized(res, "Current password galat hai"); return;
+        sendUnauthorized(res, "Current password is incorrect."); return;
       }
     }
     const check = validatePasswordStrength(password);
@@ -391,12 +391,13 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
     { userId: updated!.id, code: "DB_CLEANUP" },
   );
 
-  setRiderRefreshCookie(req, res, refreshRaw, updated);
-  setVendorRefreshCookie(req, res, refreshRaw, updated);
+  const userRoles = updated!.roles ?? "";
+  if (userRoles.includes("rider"))  setRiderRefreshCookie(req, res, refreshRaw, updated);
+  if (userRoles.includes("vendor")) setVendorRefreshCookie(req, res, refreshRaw, updated);
 
   sendSuccess(res, {
     success: true,
-    message: "Profile update ho gaya",
+    message: "Profile updated successfully.",
     token: accessToken,
     refreshToken: refreshRaw,
     user: { id: updated!.id, phone: updated!.phone, name: updated!.name, email: updated!.email, username: updated!.username, role: updated!.roles, roles: updated!.roles, avatar: updated!.avatar, cnic: updated!.cnic, city: updated!.city, area: updated!.area, address: updated!.address, latitude: updated!.latitude, longitude: updated!.longitude, kycStatus: updated!.kycStatus, accountLevel: updated!.accountLevel, totpEnabled: updated!.totpEnabled ?? false, emailVerified: updated!.emailVerified, phoneVerified: updated!.phoneVerified, walletBalance: parseFloat(updated!.walletBalance ?? "0"), isActive: updated!.isActive, createdAt: updated!.createdAt.toISOString() },

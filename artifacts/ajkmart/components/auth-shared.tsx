@@ -45,7 +45,7 @@ export function OtpDigitInput({
 
   useEffect(() => {
     if (value.length === length && onComplete) onComplete(value);
-  }, [value, length]);
+  }, [value, length, onComplete]);
 
   const digits = value.split("");
 
@@ -210,16 +210,17 @@ export function PasswordStrengthBar({ password }: { password: string }) {
     { label: "8+ characters", ok: password.length >= 8 },
     { label: "Uppercase letter", ok: /[A-Z]/.test(password) },
     { label: "Number", ok: /[0-9]/.test(password) },
+    { label: "Special character", ok: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password) },
   ];
   const score = checks.filter(c => c.ok).length;
-  const barColors = ["transparent", C.danger, C.accent, C.success];
-  const labels = ["", "Weak", "Medium", "Strong"];
+  const barColors = ["transparent", C.danger, C.danger, C.accent, C.success];
+  const labels = ["", "Weak", "Weak", "Medium", "Strong"];
 
   if (!password) return null;
   return (
     <View style={pwdS.container} accessibilityLabel={`Password strength: ${labels[score] || "None"}`}>
       <View style={pwdS.bars}>
-        {[0, 1, 2].map(i => (
+        {[0, 1, 2, 3].map(i => (
           <View key={i} style={[pwdS.bar, { backgroundColor: i < score ? barColors[score] : C.borderLight }]} />
         ))}
       </View>
@@ -292,7 +293,6 @@ export function PhoneInput({
       <View style={phoneS.code}>
         <Text style={phoneS.flag}>🇵🇰</Text>
         <Text style={phoneS.codeText}>+92</Text>
-        <Ionicons name="chevron-down" size={14} color={C.textMuted} />
       </View>
       <TextInput
         style={phoneS.input}
@@ -498,7 +498,7 @@ const chS = StyleSheet.create({
 });
 
 export function DevOtpBanner({ otp }: { otp: string }) {
-  if (!otp) return null;
+  if (!__DEV__ || !otp) return null;
   return (
     <View style={devS.box}>
       <Ionicons name="key-outline" size={14} color={C.success} />

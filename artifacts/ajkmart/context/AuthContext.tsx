@@ -321,11 +321,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ refreshToken: stored }),
       });
       if (!res.ok) return null;
-      const data = await res.json() as { token?: string };
+      const data = await res.json() as { token?: string; refreshToken?: string };
       if (data.token) {
         setToken(data.token);
         await secureSet(TOKEN_KEY, data.token);
+        if (data.refreshToken) {
+          await secureSet(REFRESH_TOKEN_KEY, data.refreshToken);
+          setRefreshTokenGetter(() => data.refreshToken!);
+        }
         setAuthTokenGetter(() => data.token!);
+        scheduleProactiveRefresh(data.token!);
         return data.token;
       }
       return null;

@@ -180,7 +180,22 @@ export default function AuthScreen() {
     }
   };
 
-  const handleLoginResult = async (res: any) => {
+  interface AuthLoginResponse {
+    requires2FA?: boolean;
+    tempToken?: string;
+    userId?: string;
+    pendingApproval?: boolean;
+    token?: string;
+    refreshToken?: string;
+    user?: Partial<AppUser>;
+    otpRequired?: boolean;
+    otp?: string;
+    channel?: string;
+    fallbackChannels?: string[];
+    action?: string;
+  }
+
+  const handleLoginResult = async (res: AuthLoginResponse) => {
     if (res.requires2FA) {
       setTotpTempToken(res.tempToken);
       setTotpUserId(res.userId);
@@ -191,6 +206,9 @@ export default function AuthScreen() {
       setPendingToken(res.token);
       setPendingRefreshToken(res.refreshToken);
       setPendingUser(res.user);
+      if (res.token) {
+        import("expo-secure-store").then(SS => SS.setItemAsync("ajkmart_pending_token", res.token!)).catch(() => {});
+      }
       setStep("pending");
       return;
     }
@@ -198,6 +216,9 @@ export default function AuthScreen() {
       setPendingToken(res.token);
       setPendingRefreshToken(res.refreshToken);
       setPendingUser(res.user);
+      if (res.token) {
+        import("expo-secure-store").then(SS => SS.setItemAsync("ajkmart_pending_token", res.token!)).catch(() => {});
+      }
       setStep("complete-profile");
       return;
     }
@@ -264,12 +285,12 @@ export default function AuthScreen() {
         return;
       }
       if (res.action === "send_phone_otp") {
-        const normalized = id.replace(/\D/g, "").replace(/^92/, "").replace(/^0/, "");
+        const normalized = normalizePhone(id);
         setPhone(normalized);
         setMethod("phone");
         setLoading(false);
-        const r = await authPost("/auth/send-otp", { phone: `0${normalized}` }).catch((e: any) => {
-          setError(e.message || "Failed to send OTP");
+        const r = await authPost("/auth/send-otp", { phone: `0${normalized}` }).catch((e: unknown) => {
+          setError(e instanceof Error ? e.message : "Failed to send OTP");
           return null;
         });
         if (r) {
@@ -291,8 +312,8 @@ export default function AuthScreen() {
         setEmail(id);
         setMethod("email");
         setLoading(false);
-        const r = await authPost("/auth/send-email-otp", { email: id }).catch((e: any) => {
-          setError(e.message || "Failed to send OTP");
+        const r = await authPost("/auth/send-email-otp", { email: id }).catch((e: unknown) => {
+          setError(e instanceof Error ? e.message : "Failed to send OTP");
           return null;
         });
         if (r) {
@@ -315,8 +336,14 @@ export default function AuthScreen() {
       setUsername(id);
       setMethod("username");
       setStep("method");
-    } catch (e: any) {
-      setError(e.message || "Check failed. Please try again.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Check failed. Please try again.";
+      setError(msg);
+      const match = msg.match(/wait (\d+) (second|minute)/i);
+      if (match) {
+        const secs = parseInt(match[1]!, 10) * (match[2]!.toLowerCase().startsWith("m") ? 60 : 1);
+        setResendCooldown(secs);
+      }
     }
     setLoading(false);
   };
@@ -339,7 +366,7 @@ export default function AuthScreen() {
     if (resendCooldown > 0) { setError(`Please wait ${resendCooldown}s before resending.`); return; }
     setLoading(true);
     try {
-      const body: any = { phone: normalizedPhone };
+      const body: Record<string, string> = { phone: normalizedPhone };
       if (preferredChannel) body.preferredChannel = preferredChannel;
       const res = await authPost("/auth/send-otp", body);
       if (res.otpRequired === false && res.token) {
@@ -352,8 +379,8 @@ export default function AuthScreen() {
       setFallbackChannels(res.fallbackChannels || []);
       setResendCooldown(60);
       animateTransition(() => setStep("otp"));
-    } catch (e: any) {
-      const msg: string = e.message || "Could not send OTP.";
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Could not send OTP.";
       setError(msg);
       const match = msg.match(/wait (\d+) second/);
       if (match) setResendCooldown(parseInt(match[1]!, 10));
@@ -369,7 +396,7 @@ export default function AuthScreen() {
       const fingerprint = await getDeviceFingerprint();
       const res = await authPost("/auth/verify-otp", { phone: normalizePhone(phone), otp, deviceFingerprint: fingerprint });
       await handleLoginResult(res);
-    } catch (e: any) { setError(e.message || "Invalid OTP."); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Invalid OTP."); }
     setLoading(false);
   };
 
@@ -391,7 +418,7 @@ export default function AuthScreen() {
       setFallbackChannels([]);
       setEmailResendCooldown(60);
       animateTransition(() => setStep("otp"));
-    } catch (e: any) { setError(e.message || "Could not send OTP."); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Could not send OTP."); }
     setLoading(false);
   };
 
@@ -403,7 +430,7 @@ export default function AuthScreen() {
       const fingerprint = await getDeviceFingerprint();
       const res = await authPost("/auth/verify-email-otp", { email, otp: emailOtp, deviceFingerprint: fingerprint });
       await handleLoginResult(res);
-    } catch (e: any) { setError(e.message || "Invalid OTP."); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Invalid OTP."); }
     setLoading(false);
   };
 
@@ -416,7 +443,7 @@ export default function AuthScreen() {
       const fingerprint = await getDeviceFingerprint();
       const res = await authPost("/auth/login", { identifier: username, password, deviceFingerprint: fingerprint });
       await handleLoginResult(res);
-    } catch (e: any) { setError(e.message || "Invalid credentials."); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Invalid credentials."); }
     setLoading(false);
   };
 
@@ -482,7 +509,7 @@ export default function AuthScreen() {
         }
       }
       setError(`${provider} login cancelled or not configured.`);
-    } catch (e: any) { setError(e.message || `${provider} login failed.`); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : `${provider} login failed.`); }
     setLoading(false);
   };
 
@@ -496,7 +523,7 @@ export default function AuthScreen() {
       await authPost("/auth/magic-link/send", { email: magicEmail });
       setMagicSent(true);
       setMagicCooldown(60);
-    } catch (e: any) { setError(e.message || "Magic link send fail."); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Could not send magic link."); }
     setLoading(false);
   };
 
@@ -537,7 +564,7 @@ export default function AuthScreen() {
       }
       await completeTwoFactorLogin(res.user as AppUser, res.token, res.refreshToken);
       router.replace("/(tabs)");
-    } catch (e: any) { setError(e.message || "Invalid 2FA code."); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Invalid 2FA code."); }
     setLoading(false);
   };
 
@@ -548,7 +575,7 @@ export default function AuthScreen() {
       const res = await authPost("/auth/2fa/recovery", { tempToken: totpTempToken, backupCode: code });
       await completeTwoFactorLogin(res.user as AppUser, res.token, res.refreshToken);
       router.replace("/(tabs)");
-    } catch (e: any) { setError(e.message || "Invalid backup code."); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Invalid backup code."); }
     setLoading(false);
   };
 
@@ -557,10 +584,22 @@ export default function AuthScreen() {
     if (!profileName || profileName.trim().length < 2) { setError("Please enter your name"); return; }
     setLoading(true);
     try {
+      let activeToken = pendingToken;
+      if (!activeToken) {
+        try {
+          const SecureStore = await import("expo-secure-store");
+          activeToken = await SecureStore.getItemAsync("ajkmart_pending_token") ?? "";
+        } catch {}
+      }
+      if (!activeToken) {
+        setError("Session expired. Please log in again.");
+        setLoading(false);
+        return;
+      }
       /* FIX 11: Split fetch + json so we can inspect status and always show errors */
       const rawRes = await fetch(`${API}/auth/complete-profile`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${pendingToken}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${activeToken}` },
         body: JSON.stringify({
           name: profileName.trim(),
           ...(profileEmail && { email: profileEmail }),
@@ -579,7 +618,7 @@ export default function AuthScreen() {
       };
       await login(completeUser, res.token ?? pendingToken, res.refreshToken ?? pendingRefreshToken);
       router.replace("/(tabs)");
-    } catch (e: any) { setError(e.message || "Could not save profile."); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Could not save profile."); }
     setLoading(false);
   };
 
@@ -590,6 +629,7 @@ export default function AuthScreen() {
       clearError();
       setOtp(""); setEmailOtp(""); setDevOtp(""); setEmailDevOtp("");
       setMagicSent(false);
+      setMagicEmail("");
     });
   };
 

@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
-import crypto, { randomBytes, createHash, randomInt } from "crypto";
+import { randomBytes, createHash, randomInt } from "crypto";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, pendingOtpsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
@@ -64,7 +64,14 @@ const checkIdentifierLimiter = rateLimit({
   /* ── Normalise identifier — detect phone vs email vs username ── */
   let user: (typeof usersTable.$inferSelect) | undefined;
 
-  const looksLikePhone = /^[\d\s\-+()]{7,15}$/.test(identifier.trim());
+  const looksLikePhone = (() => {
+    const trimmed = identifier.trim();
+    if (!/^[\d\s\-+()]{7,15}$/.test(trimmed)) return false;
+    try {
+      const canon = canonicalizePhone(trimmed);
+      return /^3\d{9}$/.test(canon);
+    } catch { return false; }
+  })();
   const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier.trim());
 
   if (looksLikePhone) {
@@ -236,14 +243,14 @@ router.post("/check-available", sharedValidateBody(CheckAvailableSchema), async 
     const canonPhone = canonicalizePhone(phone);
     const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, canonPhone)).limit(1);
     result.phone = existing
-      ? { available: false, message: "Is number se pehle se ek account bana hua hai" }
+      ? { available: false, message: "An account already exists with this phone number." }
       : { available: true,  message: "Available" };
   }
 
   if (email && email.length > 3) {
     const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim())).limit(1);
     result.email = existing
-      ? { available: false, message: "Is email se pehle se ek account bana hua hai" }
+      ? { available: false, message: "An account already exists with this email address." }
       : { available: true,  message: "Available" };
   }
 
@@ -251,7 +258,7 @@ router.post("/check-available", sharedValidateBody(CheckAvailableSchema), async 
     const clean = username.toLowerCase().trim();
     const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(sql`lower(${usersTable.username}) = ${clean}`).limit(1);
     result.username = existing
-      ? { available: false, message: "Yeh username pehle se liya hua hai. Koi aur try karein." }
+      ? { available: false, message: "This username is already taken. Please choose another." }
       : { available: true,  message: "Available" };
   }
 

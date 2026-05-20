@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { spacing, radii, shadows, typography } from "@/constants/colors";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, type AppUser } from "@/context/AuthContext";
 import { usePlatformConfig } from "@/context/PlatformConfigContext";
 import { normalizePhone, isValidPakistaniPhone } from "@/utils/phone";
 
@@ -74,7 +74,7 @@ export default function RegisterScreen() {
 
   const [authToken, setAuthToken] = useState("");
   const [authRefreshToken, setAuthRefreshToken] = useState("");
-  const [authUser, setAuthUser] = useState<any>(null);
+  const [authUser, setAuthUser] = useState<AppUser | null>(null);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -109,7 +109,7 @@ export default function RegisterScreen() {
 
   useEffect(() => {
     return () => {
-      import("expo-secure-store").then(SS => SS.deleteItemAsync("ajkmart_reg_token")).catch(() => {});
+      if (usernameTimerRef.current) clearTimeout(usernameTimerRef.current);
     };
   }, []);
 
@@ -200,53 +200,51 @@ export default function RegisterScreen() {
     if (resendCooldown > 0) return;
     setLoading(true);
     try {
-      if (!otpSent) {
-        let checkData: any;
-        try {
-          const checkRes = await fetch(`${API}/auth/check-identifier`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ identifier: `0${normalizedPhone}`, role: "customer" }),
-          });
-          checkData = await checkRes.json();
-          if (!checkRes.ok) {
-            setError(checkData?.error || "Could not verify phone number. Please try again.");
-            setLoading(false);
-            return;
-          }
-        } catch {
-          setError("Network error. Please check your connection and try again.");
+      let checkData: Record<string, unknown>;
+      try {
+        const checkRes = await fetch(`${API}/auth/check-identifier`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier: `0${normalizedPhone}`, role: "customer" }),
+        });
+        checkData = await checkRes.json();
+        if (!checkRes.ok) {
+          setError((checkData?.error as string) || "Could not verify phone number. Please try again.");
           setLoading(false);
           return;
         }
-        const action = checkData?.action;
-        if (action === "registration_closed") {
-          setError("New registrations are currently closed. Please try again later.");
-          setLoading(false);
-          return;
-        }
-        if (action === "blocked") {
-          setError("This phone number has been suspended. Please contact support.");
-          setLoading(false);
-          return;
-        }
-        if (action === "locked") {
-          const mins = checkData?.lockedMinutes ?? "";
-          setError(`Too many attempts. Please try again${mins ? ` in ${mins} minute(s)` : " later"}.`);
-          setLoading(false);
-          return;
-        }
-        if (action && action !== "register") {
-          setError("An account already exists with this number. Please log in.");
-          setLoading(false);
-          return;
-        }
+      } catch {
+        setError("Network error. Please check your connection and try again.");
+        setLoading(false);
+        return;
+      }
+      const action = checkData?.action;
+      if (action === "registration_closed") {
+        setError("New registrations are currently closed. Please try again later.");
+        setLoading(false);
+        return;
+      }
+      if (action === "blocked") {
+        setError("This phone number has been suspended. Please contact support.");
+        setLoading(false);
+        return;
+      }
+      if (action === "locked") {
+        const mins = (checkData?.lockedMinutes as string | number) ?? "";
+        setError(`Too many attempts. Please try again${mins ? ` in ${mins} minute(s)` : " later"}.`);
+        setLoading(false);
+        return;
+      }
+      if (action && action !== "register") {
+        setError("An account already exists with this number. Please log in.");
+        setLoading(false);
+        return;
       }
 
       const sendOtpRes = await fetch(`${API}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: normalizedPhone }),
+        body: JSON.stringify({ phone: normalizedPhone, role: "customer" }),
       });
       const sendOtpData = await sendOtpRes.json();
       if (!sendOtpRes.ok) {
@@ -272,8 +270,8 @@ export default function RegisterScreen() {
       if (sendOtpData.otp) setDevOtp(sendOtpData.otp);
       setResendCooldown(60);
       setOtpSent(true);
-    } catch (e: any) {
-      setError(e.message || "Could not send OTP.");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Could not send OTP.");
     }
     setLoading(false);
   };
@@ -300,17 +298,18 @@ export default function RegisterScreen() {
       if (data.refreshToken) setAuthRefreshToken(data.refreshToken);
       if (data.user) setAuthUser(data.user);
       setStep(2);
-    } catch (e: any) { setError(e.message || "Verification fail."); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Verification failed."); }
     setLoading(false);
   };
 
   const handleStep2 = () => {
     clearError();
     if (!name.trim() || name.trim().length < 2) { setError("Please enter your name (at least 2 characters)"); return; }
-    if (!username || username.length < 3) { setError("Username is required (at least 3 characters)"); return; }
+    if (!username || username.length < 3) { setError("Please choose a username (at least 3 characters)"); return; }
     if (usernameStatus === "taken") { setError("This username is already taken. Please choose another."); return; }
-    if (usernameStatus === "checking") { setError("Please wait — checking username availability"); return; }
-    if (usernameStatus !== "available") { setError("Please wait for username availability check to complete"); return; }
+    if (usernameStatus === "checking") { setError("Please wait — checking username availability…"); return; }
+    if (usernameStatus === "") { setError("Please wait a moment for the username check to complete."); return; }
+    if (usernameStatus !== "available") { setError("Username is not available. Please choose another."); return; }
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setError("Please enter a valid email address");
       return;
@@ -329,6 +328,7 @@ export default function RegisterScreen() {
     if (!password || password.length < 8) { setError("Password must be at least 8 characters"); return; }
     if (!/[A-Z]/.test(password)) { setError("Password must contain at least 1 uppercase letter"); return; }
     if (!/[0-9]/.test(password)) { setError("Password must contain at least 1 number"); return; }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) { setError("Password must contain at least 1 special character (e.g. !@#$%)"); return; }
     if (password !== confirmPassword) { setError("Passwords do not match"); return; }
     if (!termsAccepted) { setError("Please accept the Terms & Conditions"); return; }
 
@@ -376,7 +376,7 @@ export default function RegisterScreen() {
       if (profileData.user) setAuthUser(profileData.user);
 
       setStep(5);
-    } catch (e: any) { setError(e.message || "Could not save profile."); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Could not save profile."); }
     setLoading(false);
   };
 
@@ -407,7 +407,7 @@ export default function RegisterScreen() {
         router.replace("/auth");
       }
     } catch (e: unknown) {
-      console.warn("Login after registration failed:", e instanceof Error ? e.message : e);
+      if (__DEV__) console.warn("Login after registration failed:", e instanceof Error ? e.message : e);
       router.replace("/auth");
     }
     setLoading(false);
@@ -809,7 +809,7 @@ export default function RegisterScreen() {
 
           {step === 3 && (
             <Pressable onPress={() => setStep(4)} style={s.skipLink} accessibilityRole="link">
-              <Text style={s.skipLinkText}>Skip for now</Text>
+              <Text style={s.skipLinkText}>Skip address (optional)</Text>
             </Pressable>
           )}
         </ScrollView>
