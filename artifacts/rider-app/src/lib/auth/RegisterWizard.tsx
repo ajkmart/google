@@ -97,14 +97,15 @@ function PhoneInfoStep({ data, onChange, onError }: StepComponentProps) {
 }
 
 /* ── Step 2: OTP Verify ────────────────────────────────────────────── */
-function OtpStep({ data, onChange, onError, onComplete }: StepComponentProps & { onComplete?: (otp: string) => void }) {
+function OtpStep({ data, onChange, onError }: StepComponentProps) {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const { sendOtp } = useAuthOps();
-  const [otp, setOtp] = useState("");
+  const [otp, setOtp] = useState((data.otp as string) ?? "");
   const [resending, setResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const allFilled = otp.length === 6;
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -121,7 +122,6 @@ function OtpStep({ data, onChange, onError, onComplete }: StepComponentProps & {
     onChange("otp", next);
     onError("");
     if (v && i < 5) inputRefs.current[i + 1]?.focus();
-    if (next.length === 6) onComplete?.(next);
   };
 
   const handleKeyDown = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -138,13 +138,15 @@ function OtpStep({ data, onChange, onError, onComplete }: StepComponentProps & {
     onChange("otp", pasted);
     onError("");
     inputRefs.current[Math.min(pasted.length, 5)]?.focus();
-    if (pasted.length === 6) onComplete?.(pasted);
   };
 
   const handleResend = async () => {
     const phone = (data.phone as string) ?? "";
     if (!phone || resending || resendCooldown > 0) return;
     setResending(true);
+    setOtp("");
+    onChange("otp", "");
+    onError("");
     const result = await sendOtp(phone);
     setResending(false);
     if (!result.success) {
@@ -162,16 +164,31 @@ function OtpStep({ data, onChange, onError, onComplete }: StepComponentProps & {
       </div>
       <h3 className="font-bold text-xl mb-2" style={{ color: theme.text }}>{T("verifyPhone")}</h3>
       <p className="text-sm mb-6" style={{ color: theme.textMuted }}>{T("enterOtpSentTo")} <strong style={{ color: theme.text }}>{(data.phone as string) ?? ""}</strong></p>
-      <div className="flex justify-center gap-2 mb-6" onPaste={handlePaste}>
+      <div className="flex justify-center gap-2 mb-3" onPaste={handlePaste}>
         {Array.from({ length: 6 }).map((_, i) => (
           <input key={i} ref={el => { inputRefs.current[i] = el; }} type="text" inputMode="numeric" maxLength={1} value={otp[i] ?? ""}
             onChange={e => handleChange(i, e.target.value)}
             onKeyDown={e => handleKeyDown(i, e)}
             className="w-12 h-14 rounded-xl text-center text-xl font-bold focus:outline-none transition-all"
-            style={{ background: theme.background, border: `1px solid ${theme.border}`, color: theme.text }}
+            style={{
+              background: allFilled ? `${theme.primary}18` : theme.background,
+              border: `1.5px solid ${allFilled ? theme.primary : otp[i] ? theme.primary + "80" : theme.border}`,
+              color: theme.text,
+            }}
           />
         ))}
       </div>
+
+      {/* Visual confirmation when all 6 digits are entered */}
+      {allFilled ? (
+        <div className="flex items-center justify-center gap-2 mb-4 py-2 px-4 rounded-xl mx-auto" style={{ background: `${theme.primary}15`, border: `1px solid ${theme.primary}40` }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={theme.primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+          <span className="text-xs font-semibold" style={{ color: theme.primary }}>Code entered — tap Next to continue</span>
+        </div>
+      ) : (
+        <div className="mb-4" />
+      )}
+
       <p className="text-xs" style={{ color: theme.textMuted }}>
         {T("didntReceiveOtp")}{" "}
         {resendCooldown > 0
@@ -478,6 +495,11 @@ const DOCUMENTS_STEP: StepConfig = {
   },
 };
 
+/* Display-only sentinel step — makes RegisterScreen fire submission at the
+   step BEFORE this one (the last data step), so success only shows after a
+   successful API call rather than before it. No component/fields = display-only. */
+const DONE_STEP: StepConfig = { id: "_done", title: "Done" };
+
 const BASE_STEPS: StepConfig[] = [
   {
     id: "phone",
@@ -515,7 +537,7 @@ const BASE_STEPS: StepConfig[] = [
     },
   },
   DOCUMENTS_STEP,
-  { id: "success", title: "Done", component: SuccessStep },
+  DONE_STEP,
 ];
 
 const PASSWORD_STEP: StepConfig = {
@@ -546,9 +568,13 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
   const T = (key: TranslationKey) => tDual(key, language);
   const auth = useRiderAuthConfig();
 
-  /* Insert password step before success when username/password login is enabled */
+  /* Shows the success screen after a successful registration API call */
+  const [isRegistered, setIsRegistered] = useState(false);
+
+  /* Insert password step before the done sentinel when username/password login is enabled.
+     BASE_STEPS[4] is the display-only DONE_STEP sentinel. */
   const steps: StepConfig[] = auth.usernamePassword
-    ? [BASE_STEPS[0], BASE_STEPS[1], BASE_STEPS[2], BASE_STEPS[3], PASSWORD_STEP, BASE_STEPS[4]]
+    ? [BASE_STEPS[0], BASE_STEPS[1], BASE_STEPS[2], BASE_STEPS[3], PASSWORD_STEP, DONE_STEP]
     : BASE_STEPS;
 
   const [draft, setDraft] = useState<Record<string, unknown>>(() => {
@@ -618,6 +644,7 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
       }
       const res = await api.registerRider(payload) as { token?: string; user?: unknown };
       localStorage.removeItem(DRAFT_KEY);
+      setIsRegistered(true);
       return { success: true, data: res };
     } catch (err: unknown) {
       return { success: false, error: err instanceof Error ? err.message : T("registrationFailed") };
@@ -633,6 +660,38 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
     if (draft.otp || draft.phone) return 1;
     return 0;
   }, [draft, totalSteps]);
+
+  /* ── Success screen — shown only after a successful API call ── */
+  if (isRegistered) {
+    return (
+      <div style={{ minHeight: "100vh", background: theme.background }}>
+        <div className="max-w-sm mx-auto px-5 py-8">
+          <div
+            style={{
+              background: theme.surface,
+              border: `1px solid ${theme.border}`,
+              borderRadius: 18,
+              padding: "28px 24px",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
+            }}
+          >
+            <h1 className="font-extrabold text-2xl mb-6 text-center" style={{ color: theme.text }}>
+              {T("riderRegistration")}
+            </h1>
+            <SuccessStep data={draft as Record<string, unknown>} onChange={() => {}} onError={() => {}} onNext={() => {}} role="rider" />
+            <button
+              type="button"
+              onClick={() => { onDone?.(); navigate("/"); }}
+              className="w-full h-12 rounded-xl font-bold text-base mt-6"
+              style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`, color: "#fff", border: "none", cursor: "pointer" }}
+            >
+              Go to Login →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: theme.background }}>
