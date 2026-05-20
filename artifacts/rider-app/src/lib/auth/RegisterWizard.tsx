@@ -247,19 +247,10 @@ function VehicleStep({ data, onChange, onError }: StepComponentProps) {
 
 /* ── Step 4: KYC Document Uploads — wraps RegisterStepDocuments ──────── */
 function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
-  const uploadTokenRef = useRef<string | null>(null);
   const [optimisingField, setOptimisingField] = useState("");
   const [uploadingField, setUploadingField]   = useState("");
   const [uploadErrors, setUploadErrors]       = useState<Record<string, string>>({});
   const [lastFiles, setLastFiles]             = useState<Record<string, File>>({});
-
-  /* Pre-fetch a single upload token on mount; all 4 uploads reuse it. */
-  useEffect(() => {
-    if (uploadTokenRef.current) return;
-    api.getRegistrationUploadToken()
-      .then(t => { uploadTokenRef.current = t; })
-      .catch(() => {});
-  }, []);
 
   /* Derive UploadedDoc from step data (keyed by backend field names). */
   const makeDoc = (dataKey: string): UploadedDoc | null => {
@@ -268,7 +259,9 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
   };
 
   /* handleFileUpload satisfies RegisterStepDocuments.handleFileUpload signature.
-     Uses the pre-fetched token; refreshes once on 401. */
+     Each document upload fetches its own fresh one-time token — the server
+     marks every token as consumed after the first successful use, so tokens
+     cannot be shared across multiple uploads. */
   const handleFileUpload = async (
     file: File,
     field: string,
@@ -278,19 +271,15 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
     setUploadingField(field);
     setUploadErrors(prev => ({ ...prev, [field]: "" }));
     try {
-      let token = uploadTokenRef.current;
-      if (!token) {
-        token = await api.getRegistrationUploadToken();
-        uploadTokenRef.current = token;
-      }
+      const token = await api.getRegistrationUploadToken();
       let res: { url?: string };
       try {
         res = await api.uploadRegistrationDocWithToken(file, token) as { url?: string };
       } catch (e: unknown) {
-        if ((e as { status?: number })?.status === 401) {
-          token = await api.getRegistrationUploadToken();
-          uploadTokenRef.current = token;
-          res = await api.uploadRegistrationDocWithToken(file, token) as { url?: string };
+        const status = (e as { status?: number })?.status;
+        if (status === 401 || status === 403) {
+          const freshToken = await api.getRegistrationUploadToken();
+          res = await api.uploadRegistrationDocWithToken(file, freshToken) as { url?: string };
         } else throw e;
       }
       if (!res?.url) throw new Error("No URL returned from upload");

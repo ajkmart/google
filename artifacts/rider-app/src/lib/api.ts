@@ -498,7 +498,8 @@ export const api = {
       return await doUpload(firstToken);
     } catch (e: unknown) {
       const status = (e as { status?: number })?.status;
-      if (status === 401) {
+      /* Retry on 401 (expired JWT) and 403 (consumed/invalid nonce). */
+      if (status === 401 || status === 403) {
         const freshToken = await fetchToken();
         return doUpload(freshToken);
       }

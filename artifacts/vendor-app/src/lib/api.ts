@@ -395,19 +395,34 @@ export const api = {
   },
 
   uploadRegistrationDoc: async (file: File): Promise<{ url: string }> => {
-    /* Step 1: obtain a short-lived upload session nonce bound to this onboarding flow. */
-    const tokenRes = await apiFetch("/uploads/register-token", { method: "POST" });
-    const uploadToken: string = tokenRes?.token ?? "";
-    if (!uploadToken) throw new Error("Failed to obtain upload session token");
-    /* Step 2: compress, then upload with the token header. */
-    const compressed = await compressImage(file);
-    const formData = new FormData();
-    formData.append("file", compressed, file.name || "document.jpg");
-    const result = await apiFetch("/uploads/register", {
-      method: "POST",
-      body: formData,
-      headers: { "x-upload-token": uploadToken },
-    });
+    const fetchToken = async (): Promise<string> => {
+      const tokenRes = await apiFetch("/uploads/register-token", { method: "POST" });
+      const token: string = tokenRes?.token ?? "";
+      if (!token) throw new Error("Failed to obtain upload session token");
+      return token;
+    };
+    const doUpload = async (uploadToken: string) => {
+      const compressed = await compressImage(file);
+      const formData = new FormData();
+      formData.append("file", compressed, file.name || "document.jpg");
+      return apiFetch("/uploads/register", {
+        method: "POST",
+        body: formData,
+        headers: { "x-upload-token": uploadToken },
+      });
+    };
+    const firstToken = await fetchToken();
+    let result;
+    try {
+      result = await doUpload(firstToken);
+    } catch (e: unknown) {
+      const status = (e as { status?: number })?.status;
+      /* Retry on 401 (expired JWT) and 403 (consumed/invalid nonce). */
+      if (status === 401 || status === 403) {
+        const freshToken = await fetchToken();
+        result = await doUpload(freshToken);
+      } else throw e;
+    }
     return { url: result.url ?? result.fileUrl ?? result.path ?? "" };
   },
 
