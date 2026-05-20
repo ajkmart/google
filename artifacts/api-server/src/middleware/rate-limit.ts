@@ -3,7 +3,11 @@
  *
  * All limiters are created through `createRateLimiter()` — a typed factory that:
  *   - Uses Redis (rate-limit-redis) for shared counters across instances when
- *     REDIS_URL is configured.
+ *     REDIS_URL is configured.  Note: rate-limit-redis uses a fixed-window
+ *     algorithm (not sliding-window) — counters reset at the start of each
+ *     window boundary rather than rolling forward continuously.  This is
+ *     acceptable for auth rate-limiting; upgrade to a sorted-set Lua script
+ *     if true sliding-window semantics are required in the future.
  *   - Falls back to express-rate-limit's built-in in-memory store when Redis is
  *     unavailable.  In multi-instance deployments this means per-instance counters;
  *     a startup warning is emitted so operators know to configure Redis.

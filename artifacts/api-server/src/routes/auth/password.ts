@@ -158,6 +158,13 @@ router.post("/set-password", loginLimiter, sharedValidateBody(SetPasswordSchema)
     tokenVersion: sql`token_version + 1`,
     updatedAt: new Date(),
   }).where(eq(usersTable.id, userId));
+  /* Revoke all active refresh tokens BEFORE responding so stolen tokens cannot
+     survive a password change. Awaited intentionally — same rationale as in
+     complete-profile: issuing a success response before revocation completes
+     creates a session-integrity window. */
+  await revokeAllUserRefreshTokens(userId, "PASSWORD_CHANGED").catch((err: unknown) => {
+    logger.warn({ userId, err }, "[auth] revokeAllUserRefreshTokens after set-password failed");
+  });
   writeAuthAuditLog("password_changed", { userId, ip: getClientIp(req), userAgent: req.headers["user-agent"] ?? undefined });
   sendSuccess(res, { success: true, message: t("passwordUpdated", await getPlatformDefaultLanguage()), requirePasswordChange: false });
   } catch (err) {
@@ -522,6 +529,12 @@ router.post("/reset-password", verifyCaptcha, sharedValidateBody(ResetPasswordSc
     tokenVersion: sql`token_version + 1`,
     updatedAt: new Date(),
   }).where(eq(usersTable.id, user.id));
+
+  /* Revoke all active refresh tokens immediately after reset so any previously
+     stolen token cannot be used to obtain a new access token post-reset. */
+  await revokeAllUserRefreshTokens(user.id, "PASSWORD_CHANGED").catch((err: unknown) => {
+    logger.warn({ userId: user.id, err }, "[auth] revokeAllUserRefreshTokens after reset-password failed");
+  });
 
   await resetAttempts(lockoutKey);
 

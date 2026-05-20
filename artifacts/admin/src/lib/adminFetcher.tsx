@@ -173,9 +173,10 @@ async function ensureToken(context: string): Promise<void> {
     await refreshToken!();
   } catch (err) {
     log.error(`Token refresh failed (no token, ${context}):`, err);
-    const loginUrl = `${import.meta.env.BASE_URL || '/'}login`;
     safeSessionSet('admin_session_expired', 'Your session has expired. Please log in again.');
-    window.location.href = loginUrl;
+    /* Use the same soft-navigation event as onAdminRefreshFailed so the React
+       router handles the redirect — no hard page reload, no unsaved state loss. */
+    window.dispatchEvent(new CustomEvent('admin:force-redirect-to-login'));
     throw err;
   }
 }
