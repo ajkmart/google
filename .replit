@@ -63,7 +63,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd artifacts/admin && PORT=3000 BASE_PATH=/admin node_modules/.bin/vite --config vite.config.ts --host 0.0.0.0"
+args = "cd artifacts/admin && PORT=3000 BASE_PATH=/admin ../../node_modules/.bin/vite --config vite.config.ts --host 0.0.0.0"
 waitForPort = 3000
 
 [[workflows.workflow]]
@@ -75,7 +75,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd artifacts/vendor-app && PORT=3001 BASE_PATH=/vendor node_modules/.bin/vite --config vite.config.ts --host 0.0.0.0"
+args = "cd artifacts/vendor-app && PORT=3001 BASE_PATH=/vendor ../../node_modules/.bin/vite --config vite.config.ts --host 0.0.0.0"
 waitForPort = 3001
 
 [[workflows.workflow]]
@@ -87,7 +87,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd artifacts/rider-app && PORT=3002 BASE_PATH=/rider node_modules/.bin/vite --config vite.config.ts --host 0.0.0.0"
+args = "cd artifacts/rider-app && PORT=3002 BASE_PATH=/rider ../../node_modules/.bin/vite --config vite.config.ts --host 0.0.0.0"
 waitForPort = 3002
 
 [[workflows.workflow]]
@@ -139,20 +139,12 @@ DATABASE_URL = "postgresql://neondb_owner:npg_8CZnNQxSivM4@ep-withered-pond-aod3
 
 [[ports]]
 localPort = 3000
-externalPort = 8081
+externalPort = 3000
 
 [[ports]]
 localPort = 3001
 externalPort = 3001
 
 [[ports]]
-localPort = 3002
-externalPort = 3002
-
-[[ports]]
 localPort = 3003
 externalPort = 3003
-
-[[ports]]
-localPort = 5000
-externalPort = 5000
