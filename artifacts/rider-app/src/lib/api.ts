@@ -475,6 +475,49 @@ export const api = {
       headers: { "x-upload-token": uploadToken },
     });
   },
+  /* XHR-based upload that reports real byte-level upload progress (0–100).
+     Uses XMLHttpRequest instead of fetch because the Fetch API does not
+     expose upload progress events. Auth and CSRF headers are attached manually. */
+  uploadRegistrationDocWithProgress: async (
+    file: File,
+    uploadToken: string,
+    onProgress?: (pct: number) => void,
+  ): Promise<{ url?: string; downloadToken?: string; filename?: string; size?: number }> => {
+    await tokenStoreReady;
+    const accessToken = sessionGet();
+    const csrfToken = readCsrfFromCookie();
+    return new Promise((resolve, reject) => {
+      const form = new FormData();
+      form.append("file", file, file.name || "document.jpg");
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${BASE}/api/uploads/register`, true);
+      xhr.withCredentials = true;
+      if (accessToken) xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+      if (csrfToken)   xhr.setRequestHeader("X-CSRF-Token", csrfToken);
+      xhr.setRequestHeader("x-upload-token", uploadToken);
+      if (onProgress && xhr.upload) {
+        xhr.upload.onprogress = (ev) => {
+          if (ev.lengthComputable && ev.total > 0) {
+            onProgress(Math.min(99, Math.round((ev.loaded / ev.total) * 100)));
+          }
+        };
+      }
+      xhr.onerror = () => reject(new Error("Network error during upload"));
+      xhr.onload = () => {
+        if (onProgress) onProgress(100);
+        let parsed: Record<string, unknown> | null = null;
+        try { parsed = xhr.responseText ? JSON.parse(xhr.responseText) as Record<string, unknown> : null; } catch { parsed = null; }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const body = parsed?.data ? (parsed.data as Record<string, unknown>) : (parsed ?? {});
+          resolve(body as { url?: string; downloadToken?: string; filename?: string; size?: number });
+        } else {
+          const msg = (parsed as { error?: string } | null)?.error ?? `Upload failed (${xhr.status})`;
+          reject(Object.assign(new Error(msg), { status: xhr.status }));
+        }
+      };
+      xhr.send(form);
+    });
+  },
   uploadRegistrationDoc: async (file: File) => {
     /* Obtain a short-lived upload session token (required by the server
        to bind the upload to an active onboarding flow). */

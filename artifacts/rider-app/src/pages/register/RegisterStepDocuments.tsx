@@ -12,7 +12,7 @@ export interface UploadedDoc {
 
 function FileUploadBox({
   label, icon, value, onChange, required,
-  optimising, uploading, error, onRetry,
+  optimising, uploading, progress, error, onRetry,
 }: {
   label: string;
   icon: React.ReactNode;
@@ -21,6 +21,7 @@ function FileUploadBox({
   required?: boolean;
   optimising?: boolean;
   uploading?: boolean;
+  progress?: number;
   error?: string;
   onRetry?: () => void;
 }) {
@@ -28,12 +29,14 @@ function FileUploadBox({
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const busy = optimising || uploading;
+  const pct = uploading && progress != null ? Math.max(0, Math.min(100, progress)) : 0;
 
   return (
     <div>
-      <div className={`border-2 border-dashed rounded-xl p-3 transition-all ${
+      <div className={`border-2 border-dashed rounded-xl overflow-hidden transition-all ${
         error ? "border-red-400 bg-red-50/50"
-        : value ? "border-green-300 bg-green-50/50"
+        : value && !busy ? "border-green-300 bg-green-50/50"
+        : uploading ? "border-blue-300 bg-blue-50/30"
         : "border-gray-200 bg-gray-50/50 hover:border-gray-400"
       }`}>
         <input
@@ -41,38 +44,58 @@ function FileUploadBox({
           className="hidden"
           onChange={e => { if (e.target.files?.[0]) onChange(e.target.files[0]); }}
         />
-        {value && !busy ? (
-          <div className="flex items-center gap-3">
-            <SafeImage src={value.preview} alt={label} className="w-14 h-14 rounded-lg object-cover border border-green-200" loading="eager" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-green-700 flex items-center gap-1">
-                <CheckCircle2 size={12} /> {label}
-              </p>
-              <p className="text-[10px] text-green-600 truncate">
-                {value.url ? T("photoUploaded") : T("photoReady2")}
-              </p>
+
+        <div className="p-3">
+          {value && !busy ? (
+            <div className="flex items-center gap-3">
+              <SafeImage src={value.preview} alt={label} className="w-14 h-14 rounded-lg object-cover border border-green-200" loading="eager" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-green-700 flex items-center gap-1">
+                  <CheckCircle2 size={12} /> {label}
+                </p>
+                <p className="text-[10px] text-green-600 truncate">
+                  {value.url ? T("photoUploaded") : T("photoReady2")}
+                </p>
+              </div>
+              <button
+                onClick={() => inputRef.current?.click()}
+                className="text-[10px] text-gray-600 font-bold hover:text-gray-900 px-2 py-1 rounded-lg hover:bg-gray-100"
+              >
+                {T("changePhoto")}
+              </button>
             </div>
+          ) : uploading ? (
+            <div className="flex flex-col items-center gap-1.5 py-1.5">
+              <Loader2 size={18} className="animate-spin text-blue-500" />
+              <span className="text-xs font-semibold text-blue-600">{label}</span>
+              <span className="text-[10px] text-blue-500 font-bold">
+                {pct > 0 ? `${pct}%` : "Preparing…"}
+              </span>
+            </div>
+          ) : (
             <button
               onClick={() => inputRef.current?.click()}
-              className="text-[10px] text-gray-600 font-bold hover:text-gray-900 px-2 py-1 rounded-lg hover:bg-gray-100"
+              disabled={busy}
+              className="w-full flex flex-col items-center gap-1.5 py-2 disabled:opacity-50"
             >
-              {T("changePhoto")}
+              {optimising ? <Loader2 size={20} className="animate-spin text-amber-500" /> : icon}
+              <span className={`text-xs font-semibold ${error ? "text-red-600" : "text-gray-600"}`}>
+                {label} {required && <span className="text-red-500">*</span>}
+              </span>
+              {optimising && <span className="text-[10px] text-amber-600 font-semibold">Optimising…</span>}
+              {!busy && <span className="text-[10px] text-gray-400">{T("tapCaptureUpload")}</span>}
             </button>
+          )}
+        </div>
+
+        {/* Upload progress bar — shown at bottom of card when uploading */}
+        {uploading && (
+          <div className="h-1 w-full bg-blue-100">
+            <div
+              className="h-full bg-blue-500 transition-all duration-300 ease-out"
+              style={{ width: `${pct}%` }}
+            />
           </div>
-        ) : (
-          <button
-            onClick={() => inputRef.current?.click()}
-            disabled={busy}
-            className="w-full flex flex-col items-center gap-1.5 py-2 disabled:opacity-50"
-          >
-            <Loader2 size={20} className={`animate-spin ${busy ? "text-gray-500" : "hidden"}`} />
-            {!busy && icon}
-            <span className={`text-xs font-semibold ${error ? "text-red-600" : "text-gray-600"}`}>
-              {label} {required && <span className="text-red-500">*</span>}
-            </span>
-            {optimising && <span className="text-[10px] text-amber-600 font-semibold">Optimising…</span>}
-            {!busy && <span className="text-[10px] text-gray-400">{T("tapCaptureUpload")}</span>}
-          </button>
         )}
       </div>
       {error && (
@@ -106,6 +129,7 @@ export interface RegisterStepDocumentsProps {
   lastFiles: Record<string, File>;
   optimisingField: string;
   uploadingField: string;
+  uploadProgress?: Record<string, number>;
 }
 
 export function RegisterStepDocuments({
@@ -114,7 +138,7 @@ export function RegisterStepDocuments({
   cnicBackPhoto, setCnicBackPhoto,
   licensePhoto, setLicensePhoto,
   handleFileUpload, uploadErrors, lastFiles,
-  optimisingField, uploadingField,
+  optimisingField, uploadingField, uploadProgress = {},
 }: RegisterStepDocumentsProps) {
   return (
     <div className="space-y-2">
@@ -126,6 +150,7 @@ export function RegisterStepDocuments({
         required
         optimising={optimisingField === "vehicle"}
         uploading={uploadingField === "vehicle"}
+        progress={uploadProgress["vehicle"]}
         error={uploadErrors["vehicle"]}
         onRetry={uploadErrors["vehicle"] && lastFiles["vehicle"]
           ? () => handleFileUpload(lastFiles["vehicle"], "vehicle", setVehiclePhoto)
@@ -139,6 +164,7 @@ export function RegisterStepDocuments({
         required
         optimising={optimisingField === "cnic"}
         uploading={uploadingField === "cnic"}
+        progress={uploadProgress["cnic"]}
         error={uploadErrors["cnic"]}
         onRetry={uploadErrors["cnic"] && lastFiles["cnic"]
           ? () => handleFileUpload(lastFiles["cnic"], "cnic", setCnicPhoto)
@@ -152,6 +178,7 @@ export function RegisterStepDocuments({
         required
         optimising={optimisingField === "cnicBack"}
         uploading={uploadingField === "cnicBack"}
+        progress={uploadProgress["cnicBack"]}
         error={uploadErrors["cnicBack"]}
         onRetry={uploadErrors["cnicBack"] && lastFiles["cnicBack"]
           ? () => handleFileUpload(lastFiles["cnicBack"], "cnicBack", setCnicBackPhoto)
@@ -165,6 +192,7 @@ export function RegisterStepDocuments({
         required
         optimising={optimisingField === "license"}
         uploading={uploadingField === "license"}
+        progress={uploadProgress["license"]}
         error={uploadErrors["license"]}
         onRetry={uploadErrors["license"] && lastFiles["license"]
           ? () => handleFileUpload(lastFiles["license"], "license", setLicensePhoto)

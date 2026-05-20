@@ -251,6 +251,7 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
   const [uploadingField, setUploadingField]   = useState("");
   const [uploadErrors, setUploadErrors]       = useState<Record<string, string>>({});
   const [lastFiles, setLastFiles]             = useState<Record<string, File>>({});
+  const [uploadProgress, setUploadProgress]   = useState<Record<string, number>>({});
 
   /* Derive UploadedDoc from step data (keyed by backend field names). */
   const makeDoc = (dataKey: string): UploadedDoc | null => {
@@ -261,7 +262,8 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
   /* handleFileUpload satisfies RegisterStepDocuments.handleFileUpload signature.
      Each document upload fetches its own fresh one-time token — the server
      marks every token as consumed after the first successful use, so tokens
-     cannot be shared across multiple uploads. */
+     cannot be shared across multiple uploads. Uses XHR-based upload to report
+     real byte-level progress so the user sees a live percentage bar. */
   const handleFileUpload = async (
     file: File,
     field: string,
@@ -269,17 +271,23 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
   ) => {
     setLastFiles(prev => ({ ...prev, [field]: file }));
     setUploadingField(field);
+    setUploadProgress(prev => ({ ...prev, [field]: 0 }));
     setUploadErrors(prev => ({ ...prev, [field]: "" }));
     try {
       const token = await api.getRegistrationUploadToken();
       let res: { url?: string };
+      const doUpload = (t: string) =>
+        api.uploadRegistrationDocWithProgress(file, t, (pct) =>
+          setUploadProgress(prev => ({ ...prev, [field]: pct })),
+        );
       try {
-        res = await api.uploadRegistrationDocWithToken(file, token) as { url?: string };
+        res = await doUpload(token);
       } catch (e: unknown) {
         const status = (e as { status?: number })?.status;
         if (status === 401 || status === 403) {
+          setUploadProgress(prev => ({ ...prev, [field]: 0 }));
           const freshToken = await api.getRegistrationUploadToken();
-          res = await api.uploadRegistrationDocWithToken(file, freshToken) as { url?: string };
+          res = await doUpload(freshToken);
         } else throw e;
       }
       if (!res?.url) throw new Error("No URL returned from upload");
@@ -293,6 +301,7 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
     } finally {
       setUploadingField("");
       setOptimisingField("");
+      setUploadProgress(prev => ({ ...prev, [field]: 0 }));
     }
   };
 
@@ -317,6 +326,7 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
         lastFiles={lastFiles}
         optimisingField={optimisingField}
         uploadingField={uploadingField}
+        uploadProgress={uploadProgress}
       />
     </div>
   );

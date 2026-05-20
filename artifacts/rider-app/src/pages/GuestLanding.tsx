@@ -19,20 +19,47 @@ const STATS = {
 
 const FEATURES = {
   en: [
-    { icon: "⚡", title: "Instant Payouts", desc: "Earnings hit your wallet the moment a delivery is complete — no weekly waits." },
-    { icon: "🗺️", title: "Live Navigation", desc: "Built-in GPS routing shows the fastest route in real time, even on slow data." },
-    { icon: "🕐", title: "Flexible Hours", desc: "Go online when it suits you. No fixed shifts, no penalties for logging off." },
+    { icon: "⚡", color: "#f59e0b", title: "Instant Payouts", desc: "Earnings hit your wallet the moment a delivery is complete — no weekly waits." },
+    { icon: "🗺️", color: "#3b82f6", title: "Live Navigation", desc: "Built-in GPS routing shows the fastest route in real time, even on slow data." },
+    { icon: "🕐", color: "#10b981", title: "Flexible Hours", desc: "Go online when it suits you. No fixed shifts, no penalties for logging off." },
+    { icon: "🎁", color: "#a855f7", title: "Bonus Rewards", desc: "Hit delivery milestones to unlock surge bonuses, weekend boosts, and fuel allowances." },
   ],
   ur: [
-    { icon: "⚡", title: "فوری ادائیگی", desc: "ڈیلیوری مکمل ہوتے ہی کمائی آپ کے والیٹ میں پہنچ جاتی ہے۔" },
-    { icon: "🗺️", title: "لائیو نیویگیشن", desc: "بلٹ ان GPS روٹنگ سست ڈیٹا پر بھی تیز ترین راستہ دکھاتی ہے۔" },
-    { icon: "🕐", title: "لچکدار اوقات", desc: "جب چاہیں آن لائن ہوں۔ کوئی مقررہ شفٹ نہیں، کوئی جرمانہ نہیں۔" },
+    { icon: "⚡", color: "#f59e0b", title: "فوری ادائیگی", desc: "ڈیلیوری مکمل ہوتے ہی کمائی آپ کے والیٹ میں پہنچ جاتی ہے۔" },
+    { icon: "🗺️", color: "#3b82f6", title: "لائیو نیویگیشن", desc: "بلٹ ان GPS روٹنگ سست ڈیٹا پر بھی تیز ترین راستہ دکھاتی ہے۔" },
+    { icon: "🕐", color: "#10b981", title: "لچکدار اوقات", desc: "جب چاہیں آن لائن ہوں۔ کوئی مقررہ شفٹ نہیں، کوئی جرمانہ نہیں۔" },
+    { icon: "🎁", color: "#a855f7", title: "بونس انعامات", desc: "ڈیلیوری سنگ میل حاصل کریں اور سرج بونس، ویک اینڈ بوسٹ، فیول الاؤنس انلاک کریں۔" },
   ],
   roman: [
-    { icon: "⚡", title: "Fori Payment", desc: "Delivery mukammal hote hi kamaai aapke wallet mein pohonch jaati hai." },
-    { icon: "🗺️", title: "Live Navigation", desc: "Built-in GPS routing sust data par bhi tez tareen raasta dikhati hai." },
-    { icon: "🕐", title: "Lachakdar Auqaat", desc: "Jab chahein online hon. Koi muqarrar shift nahin, koi jurmana nahin." },
+    { icon: "⚡", color: "#f59e0b", title: "Fori Payment", desc: "Delivery mukammal hote hi kamaai aapke wallet mein pohonch jaati hai." },
+    { icon: "🗺️", color: "#3b82f6", title: "Live Navigation", desc: "Built-in GPS routing sust data par bhi tez tareen raasta dikhati hai." },
+    { icon: "🕐", color: "#10b981", title: "Lachakdar Auqaat", desc: "Jab chahein online hon. Koi muqarrar shift nahin, koi jurmana nahin." },
+    { icon: "🎁", color: "#a855f7", title: "Bonus Rewards", desc: "Delivery milestones par surge bonuses, weekend boosts, aur fuel allowance milta hai." },
   ],
+};
+
+const STEPS = {
+  en: [
+    { n: "01", title: "Register & Verify", desc: "Sign up with your phone number and verify your identity with CNIC." },
+    { n: "02", title: "Upload Documents", desc: "Upload your vehicle photo, CNIC, and driving license for KYC approval." },
+    { n: "03", title: "Start Earning", desc: "Once approved, go online and start accepting deliveries and rides instantly." },
+  ],
+  ur: [
+    { n: "01", title: "رجسٹر کریں", desc: "اپنے فون نمبر سے سائن اپ کریں اور شناختی کارڈ سے تصدیق کریں۔" },
+    { n: "02", title: "دستاویزات اپلوڈ کریں", desc: "KYC کی منظوری کے لیے گاڑی کی تصویر، شناختی کارڈ اور لائسنس اپلوڈ کریں۔" },
+    { n: "03", title: "کمانا شروع کریں", desc: "منظوری ملتے ہی آن لائن ہوں اور فوری ڈیلیوری قبول کرنا شروع کریں۔" },
+  ],
+  roman: [
+    { n: "01", title: "Register Karein", desc: "Apne phone number se sign up karein aur CNIC se identity verify karein." },
+    { n: "02", title: "Documents Upload Karein", desc: "KYC approval ke liye gaadi ki tasveer, CNIC aur driving license upload karein." },
+    { n: "03", title: "Kamaai Shuru Karein", desc: "Approval milne ke baad online hon aur fori deliveries accept karna shuru karein." },
+  ],
+};
+
+const REQUIREMENTS = {
+  en:    ["Valid CNIC (18+)", "Any vehicle (bike/car/van)", "Smartphone", "Driving license"],
+  ur:    ["درست شناختی کارڈ (18+)", "کوئی بھی گاڑی (موٹر سائیکل / کار)", "اسمارٹ فون", "ڈرائیونگ لائسنس"],
+  roman: ["Valid CNIC (18+)", "Koi bhi gaadi (bike/car)", "Smartphone", "Driving license"],
 };
 
 const CONTENT = {
@@ -43,8 +70,10 @@ const CONTENT = {
     heroSub: "Join thousands of riders across AJK and earn delivering food, parcels, and rides — whenever you want.",
     ctaLogin: "Login",
     ctaRegister: "Join as Rider",
-    featuresTitle: "Everything you need to earn",
-    footerCta: "Start earning today.",
+    featuresTitle: "Everything you need to earn more",
+    stepsTitle: "3 simple steps to get started",
+    reqTitle: "What you need",
+    footerCta: "Ready to start earning?",
     footerBtn: "Create Rider Account",
     footer: "© 2026 AJKMart · Rider Platform",
   },
@@ -55,8 +84,10 @@ const CONTENT = {
     heroSub: "ہزاروں رائیڈرز کے ساتھ شامل ہوں اور جب چاہیں کھانا، پارسل اور سواری پہنچا کر کمائیں۔",
     ctaLogin: "لاگ ان",
     ctaRegister: "رائیڈر بنیں",
-    featuresTitle: "کمائی کے لیے سب کچھ موجود",
-    footerCta: "آج کمانا شروع کریں۔",
+    featuresTitle: "زیادہ کمائی کے لیے سب کچھ موجود",
+    stepsTitle: "شروع کرنے کے لیے ۳ آسان اقدامات",
+    reqTitle: "آپ کو کیا چاہیے",
+    footerCta: "کمانا شروع کرنے کے لیے تیار ہیں؟",
     footerBtn: "رائیڈر اکاؤنٹ بنائیں",
     footer: "© 2026 اے جے کے مارٹ · رائیڈر پلیٹ فارم",
   },
@@ -67,8 +98,10 @@ const CONTENT = {
     heroSub: "Hazaron riders ke sath shamil hon aur jab chahen khana, parcel aur sawari pohoncha kar kamayein.",
     ctaLogin: "Login Karein",
     ctaRegister: "Rider Banein",
-    featuresTitle: "Kamaai ke liye sab kuch maujood",
-    footerCta: "Aaj kamaana shuru karein.",
+    featuresTitle: "Zyada kamaai ke liye sab kuch maujood",
+    stepsTitle: "Shuru karne ke liye 3 aasaan steps",
+    reqTitle: "Aapko kya chahiye",
+    footerCta: "Kamaai shuru karne ke liye tayyar hain?",
     footerBtn: "Rider Account Banayein",
     footer: "© 2026 AJKMart · Rider Platform",
   },
@@ -89,6 +122,8 @@ export function GuestLanding() {
   const C = CONTENT[language as keyof typeof CONTENT] ?? CONTENT.en;
   const stats = STATS[language as keyof typeof STATS] ?? STATS.en;
   const features = FEATURES[language as keyof typeof FEATURES] ?? FEATURES.en;
+  const steps = STEPS[language as keyof typeof STEPS] ?? STEPS.en;
+  const reqs = REQUIREMENTS[language as keyof typeof REQUIREMENTS] ?? REQUIREMENTS.en;
 
   return (
     <div
@@ -96,7 +131,6 @@ export function GuestLanding() {
       style={{ minHeight: "100vh", backgroundColor: "var(--login-hero-from)", color: "var(--color-foreground)", overflowX: "hidden" }}
       dir={isRTL ? "rtl" : "ltr"}
     >
-
       {/* ── Sticky Header ── */}
       <header style={{
         position: "sticky", top: 0, zIndex: 50,
@@ -113,11 +147,14 @@ export function GuestLanding() {
           <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
             <div style={{
               width: scrolled ? 28 : 36, height: scrolled ? 28 : 36, borderRadius: 10,
-              backgroundColor: "var(--login-brand)",
+              background: "linear-gradient(135deg, var(--login-brand) 0%, #00c6ff 100%)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: scrolled ? 14 : 18, flexShrink: 0, transition: "all 0.2s ease",
+              flexShrink: 0, transition: "all 0.2s ease",
             }}>
-              🏍️
+              <svg width={scrolled ? 15 : 20} height={scrolled ? 15 : 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "#0b0e11" }}>
+                <circle cx="5.5" cy="17.5" r="2.5"/><circle cx="18.5" cy="17.5" r="2.5"/>
+                <path d="M8 17.5h7M3 9l1.5-5h7L14 9M14 9h4l2 5M8 9H3"/>
+              </svg>
             </div>
             {!scrolled && (
               <span style={{ fontWeight: 800, color: "var(--login-brand)", fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -133,12 +170,12 @@ export function GuestLanding() {
                 height: scrolled ? 28 : 34, padding: "0 12px", borderRadius: 99,
                 backgroundColor: "var(--login-otp-filled-bg)", border: "1px solid var(--login-brand-border)",
                 color: "var(--login-brand)", fontSize: 12, fontWeight: 700, cursor: "pointer",
-                transition: "height 0.2s ease",
+                transition: "height 0.2s ease", display: "flex", alignItems: "center", gap: 4,
               }}
             >
-              🌐 {LANG_LABELS[language] ?? "EN"}
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              {LANG_LABELS[language] ?? "EN"}
             </button>
-
             <button
               onClick={() => navigate("/login")}
               style={{
@@ -170,7 +207,7 @@ export function GuestLanding() {
       <section style={{
         position: "relative", overflow: "hidden",
         background: "radial-gradient(ellipse 80% 60% at 50% -10%, var(--login-otp-filled-bg) 0%, transparent 70%), var(--login-hero-from)",
-        padding: "80px 24px 64px",
+        padding: "72px 24px 60px",
         textAlign: "center",
       }}>
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
@@ -179,11 +216,13 @@ export function GuestLanding() {
 
         <div style={{ maxWidth: 640, margin: "0 auto", position: "relative" }}>
           <div style={{
-            display: "inline-block", borderRadius: 99, padding: "6px 16px",
+            display: "inline-flex", alignItems: "center", gap: 6,
+            borderRadius: 99, padding: "5px 14px",
             backgroundColor: "var(--login-otp-filled-bg)", border: "1px solid var(--login-brand-border)",
-            color: "var(--login-brand)", fontSize: 12, fontWeight: 700, marginBottom: 24, letterSpacing: "0.05em",
+            color: "var(--login-brand)", fontSize: 12, fontWeight: 700, marginBottom: 24, letterSpacing: "0.04em",
           }}>
-            ✨ {C.tagline}
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            {C.tagline}
           </div>
 
           <h1 style={{ fontSize: "clamp(2rem, 6vw, 3.5rem)", fontWeight: 900, color: "var(--color-foreground)", lineHeight: 1.1, marginBottom: 20, whiteSpace: "pre-line" }}>
@@ -201,9 +240,11 @@ export function GuestLanding() {
                 backgroundColor: "var(--login-brand)", border: "none", color: "var(--login-hero-from)",
                 fontSize: 15, fontWeight: 800, cursor: "pointer",
                 boxShadow: "0 4px 24px var(--login-brand-glow-md)",
+                display: "flex", alignItems: "center", gap: 6,
               }}
             >
-              {C.ctaRegister} →
+              {C.ctaRegister}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </button>
             <button
               onClick={() => navigate("/login")}
@@ -224,10 +265,10 @@ export function GuestLanding() {
         <div style={{ maxWidth: 960, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "stretch" }}>
           {stats.map((s, i) => (
             <div key={i} style={{
-              flex: 1, padding: "28px 16px", textAlign: "center",
+              flex: 1, padding: "24px 16px", textAlign: "center",
               borderRight: i < stats.length - 1 ? "1px solid var(--color-border)" : "none",
             }}>
-              <div style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)", fontWeight: 900, color: "var(--login-brand)", marginBottom: 4 }}>
+              <div style={{ fontSize: "clamp(1.4rem, 3.5vw, 1.9rem)", fontWeight: 900, color: "var(--login-brand)", marginBottom: 4 }}>
                 {s.v}
               </div>
               <div style={{ fontSize: 12, color: "var(--color-muted-foreground)", fontWeight: 500 }}>{s.l}</div>
@@ -237,38 +278,86 @@ export function GuestLanding() {
       </section>
 
       {/* ── Feature Cards ── */}
-      <section style={{ maxWidth: 960, margin: "0 auto", padding: "64px 24px" }}>
-        <h2 style={{ textAlign: "center", fontSize: "clamp(1.3rem, 3vw, 1.8rem)", fontWeight: 800, color: "var(--color-foreground)", marginBottom: 40 }}>
+      <section style={{ maxWidth: 960, margin: "0 auto", padding: "64px 24px 48px" }}>
+        <h2 style={{ textAlign: "center", fontSize: "clamp(1.25rem, 3vw, 1.75rem)", fontWeight: 800, color: "var(--color-foreground)", marginBottom: 40 }}>
           {C.featuresTitle}
         </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
           {features.map((f) => (
             <div
               key={f.title}
               style={{
                 backgroundColor: "var(--color-card)", border: "1px solid var(--color-border)",
-                borderRadius: 20, padding: "28px 24px",
-                transition: "border-color 0.2s, box-shadow 0.2s",
+                borderRadius: 18, padding: "24px 20px",
+                transition: "border-color 0.2s, transform 0.2s",
               }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLDivElement).style.borderColor = "var(--login-brand-border)";
-                (e.currentTarget as HTMLDivElement).style.boxShadow = "0 0 0 1px var(--login-brand-border)";
+                (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
               }}
               onMouseLeave={(e) => {
                 (e.currentTarget as HTMLDivElement).style.borderColor = "var(--color-border)";
-                (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
+                (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
               }}
             >
               <div style={{
-                width: 48, height: 48, borderRadius: 14,
-                backgroundColor: "var(--login-otp-filled-bg)", border: "1px solid var(--login-brand-border)",
+                width: 44, height: 44, borderRadius: 12,
+                backgroundColor: `${f.color}18`, border: `1px solid ${f.color}35`,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 22, marginBottom: 16,
+                fontSize: 20, marginBottom: 14,
               }}>
                 {f.icon}
               </div>
-              <h3 style={{ fontSize: 16, fontWeight: 800, color: "var(--color-foreground)", marginBottom: 8 }}>{f.title}</h3>
-              <p style={{ fontSize: 13, color: "var(--color-muted-foreground)", lineHeight: 1.7 }}>{f.desc}</p>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: "var(--color-foreground)", marginBottom: 6 }}>{f.title}</h3>
+              <p style={{ fontSize: 13, color: "var(--color-muted-foreground)", lineHeight: 1.65 }}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── How to Start — 3 Steps ── */}
+      <section style={{ backgroundColor: "var(--color-card)", borderTop: "1px solid var(--color-border)", borderBottom: "1px solid var(--color-border)", padding: "60px 24px" }}>
+        <div style={{ maxWidth: 840, margin: "0 auto" }}>
+          <h2 style={{ textAlign: "center", fontSize: "clamp(1.25rem, 3vw, 1.75rem)", fontWeight: 800, color: "var(--color-foreground)", marginBottom: 48 }}>
+            {C.stepsTitle}
+          </h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 20, position: "relative" }}>
+            {steps.map((s, i) => (
+              <div key={i} style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+                <div style={{
+                  width: 56, height: 56, borderRadius: 16, marginBottom: 16,
+                  backgroundColor: "var(--login-otp-filled-bg)", border: "2px solid var(--login-brand-border)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "var(--login-brand)", fontSize: 16, fontWeight: 900, letterSpacing: "-0.03em",
+                }}>
+                  {s.n}
+                </div>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: "var(--color-foreground)", marginBottom: 8 }}>{s.title}</h3>
+                <p style={{ fontSize: 13, color: "var(--color-muted-foreground)", lineHeight: 1.65 }}>{s.desc}</p>
+                {i < steps.length - 1 && (
+                  <div style={{ position: "absolute", top: 28, [isRTL ? "left" : "right"]: "-10%", width: "20%", height: 2, background: "var(--login-brand-border)", display: "none" }} className="md:block" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Requirements Strip ── */}
+      <section style={{ maxWidth: 840, margin: "0 auto", padding: "40px 24px" }}>
+        <p style={{ textAlign: "center", fontSize: 13, fontWeight: 700, color: "var(--color-muted-foreground)", marginBottom: 18, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          {C.reqTitle}
+        </p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          {reqs.map((r) => (
+            <div key={r} style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              borderRadius: 99, padding: "7px 16px",
+              backgroundColor: "var(--color-card)", border: "1px solid var(--color-border)",
+              fontSize: 13, fontWeight: 600, color: "var(--color-foreground)",
+            }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--login-brand)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              {r}
             </div>
           ))}
         </div>
@@ -284,24 +373,37 @@ export function GuestLanding() {
         position: "relative", overflow: "hidden",
       }}>
         <div style={{ position: "absolute", top: -60, left: "50%", transform: "translateX(-50%)", width: 400, height: 200, background: "var(--login-brand-glow-blob)", borderRadius: "50%", filter: "blur(40px)", pointerEvents: "none" }} />
-        <div style={{ fontSize: 48, marginBottom: 16 }}>💰</div>
-        <h2 style={{ fontSize: "clamp(1.3rem, 3vw, 1.8rem)", fontWeight: 900, color: "var(--color-foreground)", marginBottom: 24 }}>
-          {C.footerCta}
-        </h2>
-        <button
-          onClick={() => navigate("/register")}
-          style={{
-            height: 54, padding: "0 40px", borderRadius: 14,
-            backgroundColor: "var(--login-brand)", border: "none", color: "var(--login-hero-from)",
-            fontSize: 15, fontWeight: 800, cursor: "pointer",
-            boxShadow: "0 4px 24px var(--login-brand-glow-md)",
-          }}
-        >
-          {C.footerBtn}
-        </button>
+        <div style={{ position: "relative" }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: 20, margin: "0 auto 20px",
+            background: "var(--login-brand)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 8px 32px var(--login-brand-glow-md)",
+          }}>
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#0b0e11" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+          </div>
+          <h2 style={{ fontSize: "clamp(1.25rem, 3vw, 1.75rem)", fontWeight: 900, color: "var(--color-foreground)", marginBottom: 24 }}>
+            {C.footerCta}
+          </h2>
+          <button
+            onClick={() => navigate("/register")}
+            style={{
+              height: 54, padding: "0 40px", borderRadius: 14,
+              backgroundColor: "var(--login-brand)", border: "none", color: "var(--login-hero-from)",
+              fontSize: 15, fontWeight: 800, cursor: "pointer",
+              boxShadow: "0 4px 24px var(--login-brand-glow-md)",
+              display: "inline-flex", alignItems: "center", gap: 8,
+            }}
+          >
+            {C.footerBtn}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
       </section>
 
-      <footer style={{ textAlign: "center", fontSize: 12, color: "var(--color-muted-foreground)", padding: "24px 16px 40px" }}>
+      <footer style={{ textAlign: "center", fontSize: 12, color: "var(--color-muted-foreground)", padding: "24px 16px 40px", borderTop: "1px solid var(--color-border)" }}>
         {C.footer}
       </footer>
     </div>
