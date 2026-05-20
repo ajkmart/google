@@ -955,15 +955,27 @@ export default function AuthScreen() {
 
           {step === "method" && enabledMethods.length > 0 && (
             <>
+              {/* Identifier chip — shows who is logging in */}
               <Pressable
                 onPress={() => { setStep("continue"); clearError(); }}
-                style={styles.backRow}
+                style={styles.identifierChip}
                 accessibilityRole="button"
+                accessibilityLabel="Change identifier"
               >
-                <Ionicons name="arrow-back" size={16} color={C.primary} />
-                <Text style={styles.backRowText}>Change identifier</Text>
+                <View style={styles.identifierChipIcon}>
+                  <Ionicons name="person-circle" size={18} color={C.primary} />
+                </View>
+                <Text style={styles.identifierChipTxt} numberOfLines={1}>
+                  {identifier || phone || email || username || "You"}
+                </Text>
+                <View style={styles.identifierChipChange}>
+                  <Text style={styles.identifierChipChangeTxt}>Change</Text>
+                  <Ionicons name="pencil" size={11} color={C.primary} />
+                </View>
               </Pressable>
 
+              {/* Method tabs — clearly separated with active indicator */}
+              <Text style={styles.methodLabel}>Choose sign-in method</Text>
               <View style={styles.tabs} accessibilityRole="tablist">
                 {enabledMethods.map(m => (
                   <Pressable
@@ -974,7 +986,7 @@ export default function AuthScreen() {
                     accessibilityState={{ selected: method === m.key }}
                     accessibilityLabel={m.label}
                   >
-                    <Ionicons name={m.icon} size={15} color={method === m.key ? C.primary : C.textMuted} />
+                    <Ionicons name={m.icon} size={15} color={method === m.key ? "#0066FF" : C.textMuted} />
                     <Text style={[styles.tabText, method === m.key && styles.tabTextActive]}>{m.label}</Text>
                   </Pressable>
                 ))}
@@ -1287,9 +1299,27 @@ const styles = StyleSheet.create({
 
   tabs: { flexDirection: "row", backgroundColor: C.surfaceSecondary, borderRadius: radii.lg, padding: 3, marginBottom: spacing.xl },
   tab: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: radii.md },
-  tabActive: { backgroundColor: C.surface, ...shadows.sm },
+  tabActive: { backgroundColor: C.surface, ...shadows.sm, borderBottomWidth: 2, borderBottomColor: "#0066FF" },
   tabText: { ...typography.captionMedium, color: C.textMuted },
-  tabTextActive: { color: C.text, fontFamily: "Inter_600SemiBold" },
+  tabTextActive: { color: "#0066FF", fontFamily: "Inter_600SemiBold" },
+
+  identifierChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#EFF6FF",
+    borderRadius: radii.full,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+  identifierChipIcon: { flexShrink: 0 },
+  identifierChipTxt: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 13, color: "#1E40AF" },
+  identifierChipChange: { flexDirection: "row", alignItems: "center", gap: 3, flexShrink: 0 },
+  identifierChipChangeTxt: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#0066FF" },
+  methodLabel: { ...typography.captionMedium, color: C.textMuted, marginBottom: spacing.sm, marginLeft: 2 },
 
   trustRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, backgroundColor: C.surfaceSecondary, borderRadius: radii.md, marginBottom: spacing.md },
   checkbox: { width: 22, height: 22, borderRadius: 7, borderWidth: 2, borderColor: C.border, alignItems: "center", justifyContent: "center" },

@@ -2,6 +2,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import {
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { router } from "expo-router";
+import {
   setAuthTokenGetter,
   setOnUnauthorized,
   setRefreshTokenGetter,
@@ -47,12 +55,14 @@ interface AuthContextType {
   isLoading: boolean;
   isSuspended: boolean;
   suspendedMessage: string;
+  sessionExpired: boolean;
   biometricEnabled: boolean;
   twoFactorPending: TwoFactorPending | null;
   login: (user: AppUser, token: string, refreshToken?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updates: Partial<AppUser>) => void;
   clearSuspended: () => void;
+  clearSessionExpired: () => void;
   setBiometricEnabled: (enabled: boolean) => Promise<void>;
   setTwoFactorPending: (pending: TwoFactorPending | null) => void;
   completeTwoFactorLogin: (user: AppUser, token: string, refreshToken?: string) => Promise<void>;
@@ -124,6 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSuspended, setIsSuspended] = useState(false);
   const [suspendedMessage, setSuspendedMessage] = useState("");
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [biometricEnabled, setBiometricEnabledState] = useState(false);
   const [twoFactorPending, setTwoFactorPending] = useState<TwoFactorPending | null>(null);
   const [socketState, setSocketState] = useState<Socket | null>(null);
@@ -168,11 +179,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         if (!res.ok) {
           await doLogoutRef.current();
+          setSessionExpired(true);
           return;
         }
         const data = await res.json() as { token?: string; refreshToken?: string };
         if (!data.token) {
           await doLogoutRef.current();
+          setSessionExpired(true);
           return;
         }
         const meRes = await fetch(`${base}/api/users/profile`, {
@@ -194,6 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         scheduleProactiveRefresh(data.token!);
       } catch {
         await doLogoutRef.current();
+        setSessionExpired(true);
       }
     }, refreshIn);
   };
@@ -258,7 +272,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSuspendedMessage(errorMsg || "Your account has been suspended. Contact support.");
         return;
       }
+      /* 401 or any other unauthorized response — session truly expired */
       await doLogoutRef.current();
+      setSessionExpired(true);
     });
 
     scheduleProactiveRefresh(tok);
@@ -374,6 +390,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsSuspended(false);
     setSuspendedMessage("");
     await doLogout();
+  };
+
+  const clearSessionExpired = () => {
+    setSessionExpired(false);
   };
 
   const setBiometricEnabled = async (enabled: boolean) => {
@@ -499,16 +519,107 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, token, refreshToken: doRefreshToken, isLoading, isSuspended, suspendedMessage,
+      sessionExpired,
       biometricEnabled, twoFactorPending,
-      login, logout, updateUser, clearSuspended,
+      login, logout, updateUser, clearSuspended, clearSessionExpired,
       setBiometricEnabled, setTwoFactorPending,
       completeTwoFactorLogin, attemptBiometricLogin,
       socket: socketState,
     }}>
       {children}
+      <Modal
+        visible={sessionExpired}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => {}}
+      >
+        <View style={sessionExpiredStyles.overlay}>
+          <View style={sessionExpiredStyles.card}>
+            <View style={sessionExpiredStyles.iconWrap}>
+              <Text style={sessionExpiredStyles.iconText}>🔒</Text>
+            </View>
+            <Text style={sessionExpiredStyles.title}>Session Expired</Text>
+            <Text style={sessionExpiredStyles.subtitle}>
+              Your session has expired. Please log in again to continue.
+            </Text>
+            <Pressable
+              style={sessionExpiredStyles.btn}
+              onPress={() => {
+                clearSessionExpired();
+                router.replace("/auth");
+              }}
+            >
+              <Text style={sessionExpiredStyles.btnTxt}>Go to Login</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </AuthContext.Provider>
   );
 }
+
+const sessionExpiredStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.85)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 32,
+    alignItems: "center",
+    width: "100%",
+    maxWidth: 360,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  iconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#EFF6FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  iconText: {
+    fontSize: 34,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#0F172A",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#64748B",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 28,
+  },
+  btn: {
+    backgroundColor: "#0066FF",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    alignItems: "center",
+    width: "100%",
+  },
+  btnTxt: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+});
 
 export function useAuth() {
   const ctx = useContext(AuthContext);

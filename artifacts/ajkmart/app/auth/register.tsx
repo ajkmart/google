@@ -519,6 +519,16 @@ export default function RegisterScreen() {
         <ScrollView style={s.card} contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
           {step === 1 && (
             <>
+              <View style={s.stepHeader}>
+                <View style={[s.stepHeaderIcon, { backgroundColor: "#EFF6FF" }]}>
+                  <Ionicons name="call-outline" size={20} color="#0066FF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.stepHeaderTitle}>Verify Phone</Text>
+                  <Text style={s.stepHeaderSub}>We'll send a one-time code to confirm your number</Text>
+                </View>
+              </View>
+
               {!otpSent ? (
                 <>
                   <Text style={s.fieldLabel}>Phone Number</Text>
@@ -569,6 +579,16 @@ export default function RegisterScreen() {
 
           {step === 2 && (
             <>
+              <View style={s.stepHeader}>
+                <View style={[s.stepHeaderIcon, { backgroundColor: "#ECFDF5" }]}>
+                  <Ionicons name="person-outline" size={20} color="#059669" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.stepHeaderTitle}>Personal Details</Text>
+                  <Text style={s.stepHeaderSub}>Tell us your name and how to reach you</Text>
+                </View>
+              </View>
+
               <InputField
                 label="Full Name *"
                 value={name}
@@ -625,6 +645,16 @@ export default function RegisterScreen() {
 
           {step === 3 && (
             <>
+              <View style={s.stepHeader}>
+                <View style={[s.stepHeaderIcon, { backgroundColor: "#FFF7ED" }]}>
+                  <Ionicons name="location-outline" size={20} color="#EA580C" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.stepHeaderTitle}>Delivery Address</Text>
+                  <Text style={s.stepHeaderSub}>Where should we deliver your orders?</Text>
+                </View>
+              </View>
+
               <Pressable
                 onPress={handleGetLocation}
                 disabled={gpsLoading}
@@ -717,6 +747,16 @@ export default function RegisterScreen() {
 
           {step === 4 && (
             <>
+              <View style={s.stepHeader}>
+                <View style={[s.stepHeaderIcon, { backgroundColor: "#EFF6FF" }]}>
+                  <Ionicons name="shield-checkmark-outline" size={20} color="#0066FF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.stepHeaderTitle}>Secure Your Account</Text>
+                  <Text style={s.stepHeaderSub}>Create a strong password to protect your account</Text>
+                </View>
+              </View>
+
               <View>
                 <Text style={s.fieldLabel}>CNIC / National ID</Text>
                 <InputField
@@ -842,6 +882,28 @@ const s = StyleSheet.create({
   stepLabelActive: { color: "rgba(255,255,255,0.9)" },
 
   card: { backgroundColor: C.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: spacing.xxl, flex: 1 },
+
+  stepHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: C.surfaceSecondary,
+    borderRadius: radii.xl,
+    padding: 14,
+    marginBottom: spacing.xl,
+    borderWidth: 1,
+    borderColor: C.borderLight,
+  },
+  stepHeaderIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.md,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  stepHeaderTitle: { fontFamily: "Inter_700Bold", fontSize: 15, color: C.text, marginBottom: 2 },
+  stepHeaderSub: { ...typography.caption, color: C.textMuted, lineHeight: 16 },
 
   fieldLabel: { ...typography.captionMedium, color: C.textSecondary, marginBottom: spacing.sm },
   fieldSub: { ...typography.caption, color: C.textMuted, marginBottom: spacing.md },

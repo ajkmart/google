@@ -1759,32 +1759,10 @@ export default function ProfileScreen() {
         </View>
 
         <View style={{ paddingHorizontal: spacing.lg, paddingBottom: 40 }}>
-          {showSignOutConfirm ? (
-            <View style={signOut.confirmBox}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: spacing.md }}>
-                <View style={{ width: 38, height: 38, borderRadius: radii.md, backgroundColor: C.dangerSoft, alignItems: "center", justifyContent: "center" }}>
-                  <Ionicons name="log-out-outline" size={18} color={C.danger} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={signOut.confirmTitle}>{T("signOutConfirm")}</Text>
-                  <Text style={signOut.confirmSub}>{T("signOutMsg")}</Text>
-                </View>
-              </View>
-              <View style={{ flexDirection: "row", gap: 10 }}>
-                <Pressable onPress={() => setShowSignOutConfirm(false)} style={btnStyles.cancel} accessibilityRole="button" accessibilityLabel={T("cancelNo")}>
-                  <Text style={btnStyles.cancelTxt}>{T("cancelNo")}</Text>
-                </Pressable>
-                <Pressable onPress={doSignOut} disabled={signingOut} style={[btnStyles.save, { backgroundColor: C.danger }, signingOut && { opacity: 0.7 }]} accessibilityRole="button" accessibilityLabel={T("signOutYes")}>
-                  {signingOut ? <ActivityIndicator color={C.textInverse} size="small" /> : <Text style={btnStyles.saveTxt}>{T("signOutYes")}</Text>}
-                </Pressable>
-              </View>
-            </View>
-          ) : (
-            <Pressable onPress={() => setShowSignOutConfirm(true)} style={signOut.btn} accessibilityRole="button" accessibilityLabel={T("signOutLabel")}>
-              <Ionicons name="log-out-outline" size={20} color={C.danger} />
-              <Text style={signOut.txt}>{T("signOutLabel")}</Text>
-            </Pressable>
-          )}
+          <Pressable onPress={() => setShowSignOutConfirm(true)} style={signOut.btn} accessibilityRole="button" accessibilityLabel={T("signOutLabel")}>
+            <Ionicons name="log-out-outline" size={20} color={C.danger} />
+            <Text style={signOut.txt}>{T("signOutLabel")}</Text>
+          </Pressable>
         </View>
 
         <View style={{ height: TAB_H + insets.bottom + 20 }} />
@@ -1794,6 +1772,52 @@ export default function ProfileScreen() {
       <NotificationsModal visible={showNotifs} userId={user?.id || ""} token={token ?? undefined} onClose={count => { setUnread(count); setShowNotifs(false); }} />
       <PrivacyModal       visible={showPrivacy} userId={user?.id || ""} token={token ?? undefined} onClose={() => setShowPrivacy(false)} />
       <AddressesModal     visible={showAddrs}  userId={user?.id || ""} token={token ?? undefined} onClose={() => setShowAddrs(false)} />
+
+      {/* Logout confirmation bottom-sheet */}
+      <Modal
+        visible={showSignOutConfirm}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setShowSignOutConfirm(false)}
+      >
+        <Pressable style={sheet.overlay} onPress={() => setShowSignOutConfirm(false)}>
+          <Pressable style={[sheet.container, { paddingBottom: insets.bottom + 24 }]} onPress={() => {}}>
+            <View style={sheet.handle} />
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 14, marginBottom: spacing.lg }}>
+              <View style={{ width: 48, height: 48, borderRadius: radii.lg, backgroundColor: C.dangerSoft, alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="log-out-outline" size={22} color={C.danger} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[sheet.title, { fontSize: 17 }]}>{T("signOutConfirm")}</Text>
+                <Text style={sheet.sub}>{T("signOutMsg")}</Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <Pressable
+                onPress={() => setShowSignOutConfirm(false)}
+                style={btnStyles.cancel}
+                accessibilityRole="button"
+                accessibilityLabel={T("cancelNo")}
+              >
+                <Text style={btnStyles.cancelTxt}>{T("cancelNo")}</Text>
+              </Pressable>
+              <Pressable
+                onPress={doSignOut}
+                disabled={signingOut}
+                style={[btnStyles.save, { backgroundColor: C.danger }, signingOut && { opacity: 0.7 }]}
+                accessibilityRole="button"
+                accessibilityLabel={T("signOutYes")}
+              >
+                {signingOut
+                  ? <ActivityIndicator color={C.textInverse} size="small" />
+                  : <Text style={btnStyles.saveTxt}>{T("signOutYes")}</Text>
+                }
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
     </View>
   );

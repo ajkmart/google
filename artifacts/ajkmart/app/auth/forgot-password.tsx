@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -31,7 +32,7 @@ import {
   authColors as C,
 } from "@/components/auth-shared";
 
-type ForgotStep = "method" | "otp" | "newPassword" | "totp" | "done";
+type ForgotStep = "method" | "otp" | "newPassword" | "done";
 type ResetMethod = "phone" | "email";
 
 export default function ForgotPasswordScreen() {
@@ -58,8 +59,12 @@ export default function ForgotPasswordScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [showConfirmPwd, setShowConfirmPwd] = useState(false);
-  const [totpCode, setTotpCode] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  const [showTotpModal, setShowTotpModal] = useState(false);
+  const [totpCode, setTotpCode] = useState("");
+  const [totpError, setTotpError] = useState("");
+  const [totpLoading, setTotpLoading] = useState(false);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -69,7 +74,14 @@ export default function ForgotPasswordScreen() {
 
   const clearError = () => setError("");
 
-  const stepNumber = step === "method" ? 1 : step === "otp" ? 2 : step === "newPassword" || step === "totp" ? 3 : 4;
+  const stepNumber = step === "method" ? 1 : step === "otp" ? 2 : 3;
+
+  const stepDescriptions: Record<ForgotStep, string> = {
+    method: "Enter your phone or email to receive a reset code",
+    otp: "Enter the verification code we sent you",
+    newPassword: "Create a strong new password",
+    done: "",
+  };
 
   const handleSendResetCode = async () => {
     clearError();
@@ -77,7 +89,6 @@ export default function ForgotPasswordScreen() {
       setError("Please enter a valid Pakistani phone number");
       return;
     }
-    /* FIX 15: Proper email regex validation */
     if (method === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setError("Please enter a valid email address");
       return;
@@ -86,7 +97,7 @@ export default function ForgotPasswordScreen() {
 
     setLoading(true);
     try {
-      const body: any = {};
+      const body: Record<string, string> = {};
       if (method === "phone") body.phone = normalizePhone(phone);
       else body.email = email.trim().toLowerCase();
 
@@ -100,11 +111,10 @@ export default function ForgotPasswordScreen() {
       if (data.otp) setDevOtp(data.otp);
       setResendCooldown(60);
       setStep("otp");
-    } catch (e: any) { setError(e.message || "Please try again."); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Please try again."); }
     setLoading(false);
   };
 
-  /* FIX 1: Actually verify OTP against the server before proceeding to password step */
   const handleVerifyOtp = async () => {
     clearError();
     if (!otp || otp.length < 6) { setError("Please enter the 6-digit code"); return; }
@@ -125,13 +135,13 @@ export default function ForgotPasswordScreen() {
         return;
       }
       setStep("newPassword");
-    } catch (e: any) {
-      setError(e.message || "Verification failed. Please try again.");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Verification failed. Please try again.");
     }
     setLoading(false);
   };
 
-  const handleResetPassword = async () => {
+  const handleResetPassword = async (withTotp?: string) => {
     clearError();
     if (!newPassword || newPassword.length < 8) { setError("New password must be at least 8 characters"); return; }
     if (!/[A-Z]/.test(newPassword)) { setError("Password must contain an uppercase letter"); return; }
@@ -140,10 +150,10 @@ export default function ForgotPasswordScreen() {
 
     setLoading(true);
     try {
-      const body: any = { otp, newPassword };
+      const body: Record<string, string> = { otp, newPassword };
       if (method === "phone") body.phone = normalizePhone(phone);
       else body.email = email.trim().toLowerCase();
-      if (totpCode) body.totpCode = totpCode;
+      if (withTotp) body.totpCode = withTotp;
 
       const res = await fetch(`${API}/auth/reset-password`, {
         method: "POST",
@@ -153,8 +163,8 @@ export default function ForgotPasswordScreen() {
       const data = await res.json();
       if (!res.ok) {
         if (data.requires2FA) {
-          setStep("totp");
           setLoading(false);
+          setShowTotpModal(true);
           return;
         }
         setError(data.error || "Reset failed.");
@@ -162,20 +172,42 @@ export default function ForgotPasswordScreen() {
         return;
       }
       setStep("done");
-    } catch (e: any) { setError(e.message || "Please try again."); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Please try again."); }
     setLoading(false);
   };
 
   const handleTotpSubmit = async () => {
-    if (!totpCode || totpCode.length < 6) { setError("Please enter the 6-digit 2FA code"); return; }
-    await handleResetPassword();
+    setTotpError("");
+    if (!totpCode || totpCode.length < 6) { setTotpError("Please enter the 6-digit 2FA code"); return; }
+    setTotpLoading(true);
+    try {
+      const body: Record<string, string> = { otp, newPassword, totpCode };
+      if (method === "phone") body.phone = normalizePhone(phone);
+      else body.email = email.trim().toLowerCase();
+
+      const res = await fetch(`${API}/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setTotpError(data.error || "Invalid 2FA code. Please try again.");
+        setTotpLoading(false);
+        return;
+      }
+      setShowTotpModal(false);
+      setStep("done");
+    } catch (e: unknown) {
+      setTotpError(e instanceof Error ? e.message : "Please try again.");
+    }
+    setTotpLoading(false);
   };
 
   const goBack = () => {
     if (step === "method") router.back();
     else if (step === "otp") setStep("method");
     else if (step === "newPassword") setStep("otp");
-    else if (step === "totp") setStep("newPassword");
     clearError();
   };
 
@@ -200,13 +232,6 @@ export default function ForgotPasswordScreen() {
     );
   }
 
-  const stepDescriptions: Record<string, string> = {
-    method: "Enter your phone or email to receive a reset code",
-    otp: "Enter the verification code we sent you",
-    newPassword: "Create a strong new password",
-    totp: "Enter your authenticator app code",
-  };
-
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
       <LinearGradient colors={[C.primaryDark, C.primary, C.primaryLight]} style={s.gradient}>
@@ -224,14 +249,20 @@ export default function ForgotPasswordScreen() {
             <Ionicons name="lock-closed" size={28} color="rgba(255,255,255,0.95)" />
           </View>
           <Text style={s.headerTitle}>Reset Password</Text>
-          <Text style={s.headerSub}>{stepDescriptions[step] || ""}</Text>
+          <Text style={s.headerSub}>{stepDescriptions[step]}</Text>
 
           <View style={s.progressRow}>
-            <StepProgress total={4} current={stepNumber} />
+            <StepProgress total={3} current={stepNumber} />
+          </View>
+          <View style={s.stepLabels}>
+            {["Phone/Email", "Verify Code", "New Password"].map((label, i) => (
+              <Text key={label} style={[s.stepLabel, stepNumber >= i + 1 && s.stepLabelActive]}>{label}</Text>
+            ))}
           </View>
         </View>
 
         <ScrollView style={s.card} contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+
           {step === "method" && (
             <>
               <View style={s.methodTabs} accessibilityRole="tablist">
@@ -242,7 +273,7 @@ export default function ForgotPasswordScreen() {
                     accessibilityRole="tab"
                     accessibilityState={{ selected: method === "phone" }}
                   >
-                    <Ionicons name="call-outline" size={16} color={method === "phone" ? C.primary : C.textMuted} />
+                    <Ionicons name="call-outline" size={16} color={method === "phone" ? "#0066FF" : C.textMuted} />
                     <Text style={[s.methodTabText, method === "phone" && s.methodTabTextActive]}>Phone</Text>
                   </Pressable>
                 )}
@@ -253,7 +284,7 @@ export default function ForgotPasswordScreen() {
                     accessibilityRole="tab"
                     accessibilityState={{ selected: method === "email" }}
                   >
-                    <Ionicons name="mail-outline" size={16} color={method === "email" ? C.primary : C.textMuted} />
+                    <Ionicons name="mail-outline" size={16} color={method === "email" ? "#0066FF" : C.textMuted} />
                     <Text style={[s.methodTabText, method === "email" && s.methodTabTextActive]}>Email</Text>
                   </Pressable>
                 )}
@@ -286,12 +317,21 @@ export default function ForgotPasswordScreen() {
 
           {step === "otp" && (
             <>
-              <View style={s.sentToRow}>
-                <Ionicons name={method === "phone" ? "call-outline" : "mail-outline"} size={16} color={C.textMuted} />
-                <Text style={s.sentToText}>
-                  Code sent to {method === "phone" ? `+92 ${phone}` : email}
+              <Pressable
+                onPress={() => { setStep("method"); clearError(); }}
+                style={s.identifierChip}
+                accessibilityRole="button"
+                accessibilityLabel="Change phone or email"
+              >
+                <Ionicons name={method === "phone" ? "call-outline" : "mail-outline"} size={16} color="#0066FF" />
+                <Text style={s.identifierChipTxt} numberOfLines={1}>
+                  {method === "phone" ? `+92 ${phone}` : email}
                 </Text>
-              </View>
+                <View style={s.identifierChipChange}>
+                  <Text style={s.identifierChipChangeTxt}>Change</Text>
+                  <Ionicons name="pencil" size={11} color="#0066FF" />
+                </View>
+              </Pressable>
 
               <OtpDigitInput
                 value={otp}
@@ -346,41 +386,18 @@ export default function ForgotPasswordScreen() {
             </>
           )}
 
-          {step === "totp" && (
-            <>
-              <View style={s.totpHeader}>
-                <View style={s.totpIconWrap}>
-                  <Ionicons name="shield-checkmark" size={32} color={C.primary} />
-                </View>
-                <Text style={s.totpTitle}>Two-Factor Authentication</Text>
-                <Text style={s.totpSub}>Enter the 6-digit code from your authenticator app</Text>
-              </View>
-
-              <OtpDigitInput
-                value={totpCode}
-                onChangeText={v => { setTotpCode(v); clearError(); }}
-                hasError={!!error}
-                onComplete={() => handleTotpSubmit()}
-              />
-            </>
-          )}
-
           {error ? <AlertBox type="error" message={error} /> : null}
 
           <AuthButton
             label={
               step === "method" ? "Send Reset Code"
                 : step === "otp" ? "Verify Code"
-                : step === "newPassword" ? "Reset Password"
-                : step === "totp" ? "Verify & Reset"
-                : ""
+                : "Reset Password"
             }
             onPress={
               step === "method" ? handleSendResetCode
                 : step === "otp" ? handleVerifyOtp
-                : step === "newPassword" ? handleResetPassword
-                : step === "totp" ? handleTotpSubmit
-                : () => {}
+                : () => handleResetPassword()
             }
             loading={loading}
             icon={step === "newPassword" ? "lock-closed-outline" : step === "otp" ? "checkmark-circle-outline" : undefined}
@@ -396,6 +413,44 @@ export default function ForgotPasswordScreen() {
           </Pressable>
         </ScrollView>
       </LinearGradient>
+
+      {/* TOTP 2FA modal — shown inline within step 3 when server requires 2FA */}
+      <Modal
+        visible={showTotpModal}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => { setShowTotpModal(false); setTotpCode(""); setTotpError(""); }}
+      >
+        <Pressable style={s.totpOverlay} onPress={() => { setShowTotpModal(false); setTotpCode(""); setTotpError(""); }}>
+          <Pressable style={s.totpSheet} onPress={() => {}}>
+            <View style={s.sheetHandle} />
+            <View style={s.totpHeader}>
+              <View style={s.totpIconWrap}>
+                <Ionicons name="shield-checkmark" size={28} color="#0066FF" />
+              </View>
+              <Text style={s.totpTitle}>Two-Factor Authentication</Text>
+              <Text style={s.totpSub}>Enter the 6-digit code from your authenticator app to complete the password reset</Text>
+            </View>
+
+            <OtpDigitInput
+              value={totpCode}
+              onChangeText={v => { setTotpCode(v); setTotpError(""); }}
+              hasError={!!totpError}
+              onComplete={() => handleTotpSubmit()}
+            />
+
+            {totpError ? <AlertBox type="error" message={totpError} /> : null}
+
+            <AuthButton
+              label="Verify & Reset Password"
+              onPress={handleTotpSubmit}
+              loading={totpLoading}
+              icon="shield-checkmark-outline"
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -417,31 +472,36 @@ const s = StyleSheet.create({
   },
   headerTitle: { fontFamily: "Inter_700Bold", fontSize: 26, color: "#fff", marginBottom: 4 },
   headerSub: { ...typography.body, color: "rgba(255,255,255,0.85)", textAlign: "center", marginBottom: spacing.lg },
-  progressRow: { marginBottom: spacing.sm },
+  progressRow: { marginBottom: 8 },
+  stepLabels: { flexDirection: "row", justifyContent: "center", gap: 20 },
+  stepLabel: { ...typography.small, color: "rgba(255,255,255,0.4)" },
+  stepLabelActive: { color: "rgba(255,255,255,0.9)" },
 
   card: { backgroundColor: C.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: spacing.xxl, flex: 1 },
 
   methodTabs: { flexDirection: "row", backgroundColor: C.surfaceSecondary, borderRadius: radii.lg, padding: 3, marginBottom: spacing.xl, gap: 2 },
   methodTab: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: radii.md },
-  methodTabActive: { backgroundColor: C.surface, ...shadows.sm },
+  methodTabActive: { backgroundColor: C.surface, ...shadows.sm, borderBottomWidth: 2, borderBottomColor: "#0066FF" },
   methodTabText: { ...typography.captionMedium, color: C.textMuted },
-  methodTabTextActive: { color: C.text, fontFamily: "Inter_600SemiBold" },
+  methodTabTextActive: { color: "#0066FF", fontFamily: "Inter_600SemiBold" },
 
   fieldLabel: { ...typography.captionMedium, color: C.textSecondary, marginBottom: spacing.sm },
 
-  sentToRow: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: C.surfaceSecondary, borderRadius: radii.md, padding: 12, marginBottom: spacing.lg },
-  sentToText: { ...typography.caption, color: C.textMuted, flex: 1 },
+  identifierChip: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    backgroundColor: "#EFF6FF", borderRadius: radii.full,
+    paddingHorizontal: 14, paddingVertical: 10, marginBottom: spacing.lg,
+    borderWidth: 1, borderColor: "#BFDBFE",
+  },
+  identifierChipTxt: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: "#1E40AF", flex: 1 },
+  identifierChipChange: { flexDirection: "row", alignItems: "center", gap: 3 },
+  identifierChipChangeTxt: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#0066FF" },
 
   resendBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, marginBottom: spacing.md },
   resendDisabled: { opacity: 0.5 },
   resendText: { ...typography.bodyMedium, color: C.primary },
 
   mismatchText: { ...typography.caption, color: C.danger, marginTop: -8, marginBottom: spacing.md, paddingLeft: 4 },
-
-  totpHeader: { alignItems: "center", marginBottom: spacing.xl },
-  totpIconWrap: { width: 64, height: 64, borderRadius: 32, backgroundColor: C.primarySoft, alignItems: "center", justifyContent: "center", marginBottom: spacing.md },
-  totpTitle: { ...typography.subtitle, color: C.text, marginBottom: 6, textAlign: "center" },
-  totpSub: { ...typography.caption, color: C.textMuted, textAlign: "center" },
 
   loginLink: { alignItems: "center", marginTop: spacing.xl },
   loginLinkText: { ...typography.bodyMedium, color: C.primary },
@@ -452,4 +512,15 @@ const s = StyleSheet.create({
   doneIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: C.success, alignItems: "center", justifyContent: "center" },
   doneTitle: { ...typography.h2, color: C.text, marginBottom: spacing.sm, textAlign: "center" },
   doneSub: { ...typography.body, color: C.textMuted, textAlign: "center", marginBottom: spacing.xxl, lineHeight: 22 },
+
+  totpOverlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.6)", justifyContent: "flex-end" },
+  totpSheet: {
+    backgroundColor: C.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    padding: spacing.xxl, paddingBottom: Platform.OS === "web" ? 40 : 48,
+  },
+  sheetHandle: { width: 40, height: 4, backgroundColor: C.border, borderRadius: 2, alignSelf: "center", marginBottom: spacing.xl },
+  totpHeader: { alignItems: "center", marginBottom: spacing.xl },
+  totpIconWrap: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#EFF6FF", alignItems: "center", justifyContent: "center", marginBottom: spacing.md },
+  totpTitle: { ...typography.subtitle, color: C.text, marginBottom: 6, textAlign: "center" },
+  totpSub: { ...typography.caption, color: C.textMuted, textAlign: "center", lineHeight: 18 },
 });
