@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, lazy, Suspense } from "react";
 import { useVersionCheck } from "@/hooks/useVersionCheck";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -26,22 +26,40 @@ import { BOTTOM_PADDING } from "./lib/ui";
 import { AnnouncementBar } from "./components/AnnouncementBar";
 import { PopupEngine } from "./components/PopupEngine";
 import { MaintenanceScreen } from "./components/MaintenanceScreen";
+
+/* ── Auth screens: eagerly loaded (needed before user is known) ── */
 import GuestLanding from "./pages/GuestLanding";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
+
+/* ── Dashboard: eagerly loaded (first screen after login) ── */
 import Dashboard from "./pages/Dashboard";
-import Orders from "./pages/Orders";
-import Products from "./pages/Products";
-import Store from "./pages/Store";
-import Profile from "./pages/Profile";
-import Wallet from "./pages/Wallet";
-import Analytics from "./pages/Analytics";
-import Notifications from "./pages/Notifications";
-import Reviews from "./pages/Reviews";
-import Promos from "./pages/Promos";
-import Campaigns from "./pages/Campaigns";
-import Chat from "./pages/Chat";
+
+/* ── Secondary pages: lazy loaded (only fetched when navigated to) ── */
+const Orders       = lazy(() => import("./pages/Orders"));
+const Products     = lazy(() => import("./pages/Products"));
+const Store        = lazy(() => import("./pages/Store"));
+const Profile      = lazy(() => import("./pages/Profile"));
+const Wallet       = lazy(() => import("./pages/Wallet"));
+const Analytics    = lazy(() => import("./pages/Analytics"));
+const Notifications = lazy(() => import("./pages/Notifications"));
+const Reviews      = lazy(() => import("./pages/Reviews"));
+const Promos       = lazy(() => import("./pages/Promos"));
+const Campaigns    = lazy(() => import("./pages/Campaigns"));
+const Chat         = lazy(() => import("./pages/Chat"));
+
+/* ── Shared skeleton shown while a lazy page loads ── */
+function PageSkeleton() {
+  return (
+    <div className="flex flex-col gap-4 p-4 animate-pulse">
+      <div className="h-8 bg-gray-200 rounded-xl w-2/5" />
+      <div className="h-32 bg-gray-100 rounded-2xl w-full" />
+      <div className="h-24 bg-gray-100 rounded-2xl w-full" />
+      <div className="h-24 bg-gray-100 rounded-2xl w-full" />
+    </div>
+  );
+}
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 10000, refetchOnWindowFocus: true } },
@@ -451,8 +469,8 @@ function AppRoutes() {
             <div className="md:max-w-5xl md:mx-auto md:px-6 md:pb-8">
               <Switch>
                 <Route path="/"><ErrorBoundary><Dashboard /></ErrorBoundary></Route>
+                <Suspense fallback={<PageSkeleton />}>
                 <Route path="/orders/:id">{(params) => <ErrorBoundary key={`order-${params.id}`}><Orders targetOrderId={params.id} /></ErrorBoundary>}</Route>
-
                 <Route path="/orders"><ErrorBoundary><Orders /></ErrorBoundary></Route>
                 <Route path="/products"><ErrorBoundary><Products /></ErrorBoundary></Route>
                 <Route path="/wallet"><ErrorBoundary><Wallet /></ErrorBoundary></Route>
@@ -464,6 +482,7 @@ function AppRoutes() {
                 <Route path="/store"><ErrorBoundary><Store /></ErrorBoundary></Route>
                 <Route path="/notifications"><ErrorBoundary><Notifications /></ErrorBoundary></Route>
                 <Route path="/profile"><ErrorBoundary><Profile /></ErrorBoundary></Route>
+                </Suspense>
                 <Route>
                   <ErrorBoundary>
                     <div className="flex items-center justify-center h-64">

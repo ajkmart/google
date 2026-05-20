@@ -125,11 +125,14 @@ async function authPost(path: string, body?: unknown): Promise<unknown> {
     throw err;
   }
   const csrfToken = readCsrfFromCookie();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), _apiTimeoutMs);
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, {
       method: "POST",
       credentials: "include",
+      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
@@ -139,7 +142,12 @@ async function authPost(path: string, body?: unknown): Promise<unknown> {
     _circuitBreaker.onSuccess(path);
   } catch (err: unknown) {
     _circuitBreaker.onFailure(path);
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw Object.assign(new Error("Request timed out — check your connection and try again"), { status: 0, transient: true, timedOut: true });
+    }
     throw Object.assign(new Error("Network error — please check your connection"), { status: 0, transient: true });
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   /* Parse the JSON response body regardless of status */
