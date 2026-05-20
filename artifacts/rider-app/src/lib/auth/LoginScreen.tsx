@@ -5,7 +5,7 @@
  * rider-specific auth flow, theme, and app status. Keeps the page file
  * (pages/Login.tsx) clean so all auth logic lives in lib/auth/.
  */
-import { LoginScreen as SDKLoginScreen } from "@workspace/auth-react";
+import { LoginScreen as SDKLoginScreen, type LoginScreenStrings } from "@workspace/auth-react";
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[login]");
 import type { AuthUser as SDKAuthUser } from "@workspace/auth-react";
@@ -20,7 +20,7 @@ import { useLanguage } from "../useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { loadGoogleGSIToken, loadFacebookAccessToken } from "@workspace/auth-utils";
 import { normalizeRoles } from "../rider-auth";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useLocation } from "wouter";
 
 export interface LoginScreenProps {
@@ -37,6 +37,35 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const auth = useRiderAuthConfig();
   const { language } = useLanguage();
   const T = useCallback((k: TranslationKey) => tDual(k, language), [language]);
+
+  /** Map a raw English API error string to the active language */
+  const translateApiError = useCallback((raw: string): string => {
+    const lower = raw.toLowerCase();
+    if (/too many|attempts|locked|rate limit|lockout/.test(lower)) return T("accountLocked") as string;
+    if (/banned|suspended|blocked/.test(lower)) return T("accountSuspended") as string;
+    if (/network|fetch|connection|timeout|offline/.test(lower)) return T("networkError") as string;
+    if (/otp.*send|send.*otp|failed to send/.test(lower)) return T("sendOtpFailed") as string;
+    if (/access.*denied|role|riders? only|vendors? only/.test(lower)) return T("accessDenied") as string;
+    return T("loginFailed") as string;
+  }, [T]);
+
+  /** All UI strings for the login form, in the active language */
+  const loginStrings = useMemo((): Partial<LoginScreenStrings> => ({
+    phoneLabel:         T("phoneNumber") as string,
+    phonePlaceholder:   T("enterPhoneNumber") as string,
+    continueBtn:        T("sendOtpBtn") as string,
+    checkingBtn:        T("sendOtpBtn") as string,
+    passwordLabel:      T("enterPassword") as string,
+    signInBtn:          T("signIn") as string,
+    signingInBtn:       T("signIn") as string,
+    subtitleOtp:        T("enterOtpSentTo") as string,
+    subtitlePassword:   T("enterPassword") as string,
+    subtitleTwoFactor:  T("twoFactorVerification") as string,
+    changeNumber:       T("changeNumber") as string,
+    createAccount:      T("createAccount") as string,
+    twoFactorLabel:     T("twoFactorVerification") as string,
+    enterPhoneError:    T("invalidPhoneNumber") as string,
+  }), [T]);
 
   const [overlay, setOverlay] = useState<"pending" | "rejected" | "biometric" | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
@@ -78,7 +107,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       profile = await api.getMe() as AuthUser;
     } catch (fetchErr: unknown) {
       api.clearTokens();
-      setLoginError(fetchErr instanceof Error ? fetchErr.message : T("loginFailed"));
+      setLoginError(fetchErr instanceof Error ? translateApiError(fetchErr.message) : T("loginFailed") as string);
       setIsProcessing(false);
       return;
     }
@@ -102,7 +131,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     onSuccess?.(accessToken, profile as unknown as SDKAuthUser);
     navigate("/");
     /* isProcessing left true — component unmounts on navigate */
-  }, [biometricEnabled, login, navigate, T, onSuccess]);
+  }, [biometricEnabled, login, navigate, T, translateApiError, onSuccess]);
 
   const confirmBiometric = async (enable: boolean) => {
     if (!capturedTokenRef.current) {
@@ -133,28 +162,28 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       navigate("/");
     } catch (err: unknown) {
       api.clearTokens();
-      setLoginError(err instanceof Error ? err.message : T("loginFailed"));
+      setLoginError(err instanceof Error ? translateApiError(err.message) : T("loginFailed") as string);
       setOverlay(null);
     }
   };
 
   const handleGoogle = useCallback(async () => {
-    if (!auth.googleClientId) { setLoginError(T("socialLoginComingSoon")); return; }
+    if (!auth.googleClientId) { setLoginError(T("socialLoginComingSoon") as string); return; }
     try {
       const idToken = await loadGoogleGSIToken(auth.googleClientId);
       const res = await api.socialGoogle({ idToken });
       await handleSuccess(res.user as SDKAuthUser, res.token as string);
-    } catch (e: unknown) { setLoginError(e instanceof Error ? e.message : T("loginFailed")); }
-  }, [auth.googleClientId, handleSuccess, T]);
+    } catch (e: unknown) { setLoginError(e instanceof Error ? translateApiError(e.message) : T("loginFailed") as string); }
+  }, [auth.googleClientId, handleSuccess, T, translateApiError]);
 
   const handleFacebook = useCallback(async () => {
-    if (!auth.facebookAppId) { setLoginError(T("socialLoginComingSoon")); return; }
+    if (!auth.facebookAppId) { setLoginError(T("socialLoginComingSoon") as string); return; }
     try {
       const accessToken = await loadFacebookAccessToken(auth.facebookAppId);
       const res = await api.socialFacebook({ accessToken });
       await handleSuccess(res.user as SDKAuthUser, res.token as string);
-    } catch (e: unknown) { setLoginError(e instanceof Error ? e.message : T("loginFailed")); }
-  }, [auth.facebookAppId, handleSuccess, T]);
+    } catch (e: unknown) { setLoginError(e instanceof Error ? translateApiError(e.message) : T("loginFailed") as string); }
+  }, [auth.facebookAppId, handleSuccess, T, translateApiError]);
 
   const handleMagicLink = useCallback(async (identifier: string) => {
     await api.sendMagicLink(identifier);
@@ -204,6 +233,8 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
         enableMagicLink={auth.magicLinkEnabled}
         onMagicLink={auth.magicLinkEnabled ? handleMagicLink : undefined}
         title={T("riderPortal") as string}
+        strings={loginStrings}
+        translateError={translateApiError}
       />
     </div>
   );

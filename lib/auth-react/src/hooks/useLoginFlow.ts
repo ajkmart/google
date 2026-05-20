@@ -23,9 +23,11 @@ export interface UseLoginFlowOptions {
   baseURL?: string;
   role?: 'customer' | 'rider' | 'vendor' | 'admin';
   onSuccess?: (user: AuthUser, accessToken: string) => void;
+  /** Optional function to translate raw API error strings before displaying them */
+  translateError?: (raw: string) => string;
 }
 
-export function useLoginFlow({ baseURL = '', role, onSuccess }: UseLoginFlowOptions = {}) {
+export function useLoginFlow({ baseURL = '', role, onSuccess, translateError }: UseLoginFlowOptions = {}) {
   const ctx = useContext(AuthContext);
 
   const [loading, setLoading] = useState(false);
@@ -36,6 +38,10 @@ export function useLoginFlow({ baseURL = '', role, onSuccess }: UseLoginFlowOpti
 
   function clearError() {
     setError(null);
+  }
+
+  function applyTranslation(raw: string): string {
+    return translateError ? translateError(raw) : raw;
   }
 
   async function apiFetch<T>(
@@ -125,7 +131,7 @@ export function useLoginFlow({ baseURL = '', role, onSuccess }: UseLoginFlowOpti
               await apiFetch('/api/auth/send-otp', sendBody);
             } catch (sendErr) {
               const msg = sendErr instanceof Error ? sendErr.message : 'Failed to send OTP';
-              setError(msg);
+              setError(applyTranslation(msg));
               throw sendErr;
             }
           }
@@ -135,7 +141,7 @@ export function useLoginFlow({ baseURL = '', role, onSuccess }: UseLoginFlowOpti
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to check identifier';
         // Only set error if not already set (send-otp errors set it above)
-        setError(prev => prev ?? msg);
+        setError(prev => prev ?? applyTranslation(msg));
         throw err;
       } finally {
         setLoading(false);
@@ -171,7 +177,7 @@ export function useLoginFlow({ baseURL = '', role, onSuccess }: UseLoginFlowOpti
         onSuccess?.(data.user, data.accessToken);
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'OTP verification failed';
-        setError(msg);
+        setError(applyTranslation(msg));
         throw err;
       } finally {
         setLoading(false);
@@ -203,7 +209,7 @@ export function useLoginFlow({ baseURL = '', role, onSuccess }: UseLoginFlowOpti
         onSuccess?.(data.user, data.accessToken);
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Password login failed';
-        setError(msg);
+        setError(applyTranslation(msg));
         throw err;
       } finally {
         setLoading(false);
@@ -232,7 +238,7 @@ export function useLoginFlow({ baseURL = '', role, onSuccess }: UseLoginFlowOpti
         onSuccess?.(data.user, data.accessToken);
       } catch (err) {
         const msg = err instanceof Error ? err.message : '2FA verification failed';
-        setError(msg);
+        setError(applyTranslation(msg));
         throw err;
       } finally {
         setLoading(false);

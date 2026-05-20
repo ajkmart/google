@@ -17,6 +17,55 @@ export type CustomField =
   | 'cnic'
   | 'businessType';
 
+/** All UI strings displayed by the login screen — pass translated values to localise */
+export interface LoginScreenStrings {
+  phoneLabel: string;
+  phonePlaceholder: string;
+  continueBtn: string;
+  checkingBtn: string;
+  passwordLabel: string;
+  signInBtn: string;
+  signingInBtn: string;
+  subtitleIdentifier: string;
+  subtitleOtp: string;
+  subtitlePassword: string;
+  subtitleTwoFactor: string;
+  changeNumber: string;
+  back: string;
+  newHere: string;
+  createAccount: string;
+  sendMagicLink: string;
+  magicLinkSending: string;
+  magicLinkSent: string;
+  twoFactorLabel: string;
+  enterPhoneError: string;
+  enterPasswordError: string;
+}
+
+const DEFAULT_STRINGS: LoginScreenStrings = {
+  phoneLabel: 'Phone number',
+  phonePlaceholder: 'Enter phone number',
+  continueBtn: 'Continue',
+  checkingBtn: 'Checking…',
+  passwordLabel: 'Password',
+  signInBtn: 'Sign in',
+  signingInBtn: 'Signing in…',
+  subtitleIdentifier: 'Sign in or create an account',
+  subtitleOtp: 'Enter the OTP sent to your number',
+  subtitlePassword: 'Enter your password',
+  subtitleTwoFactor: 'Two-factor authentication',
+  changeNumber: '← Change number',
+  back: '← Back',
+  newHere: 'New here?',
+  createAccount: 'Create account',
+  sendMagicLink: 'Send magic link instead',
+  magicLinkSending: 'Sending…',
+  magicLinkSent: 'Magic link sent — check your email or SMS.',
+  twoFactorLabel: 'Enter your authenticator code',
+  enterPhoneError: 'Please enter your phone number',
+  enterPasswordError: 'Please enter your password',
+};
+
 export interface LoginScreenProps {
   role: AppRole;
   customFields?: CustomField[];
@@ -32,6 +81,10 @@ export interface LoginScreenProps {
   onBiometricSuccess?: (refreshToken: string) => void;
   className?: string;
   title?: string;
+  /** Partial override of any UI string — merged with English defaults */
+  strings?: Partial<LoginScreenStrings>;
+  /** Translate raw API error messages into the active language */
+  translateError?: (raw: string) => string;
 }
 
 const ROLE_LABELS: Record<AppRole, string> = {
@@ -58,9 +111,12 @@ export function LoginScreen({
   onBiometricSuccess,
   className,
   title,
+  strings: stringOverrides,
+  translateError,
 }: LoginScreenProps) {
   const theme = useAuthTheme();
   const displayTitle = title ?? ROLE_LABELS[role];
+  const str: LoginScreenStrings = { ...DEFAULT_STRINGS, ...stringOverrides };
 
   const [step, setStep] = useState<Step>('identifier');
   const [identifier, setIdentifier] = useState('');
@@ -85,7 +141,7 @@ export function LoginScreen({
   }, []);
 
   const { initiateLogin, verifyOtp, verifyPassword, twoFactorVerify, loading, error, setError, twoFactorPending, clearError } =
-    useLoginFlow({ baseURL, role: role === 'admin' ? undefined : role, onSuccess });
+    useLoginFlow({ baseURL, role: role === 'admin' ? undefined : role, onSuccess, translateError });
 
   useEffect(() => {
     if (twoFactorPending) {
@@ -95,7 +151,7 @@ export function LoginScreen({
 
   async function handleIdentifierSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!identifier.trim()) { setError('Please enter your phone number'); return; }
+    if (!identifier.trim()) { setError(str.enterPhoneError); return; }
     clearError();
     try {
       const result = await initiateLogin(identifier.trim(), customValues);
@@ -116,7 +172,7 @@ export function LoginScreen({
 
   async function handlePasswordSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!password) { setError('Please enter your password'); return; }
+    if (!password) { setError(str.enterPasswordError); return; }
     clearError();
     try {
       await verifyPassword(password);
@@ -364,10 +420,10 @@ export function LoginScreen({
           <div style={s.header}>
             <h1 style={s.title}>{displayTitle}</h1>
             <p style={s.subtitle}>
-              {step === 'identifier' && 'Sign in or create an account'}
-              {step === 'otp' && 'Enter the OTP sent to your number'}
-              {step === 'password' && 'Enter your password'}
-              {step === 'twoFactor' && 'Two-factor authentication'}
+              {step === 'identifier' && str.subtitleIdentifier}
+              {step === 'otp' && str.subtitleOtp}
+              {step === 'password' && str.subtitlePassword}
+              {step === 'twoFactor' && str.subtitleTwoFactor}
             </p>
           </div>
 
@@ -382,7 +438,7 @@ export function LoginScreen({
           {step === 'identifier' && (
             <form onSubmit={(e) => void handleIdentifierSubmit(e)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={s.label}>Phone number</label>
+                <label style={s.label}>{str.phoneLabel}</label>
                 <PhoneInput
                   value={identifier}
                   onChange={(e164) => { setIdentifier(e164); }}
@@ -394,12 +450,12 @@ export function LoginScreen({
                 style={{ ...s.btnPrimary, ...(loading ? s.btnDisabled : {}) }}
                 disabled={loading}
               >
-                {loading ? 'Checking…' : 'Continue'}
+                {loading ? str.checkingBtn : str.continueBtn}
               </button>
               {enableMagicLink && onMagicLink && (
                 <p style={s.magicLinkRow}>
                   {magicLinkSent ? (
-                    <span>Magic link sent — check your email or SMS.</span>
+                    <span>{str.magicLinkSent}</span>
                   ) : (
                     <button
                       type="button"
@@ -407,7 +463,7 @@ export function LoginScreen({
                       disabled={magicLinkLoading}
                       onClick={() => void handleMagicLink()}
                     >
-                      {magicLinkLoading ? 'Sending…' : 'Send magic link instead'}
+                      {magicLinkLoading ? str.magicLinkSending : str.sendMagicLink}
                     </button>
                   )}
                 </p>
@@ -429,9 +485,9 @@ export function LoginScreen({
               )}
               {onRegisterPress && (
                 <p style={s.footerRow}>
-                  New here?{' '}
+                  {str.newHere}{' '}
                   <button type="button" style={s.link} onClick={onRegisterPress}>
-                    Create account
+                    {str.createAccount}
                   </button>
                 </p>
               )}
@@ -451,7 +507,7 @@ export function LoginScreen({
                 style={s.link}
                 onClick={() => { clearError(); setStep('identifier'); }}
               >
-                ← Change number
+                {str.changeNumber}
               </button>
             </div>
           )}
@@ -462,7 +518,7 @@ export function LoginScreen({
               <PasswordInput
                 value={password}
                 onChange={setPassword}
-                label="Password"
+                label={str.passwordLabel}
                 showStrength={false}
                 autoComplete="current-password"
               />
@@ -471,14 +527,14 @@ export function LoginScreen({
                 style={{ ...s.btnPrimary, ...(loading ? s.btnDisabled : {}) }}
                 disabled={loading}
               >
-                {loading ? 'Signing in…' : 'Sign in'}
+                {loading ? str.signingInBtn : str.signInBtn}
               </button>
               <button
                 type="button"
                 style={s.link}
                 onClick={() => { clearError(); setStep('identifier'); }}
               >
-                ← Back
+                {str.back}
               </button>
             </form>
           )}
@@ -487,7 +543,7 @@ export function LoginScreen({
           {step === 'twoFactor' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <OtpInput
-                label="Enter your authenticator code"
+                label={str.twoFactorLabel}
                 onComplete={(code) => void handleTwoFactor(code)}
                 autoSubmit
               />
