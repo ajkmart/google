@@ -3,7 +3,7 @@ import rateLimit from "express-rate-limit";
 import crypto, { randomBytes, createHash, randomInt } from "crypto";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
+import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable, trustedDevicesTable } from "@workspace/db/schema";
 import { eq, and, sql, lt, or, desc, ilike, isNull } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
 import { getPlatformSettings } from "../admin.js";
@@ -50,6 +50,16 @@ import {
   extractAuthUser,
 } from "./helpers.js";
 
+function getRoleFromRequest(req: Request): string {
+  const role = typeof req.body?.role === "string" ? req.body.role : "customer";
+  return role === "rider" || role === "vendor" ? role : "customer";
+}
+
+function isWrongRole(userRoles: string | null | undefined, requestedRole: string): boolean {
+  if (!userRoles) return requestedRole !== "customer";
+  return !userRoles.split(",").map((r) => r.trim()).includes(requestedRole);
+}
+
 const router: IRouter = Router();
 
 router.post("/social/google", sharedValidateBody(SocialGoogleSchema), async (req, res) => {
@@ -64,7 +74,7 @@ router.post("/social/google", sharedValidateBody(SocialGoogleSchema), async (req
     sendErrorWithData(res, "Google login is currently disabled.", { code: "AUTH_METHOD_DISABLED" }, 400); return;
   }
 
-  let googlePayload: any;
+  let googlePayload: { sub?: string; email?: string; name?: string; picture?: string; email_verified?: boolean };
   try {
     const resp = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`, { signal: AbortSignal.timeout(10_000) });
     if (!resp.ok) throw new Error("Invalid token");
@@ -94,21 +104,10 @@ router.post("/social/google", sharedValidateBody(SocialGoogleSchema), async (req
 
   const isNewUser = !user;
 
-  /* ── Cross-role guard for social login ──
-     If the caller specifies a role (rider/vendor), enforce that the existing account
-     includes that role. Block new user creation for non-customer roles via social auth. */
-  const requestedSocialRole: string | null = (typeof req.body?.role === "string" ? req.body.role : undefined) ?? null;
-  if (requestedSocialRole && requestedSocialRole !== "customer") {
-    if (user) {
-      const userRoles = (user.roles || "").split(",").map((r: string) => r.trim());
-      if (!userRoles.includes(requestedSocialRole)) {
-        addSecurityEvent({ type: "cross_role_social_login_attempt", ip, details: `Social Google cross-role: requested=${requestedSocialRole} user.roles=${user.roles}`, severity: "medium" });
-        sendErrorWithData(res, `No ${requestedSocialRole} account found for this Google account. Please use the correct app.`, { wrongApp: true }, 403); return;
-      }
-    } else {
-      /* No user found — cannot auto-create non-customer accounts via social auth */
-      sendErrorWithData(res, `No ${requestedSocialRole} account found for this Google account. Please use the correct registration process or contact admin.`, { wrongApp: true }, 403); return;
-    }
+  const requestedSocialRole = getRoleFromRequest(req);
+  if (user && isWrongRole(user.roles, requestedSocialRole)) {
+    addSecurityEvent({ type: "cross_role_social_login_attempt", ip, details: `Social Google cross-role: requested=${requestedSocialRole} user.roles=${user.roles}`, severity: "medium" });
+    sendErrorWithData(res, `No ${requestedSocialRole} account found for this Google account.`, { wrongApp: true, redirectTo: requestedSocialRole === "rider" ? "/rider" : requestedSocialRole === "vendor" ? "/vendor" : "/customer", code: AUTH_ERROR_CODES.WRONG_APP }, 403); return;
   }
 
   const googleEffectiveRole = user?.roles ?? "customer";
@@ -148,6 +147,7 @@ router.post("/social/google", sharedValidateBody(SocialGoogleSchema), async (req
   }
 
   AuditService.log({ action: "social_google_login", ip, details: `Google login: ${email ?? googleId}`, result: "success" });
+  logAuthEvent({ eventType: "login_success", userId: user!.id, ip, userAgent: req.headers["user-agent"] as string | undefined, channel: "google", role: user!.roles ?? "customer", success: true, metadata: { googleId, isNewUser } });
   const result = await issueTokensForUser(user!, ip, "social_google", req.headers["user-agent"] as string, req, res);
   sendSuccess(res, { ...result, isNewUser, needsProfileCompletion: isNewUser || !user!.cnic || !user!.name });
   } catch (err) {
@@ -174,7 +174,7 @@ router.post("/social/facebook", sharedValidateBody(SocialFacebookSchema), async 
     sendErrorWithData(res, "Facebook login is currently disabled.", { code: "AUTH_METHOD_DISABLED" }, 400); return;
   }
 
-  let fbPayload: any;
+  let fbPayload: { id?: string; email?: string; name?: string; picture?: { data?: { url?: string } } };
   try {
     const resp = await fetch(`https://graph.facebook.com/me?fields=id,name,email,picture&access_token=${encodeURIComponent(fbToken)}`, { signal: AbortSignal.timeout(10_000) });
     if (!resp.ok) throw new Error("Invalid token");
@@ -204,21 +204,10 @@ router.post("/social/facebook", sharedValidateBody(SocialFacebookSchema), async 
 
   const isNewUser = !user;
 
-  /* ── Cross-role guard for social login ──
-     If the caller specifies a role (rider/vendor), enforce that the existing account
-     includes that role. Block new user creation for non-customer roles via social auth. */
-  const requestedFbSocialRole: string | null = (typeof req.body?.role === "string" ? req.body.role : undefined) ?? null;
-  if (requestedFbSocialRole && requestedFbSocialRole !== "customer") {
-    if (user) {
-      const userRoles = (user.roles || "").split(",").map((r: string) => r.trim());
-      if (!userRoles.includes(requestedFbSocialRole)) {
-        addSecurityEvent({ type: "cross_role_social_login_attempt", ip, details: `Social Facebook cross-role: requested=${requestedFbSocialRole} user.roles=${user.roles}`, severity: "medium" });
-        sendErrorWithData(res, `No ${requestedFbSocialRole} account found for this Facebook account. Please use the correct app.`, { wrongApp: true }, 403); return;
-      }
-    } else {
-      /* No user found — cannot auto-create non-customer accounts via social auth */
-      sendErrorWithData(res, `No ${requestedFbSocialRole} account found for this Facebook account. Please use the correct registration process or contact admin.`, { wrongApp: true }, 403); return;
-    }
+  const requestedFbSocialRole = getRoleFromRequest(req);
+  if (user && isWrongRole(user.roles, requestedFbSocialRole)) {
+    addSecurityEvent({ type: "cross_role_social_login_attempt", ip, details: `Social Facebook cross-role: requested=${requestedFbSocialRole} user.roles=${user.roles}`, severity: "medium" });
+    sendErrorWithData(res, `No ${requestedFbSocialRole} account found for this Facebook account.`, { wrongApp: true, redirectTo: requestedFbSocialRole === "rider" ? "/rider" : requestedFbSocialRole === "vendor" ? "/vendor" : "/customer", code: AUTH_ERROR_CODES.WRONG_APP }, 403); return;
   }
 
   const fbEffectiveRole = user?.roles ?? "customer";
@@ -258,6 +247,7 @@ router.post("/social/facebook", sharedValidateBody(SocialFacebookSchema), async 
   }
 
   AuditService.log({ action: "social_facebook_login", ip, details: `Facebook login: ${email ?? facebookId}`, result: "success" });
+  logAuthEvent({ eventType: "login_success", userId: user!.id, ip, userAgent: req.headers["user-agent"] as string | undefined, channel: "facebook", role: user!.roles ?? "customer", success: true, metadata: { facebookId, isNewUser } });
   const result = await issueTokensForUser(user!, ip, "social_facebook", req.headers["user-agent"] as string, req, res);
   sendSuccess(res, { ...result, isNewUser, needsProfileCompletion: isNewUser || !user!.cnic || !user!.name });
   } catch (err) {
@@ -303,7 +293,7 @@ router.post("/link-google", sharedValidateBody(LinkGoogleSchema), async (req, re
       return;
     }
 
-    const updates: Record<string, unknown> = { googleId, updatedAt: new Date() };
+  const updates: Record<string, unknown> = { googleId, updatedAt: new Date() };
     if (email) updates["email"] = email;
 
     await db.update(usersTable).set(updates).where(eq(usersTable.id, auth.userId));
@@ -369,6 +359,50 @@ router.post("/link-facebook", sharedValidateBody(LinkFacebookSchema), async (req
   }
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+router.get("/biometric/status", async (req, res) => {
+  try {
+    const auth = extractAuthUser(req);
+    if (!auth) { sendUnauthorized(res, "Authentication required"); return; }
+    const settings = await getCachedSettings();
+    sendSuccess(res, { enabled: settings["auth_biometric_enabled"] === "on" });
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[route] unhandled error");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+router.post("/biometric/register", async (req, res) => {
+  try {
+    const auth = extractAuthUser(req);
+    if (!auth) { sendUnauthorized(res, "Authentication required"); return; }
+    const { biometricCredentialId, deviceId, deviceName, deviceType, fingerprint } = req.body ?? {};
+    if (!biometricCredentialId || !deviceId) { sendError(res, "biometricCredentialId and deviceId are required", 400); return; }
+    const settings = await getCachedSettings();
+    if (settings["auth_biometric_enabled"] !== "on") { sendErrorWithData(res, "Biometric login is disabled.", { code: "AUTH_METHOD_DISABLED" }, 400); return; }
+    const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+    const existing = await db.select().from(trustedDevicesTable).where(and(eq(trustedDevicesTable.userId, auth.userId), eq(trustedDevicesTable.deviceId, deviceId))).limit(1);
+    if (existing.length > 0) {
+      await db.update(trustedDevicesTable).set({ deviceName: deviceName ?? null, deviceType: deviceType ?? null, fingerprint: fingerprint ?? biometricCredentialId, expiresAt, isRevoked: false, lastUsedAt: new Date() }).where(and(eq(trustedDevicesTable.userId, auth.userId), eq(trustedDevicesTable.deviceId, deviceId)));
+    } else {
+      await db.insert(trustedDevicesTable).values({
+        id: generateId(),
+        userId: auth.userId,
+        deviceId,
+        deviceName: deviceName ?? null,
+        deviceType: deviceType ?? null,
+        fingerprint: fingerprint ?? biometricCredentialId,
+        expiresAt,
+      });
+    }
+    const biometricToken = randomBytes(48).toString("hex");
+    logAuthEvent({ eventType: "device_trusted", userId: auth.userId, ip: getClientIp(req), userAgent: req.headers["user-agent"] as string | undefined, channel: "biometric", role: auth.roles ?? "customer", success: true, metadata: { deviceId } });
+    sendSuccess(res, { biometricToken });
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[route] unhandled error");
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
