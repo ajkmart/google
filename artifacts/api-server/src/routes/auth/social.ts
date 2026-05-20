@@ -21,6 +21,7 @@ import { getUserLanguage, getPlatformDefaultLanguage } from "../../lib/getUserLa
 import { t } from "@workspace/i18n";
 import { logger } from "../../lib/logger.js";
 import { sendError, sendErrorWithData, sendUnauthorized, sendForbidden, sendNotFound, sendInternalError, sendTooManyRequests, sendSuccess, sendCreated } from "../../lib/response.js";
+import { logAuthEvent, AUTH_ERROR_CODES } from "../../lib/auth-response.js";
 import { clearSpoofHits } from "../rider/index.js";
 import { canonicalizePhone } from "@workspace/phone-utils";
 import { isAuthMethodEnabled, isAuthMethodEnabledStrict } from "@workspace/auth-utils/server";

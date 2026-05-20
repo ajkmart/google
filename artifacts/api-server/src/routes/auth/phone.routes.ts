@@ -55,6 +55,7 @@ import {
   sendTooManyRequests,
   sendSuccess,
 } from "../../lib/response.js";
+import { logAuthEvent, AUTH_ERROR_CODES } from "../../lib/auth-response.js";
 import {
   sendOtp as modulesSendOtp,
   verifyOtp as modulesVerifyOtp,
@@ -273,10 +274,13 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, validateBody(VerifyOtpSche
         { userId: newUserId, code: "WEBHOOK_EMIT" },
       );
 
+      logAuthEvent({ eventType: "register", userId: newUserId, ip, userAgent: req.headers["user-agent"] as string | undefined, channel: "phone_otp", role: "customer", success: true, metadata: { phone, requireApproval } });
+
       setRiderRefreshCookie(req, res, refreshRaw, { roles: "customer" });
 
       sendSuccess(res, {
         isNewUser:    true,
+        expiresIn:    getAccessTokenTtlSec(),
         accessToken,
         refreshToken: refreshRaw,
         expiresAt:    new Date(Date.now() + getAccessTokenTtlSec() * 1000).toISOString(),

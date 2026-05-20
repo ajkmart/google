@@ -48,6 +48,7 @@ import {
   sendUnauthorized,
   sendSuccess,
 } from "../../lib/response.js";
+import { logAuthEvent, AUTH_ERROR_CODES } from "../../lib/auth-response.js";
 import {
   generateTotpSecret,
   verifyTotpToken,
@@ -247,6 +248,7 @@ router.post("/2fa/verify", validateBody(TwoFaVerifySchema), async (req, res) => 
 
     if (!verifyTotpToken(code, user.totpSecret)) {
       addSecurityEvent({ type: "2fa_verify_failed", ip, userId: user.id, details: "Invalid 2FA code on login", severity: "medium" });
+      logAuthEvent({ eventType: "login_failed", userId: user.id, ip, userAgent: req.headers["user-agent"] as string | undefined, channel: "totp", role: user.roles ?? "customer", success: false, failureReason: AUTH_ERROR_CODES.TOTP_INVALID });
       sendUnauthorized(res, "Invalid 2FA code"); return;
     }
 

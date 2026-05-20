@@ -49,6 +49,7 @@ import { getUserLanguage, getPlatformDefaultLanguage } from "../../lib/getUserLa
 import { t } from "@workspace/i18n";
 import { logger } from "../../lib/logger.js";
 import { sendError, sendErrorWithData, sendUnauthorized, sendForbidden, sendNotFound, sendInternalError, sendTooManyRequests, sendSuccess, sendCreated } from "../../lib/response.js";
+import { logAuthEvent, AUTH_ERROR_CODES } from "../../lib/auth-response.js";
 import { clearSpoofHits } from "../rider/index.js";
 import { canonicalizePhone } from "@workspace/phone-utils";
 import { isAuthMethodEnabled, isAuthMethodEnabledStrict } from "@workspace/auth-utils/server";
@@ -375,6 +376,7 @@ export async function handleUnifiedLogin(req: Request, res: Response) {
   if (!user || !user.passwordHash) {
     if (lockoutEnabled) await recordFailedAttempt(lockoutKey, maxAttempts, lockoutMinutes);
     addAuditEntry({ action: "unified_login_failed", ip, details: `Not found or no password (${idType}): ${lookupKey}`, result: "fail" });
+    logAuthEvent({ eventType: "login_failed", ip, channel: "password", success: false, failureReason: AUTH_ERROR_CODES.INVALID_CREDENTIALS });
     sendUnauthorized(res, "Invalid credentials"); return;
   }
 
@@ -403,11 +405,15 @@ export async function handleUnifiedLogin(req: Request, res: Response) {
     const updated = await recordFailedAttempt(lockoutKey, maxAttempts, lockoutMinutes);
     addAuditEntry({ action: "unified_login_failed", ip, details: `Wrong password (${idType}): ${lookupKey}`, result: "fail" });
     if (lockoutEnabled && updated.locked) {
+      logAuthEvent({ eventType: "account_locked", userId: user.id, ip, channel: "password", role: user.roles ?? "customer", success: false, failureReason: AUTH_ERROR_CODES.ACCOUNT_LOCKED });
       sendTooManyRequests(res, `Too many failed attempts. Locked for ${lockoutMinutes} minutes.`);
-    } else if (lockoutEnabled) {
-      sendUnauthorized(res, `Invalid credentials. ${Math.max(0, maxAttempts - updated.attempts)} attempt(s) remaining.`);
     } else {
-      sendUnauthorized(res, "Invalid credentials");
+      logAuthEvent({ eventType: "login_failed", userId: user.id, ip, channel: "password", role: user.roles ?? "customer", success: false, failureReason: AUTH_ERROR_CODES.INVALID_CREDENTIALS, metadata: { attemptsRemaining: Math.max(0, maxAttempts - updated.attempts) } });
+      if (lockoutEnabled) {
+        sendUnauthorized(res, `Invalid credentials. ${Math.max(0, maxAttempts - updated.attempts)} attempt(s) remaining.`);
+      } else {
+        sendUnauthorized(res, "Invalid credentials");
+      }
     }
     return;
   }

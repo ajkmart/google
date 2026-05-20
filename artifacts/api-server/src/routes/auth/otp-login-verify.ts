@@ -26,6 +26,7 @@ import {
   decryptPii, setRiderRefreshCookie, setVendorRefreshCookie,
   isDeviceTrusted,
 } from "./helpers.js";
+import { logAuthEvent, AUTH_ERROR_CODES } from "../../lib/auth-response.js";
 import { verifyOtp } from "../../modules/otp/otp.verify.js";
 import { OtpBlockedError, OtpInvalidError, OtpExpiredError } from "../../modules/otp/otp.types.js";
 
@@ -76,13 +77,16 @@ export async function handleLoginVerifyOtp(req: Request, res: Response): Promise
         if (lockoutEnabled) {
           const updated = await recordFailedAttempt(lockoutKey, maxAttempts, lockoutMinutes);
           writeAuthAuditLog("otp_failed", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { method: "password_login_otp" } });
+          logAuthEvent({ eventType: "otp_failed", userId: user.id, ip, userAgent: req.headers["user-agent"] as string | undefined, channel: "password_otp", role: user.roles ?? "customer", success: false, failureReason: otpErr instanceof OtpExpiredError ? AUTH_ERROR_CODES.OTP_EXPIRED : AUTH_ERROR_CODES.INVALID_OTP });
           if (updated.locked) {
+            logAuthEvent({ eventType: "account_locked", userId: user.id, ip, channel: "password_otp", role: user.roles ?? "customer", success: false, failureReason: AUTH_ERROR_CODES.ACCOUNT_LOCKED });
             sendTooManyRequests(res, `Too many failed attempts. Account locked for ${lockoutMinutes} minutes.`); return;
           }
           const remaining = Math.max(0, maxAttempts - updated.attempts);
           sendErrorWithData(res, `${otpErr.message} ${remaining} attempt(s) remaining.`, { attemptsRemaining: remaining }, 401);
         } else {
           writeAuthAuditLog("otp_failed", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { method: "password_login_otp" } });
+          logAuthEvent({ eventType: "otp_failed", userId: user.id, ip, userAgent: req.headers["user-agent"] as string | undefined, channel: "password_otp", role: user.roles ?? "customer", success: false, failureReason: AUTH_ERROR_CODES.INVALID_OTP });
           sendUnauthorized(res, otpErr.message);
         }
         return;
@@ -104,12 +108,14 @@ export async function handleLoginVerifyOtp(req: Request, res: Response): Promise
       const trustedDays = parseInt(settings["auth_trusted_device_days"] ?? "30", 10);
       if (!isDeviceTrusted(user, deviceFingerprint, trustedDays)) {
         const totpToken = sign2faChallengeToken(user.id, user.phone ?? "", user.roles ?? "customer", user.roles ?? "customer", "password");
-        sendSuccess(res, { requires2FA: true, tempToken: totpToken, userId: user.id }); return;
+        logAuthEvent({ eventType: "login_2fa_challenge", userId: user.id, ip, userAgent: req.headers["user-agent"] as string | undefined, channel: "password_otp", role: user.roles ?? "customer", success: true });
+        sendSuccess(res, { requires2FA: true, twoFactorRequired: true, tempToken: totpToken, userId: user.id }); return;
       }
     }
 
     const accessToken  = signAccessToken(user.id, user.phone ?? "", user.roles ?? "customer", user.roles ?? "customer", user.tokenVersion ?? 0);
-    const expiresAt    = new Date(Date.now() + getAccessTokenTtlSec() * 1000).toISOString();
+    const expiresInSec = getAccessTokenTtlSec();
+    const expiresAt    = new Date(Date.now() + expiresInSec * 1000).toISOString();
     const { raw: refreshRaw, hash: refreshHash } = generateRefreshToken();
     await db.insert(refreshTokensTable).values({
       id: generateId(), userId: user.id, tokenHash: refreshHash, authMethod: "password_otp",
@@ -120,10 +126,13 @@ export async function handleLoginVerifyOtp(req: Request, res: Response): Promise
     setVendorRefreshCookie(req, res, refreshRaw, user);
 
     writeAuthAuditLog("login_success", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { method: "password_otp_verified" } });
+    logAuthEvent({ eventType: "login_success", userId: user.id, ip, userAgent: req.headers["user-agent"] as string | undefined, channel: "password_otp", role: user.roles ?? "customer", success: true });
 
     sendSuccess(res, {
       token:        accessToken,
+      accessToken,
       refreshToken: refreshRaw,
+      expiresIn:    expiresInSec,
       expiresAt,
       sessionDays:  getRefreshTokenTtlDays(),
       user: {

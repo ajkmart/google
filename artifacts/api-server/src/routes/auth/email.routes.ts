@@ -45,6 +45,7 @@ import {
   sendTooManyRequests,
   sendSuccess,
 } from "../../lib/response.js";
+import { logAuthEvent, AUTH_ERROR_CODES } from "../../lib/auth-response.js";
 import {
   sendOtp as modulesSendOtp,
   verifyOtp as modulesVerifyOtp,
@@ -176,9 +177,11 @@ router.post("/verify-email-otp", emailOtpLimiter, verifyCaptcha, validateBody(Ve
       }
       if (err instanceof OtpInvalidError) {
         AuditService.log({ action: "email_otp_failed", ip, details: `Wrong email OTP for: ${normalized}`, result: "fail" });
+        logAuthEvent({ eventType: "otp_failed", ip, userAgent: req.headers["user-agent"] as string | undefined, channel: "email_otp", success: false, failureReason: AUTH_ERROR_CODES.INVALID_OTP, metadata: { attemptsLeft: err.attemptsLeft } });
         sendErrorWithData(res, err.message, { attemptsRemaining: err.attemptsLeft }, 401); return;
       }
       if (err instanceof OtpExpiredError) {
+        logAuthEvent({ eventType: "otp_failed", ip, channel: "email_otp", success: false, failureReason: AUTH_ERROR_CODES.OTP_EXPIRED });
         sendErrorWithData(res, "OTP expired. Please request a new one.", {}, 401); return;
       }
       throw err;
@@ -234,6 +237,7 @@ router.post("/verify-email-otp", emailOtpLimiter, verifyCaptcha, validateBody(Ve
       const trustedDays = parseInt(settings["auth_trusted_device_days"] ?? "30", 10);
       if (!isDeviceTrusted(user, deviceFingerprint ?? "", trustedDays)) {
         const tempToken = sign2faChallengeToken(user.id, user.phone ?? "", user.roles ?? "customer", user.roles ?? "customer", "email_otp");
+        logAuthEvent({ eventType: "login_2fa_challenge", userId: user.id, ip, userAgent: req.headers["user-agent"] as string | undefined, channel: "email_otp", role: user.roles ?? "customer", success: true });
         sendSuccess(res, { requires2FA: true, twoFactorRequired: true, tempToken, userId: user.id }); return;
       }
     }
@@ -259,6 +263,7 @@ router.post("/verify-email-otp", emailOtpLimiter, verifyCaptcha, validateBody(Ve
     const isCrossApp = isCustomerAppCtx && !userRoles.includes("customer");
     if (isCrossApp) {
       addSecurityEvent({ type: "cross_role_login_attempt", ip, userId: user.id, details: `User [${user.roles}] email-logged in to customer app — offering add-role`, severity: "low" });
+      logAuthEvent({ eventType: "cross_app_attempt", userId: user.id, ip, channel: "email_otp", role: user.roles ?? "customer", success: false, failureReason: AUTH_ERROR_CODES.WRONG_APP });
     }
 
     const tokens = await issueTokensForUser(user, ip, "email_otp", req.headers["user-agent"] as string | undefined, req, res);

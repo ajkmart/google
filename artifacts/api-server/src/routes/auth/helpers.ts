@@ -1,4 +1,5 @@
 import { logger } from "../../lib/logger.js";
+import { logAuthEvent } from "../../lib/auth-response.js";
 import { Router, type IRouter, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import crypto, { createHash, createHmac, randomBytes } from "crypto";
@@ -333,11 +334,24 @@ export async function issueTokensForUser(user: typeof usersTable.$inferSelect, i
     });
   } catch (err) { logger.error("[auth] Login history insert failed:", err); }
 
+  logAuthEvent({
+    eventType: "login_success",
+    userId:    user.id,
+    ip,
+    userAgent,
+    channel:   method,
+    role:      user.roles ?? "customer",
+    success:   true,
+    metadata:  { deviceName: parsed.deviceName, browser: parsed.browser, os: parsed.os },
+  });
+
+  const expiresInSec = getAccessTokenTtlSec();
   return {
     token: accessToken,
     accessToken,
     refreshToken: refreshRaw,
-    expiresAt: new Date(Date.now() + getAccessTokenTtlSec() * 1000).toISOString(),
+    expiresIn:  expiresInSec,
+    expiresAt: new Date(Date.now() + expiresInSec * 1000).toISOString(),
     sessionDays: getRefreshTokenTtlDays(),
     user: {
       id: user.id, phone: user.phone, name: user.name, email: user.email,
