@@ -564,8 +564,15 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
       return;
     }
 
-    /* Verify OTP from pending_otps — skip validation if global or whitelist bypass is enabled */
-    const otpValid = globalBypassForNew || !!(pending && pending.otpHash === hashOtp(otp) && new Date() < pending.otpExpiry);
+    /* Verify OTP from pending_otps — skip validation if global or whitelist bypass is enabled.
+       Use timingSafeEqual to prevent timing-based enumeration of valid OTPs. */
+    const hashedInput = hashOtp(otp);
+    const otpHashMatch = !!(pending && (() => {
+      const a = Buffer.from(pending.otpHash ?? "");
+      const b = Buffer.from(hashedInput);
+      return a.length === b.length && crypto.timingSafeEqual(a, b);
+    })());
+    const otpValid = globalBypassForNew || (otpHashMatch && new Date() < pending.otpExpiry);
     if (!otpValid) {
       /* Increment failed attempts */
       const newAttempts = (pending.attempts ?? 0) + 1;

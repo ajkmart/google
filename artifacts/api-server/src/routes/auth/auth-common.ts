@@ -180,6 +180,12 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 
+/* ── In-process mutex for concurrent refresh requests ──────────────────────
+   Keyed by the raw token hash. When two simultaneous 401 retries arrive with
+   the same refresh token, the first wins; the second waits and then returns a
+   "retry with new token" 401 rather than triggering a false breach detection. */
+const refreshInFlight = new Map<string, Promise<void>>();
+
 export async function handleRefreshToken(req: Request, res: Response) {
   /* Deterministically select the HttpOnly refresh cookie based on the app
      context signalled by the client via the X-App header (sent by vendor and
@@ -214,6 +220,23 @@ export async function handleRefreshToken(req: Request, res: Response) {
 export async function doRefresh(refreshToken: string, ip: string, req: Request, res: Response) {
   const tokenHash = hashRefreshToken(refreshToken);
 
+  /* Deduplication: if the same raw token is already being refreshed in this
+     process (concurrent 401 retries), wait for the first to finish then
+     respond with a 401 so the client retries with the rotated token it already
+     received from the first concurrent call. */
+  const inFlight = refreshInFlight.get(tokenHash);
+  if (inFlight) {
+    await inFlight.catch(() => {});
+    writeAuthAuditLog("concurrent_refresh_blocked", { ip, userAgent: req.headers["user-agent"] ?? undefined });
+    sendUnauthorized(res, "Token already refreshed. Please retry with your latest token.");
+    return;
+  }
+
+  let releaseMutex: () => void = () => {};
+  const mutexPromise = new Promise<void>((r) => { releaseMutex = r; });
+  refreshInFlight.set(tokenHash, mutexPromise);
+
+  try {
   /* ── Token family replay detection ── */
   let rt: typeof import("@workspace/db/schema").refreshTokensTable.$inferSelect;
   try {
@@ -315,6 +338,10 @@ export async function doRefresh(refreshToken: string, ip: string, req: Request, 
     refreshToken: rotation.refreshToken,
     expiresAt:    rotation.expiresAt,
   });
+  } finally {
+    refreshInFlight.delete(tokenHash);
+    releaseMutex();
+  }
 }
 
 export async function handleUnifiedLogin(req: Request, res: Response) {

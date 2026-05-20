@@ -172,6 +172,84 @@ export const registerUploadLimiter = rateLimit(makeOptions("register-upload", 10
 }));
 
 /**
+ * emailOtpLimiter — 5 email OTP send/verify attempts / 60 s / email (fallback to IP).
+ * Apply to POST /api/auth/send-email-otp and POST /api/auth/verify-email-otp.
+ */
+export const emailOtpLimiter = rateLimit(makeOptions("email-otp", 5, WINDOW_1_MIN, {
+  keyGenerator: (req: Request, _res: Response) => {
+    const email = req.body?.email ?? req.body?.identifier;
+    if (email && typeof email === "string" && email.includes("@")) {
+      return `email:${email.toLowerCase().trim()}`;
+    }
+    return (
+      (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+      req.socket?.remoteAddress ||
+      "unknown"
+    );
+  },
+}));
+
+/**
+ * magicLinkLimiter — 3 magic link requests / 15 min / email (fallback to IP).
+ * Apply to POST /api/auth/magic-link/send to prevent spam.
+ */
+export const magicLinkLimiter = rateLimit(makeOptions("magic-link", 3, WINDOW_15_MIN, {
+  keyGenerator: (req: Request, _res: Response) => {
+    const email = req.body?.email;
+    if (email && typeof email === "string" && email.includes("@")) {
+      return `email:${email.toLowerCase().trim()}`;
+    }
+    return (
+      (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+      req.socket?.remoteAddress ||
+      "unknown"
+    );
+  },
+}));
+
+/**
+ * registrationLimiter — 10 registration attempts / 60 min / IP.
+ * Apply to POST /api/auth/register to slow down bulk account creation.
+ */
+export const registrationLimiter = rateLimit(makeOptions("registration", 10, 60 * 60 * 1000, {
+  keyGenerator: (req: Request, _res: Response) =>
+    ((req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+     req.socket?.remoteAddress ||
+     "unknown"),
+}));
+
+/**
+ * refreshTokenLimiter — 30 token refresh requests / 15 min / userId (fallback to IP).
+ * Apply to POST /api/auth/refresh to prevent token-cycling abuse.
+ */
+export const refreshTokenLimiter = rateLimit(makeOptions("refresh-token", 30, WINDOW_15_MIN, {
+  keyGenerator: (req: Request, _res: Response) => {
+    const userId =
+      req.userId ??
+      req.customerId ??
+      req.riderId ??
+      req.vendorId;
+    if (userId) return `user:${userId}`;
+    return (
+      (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+      req.socket?.remoteAddress ||
+      "unknown"
+    );
+  },
+}));
+
+/**
+ * passwordResetLimiter — 5 password reset requests / 60 min / IP.
+ * Apply to POST /api/auth/forgot-password to prevent enumeration attacks.
+ */
+export const passwordResetLimiter = rateLimit(makeOptions("password-reset", 5, 60 * 60 * 1000, {
+  keyGenerator: (req: Request, _res: Response) =>
+    ((req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+     req.socket?.remoteAddress ||
+     "unknown"),
+}));
+
+/**
  * userApiLimiter — 100 requests / 60 s / authenticated user ID (fallback to IP).
  * Apply to authenticated /api/* routes that should be throttled per-user.
  */

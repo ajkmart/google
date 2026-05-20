@@ -293,7 +293,27 @@ function AppRoutes() {
   const [fcmNotif, setFcmNotif] = useState<{ title: string; body: string } | null>(null);
   const fcmCleanupRef = useRef<{ remove: () => void } | null>(null);
   const fcmDismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [, navigate] = useLocation();
+  const intendedRouteRef = useRef<string | null>(null);
+  const [location, navigate] = useLocation();
+
+  /* Deep-link guard: capture the current path when an unauthenticated user
+     lands on a protected route (e.g. via a push-notification deep link).
+     After the user logs in, we redirect them to the originally-intended path. */
+  const PUBLIC_PATHS = ['/', '/login', '/register', '/forgot-password'];
+  useEffect(() => {
+    if (!loading && !user && !PUBLIC_PATHS.includes(location)) {
+      intendedRouteRef.current = location;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, user, location]);
+
+  useEffect(() => {
+    if (user && intendedRouteRef.current) {
+      const dest = intendedRouteRef.current;
+      intendedRouteRef.current = null;
+      navigate(dest, { replace: true });
+    }
+  }, [user, navigate]);
 
   /* P4: Only request notification permission when it's still in the "default"
      state. After the user has explicitly granted or denied it, we never re-ask

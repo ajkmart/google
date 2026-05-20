@@ -24,7 +24,7 @@ import { clearSpoofHits } from "../rider/index.js";
 import { canonicalizePhone } from "@workspace/phone-utils";
 import { isAuthMethodEnabled, isAuthMethodEnabledStrict } from "@workspace/auth-utils/server";
 import { validateBody as sharedValidateBody } from "../../middleware/validate.js";
-import { authLimiter, loginLimiter, otpLimiter } from "../../middleware/rate-limit.js";
+import { authLimiter, loginLimiter, otpLimiter, refreshTokenLimiter } from "../../middleware/rate-limit.js";
 import { hashOtp, isValidCanonicalPhone, normalizeVehicleTypeForStorage, generateVerificationToken, hashVerificationToken, tryEncrypt, decryptPii, setRiderRefreshCookie, clearRiderRefreshCookie, setVendorRefreshCookie, clearVendorRefreshCookie, RIDER_REFRESH_COOKIE, RIDER_REFRESH_COOKIE_PATH, VENDOR_REFRESH_COOKIE, VENDOR_REFRESH_COOKIE_PATH } from "./helpers.js";
 import { rotateRefreshToken, invalidateTokenFamily } from "../../services/auth/tokenRotation.js";
 import { AuditService } from "../../services/admin-audit.service.js";
@@ -127,10 +127,10 @@ router.post("/validate-token", sharedValidateBody(ValidateTokenSchema), async (r
  *       401:
  *         description: Invalid or expired refresh token
  */
-router.post("/refresh", sharedValidateBody(refreshTokenSchema), handleRefreshToken);
+router.post("/refresh", refreshTokenLimiter, sharedValidateBody(refreshTokenSchema), handleRefreshToken);
 
 /** @deprecated Use POST /auth/refresh instead. This alias is kept for legacy clients and will be removed in a future version. */
-router.post("/refresh-token", sharedValidateBody(refreshTokenSchema), handleRefreshToken);
+router.post("/refresh-token", refreshTokenLimiter, sharedValidateBody(refreshTokenSchema), handleRefreshToken);
 
 /* ─────────────────────────────────────────────────────────────
    POST /auth/logout

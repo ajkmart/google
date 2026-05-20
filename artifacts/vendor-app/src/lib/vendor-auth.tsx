@@ -213,6 +213,7 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
   const logout = () => {
     const refreshTok = api.getRefreshToken();
     api.clearTokens();
+    try { sessionStorage.clear(); } catch {}
     sharedAuth.logout();
     setToken(null);
     setUser(null);

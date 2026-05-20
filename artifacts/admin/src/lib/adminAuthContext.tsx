@@ -125,6 +125,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const expiryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Tracks which token the current timer was set for (avoids duplicate timers)
   const timerTokenRef = useRef<string | null>(null);
+  // Deduplication flag: prevents the same session-expiry toast from showing
+  // multiple times if scheduleExpiryWarning is called concurrently.
+  const expiryToastShownRef = useRef<boolean>(false);
 
   /** Schedule a warning toast 60s before the access token expires. */
   const scheduleExpiryWarning = useCallback((token: string, refreshFn: () => Promise<string>) => {
@@ -138,8 +141,11 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     const msLeft = expiresAt - Date.now() - SESSION_WARN_BEFORE_MS;
     if (msLeft <= 0) return; // already expiring — let the 401 handler deal with it
 
+    expiryToastShownRef.current = false;
     expiryTimerRef.current = setTimeout(() => {
       expiryTimerRef.current = null;
+      if (expiryToastShownRef.current) return;
+      expiryToastShownRef.current = true;
       toast({
         title: 'Your session expires in 1 minute',
         description: 'Click "Stay logged in" to continue without interruption.',
@@ -370,9 +376,19 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
    */
   const logout = useCallback(async () => {
     cancelExpiryWarning();
+    // Clear sidebar UI state to prevent scroll/selection bleed between admin sessions
+    try {
+      Object.keys(localStorage)
+        .filter(k => k.startsWith('admin_sidebar_') || k.startsWith('admin_nav_'))
+        .forEach(k => localStorage.removeItem(k));
+    } catch {}
+    // Immediately null user + token so the authenticated layout is hidden
+    // before the logout API call completes (prevents content flash).
     setState((prev) => ({
       ...prev,
       isLoading: true,
+      user: null,
+      accessToken: null,
     }));
 
     try {

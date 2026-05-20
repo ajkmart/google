@@ -24,7 +24,7 @@ import { clearSpoofHits } from "../rider/index.js";
 import { canonicalizePhone } from "@workspace/phone-utils";
 import { isAuthMethodEnabled, isAuthMethodEnabledStrict } from "@workspace/auth-utils/server";
 import { validateBody as sharedValidateBody } from "../../middleware/validate.js";
-import { authLimiter, loginLimiter, otpLimiter } from "../../middleware/rate-limit.js";
+import { authLimiter, loginLimiter, otpLimiter, registrationLimiter } from "../../middleware/rate-limit.js";
 import { hashOtp, isValidCanonicalPhone, normalizeVehicleTypeForStorage, generateVerificationToken, hashVerificationToken, tryEncrypt, decryptPii, setRiderRefreshCookie, clearRiderRefreshCookie, setVendorRefreshCookie, clearVendorRefreshCookie, RIDER_REFRESH_COOKIE, RIDER_REFRESH_COOKIE_PATH, VENDOR_REFRESH_COOKIE, VENDOR_REFRESH_COOKIE_PATH } from "./helpers.js";
 import { rotateRefreshToken, invalidateTokenFamily } from "../../services/auth/tokenRotation.js";
 import { AuditService } from "../../services/admin-audit.service.js";
@@ -55,7 +55,7 @@ function normalizeUsername(raw: string): string {
   return String(raw).toLowerCase().replace(/[^a-z0-9_]/g, "").trim().slice(0, 20);
 }
 
-router.post("/vendor-register", loginLimiter, sharedValidateBody(VendorRegisterSchema), async (req, res) => {
+router.post("/vendor-register", registrationLimiter, loginLimiter, sharedValidateBody(VendorRegisterSchema), async (req, res) => {
   try {
   const auth = extractAuthUser(req);
   const ip = getClientIp(req);
@@ -332,6 +332,7 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
     const check = validatePasswordStrength(password);
     if (!check.ok) { sendError(res, check.message, 400); return; }
     updates.passwordHash = hashPassword(password);
+    updates.tokenVersion = sql`token_version + 1`;
   }
 
   const hasName = updates.name || user.name;
@@ -365,6 +366,15 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
   }
 
   const [updated] = await db.update(usersTable).set(updates).where(eq(usersTable.id, userId)).returning();
+
+  if (updates.passwordHash) {
+    fireAndForget(
+      revokeAllUserRefreshTokens(userId, "PASSWORD_CHANGED"),
+      "auth:revoke-tokens-on-password-change",
+      logger,
+      { userId, code: "AUTH_REVOKE_TOKENS_FAILED" },
+    );
+  }
 
   if (updates.acceptedTermsVersion) {
     try {
@@ -471,7 +481,7 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
  *       400:
  *         description: Validation error (weak password, invalid phone, etc.)
  */
-router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), async (req, res) => {
+router.post("/register", registrationLimiter, verifyCaptcha, sharedValidateBody(registerSchema), async (req, res) => {
   try {
   const { phone, password, name, role, cnic, nationalId, email, username,
           vehicleType, vehicleRegNo, drivingLicense,
@@ -587,9 +597,16 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
      that an email/username conflict cannot slip through a concurrent insert
      between this read and the write.                                          */
   let cleanUsername: string | null = null;
+  let usernameWasModified = false;
   if (username) {
     cleanUsername = username.toLowerCase().trim().replace(/[^a-z0-9_]/g, "").slice(0, 20);
-    if ((cleanUsername as string).length < 3) cleanUsername = null;
+    if ((cleanUsername as string).length < 3) {
+      cleanUsername = null;
+    } else {
+      /* Inform the user when their chosen username was automatically modified
+         (special characters stripped, truncated to 20 chars, or cased). */
+      usernameWasModified = cleanUsername !== username.toLowerCase().trim();
+    }
   }
 
   const requireApproval = (settings["user_require_approval"] ?? "off") === "on";
@@ -745,6 +762,7 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
         token: accessToken,
         refreshToken: refreshRaw,
         expiresAt: new Date(Date.now() + getAccessTokenTtlSec() * 1000).toISOString(),
+        ...(usernameWasModified ? { usernameModified: true, finalUsername: cleanUsername } : {}),
       }, undefined, 201);
     } else {
       /* Needs approval — no token yet, flag as pending */
@@ -755,6 +773,7 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
         otpRequired: false,
         otpSkipped: true,
         channel: "bypass",
+        ...(usernameWasModified ? { usernameModified: true, finalUsername: cleanUsername } : {}),
       }, undefined, 201);
     }
     return;
@@ -785,6 +804,7 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
         token: accessToken,
         refreshToken: refreshRaw,
         expiresAt: new Date(Date.now() + getAccessTokenTtlSec() * 1000).toISOString(),
+        ...(usernameWasModified ? { usernameModified: true, finalUsername: cleanUsername } : {}),
       }, undefined, 201);
     } else {
       sendSuccess(res, {
@@ -794,6 +814,7 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
         otpRequired: false,
         otpSkipped: true,
         channel: "skipped",
+        ...(usernameWasModified ? { usernameModified: true, finalUsername: cleanUsername } : {}),
       }, undefined, 201);
     }
     return;
@@ -819,6 +840,7 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
     pendingApproval: needsApproval,
     otpRequired: true,
     channel: smsResult.sent ? smsResult.provider : "console",
+    ...(usernameWasModified ? { usernameModified: true, finalUsername: cleanUsername } : {}),
   }, undefined, 201);
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
@@ -827,7 +849,7 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
 });
 
 
-router.post("/email-register", verifyCaptcha, sharedValidateBody(EmailRegisterSchema), async (req, res) => {
+router.post("/email-register", registrationLimiter, verifyCaptcha, sharedValidateBody(EmailRegisterSchema), async (req, res) => {
   try {
   const { email, password, name, role, phone, username, cnic, vehicleType, vehicleRegNo, vehicleRegistration, drivingLicense,
           address, city, emergencyContact, vehiclePlate, vehiclePhoto, documents } = req.body;

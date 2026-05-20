@@ -145,13 +145,29 @@ export default function Profile() {
     setEditing(section);
   };
 
+  function emptyToUndef(v: string): string | undefined {
+    const t = v.trim();
+    return t === "" ? undefined : t;
+  }
+
   const saveSection = async (section: EditSection) => {
     setSaving(true);
     try {
       if (section === "personal") {
-        await api.updateProfile({ name, email, cnic, city, address, businessType });
+        await api.updateProfile({
+          name: name.trim() || undefined,
+          email: emptyToUndef(email),
+          cnic: emptyToUndef(cnic),
+          city: emptyToUndef(city),
+          address: emptyToUndef(address),
+          businessType: emptyToUndef(businessType),
+        });
       } else if (section === "bank") {
-        await api.updateProfile({ bankName, bankAccount, bankAccountTitle });
+        await api.updateProfile({
+          bankName: emptyToUndef(bankName),
+          bankAccount: emptyToUndef(bankAccount),
+          bankAccountTitle: emptyToUndef(bankAccountTitle),
+        });
       }
       await refreshUser();
       setEditing(null);

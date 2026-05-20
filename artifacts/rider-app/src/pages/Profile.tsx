@@ -1,5 +1,6 @@
 import { formatCurrency as _sharedFcP } from "@workspace/api-zod";
 import { useState, useCallback, useEffect, useRef } from "react";
+import { Capacitor } from "@capacitor/core";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -397,7 +398,15 @@ export default function Profile() {
       logoutTimerRef.current = setTimeout(() => setLogoutConfirm(false), 4000);
       return;
     }
-    sessionStorage.removeItem("orderPickedUp");
+    // Explicitly clear all client storage layers before the auth-context logout
+    // so no stale credentials or session data survive on the device.
+    try { sessionStorage.clear(); } catch {}
+    try { localStorage.clear(); } catch {}
+    if (Capacitor.isNativePlatform()) {
+      import("@capacitor/preferences")
+        .then(({ Preferences }) => { Preferences.clear().catch(() => {}); })
+        .catch(() => {});
+    }
     logout();
   };
 

@@ -153,6 +153,24 @@ function RedirectTo({ to }: { to: string }) {
   return null;
 }
 
+/**
+ * Listens for `admin:force-redirect-to-login` custom events dispatched by
+ * adminFetcher when a token refresh fails. Using a custom event instead of
+ * `window.location.href` preserves the React tree and unsaved form state
+ * during the redirect.
+ */
+function GlobalAuthRedirect() {
+  const [, navigate] = useLocation();
+  useEffect(() => {
+    function handleForceRedirect() {
+      navigate("/login", { replace: true });
+    }
+    window.addEventListener("admin:force-redirect-to-login", handleForceRedirect);
+    return () => window.removeEventListener("admin:force-redirect-to-login", handleForceRedirect);
+  }, [navigate]);
+  return null;
+}
+
 function SuspenseLoadingFallback() {
   const [timedOut, setTimedOut] = useState(false);
   useEffect(() => {
@@ -544,6 +562,7 @@ function App() {
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
             <WouterRouter base={_adminEnv.baseUrl.replace(/\/$/, "")}>
+              <GlobalAuthRedirect />
               <VersionCheckInit />
               <LanguageInit />
               <IntegrationsInit />

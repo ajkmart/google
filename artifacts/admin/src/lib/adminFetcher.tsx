@@ -115,9 +115,11 @@ export function setupAdminFetcherHandlers(
 
 // ── Shared onRefreshFailed handler ──────────────────────────────────────────
 function onAdminRefreshFailed(_isTransient: boolean): void {
-  const loginUrl = `${import.meta.env.BASE_URL || '/'}login`;
   safeSessionSet('admin_session_expired', 'Your session has expired. Please log in again.');
-  window.location.href = loginUrl;
+  // Dispatch a custom event so the React router can navigate softly without
+  // a full page reload (which loses unsaved form state). The event is handled
+  // by GlobalAuthRedirect inside the WouterRouter context in App.tsx.
+  window.dispatchEvent(new CustomEvent('admin:force-redirect-to-login'));
 }
 
 // ── Factory instances ────────────────────────────────────────────────────────

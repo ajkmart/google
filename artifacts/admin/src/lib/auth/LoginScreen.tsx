@@ -36,6 +36,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const { state } = useAdminAuth();
   const { toast } = useToast();
   const prevErrorRef = useRef<string | null>(null);
+  const totpInputRef = useRef<HTMLInputElement>(null);
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -44,6 +45,12 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [tempToken, setTempToken] = useState<string | null>(null);
   const [step, setStep] = useState<"credentials" | "mfa">("credentials");
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (step !== "mfa") return;
+    const timer = setTimeout(() => totpInputRef.current?.focus(), 50);
+    return () => clearTimeout(timer);
+  }, [step]);
 
   /* ── Redirect on success ── */
   useEffect(() => {
@@ -234,9 +241,10 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
               <div>
                 <label style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Authenticator code</label>
                 <Input
+                  ref={totpInputRef}
                   type="text" inputMode="numeric" placeholder="000 000" value={totp}
                   onChange={e => setTotp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  autoComplete="off" disabled={isLoading} autoFocus maxLength={6}
+                  autoComplete="off" disabled={isLoading} maxLength={6}
                   className="h-12 rounded-xl border-white/10 bg-white/[0.06] text-center text-xl font-mono tracking-[0.4em] text-white placeholder:text-white/20 focus:border-indigo-500/60 focus:ring-indigo-500/15 focus:bg-white/[0.08] transition-all"
                 />
               </div>

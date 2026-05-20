@@ -11,7 +11,13 @@ export default function ForgotPassword() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim()) return;
+    const trimmed = email.trim();
+    if (!trimmed) return;
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(trimmed)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
