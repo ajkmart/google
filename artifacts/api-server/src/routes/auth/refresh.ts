@@ -197,6 +197,11 @@ router.post("/logout", sharedValidateBody(LogoutSchema), async (req, res) => {
       await db.update(usersTable)
         .set({ otpCode: null, tokenVersion: sql`token_version + 1` })
         .where(eq(usersTable.id, payload.userId));
+      /* Mark all active user_sessions rows as revoked so session-list queries
+         reflect the logout immediately (avoids "ghost" sessions in the UI). */
+      await db.update(userSessionsTable)
+        .set({ revokedAt: new Date() })
+        .where(and(eq(userSessionsTable.userId, payload.userId), sql`revoked_at IS NULL`));
       /* Clear GPS spoof hit counter so next login starts with a clean session */
       clearSpoofHits(payload.userId);
       AuditService.log({ action: "user_logout", ip, details: `User logout: ${payload.userId}`, result: "success" });

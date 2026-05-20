@@ -298,8 +298,10 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
   if (cnic && cnic.trim()) {
     const cnicClean = cnic.trim();
     if (CNIC_REGEX.test(cnicClean)) {
-      updates.cnic = cnicClean;
-      updates.nationalId = cnicClean;
+      /* Encrypt CNIC when key is available; fall back to plaintext. */
+      const encryptedCnic = tryEncrypt(cnicClean) ?? cnicClean;
+      updates.cnic = encryptedCnic;
+      updates.nationalId = encryptedCnic;
     }
   }
 
@@ -690,8 +692,10 @@ router.post("/register", registrationLimiter, verifyCaptcha, sharedValidateBody(
       isActive: !needsApproval,
       approvalStatus: needsApproval ? "pending" : "approved",
       ajkId,
-      cnic: cnicValue || null,
-      nationalId: cnicValue || null,
+      /* Store CNIC encrypted when ENCRYPTION_MASTER_KEY is available; fall back
+         to plaintext so the field is never silently lost on unencrypted setups. */
+      cnic: cnicValue ? (tryEncrypt(cnicValue) ?? cnicValue) : null,
+      nationalId: cnicValue ? (tryEncrypt(cnicValue) ?? cnicValue) : null,
       address: address || null,
       city: city || null,
       emergencyContact: emergencyContact || null,
@@ -932,7 +936,7 @@ router.post("/email-register", registrationLimiter, verifyCaptcha, sharedValidat
     emailVerified: false,
     emailOtpCode: tokenHash,
     emailOtpExpiry: verificationExpiry,
-    ...(cnic ? { cnic: cnic.trim() } : {}),
+    ...(cnic ? { cnic: tryEncrypt(cnic.trim()) ?? cnic.trim() } : {}),
     ...(address ? { address: address.trim() } : {}),
     ...(city ? { city: city.trim() } : {}),
     ...(emergencyContact ? { emergencyContact: emergencyContact.trim() } : {}),

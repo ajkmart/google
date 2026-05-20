@@ -145,9 +145,11 @@ export default function Profile() {
     setEditing(section);
   };
 
-  function emptyToUndef(v: string): string | undefined {
+  /** Convert an empty or whitespace-only string to `null` so optional backend
+   *  fields are explicitly cleared rather than validated as empty strings. */
+  function nullIfEmpty(v: string): string | null {
     const t = v.trim();
-    return t === "" ? undefined : t;
+    return t === "" ? null : t;
   }
 
   const saveSection = async (section: EditSection) => {
@@ -156,17 +158,17 @@ export default function Profile() {
       if (section === "personal") {
         await api.updateProfile({
           name: name.trim() || undefined,
-          email: emptyToUndef(email),
-          cnic: emptyToUndef(cnic),
-          city: emptyToUndef(city),
-          address: emptyToUndef(address),
-          businessType: emptyToUndef(businessType),
+          email: nullIfEmpty(email),
+          cnic: nullIfEmpty(cnic),
+          city: nullIfEmpty(city),
+          address: nullIfEmpty(address),
+          businessType: nullIfEmpty(businessType),
         });
       } else if (section === "bank") {
         await api.updateProfile({
-          bankName: emptyToUndef(bankName),
-          bankAccount: emptyToUndef(bankAccount),
-          bankAccountTitle: emptyToUndef(bankAccountTitle),
+          bankName: nullIfEmpty(bankName),
+          bankAccount: nullIfEmpty(bankAccount),
+          bankAccountTitle: nullIfEmpty(bankAccountTitle),
         });
       }
       await refreshUser();
