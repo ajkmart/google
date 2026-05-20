@@ -18,6 +18,7 @@
  *   [ ] GET /api/users/profile?appRole=rider returns 403 for non-rider tokens (server-side gate)
  */
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
+import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AuthProvider as SharedAuthProvider,
@@ -107,6 +108,7 @@ export function RiderAuthProvider({ children }: { children: ReactNode }) {
 function RiderAuthInner({ children }: { children: ReactNode }) {
   const sharedAuth = useAuthContext();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
 
   const [user, setUser]   = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -127,7 +129,8 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
     setToken(null); setUser(null);
     sharedAuth.logout();
     setSessionExpired(true);
-  }, [sharedAuth]);
+    navigate("/login");
+  }, [sharedAuth, navigate]);
 
   useTokenRefresh({
     tokenStorage: getRiderTokenStorage(),
@@ -187,7 +190,11 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
   }, [sharedAuth]);
 
   useEffect(() => {
-    const clearAuth = () => { setToken(null); setUser(null); sharedAuth.logout(); };
+    const clearAuth = () => {
+      setToken(null); setUser(null);
+      sharedAuth.logout();
+      navigate("/login");
+    };
     const unregister = api.registerLogoutCallback(clearAuth);
     const handleLogoutEvent = () => clearAuth();
     window.addEventListener("ajkmart:logout", handleLogoutEvent);
@@ -221,6 +228,7 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
       setToken(null);
       setUser(null);
       queryClient.clear();
+      navigate("/login");
     });
   };
 
