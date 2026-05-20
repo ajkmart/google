@@ -229,11 +229,8 @@ export function RegisterScreen({
   const totalVisibleSteps = steps.filter((s) => !isOtpStep(s)).length + 1;
 
   function updateField(key: string, value: unknown) {
-    setFormData((prev) => {
-      const next = { ...prev, [key]: value };
-      onDataChange?.(key, value);
-      return next;
-    });
+    setFormData((prev) => ({ ...prev, [key]: value }));
+    onDataChange?.(key, value);
     setError('');
   }
 

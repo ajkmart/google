@@ -490,7 +490,7 @@ export const api = {
       const form = new FormData();
       form.append("file", file, file.name || "document.jpg");
       const xhr = new XMLHttpRequest();
-      xhr.open("POST", `${BASE}/api/uploads/register`, true);
+      xhr.open("POST", `${BASE}/uploads/register`, true);
       xhr.withCredentials = true;
       if (accessToken) xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
       if (csrfToken)   xhr.setRequestHeader("X-CSRF-Token", csrfToken);
