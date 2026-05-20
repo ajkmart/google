@@ -30,10 +30,8 @@ import {
   AuthProvider as SharedAuthProvider,
   useAuthContext,
   useTokenRefresh,
-  getTokenExpiryRemaining,
   type AuthUser as SharedAuthUser,
 } from "@workspace/auth-react";
-import { decodeJwt } from "@workspace/auth-utils";
 import { api, getTokenStorage } from "./api";
 import { getVendorApiBase } from "./envValidation";
 import { createLogger } from "@/lib/logger";
@@ -155,7 +153,12 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
         setUser(u);
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") return;
-        api.clearTokens(); setToken(null); setUser(null); sharedAuth.logout();
+        const status = (err as Record<string, unknown>)?.status as number | undefined;
+        if (status === 401 || status === 403) {
+          api.clearTokens(); setToken(null); setUser(null); sharedAuth.logout();
+        } else {
+          setToken(null); setUser(null);
+        }
       } finally { setLoading(false); }
     };
 
@@ -231,19 +234,3 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
   );
 }
 
-/**
- * Decode the `exp` claim from a JWT for expiry checks.
- *
- * Delegates to the shared `decodeJwt` utility from `@workspace/auth-react`
- * (which handles UTF-8-safe base64url decoding) so there is a single canonical
- * JWT-decode implementation across all web apps and the shared SDK.
- *
- * Previously implemented inline with atob() + decodeURIComponent(escape(...)).
- * That implementation has been replaced to eliminate the duplicate.
- */
-export function decodeJwtExpSafe(token: string): number | null {
-  try {
-    const payload = decodeJwt(token);
-    return typeof payload?.exp === "number" ? payload.exp : null;
-  } catch { return null; }
-}

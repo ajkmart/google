@@ -33,8 +33,8 @@ import { CNIC_REGEX, PHONE_REGEX, isValidCnic, isValidPhone } from "@workspace/p
 export { CNIC_REGEX, PHONE_REGEX, isValidCnic, isValidPhone };
 
 export function hashOtp(otp: string, key?: string): string {
-  const secret = key ?? process.env["JWT_SECRET"];
-  if (!secret) throw new Error("[FATAL] JWT_SECRET is not set — cannot hash OTP");
+  const secret = key ?? process.env["OTP_HMAC_SECRET"] ?? process.env["JWT_SECRET"];
+  if (!secret) throw new Error("[FATAL] OTP_HMAC_SECRET (or JWT_SECRET) is not set — cannot hash OTP");
   return createHmac("sha256", secret).update(otp).digest("hex");
 }
 
@@ -73,7 +73,7 @@ export function setRiderRefreshCookie(req: Request, res: Response, refreshRaw: s
   if (!isRiderSession(req, user)) return;
   res.cookie(RIDER_REFRESH_COOKIE, refreshRaw, {
     httpOnly: true,
-    sameSite: "strict",
+    sameSite: "lax",
     secure: shouldUseSecureCookie(),
     path: RIDER_REFRESH_COOKIE_PATH,
     maxAge: getRefreshTokenTtlDays() * 24 * 60 * 60 * 1000,
@@ -83,7 +83,7 @@ export function setRiderRefreshCookie(req: Request, res: Response, refreshRaw: s
 export function clearRiderRefreshCookie(res: Response): void {
   res.clearCookie(RIDER_REFRESH_COOKIE, {
     httpOnly: true,
-    sameSite: "strict",
+    sameSite: "lax",
     secure: shouldUseSecureCookie(),
     path: RIDER_REFRESH_COOKIE_PATH,
   });
@@ -99,7 +99,7 @@ export function setVendorRefreshCookie(req: Request, res: Response, refreshRaw: 
   if (!isVendorSession(req, user)) return;
   res.cookie(VENDOR_REFRESH_COOKIE, refreshRaw, {
     httpOnly: true,
-    sameSite: "strict",
+    sameSite: "lax",
     secure: shouldUseSecureCookie(),
     path: VENDOR_REFRESH_COOKIE_PATH,
     maxAge: getRefreshTokenTtlDays() * 24 * 60 * 60 * 1000,
@@ -109,7 +109,7 @@ export function setVendorRefreshCookie(req: Request, res: Response, refreshRaw: 
 export function clearVendorRefreshCookie(res: Response): void {
   res.clearCookie(VENDOR_REFRESH_COOKIE, {
     httpOnly: true,
-    sameSite: "strict",
+    sameSite: "lax",
     secure: shouldUseSecureCookie(),
     path: VENDOR_REFRESH_COOKIE_PATH,
   });

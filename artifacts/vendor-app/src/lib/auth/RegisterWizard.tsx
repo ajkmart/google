@@ -28,11 +28,6 @@ const DRAFT_KEY = "vendor_reg_draft";
 
 const STORE_CATS = ["Grocery","Restaurant","Bakery","Pharmacy","Electronics","Clothing","General Store","Fast Food","Fruits & Vegetables","Dairy","Meat & Poultry","Other"];
 
-/* ── Validate Pakistani phone — delegates to shared phone-utils (single source of truth) ── */
-function isValidPakistaniPhone(phone: string): boolean {
-  return isValidPhone(phone);
-}
-
 /* ── Step 1: Store Info ──────────────────────────────────────────────── */
 function StoreInfoStep({ data, onChange, onError }: StepComponentProps) {
   const { language } = useLanguage();
@@ -98,7 +93,7 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
           onChange={e => { onChange("cnic", formatCnic(e.target.value)); onError(""); }}
           placeholder="XXXXX-XXXXXXX-X" maxLength={15} inputMode="numeric" />
         {(data.cnic as string)?.length > 0 && !isValidCnic((data.cnic as string) ?? "") && (
-          <p className="text-gray-400 text-xs mt-1">Format: XXXXX-XXXXXXX-X</p>
+          <p className="text-gray-500 text-xs mt-1">Format: XXXXX-XXXXXXX-X</p>
         )}
       </div>
       <div>
@@ -106,7 +101,7 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
         <input className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
           value={(data.phone as string) ?? ""}
           onChange={e => { onChange("phone", e.target.value); onError(""); }}
-          placeholder="03XXXXXXXXX or +92XXXXXXXXXX" inputMode="tel" maxLength={13} />
+          placeholder="03XXXXXXXXX or +92XXXXXXXXXX" inputMode="tel" maxLength={15} />
       </div>
       <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
         <p className="text-gray-400 text-sm">{T("documentUploadComingSoon")}</p>
@@ -300,7 +295,7 @@ const STEPS: StepConfig[] = [
       if (!isValidCnic(cnic)) return "CNIC must be in format XXXXX-XXXXXXX-X";
       const phone = String(data.phone ?? "").trim();
       if (!phone) return "Phone number is required";
-      if (!isValidPakistaniPhone(phone)) return "Enter a valid Pakistani mobile number (03XXXXXXXXX)";
+      if (!isValidPhone(phone)) return "Enter a valid Pakistani mobile number (03XXXXXXXXX)";
       return null;
     },
   },
@@ -337,22 +332,27 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
     try { const raw = localStorage.getItem(DRAFT_KEY); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
   });
 
-  /* ── Save draft, excluding password and OTP fields ── */
+  /* ── Save draft using an explicit allowlist — credentials never reach localStorage ── */
   const handleDataChange = useCallback((key: string, value: unknown) => {
     setDraft(prev => {
       const next = { ...prev, [key]: value };
-      const { password: _pw, confirmPassword: _cpw, otp: _otp, ...safe } = next as Record<string, unknown>;
+      const SAFE_FIELDS = new Set(["storeName", "storeCategory", "ownerName", "city", "cnic", "phone", "bankName", "bankAccount", "bankAccountTitle"]);
+      const safe = Object.fromEntries(Object.entries(next).filter(([k]) => SAFE_FIELDS.has(k)));
       localStorage.setItem(DRAFT_KEY, JSON.stringify(safe));
       return next;
     });
   }, []);
 
-  const handleOtpRequest = async (phone: string) => {
+  const handleOtpRequest = async (phone: string): Promise<{ success: boolean; error?: string }> => {
     const result = await sendOtp(phone);
-    return result.success;
+    return { success: result.success, error: result.error };
   };
 
+  const isSubmittingRef = useRef(false);
+
   const handleSubmit = async (data: Record<string, unknown>) => {
+    if (isSubmittingRef.current) return { success: false, error: "Submission already in progress" };
+    isSubmittingRef.current = true;
     try {
       const res = await api.vendorRegister({
         phone: data.phone as string,
@@ -371,6 +371,8 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
       return { success: true, data: res };
     } catch (err: unknown) {
       return { success: false, error: err instanceof Error ? err.message : T("registrationFailed") };
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 

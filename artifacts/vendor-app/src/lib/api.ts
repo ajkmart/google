@@ -159,7 +159,10 @@ async function authPost(path: string, body?: unknown): Promise<unknown> {
 
 function clearTokens() {
   _tokenStorage.clear();
-  try { localStorage.removeItem(REFRESH_KEY); } catch (err) { console.warn('[artifacts/vendor-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_KEY);
+  } catch (err) { console.warn('[artifacts/vendor-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
 }
 
 /* ── Module-level logout callback ─────────────────────────────────────────────

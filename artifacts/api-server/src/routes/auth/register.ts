@@ -90,6 +90,18 @@ router.post("/vendor-register", loginLimiter, sharedValidateBody(VendorRegisterS
     }
   }
 
+  if (storeName) {
+    const [existingStore] = await db
+      .select({ userId: vendorProfilesTable.userId })
+      .from(vendorProfilesTable)
+      .where(sql`lower(${vendorProfilesTable.storeName}) = lower(${String(storeName).trim()})`)
+      .limit(1);
+    if (existingStore && existingStore.userId !== auth.userId) {
+      sendError(res, "A store with this name already exists. Please choose a different store name.", 409);
+      return;
+    }
+  }
+
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, auth.userId)).limit(1);
   if (!user) {
     sendNotFound(res, "User not found.");
@@ -144,7 +156,7 @@ router.post("/vendor-register", loginLimiter, sharedValidateBody(VendorRegisterS
       bankAccount: bankAccount || user.bankAccount || null,
       bankAccountTitle: bankAccountTitle || user.bankAccountTitle || null,
       approvalStatus: autoApprove ? "approved" : "pending",
-      isActive: autoApprove ? true : false,
+      isActive: true,
       ...(acceptedTermsVersion ? { acceptedTermsVersion: String(acceptedTermsVersion) } : {}),
       updatedAt: new Date(),
     }).where(eq(usersTable.id, user.id));
@@ -161,7 +173,6 @@ router.post("/vendor-register", loginLimiter, sharedValidateBody(VendorRegisterS
 
   if (acceptedTermsVersion) {
     try {
-      const ip = getClientIp(req);
       await db.execute(sql`
         INSERT INTO consent_log (id, user_id, consent_type, consent_version, ip_address, created_at)
         VALUES (${generateId()}, ${user.id}, 'terms_acceptance', ${String(acceptedTermsVersion)}, ${ip}, NOW())

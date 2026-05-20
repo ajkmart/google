@@ -49,9 +49,10 @@ export interface RegisterScreenProps {
   onDataChange?: (key: string, value: unknown) => void;
   /**
    * Custom OTP sender. Called when advancing to an OTP step.
-   * Return true if OTP was sent successfully.
+   * Return true (or { success: true }) if sent successfully.
+   * Return false or { success: false, error } to show an error message.
    */
-  onOtpRequest?: (phone: string) => Promise<boolean>;
+  onOtpRequest?: (phone: string) => Promise<boolean | { success: boolean; error?: string }>;
   /** Pre-populate form data (e.g. restored draft). */
   initialData?: Record<string, unknown>;
   baseURL?: string;
@@ -384,7 +385,12 @@ export function RegisterScreen({
       if (phone) {
         setLoading(true);
         try {
-          await onOtpRequest(phone);
+          const otpResult = await onOtpRequest(phone);
+          if (typeof otpResult === 'object' && !otpResult.success) {
+            setError(otpResult.error ?? 'Failed to send OTP');
+            setLoading(false);
+            return;
+          }
         } catch (e) {
           setError(e instanceof Error ? e.message : 'Failed to send OTP');
           setLoading(false);

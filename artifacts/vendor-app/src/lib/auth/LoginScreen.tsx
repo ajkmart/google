@@ -44,6 +44,8 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const capturedTokenRef = useRef("");
+  const capturedProfileRef = useRef<SDKAuthUser | null>(null);
+  const [isBiometricLoading, setIsBiometricLoading] = useState(false);
 
   /* ── check biometric enrollment ── */
   useEffect(() => {
@@ -85,6 +87,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
         setIsProcessing(false);
         return;
       }
+      capturedProfileRef.current = profile as SDKAuthUser;
       login(token, profile, res.refreshToken);
       onSuccess?.(token, profile);
       navigate("/");
@@ -102,43 +105,39 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       navigate("/");
       return;
     }
-    if (enable) {
-      const { setBiometricEnabled } = await import("../biometric").catch(() => ({} as never));
-      if (setBiometricEnabled) await setBiometricEnabled(true);
-    }
+    setIsBiometricLoading(true);
     try {
-      const profile = await api.getMe();
+      if (enable) {
+        const { setBiometricEnabled } = await import("../biometric").catch(() => ({} as never));
+        if (setBiometricEnabled) await setBiometricEnabled(true);
+      }
+      const profile = capturedProfileRef.current;
+      if (!profile) { setOverlay(null); navigate("/"); return; }
       login(capturedTokenRef.current, profile, api.getRefreshToken() || undefined);
       setOverlay(null);
       navigate("/");
-    } catch (e: unknown) {
-      api.clearTokens();
-      setOverlay(null);
-      setLoginError(e instanceof Error ? e.message : "Failed to load profile. Please log in again.");
+    } finally {
+      setIsBiometricLoading(false);
     }
   };
 
-  /* Extract social auth config once — avoids calling getVendorAuthConfig(config)
-     separately in every social handler (Step 15 deduplication). */
-  const getSocialAuthConfig = useCallback(() => getVendorAuthConfig(config), [config]);
-
   const handleGoogle = useCallback(async () => {
-    const cfg = getSocialAuthConfig();
+    const cfg = getVendorAuthConfig(config);
     if (!cfg.googleClientId) { setLoginError(T("socialLoginComingSoon")); return; }
     try {
       const idToken = await loadGoogleGSIToken(cfg.googleClientId);
       await doLogin(await api.socialGoogle({ idToken }) as never);
     } catch (e: unknown) { setLoginError(e instanceof Error ? e.message : "Google sign-in failed"); }
-  }, [getSocialAuthConfig, doLogin, T]);
+  }, [config, doLogin, T]);
 
   const handleFacebook = useCallback(async () => {
-    const cfg = getSocialAuthConfig();
+    const cfg = getVendorAuthConfig(config);
     if (!cfg.facebookAppId) { setLoginError(T("socialLoginComingSoon")); return; }
     try {
       const accessToken = await loadFacebookAccessToken(cfg.facebookAppId);
       await doLogin(await api.socialFacebook({ accessToken }) as never);
     } catch (e: unknown) { setLoginError(e instanceof Error ? e.message : "Facebook sign-in failed"); }
-  }, [getSocialAuthConfig, doLogin, T]);
+  }, [config, doLogin, T]);
 
   const handleMagicLink = useCallback(async (identifier: string) => {
     try {
@@ -152,13 +151,13 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   if (maintenance) return <MaintenanceOverlay message={maintenanceMsg} supportPhone={supportPhone} supportEmail={supportEmail} />;
   if (overlay === "pending") return <PendingOverlay onBack={() => setOverlay(null)} />;
   if (overlay === "rejected") return <RejectedOverlay reason={rejectionReason} onBack={() => { setOverlay(null); setRejectionReason(null); }} />;
-  if (overlay === "biometric") return <BiometricPromptOverlay onAccept={() => void confirmBiometric(true)} onDecline={() => void confirmBiometric(false)} />;
+  if (overlay === "biometric") return <BiometricPromptOverlay onAccept={() => void confirmBiometric(true)} onDecline={() => void confirmBiometric(false)} loading={isBiometricLoading} />;
 
   /* ── Main login ── */
   return (
     <div style={{ background: theme.background, minHeight: "100vh", display: "flex", pointerEvents: isProcessing ? "none" : "auto", opacity: isProcessing ? 0.7 : 1 }}>
       {loginError && (
-        <div style={{
+        <div role="alert" aria-live="assertive" style={{
           position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", zIndex: 50,
           background: theme.rejectedOverlay, border: `1px solid rgba(239,68,68,0.3)`, borderRadius: 12,
           padding: "10px 16px", color: theme.error ?? "#dc2626", fontSize: 13, fontWeight: 500,
@@ -218,7 +217,7 @@ function PendingOverlay({ onBack }: { onBack?: () => void }) {
   const theme = useTheme();
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: `linear-gradient(135deg, ${theme.background} 0%, ${theme.primaryLight} 100%)`, padding: 16 }}>
-      <div style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 20, padding: "32px 28px", boxShadow: `0 4px 32px ${theme.border}80`, width: "100%", maxWidth: 400, textAlign: "center" }}>
+      <div onKeyDown={(e) => { if (e.key === "Tab") e.preventDefault(); }} style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 20, padding: "32px 28px", boxShadow: `0 4px 32px ${theme.border}80`, width: "100%", maxWidth: 400, textAlign: "center" }}>
         <div style={{ width: 72, height: 72, borderRadius: 18, border: `2px solid ${theme.primary}50`, background: `${theme.primary}15`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={theme.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
         </div>
@@ -234,7 +233,7 @@ function RejectedOverlay({ reason, onBack }: { reason?: string | null; onBack?: 
   const theme = useTheme();
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: `linear-gradient(135deg, ${theme.background} 0%, ${theme.primaryLight} 100%)`, padding: 16 }}>
-      <div style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 20, padding: "32px 28px", boxShadow: `0 4px 32px ${theme.border}80`, width: "100%", maxWidth: 400, textAlign: "center" }}>
+      <div onKeyDown={(e) => { if (e.key === "Tab") e.preventDefault(); }} style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 20, padding: "32px 28px", boxShadow: `0 4px 32px ${theme.border}80`, width: "100%", maxWidth: 400, textAlign: "center" }}>
         <div style={{ width: 72, height: 72, borderRadius: 18, border: "2px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.10)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={theme.error ?? "#ef4444"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
         </div>
