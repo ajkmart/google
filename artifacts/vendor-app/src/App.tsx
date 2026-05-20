@@ -50,7 +50,7 @@ const queryClient = new QueryClient({
 const MAINTENANCE_GRACE_MS = 5 * 60 * 1000; /* 5-minute grace period */
 
 function AppRoutes() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, logout, storageError, sessionExpired, clearSessionExpired } = useAuth();
   const { config } = usePlatformConfig();
   useLanguage(); /* initialises RTL + language from API on mount */
 
@@ -261,6 +261,7 @@ function AppRoutes() {
   }, [config.platform.appStatus]);
 
   if (!loading && !user) {
+    if (sessionExpired) return <SessionExpiredOverlay onLogin={() => { clearSessionExpired(); }} />;
     if (location === "/register") return <Register />;
     if (location === "/login") return <Login />;
     if (location === "/forgot-password") return <ForgotPassword />;
@@ -268,14 +269,33 @@ function AppRoutes() {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-2xl">
-          <span className="text-4xl">🏪</span>
+    <div style={{ minHeight: "100vh", background: "#0F1117", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ width: 80, height: 80, borderRadius: 24, background: "linear-gradient(135deg, #F97316, #EA580C)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", boxShadow: "0 8px 32px rgba(249,115,22,0.4)" }}>
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
         </div>
-        <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-white mt-4 font-semibold text-lg">Loading Vendor Portal...</p>
-        <p className="text-orange-100 text-sm mt-1">{config.platform.appName} Business Partner</p>
+        <div style={{ width: 32, height: 32, border: "3px solid #F97316", borderTopColor: "transparent", borderRadius: "50%", margin: "0 auto 16px", animation: "spin 0.8s linear infinite" }} />
+        <p style={{ color: "#E2E8F0", fontWeight: 700, fontSize: 17, margin: "0 0 4px" }}>Loading Vendor Portal…</p>
+        <p style={{ color: "#6B7280", fontSize: 13, margin: 0 }}>{config.platform.appName} Business Partner</p>
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+
+  if (storageError) return (
+    <div style={{ minHeight: "100vh", background: "#0F1117", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ background: "#161B22", border: "1px solid #252D3A", borderRadius: 20, padding: "28px 24px", maxWidth: 380, width: "100%", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+        <div style={{ width: 64, height: 64, borderRadius: 16, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <h2 style={{ color: "#E2E8F0", fontSize: 20, fontWeight: 700, margin: "0 0 8px" }}>Storage Error</h2>
+        <p style={{ color: "#6B7280", fontSize: 14, lineHeight: 1.6, margin: "0 0 20px" }}>Could not access browser storage. Please enable cookies and local storage for this site.</p>
+        <button onClick={() => window.location.reload()} style={{ width: "100%", height: 48, borderRadius: 12, border: "none", background: "linear-gradient(135deg, #F97316, #EA580C)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+          Reload
+        </button>
       </div>
     </div>
   );
@@ -287,18 +307,20 @@ function AppRoutes() {
     || (config.content as Record<string, unknown>)?.supportPhone as string | undefined;
 
   if (user.approvalStatus === "pending") return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-100 flex items-center justify-center p-6">
-      <div className="bg-white rounded-3xl shadow-xl p-8 max-w-sm w-full text-center">
-        <div className="text-5xl mb-4">⏳</div>
-        <h2 className="text-xl font-bold text-gray-800 mb-2">Application Pending</h2>
-        <p className="text-gray-500 text-sm leading-relaxed mb-6">Your vendor account is pending admin approval. You will be notified once your account is approved.</p>
+    <div style={{ minHeight: "100vh", background: "#0F1117", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: "#161B22", border: "1px solid #252D3A", borderRadius: 22, padding: "32px 24px", maxWidth: 380, width: "100%", textAlign: "center", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}>
+        <div style={{ width: 68, height: 68, borderRadius: 18, background: "rgba(249,115,22,0.12)", border: "1px solid rgba(249,115,22,0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <h2 style={{ color: "#E2E8F0", fontSize: 20, fontWeight: 800, margin: "0 0 8px" }}>Application Pending</h2>
+        <p style={{ color: "#6B7280", fontSize: 14, lineHeight: 1.6, margin: "0 0 22px" }}>Your vendor account is pending admin approval. You will be notified once your account is approved.</p>
         {supportPhone && (
-          <a href={`tel:${supportPhone}`} className="block w-full py-3 mb-2 rounded-2xl bg-orange-600 text-white font-semibold text-sm hover:bg-orange-700 transition-colors">
+          <a href={`tel:${supportPhone}`} style={{ display: "block", width: "100%", padding: "12px 0", marginBottom: 10, borderRadius: 12, background: "linear-gradient(135deg, #F97316, #EA580C)", color: "#fff", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
             Contact Support
           </a>
         )}
         <button onClick={() => { try { logout(); } finally { window.location.reload(); } }}
-          className="w-full py-3 rounded-2xl bg-gray-100 text-gray-700 font-semibold text-sm hover:bg-gray-200 transition-colors">
+          style={{ width: "100%", padding: "11px 0", borderRadius: 12, border: "1px solid #252D3A", background: "#0F1117", color: "#6B7280", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
           Sign Out
         </button>
       </div>
@@ -306,19 +328,21 @@ function AppRoutes() {
   );
 
   if (user.approvalStatus === "rejected") return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 to-rose-100 flex items-center justify-center p-6">
-      <div className="bg-white rounded-3xl shadow-xl p-8 max-w-sm w-full text-center">
-        <div className="text-5xl mb-4">❌</div>
-        <h2 className="text-xl font-bold text-gray-800 mb-2">Application Rejected</h2>
-        <p className="text-gray-500 text-sm leading-relaxed mb-2">Your vendor account application was not approved.</p>
-        {user.rejectionReason && <p className="text-red-600 text-sm font-medium mb-6">Reason: {user.rejectionReason}</p>}
+    <div style={{ minHeight: "100vh", background: "#0F1117", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: "#161B22", border: "1px solid #252D3A", borderRadius: 22, padding: "32px 24px", maxWidth: 380, width: "100%", textAlign: "center", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}>
+        <div style={{ width: 68, height: 68, borderRadius: 18, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        </div>
+        <h2 style={{ color: "#E2E8F0", fontSize: 20, fontWeight: 800, margin: "0 0 8px" }}>Application Rejected</h2>
+        <p style={{ color: "#6B7280", fontSize: 14, lineHeight: 1.6, margin: "0 0 8px" }}>Your vendor account application was not approved.</p>
+        {user.rejectionReason && <p style={{ color: "#fca5a5", fontSize: 13, fontWeight: 600, margin: "0 0 20px" }}>Reason: {user.rejectionReason}</p>}
         {supportPhone && (
-          <a href={`tel:${supportPhone}`} className="block w-full py-3 mb-2 rounded-2xl bg-orange-600 text-white font-semibold text-sm hover:bg-orange-700 transition-colors">
+          <a href={`tel:${supportPhone}`} style={{ display: "block", width: "100%", padding: "12px 0", marginBottom: 10, borderRadius: 12, background: "linear-gradient(135deg, #F97316, #EA580C)", color: "#fff", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
             Contact Support
           </a>
         )}
         <button onClick={() => { try { logout(); } finally { window.location.reload(); } }}
-          className="w-full py-3 rounded-2xl bg-gray-100 text-gray-700 font-semibold text-sm hover:bg-gray-200 transition-colors">
+          style={{ width: "100%", padding: "11px 0", borderRadius: 12, border: "1px solid #252D3A", background: "#0F1117", color: "#6B7280", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
           Sign Out
         </button>
       </div>
@@ -422,6 +446,28 @@ function AppRoutes() {
           {/* Mobile Bottom Nav */}
           <BottomNav />
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Session Expired Overlay ── */
+function SessionExpiredOverlay({ onLogin }: { onLogin: () => void }) {
+  return (
+    <div style={{ minHeight: "100vh", background: "#0F1117", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ background: "#161B22", border: "1px solid #252D3A", borderRadius: 20, padding: "32px 24px", maxWidth: 380, width: "100%", textAlign: "center", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}>
+        <div style={{ width: 68, height: 68, borderRadius: 18, background: "rgba(249,115,22,0.12)", border: "1px solid rgba(249,115,22,0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+        <h2 style={{ color: "#E2E8F0", fontSize: 20, fontWeight: 800, margin: "0 0 8px" }}>Session Expired</h2>
+        <p style={{ color: "#6B7280", fontSize: 14, lineHeight: 1.6, margin: "0 0 24px" }}>Your session has expired for security reasons. Please sign in again to continue.</p>
+        <a href="/login" onClick={onLogin}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: 48, borderRadius: 12, background: "linear-gradient(135deg, #F97316, #EA580C)", color: "#fff", fontWeight: 700, fontSize: 15, textDecoration: "none", boxSizing: "border-box" }}>
+          Sign In Again
+        </a>
       </div>
     </div>
   );

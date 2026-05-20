@@ -5,7 +5,7 @@
  *   Store Info → Documents → Bank/Wallet → OTP + Password → Done
  *
  * Wraps @workspace/auth-react RegisterScreen with vendor-specific
- * step configuration, API wiring, and theme tokens.
+ * step configuration, API wiring, and dark orange theme tokens.
  *
  * Passwords are excluded from the draft to avoid plain-text storage.
  */
@@ -30,39 +30,67 @@ const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
 
 const STORE_CATS = ["Grocery","Restaurant","Bakery","Pharmacy","Electronics","Clothing","General Store","Fast Food","Fruits & Vegetables","Dairy","Meat & Poultry","Other"];
 
+/* ── Inline styles for dark-theme inputs ── */
+function darkInput(extra?: React.CSSProperties): React.CSSProperties {
+  return {
+    width: "100%", height: 48, padding: "0 14px", borderRadius: 12,
+    background: "#0F1117", border: "1.5px solid #252D3A",
+    color: "#E2E8F0", fontSize: 14, outline: "none",
+    boxSizing: "border-box", transition: "border-color 0.15s",
+    ...extra,
+  };
+}
+
+function darkSelect(): React.CSSProperties {
+  return {
+    ...darkInput(),
+    appearance: "none", WebkitAppearance: "none",
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "right 12px center",
+    paddingRight: 36,
+  };
+}
+
+function labelStyle(primary: string): React.CSSProperties {
+  return {
+    display: "block", fontSize: 10, fontWeight: 700,
+    letterSpacing: "0.08em", textTransform: "uppercase",
+    color: primary, marginBottom: 6,
+  };
+}
+
 /* ── Step 1: Store Info ──────────────────────────────────────────────── */
 function StoreInfoStep({ data, onChange, onError }: StepComponentProps) {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const theme = useTheme();
+  const pr = theme.primary;
 
   return (
-    <div className="space-y-4">
-      <h3 className="font-extrabold text-lg mb-1" style={{ color: theme.text }}>{T("storeDetails")}</h3>
-      <p className="text-sm mb-4" style={{ color: theme.textMuted }}>{T("tellUsAboutYourBusiness")}</p>
-
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
-        <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("storeName")} *</label>
-        <input className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
-          value={(data.storeName as string) ?? ""} onChange={e => { onChange("storeName", e.target.value); onError(""); }} placeholder="Ali's Grocery" />
+        <p style={{ color: "#E2E8F0", fontWeight: 800, fontSize: 17, margin: "0 0 2px" }}>{T("storeDetails")}</p>
+        <p style={{ color: "#6B7280", fontSize: 13, margin: "0 0 12px" }}>{T("tellUsAboutYourBusiness")}</p>
       </div>
       <div>
-        <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("category")} *</label>
-        <select className="w-full h-12 px-3 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all appearance-none"
-          value={(data.storeCategory as string) ?? ""} onChange={e => { onChange("storeCategory", e.target.value); onError(""); }}>
+        <label style={labelStyle(pr)}>{T("storeName")} *</label>
+        <input style={darkInput()} value={(data.storeName as string) ?? ""} onChange={e => { onChange("storeName", e.target.value); onError(""); }} placeholder="Ali's Grocery" />
+      </div>
+      <div>
+        <label style={labelStyle(pr)}>{T("category")} *</label>
+        <select style={darkSelect()} value={(data.storeCategory as string) ?? ""} onChange={e => { onChange("storeCategory", e.target.value); onError(""); }}>
           <option value="">{T("selectCategory")}</option>
           {STORE_CATS.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
       <div>
-        <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("ownerName")} *</label>
-        <input className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
-          value={(data.ownerName as string) ?? ""} onChange={e => { onChange("ownerName", e.target.value); onError(""); }} placeholder="Full name" />
+        <label style={labelStyle(pr)}>{T("ownerName")} *</label>
+        <input style={darkInput()} value={(data.ownerName as string) ?? ""} onChange={e => { onChange("ownerName", e.target.value); onError(""); }} placeholder="Full name" />
       </div>
       <div>
-        <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("city")} *</label>
-        <select className="w-full h-12 px-3 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all appearance-none"
-          value={(data.city as string) ?? ""} onChange={e => { onChange("city", e.target.value); onError(""); }}>
+        <label style={labelStyle(pr)}>{T("city")} *</label>
+        <select style={darkSelect()} value={(data.city as string) ?? ""} onChange={e => { onChange("city", e.target.value); onError(""); }}>
           <option value="">{T("selectCity")}</option>
           {PAKISTAN_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
@@ -75,6 +103,8 @@ function StoreInfoStep({ data, onChange, onError }: StepComponentProps) {
 function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
+  const theme = useTheme();
+  const pr = theme.primary;
 
   const formatCnic = (val: string) => {
     const digits = val.replace(/\D/g, "").slice(0, 13);
@@ -84,31 +114,30 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
   };
 
   return (
-    <div className="space-y-4">
-      <h3 className="font-extrabold text-lg mb-1 text-gray-800">{T("documents")}</h3>
-      <p className="text-sm mb-4 text-gray-500">{T("uploadRequiredDocuments")}</p>
-
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
-        <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("cnicNumber")}</label>
-        <input className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
-          value={(data.cnic as string) ?? ""}
+        <p style={{ color: "#E2E8F0", fontWeight: 800, fontSize: 17, margin: "0 0 2px" }}>{T("documents")}</p>
+        <p style={{ color: "#6B7280", fontSize: 13, margin: "0 0 12px" }}>{T("uploadRequiredDocuments")}</p>
+      </div>
+      <div>
+        <label style={labelStyle(pr)}>{T("cnicNumber")}</label>
+        <input style={darkInput()} value={(data.cnic as string) ?? ""}
           onChange={e => { onChange("cnic", formatCnic(e.target.value)); onError(""); }}
           placeholder="XXXXX-XXXXXXX-X (optional)" maxLength={15} inputMode="numeric" />
         {(data.cnic as string)?.length > 0 && !isValidCnic((data.cnic as string) ?? "") && (
-          <p className="text-gray-500 text-xs mt-1">Format: XXXXX-XXXXXXX-X</p>
+          <p style={{ color: "#6B7280", fontSize: 11, margin: "4px 0 0" }}>Format: XXXXX-XXXXXXX-X</p>
         )}
-        <p className="text-gray-400 text-xs mt-1">Optional — you can complete this in your profile after approval.</p>
+        <p style={{ color: "#6B7280", fontSize: 11, margin: "4px 0 0" }}>Optional — complete this in your profile after approval.</p>
       </div>
       <div>
-        <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("phoneNumber")} *</label>
-        <input className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
-          value={(data.phone as string) ?? ""}
+        <label style={labelStyle(pr)}>{T("phoneNumber")} *</label>
+        <input style={darkInput()} value={(data.phone as string) ?? ""}
           onChange={e => { onChange("phone", e.target.value); onError(""); }}
           placeholder="03XXXXXXXXX or +92XXXXXXXXXX" inputMode="tel" maxLength={15} />
       </div>
-      <div className="bg-green-50 border border-green-100 rounded-xl p-4">
-        <p className="text-green-700 text-xs font-semibold mb-1">Document Upload</p>
-        <p className="text-gray-500 text-xs leading-relaxed">Your CNIC copy and business registration documents will be required after approval. You can submit them from your profile settings.</p>
+      <div style={{ background: `${pr}0d`, border: `1px solid ${pr}25`, borderRadius: 12, padding: "12px 14px" }}>
+        <p style={{ color: pr, fontSize: 11, fontWeight: 700, margin: "0 0 4px" }}>Document Upload</p>
+        <p style={{ color: "#6B7280", fontSize: 12, margin: 0, lineHeight: 1.5 }}>Your CNIC copy and business registration documents will be required after approval. You can submit them from your profile settings.</p>
       </div>
     </div>
   );
@@ -118,26 +147,26 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
 function BankStep({ data, onChange, onError }: StepComponentProps) {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
+  const theme = useTheme();
+  const pr = theme.primary;
 
   return (
-    <div className="space-y-4">
-      <h3 className="font-extrabold text-lg mb-1 text-gray-800">{T("bankDetails")}</h3>
-      <p className="text-sm mb-4 text-gray-500">{T("addPaymentDetails")}</p>
-
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
-        <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("bankName")}</label>
-        <input className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
-          value={(data.bankName as string) ?? ""} onChange={e => { onChange("bankName", e.target.value); onError(""); }} placeholder="e.g. HBL" />
+        <p style={{ color: "#E2E8F0", fontWeight: 800, fontSize: 17, margin: "0 0 2px" }}>{T("bankDetails")}</p>
+        <p style={{ color: "#6B7280", fontSize: 13, margin: "0 0 12px" }}>{T("addPaymentDetails")}</p>
       </div>
       <div>
-        <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("accountTitle")}</label>
-        <input className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
-          value={(data.bankAccountTitle as string) ?? ""} onChange={e => { onChange("bankAccountTitle", e.target.value); onError(""); }} placeholder="Account holder name" />
+        <label style={labelStyle(pr)}>{T("bankName")}</label>
+        <input style={darkInput()} value={(data.bankName as string) ?? ""} onChange={e => { onChange("bankName", e.target.value); onError(""); }} placeholder="e.g. HBL" />
       </div>
       <div>
-        <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("accountNumber")}</label>
-        <input className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
-          value={(data.bankAccount as string) ?? ""} onChange={e => { onChange("bankAccount", e.target.value); onError(""); }} placeholder="IBAN / Account number" />
+        <label style={labelStyle(pr)}>{T("accountTitle")}</label>
+        <input style={darkInput()} value={(data.bankAccountTitle as string) ?? ""} onChange={e => { onChange("bankAccountTitle", e.target.value); onError(""); }} placeholder="Account holder name" />
+      </div>
+      <div>
+        <label style={labelStyle(pr)}>{T("accountNumber")}</label>
+        <input style={darkInput()} value={(data.bankAccount as string) ?? ""} onChange={e => { onChange("bankAccount", e.target.value); onError(""); }} placeholder="IBAN / Account number" />
       </div>
     </div>
   );
@@ -147,6 +176,8 @@ function BankStep({ data, onChange, onError }: StepComponentProps) {
 function OtpPasswordStep({ data, onChange, onError, onComplete }: StepComponentProps & { onComplete?: (otp: string) => void }) {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
+  const theme = useTheme();
+  const pr = theme.primary;
   const { sendOtp } = useAuth();
   const [otp, setOtp] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -174,9 +205,7 @@ function OtpPasswordStep({ data, onChange, onError, onComplete }: StepComponentP
   };
 
   const handleKeyDown = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace" && !otp[i] && i > 0) {
-      inputRefs.current[i - 1]?.focus();
-    }
+    if (e.key === "Backspace" && !otp[i] && i > 0) inputRefs.current[i - 1]?.focus();
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
@@ -200,26 +229,34 @@ function OtpPasswordStep({ data, onChange, onError, onComplete }: StepComponentP
   };
 
   return (
-    <div className="space-y-4">
-      <h3 className="font-extrabold text-lg mb-1 text-gray-800">{T("verifyAndSecure")}</h3>
-      <p className="text-sm mb-4 text-gray-500">{T("enterOtpAndPassword")}</p>
-
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
-        <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("otpCode")} *</label>
-        <div className="flex justify-center gap-2" onPaste={handlePaste}>
+        <p style={{ color: "#E2E8F0", fontWeight: 800, fontSize: 17, margin: "0 0 2px" }}>{T("verifyAndSecure")}</p>
+        <p style={{ color: "#6B7280", fontSize: 13, margin: "0 0 12px" }}>{T("enterOtpAndPassword")}</p>
+      </div>
+      <div>
+        <label style={labelStyle(pr)}>{T("otpCode")} *</label>
+        <div style={{ display: "flex", gap: 8, justifyContent: "center" }} onPaste={handlePaste}>
           {Array.from({ length: 6 }).map((_, i) => (
             <input key={i} ref={el => { inputRefs.current[i] = el; }} type="text" inputMode="numeric" maxLength={1} value={otp[i] ?? ""}
               onChange={e => handleOtpChange(i, e.target.value)}
               onKeyDown={e => handleKeyDown(i, e)}
-              className="w-12 h-14 bg-gray-50 border border-gray-200 rounded-xl text-center text-xl font-bold text-gray-800 focus:ring-2 focus:ring-green-500 focus:outline-none transition-all"
+              style={{
+                width: 44, height: 52, borderRadius: 12, textAlign: "center",
+                fontSize: 22, fontWeight: 700, outline: "none",
+                background: otp[i] ? `${pr}18` : "#0F1117",
+                border: `1.5px solid ${otp[i] ? pr : "#252D3A"}`,
+                color: "#E2E8F0", transition: "all 0.15s", boxSizing: "border-box",
+              }}
             />
           ))}
         </div>
-        <p className="text-center text-gray-400 text-xs mt-2">
+        <p style={{ textAlign: "center", color: "#6B7280", fontSize: 12, marginTop: 8 }}>
           {T("didntReceiveOtp")}{" "}
           {resendCooldown > 0
-            ? <span className="text-gray-300">Resend in {resendCooldown}s</span>
-            : <button type="button" onClick={handleResend} disabled={resending} className="text-green-600 font-semibold disabled:opacity-50">
+            ? <span style={{ color: "#3D4452" }}>Resend in {resendCooldown}s</span>
+            : <button type="button" onClick={handleResend} disabled={resending}
+                style={{ background: "none", border: "none", color: pr, fontWeight: 600, fontSize: 12, cursor: "pointer", padding: 0, opacity: resending ? 0.5 : 1 }}>
                 {resending ? "Sending…" : T("resend")}
               </button>
           }
@@ -227,26 +264,26 @@ function OtpPasswordStep({ data, onChange, onError, onComplete }: StepComponentP
       </div>
 
       <div>
-        <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("password")} *</label>
-        <div className="relative">
+        <label style={labelStyle(pr)}>{T("password")} *</label>
+        <div style={{ position: "relative" }}>
           <input type={showPassword ? "text" : "password"}
-            className="w-full h-12 px-4 pr-10 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
+            style={darkInput({ paddingRight: 44 })}
             value={(data.password as string) ?? ""} onChange={e => { onChange("password", e.target.value); onError(""); }} placeholder="Min 8 characters" />
           <button type="button" tabIndex={-1} onClick={() => setShowPassword(v => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+            style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#6B7280", cursor: "pointer", padding: 0 }}>
             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
       </div>
 
       <div>
-        <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("confirmPassword")} *</label>
-        <div className="relative">
+        <label style={labelStyle(pr)}>{T("confirmPassword")} *</label>
+        <div style={{ position: "relative" }}>
           <input type={showConfirm ? "text" : "password"}
-            className="w-full h-12 px-4 pr-10 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
+            style={darkInput({ paddingRight: 44 })}
             value={(data.confirmPassword as string) ?? ""} onChange={e => { onChange("confirmPassword", e.target.value); onError(""); }} placeholder="Re-enter password" />
           <button type="button" tabIndex={-1} onClick={() => setShowConfirm(v => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+            style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#6B7280", cursor: "pointer", padding: 0 }}>
             {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
@@ -262,15 +299,15 @@ function SuccessStep() {
   const theme = useTheme();
 
   return (
-    <div className="text-center py-6">
-      <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: `${theme.primary}15`, border: `2px solid ${theme.primary}40` }}>
-        <span className="text-4xl">{T("successIcon")}</span>
+    <div style={{ textAlign: "center", padding: "24px 0" }}>
+      <div style={{ width: 80, height: 80, borderRadius: "50%", background: `${theme.primary}15`, border: `2px solid ${theme.primary}40`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+        <span style={{ fontSize: 36 }}>{T("successIcon")}</span>
       </div>
-      <h3 className="font-extrabold text-2xl mb-3 text-gray-800">{T("registrationComplete")}</h3>
-      <p className="text-gray-500 text-sm leading-relaxed mb-6">{T("vendorApprovalMsg")}</p>
-      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-left">
-        <p className="text-xs font-bold text-gray-400 uppercase mb-1">{T("nextSteps")}</p>
-        <p className="text-gray-500 text-xs leading-relaxed">{T("vendorReviewMsg")}</p>
+      <h3 style={{ color: "#E2E8F0", fontWeight: 800, fontSize: 22, margin: "0 0 10px" }}>{T("registrationComplete")}</h3>
+      <p style={{ color: "#6B7280", fontSize: 14, lineHeight: 1.6, margin: "0 0 20px" }}>{T("vendorApprovalMsg")}</p>
+      <div style={{ background: "#161B22", border: "1px solid #252D3A", borderRadius: 12, padding: "12px 16px", textAlign: "left" }}>
+        <p style={{ color: theme.primary, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 6px" }}>{T("nextSteps")}</p>
+        <p style={{ color: "#6B7280", fontSize: 13, margin: 0, lineHeight: 1.5 }}>{T("vendorReviewMsg")}</p>
       </div>
     </div>
   );
@@ -396,7 +433,27 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
 
   return (
     <div style={{ minHeight: "100vh", background: theme.background }}>
-      <div className="max-w-md mx-auto px-6 py-10">
+      {/* ── Branded header ── */}
+      <div style={{ textAlign: "center", paddingTop: 32, paddingBottom: 8, paddingLeft: 16, paddingRight: 16 }}>
+        <div style={{
+          width: 60, height: 60, borderRadius: 18,
+          background: `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          margin: "0 auto 12px",
+          boxShadow: `0 6px 20px ${theme.primary}45`,
+        }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+        </div>
+        <h1 style={{ color: theme.text, fontSize: 22, fontWeight: 800, margin: "0 0 2px", letterSpacing: "-0.3px" }}>
+          {T("vendorRegistration") as string}
+        </h1>
+        <p style={{ color: theme.textMuted, fontSize: 12, margin: 0 }}>Create your AJKMart vendor account</p>
+      </div>
+
+      <div style={{ maxWidth: 448, margin: "0 auto", padding: "0 16px 40px" }}>
         <RegisterScreen
           role="vendor"
           steps={STEPS}

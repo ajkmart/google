@@ -64,6 +64,8 @@ interface AuthCtx {
   token: string | null;
   loading: boolean;
   storageError: boolean;
+  sessionExpired: boolean;
+  clearSessionExpired: () => void;
   login: (token: string, user: AuthUser, refreshToken?: string) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -94,6 +96,7 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [storageError, setStorageError] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   /* ── Proactive token refresh via shared SDK hook ────────────────────────
      useTokenRefresh handles scheduling, retry (up to 5 attempts, exponential
@@ -101,6 +104,7 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
   const handleSdkLogout = () => {
     api.clearTokens();
     setToken(null); setUser(null);
+    setSessionExpired(true);
     sharedAuth.logout();
   };
 
@@ -203,6 +207,7 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
     );
     setToken(t);
     setUser(u);
+    setSessionExpired(false);
   };
 
   const logout = () => {
@@ -236,10 +241,11 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
     }
   };
 
+  const clearSessionExpired = () => setSessionExpired(false);
+
   return (
-    <Ctx.Provider value={{ user, token, loading, storageError, login, logout, refreshUser }}>
+    <Ctx.Provider value={{ user, token, loading, storageError, sessionExpired, clearSessionExpired, login, logout, refreshUser }}>
       {children}
     </Ctx.Provider>
   );
 }
-
