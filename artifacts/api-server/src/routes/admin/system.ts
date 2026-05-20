@@ -111,3 +111,5 @@ router.delete("/users/:id/otp/attempts", adminAuth, async (req, res, next) => {
     sendSuccess(res, { success: true });
   } catch (err) { next(err); }
 });
+
+export { router };
