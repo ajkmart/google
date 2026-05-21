@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { fireAndForget } from "../../../lib/fireAndForget.js";
 import { db } from "@workspace/db";
 import {
   usersTable,

@@ -75,6 +75,10 @@ export function sendTooManyRequests(res: Response, retryAfterOrMessage?: number 
   sendError(res, message, 429);
 }
 
+export function sendConflict(res: Response, error = "Conflict.", message?: string): void {
+  sendError(res, error, 409, message);
+}
+
 export function sendInternalError(res: Response, message?: string): void {
   sendError(res, message ?? "An unexpected error occurred. Please try again later.", 500);
 }
