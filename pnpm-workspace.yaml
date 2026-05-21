@@ -37,9 +37,15 @@ minimumReleaseAgeExclude:
   - stripe-replit-sync
 
 onlyBuiltDependencies:
+  - '@firebase/util'
+  - '@google/genai'
+  - '@scarf/scarf'
   - '@swc/core'
+  - better-sqlite3
   - esbuild
   - msw
+  - protobufjs
+  - sharp
   - unrs-resolver
 
 overrides:
