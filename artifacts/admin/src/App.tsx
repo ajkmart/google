@@ -15,7 +15,7 @@ import { initSentry } from "@/lib/sentry";
 import { bootAccessibilitySettings } from "@/lib/useAccessibilitySettings";
 import { useLanguage } from "@/lib/useLanguage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { lazy, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Route, Switch, useLocation, Router as WouterRouter } from "wouter";
 const log = createLogger("[App]");
 
@@ -24,22 +24,24 @@ bootAccessibilitySettings();
 
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { FirstLoginCredentialsDialog } from "@/components/FirstLoginCredentialsDialog";
-import Broadcast from "@/pages/broadcast";
-import Categories from "@/pages/categories";
-import Dashboard from "@/pages/dashboard";
-import ForgotPassword from "@/pages/forgot-password";
-import Login from "@/pages/login";
-import Orders from "@/pages/orders";
-import Parcel from "@/pages/parcel";
-import Pharmacy from "@/pages/pharmacy";
-import Products from "@/pages/products";
-import ResetPassword from "@/pages/reset-password";
-import Rides from "@/pages/rides";
-import Security from "@/pages/security";
-import SetNewPassword from "@/pages/set-new-password";
-import Settings from "@/pages/settings";
-import Transactions from "@/pages/transactions";
-import Users from "@/pages/users";
+
+/* ── All page components loaded lazily (separate chunks per page) ── */
+const Broadcast = lazy(() => import("@/pages/broadcast"));
+const Categories = lazy(() => import("@/pages/categories"));
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const ForgotPassword = lazy(() => import("@/pages/forgot-password"));
+const Login = lazy(() => import("@/pages/login"));
+const Orders = lazy(() => import("@/pages/orders"));
+const Parcel = lazy(() => import("@/pages/parcel"));
+const Pharmacy = lazy(() => import("@/pages/pharmacy"));
+const Products = lazy(() => import("@/pages/products"));
+const ResetPassword = lazy(() => import("@/pages/reset-password"));
+const Rides = lazy(() => import("@/pages/rides"));
+const Security = lazy(() => import("@/pages/security"));
+const SetNewPassword = lazy(() => import("@/pages/set-new-password"));
+const Settings = lazy(() => import("@/pages/settings"));
+const Transactions = lazy(() => import("@/pages/transactions"));
+const Users = lazy(() => import("@/pages/users"));
 
 const AnalyticsPage = lazy(() => import("@/pages/analytics"));
 const AppManagement = lazy(() => import("@/pages/app-management"));
@@ -205,7 +207,20 @@ function ProtectedRoute({
 
 function AppRoutes() {
   const { state } = useAdminAuth();
+
+  /* ── Preload high-traffic pages after initial render ── */
+  useEffect(() => {
+    const t = setTimeout(() => {
+      import("@/pages/dashboard");
+      import("@/pages/orders");
+      import("@/pages/users");
+      import("@/pages/riders");
+    }, 2000);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
+    <Suspense fallback={<SuspenseLoadingFallback />}>
     <Switch>
       {/* Root redirect */}
       <Route path="/">
@@ -436,6 +451,7 @@ function AppRoutes() {
         <NotFound />
       </Route>
     </Switch>
+    </Suspense>
   );
 }
 

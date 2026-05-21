@@ -21,12 +21,15 @@ import "leaflet/dist/leaflet.css";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, Marker, Polyline, TileLayer, useMap } from "react-leaflet";
 
-/* ── Fix Leaflet's broken default icon paths in Vite ── */
+/* ── Fix Leaflet's broken default icon paths in Vite (production-safe asset imports) ── */
+import leafletIconUrl from "leaflet/dist/images/marker-icon.png";
+import leafletIconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
+import leafletShadowUrl from "leaflet/dist/images/marker-shadow.png";
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconUrl: leafletIconUrl,
+  iconRetinaUrl: leafletIconRetinaUrl,
+  shadowUrl: leafletShadowUrl,
 });
 
 export type MapProvider = "osm" | "mapbox" | "google";
