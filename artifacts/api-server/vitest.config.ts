@@ -13,13 +13,25 @@ export default defineConfig({
     environment: "node",
     testTimeout: 20000,
     hookTimeout: 30000,
-    include: ["src/tests/**/*.test.ts", "tests/**/*.test.ts"],
-    setupFiles: ["tests/setup.ts"],
+    include: ["src/__tests__/**/*.test.ts"],
     reporters: ["verbose"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcov", "json"],
+      thresholds: { lines: 80, functions: 80, branches: 70 },
+      exclude: [
+        "src/**/index.ts",
+        "src/**/*.d.ts",
+        "src/routes/**",
+        "src/lib/socketio.ts",
+        "src/lib/redis.ts",
+      ],
+    },
     // Override NODE_ENV so production-fatal guards (process.exit calls) are
     // skipped during test runs — Replit sets NODE_ENV=production globally.
     env: {
       NODE_ENV: "test",
+      TOTP_ENCRYPTION_KEY:        TEST_SECRET,
       // Secrets required by module-level resolveAdminSecret() calls in
       // admin-shared.ts and admin-jwt.ts.  Tests that need these values use
       // the same resolution logic so their signed tokens always match.
