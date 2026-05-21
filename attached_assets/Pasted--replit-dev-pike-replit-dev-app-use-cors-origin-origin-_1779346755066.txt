@@ -1,0 +1,56 @@
+ /\.replit\.dev$/,
+    /\.pike\.replit\.dev$/,
+  ];
+  app.use(cors({
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);          // Same-origin / curl
+      const allowed = ALLOWED_ORIGINS.some(o =>
+        typeof o === "string" ? o === origin : o.test(origin)
+      );
+      if (allowed) cb(null, true);
+      else cb(new Error(`CORS: origin '${origin}' not allowed`));
+    },
+    credentials: true,                             // Allow cookies (HttpOnly refresh)
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Request-ID"],
+    exposedHeaders: ["X-Request-ID", "X-RateLimit-Remaining"],
+    maxAge: 86_400,                                // Cache preflight for 24h
+  }));
+PART C — Input Sanitization Middleware:
+Package: dompurify, jsdom (for server-side DOMPurify)
+New file: artifacts/api-server/src/middleware/sanitize.ts
+import { JSDOM } from "jsdom";
+import DOMPurify from "dompurify";
+const { window } = new JSDOM("");
+const purify = DOMPurify(window as unknown as Window);
+function sanitizeValue(value: unknown): unknown {
+  if (typeof value === "string") {
+    return purify.sanitize(value, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+  }
+    if (Array.isArray(value)) return value.map(sanitizeValue);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, sanitizeValue(v)])
+    );
+  }
+  return value;
+}
+export function sanitizeBody(req: Request, res: Response, next: NextFunction): void {
+  if (req.body && typeof req.body === "object") {
+    req.body = sanitizeValue(req.body);
+  }
+  next();
+}
+Add to app.ts (after body parser, before routes):
+  import { sanitizeBody } from "./middleware/sanitize.js";
+  app.use(sanitizeBody);
+PART D — Dependency Audit:
+Run: pnpm audit --fix (auto-fix non-breaking vulnerabilities)
+For breaking fixes: review changelog, update manually.
+Add to package.json scripts:
+  "audit:check": "pnpm audit --audit-level moderate"
+  "audit:fix": "pnpm audit --fix"
+Acceptance: curl /api/health → response has X-Content-Type-Options: nosniff header.
+            CORS from unknown origin → 500 CORS error.
+            <script>alert(1)</script> in request body → stripped to empty string.
+            `pnpm audit:check` → 0 moderate or high vulnerabilities.

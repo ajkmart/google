@@ -317,10 +317,10 @@ export const authLimiter = createRateLimiter({ prefix: "auth", max: 20, windowMs
 
 /** 10 req / 15 min — admin login and password-reset. */
 export const adminAuthLimiter = createRateLimiter({
-  prefix: "admin-auth", max: 10, windowMs: WINDOW_15_MIN, tier: "strict",
-  extra: process.env.NODE_ENV !== "production" && process.env.E2E_BYPASS_SECRET
-    ? { skip: (req: Request) => req.headers["x-e2e-bypass"] === process.env.E2E_BYPASS_SECRET }
-    : undefined,
+  prefix: "admin-auth",
+  max: process.env.NODE_ENV !== "production" ? 200 : 10,
+  windowMs: WINDOW_15_MIN,
+  tier: "strict",
 });
 
 /** 30 req / 15 min — wallet and payment routes. */

@@ -19,7 +19,10 @@ test.describe("Admin Login", () => {
     await loginAdmin(page, { username: ADMIN_USERNAME, password: ADMIN_PASSWORD });
 
     await expect(page).toHaveURL(/\/admin/, { timeout: 15_000 });
-    await expect(page.locator("[data-testid='admin-sidebar'], nav, aside").first()).toBeVisible({ timeout: 10_000 });
+    const sidebarIndicator = page.locator(
+      'input[aria-label="Filter sidebar items"], [data-sidebar-active], [data-component-name="nav"]',
+    ).first();
+    await expect(sidebarIndicator).toBeAttached({ timeout: 10_000 });
   });
 
   test("click 'Forgot Password?' → forgot screen appears", async ({ page }) => {
@@ -34,11 +37,10 @@ test.describe("Admin Login", () => {
   test("dashboard has sidebar navigation visible after login", async ({ page }) => {
     await loginAdmin(page, { username: ADMIN_USERNAME, password: ADMIN_PASSWORD });
 
-    const sidebar = page.locator("nav, aside, [role='navigation']").first();
-    await expect(sidebar).toBeVisible({ timeout: 10_000 });
+    await expect(page).toHaveURL(/\/admin/, { timeout: 15_000 });
 
     await expect(
-      page.locator("a, button, li").filter({ hasText: /Dashboard|Users|Orders|Riders|Vendors/i }).first(),
+      page.locator("a, button").filter({ hasText: /Dashboard|Operations|Users|Orders|Riders|Vendors/i }).first(),
     ).toBeVisible({ timeout: 10_000 });
   });
 

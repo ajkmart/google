@@ -5,6 +5,12 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? process.env.ADMIN_SEED_PASS
 
 export { ADMIN_USERNAME, ADMIN_PASSWORD };
 
+const CHROMIUM_PATH =
+  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ??
+  "/nix/store/qa9cnw4v5xkxyip6mb9kxqfq1z4x2dx1-chromium-138.0.7204.100/bin/chromium-browser";
+
+const CHROMIUM_ARGS = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"];
+
 export default defineConfig({
   testDir: "./e2e",
   outputDir: "./e2e/artifacts",
@@ -26,6 +32,10 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         baseURL: "http://localhost:3000",
+        launchOptions: {
+          executablePath: CHROMIUM_PATH,
+          args: CHROMIUM_ARGS,
+        },
       },
       testMatch: "e2e/admin/**/*.spec.ts",
     },
@@ -34,6 +44,10 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         baseURL: "http://localhost:3001",
+        launchOptions: {
+          executablePath: CHROMIUM_PATH,
+          args: CHROMIUM_ARGS,
+        },
       },
       testMatch: "e2e/vendor/**/*.spec.ts",
     },
@@ -42,6 +56,10 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         baseURL: "http://localhost:3002",
+        launchOptions: {
+          executablePath: CHROMIUM_PATH,
+          args: CHROMIUM_ARGS,
+        },
       },
       testMatch: "e2e/rider/**/*.spec.ts",
     },

@@ -139,6 +139,7 @@ DATABASE_URL = "postgresql://neondb_owner:npg_8CZnNQxSivM4@ep-withered-pond-aod3
 
 [userenv.development]
 E2E_BYPASS_SECRET = "e2e-playwright-bypass-2024"
+ADMIN_PASSWORD = "Admin@123"
 
 [[ports]]
 localPort = 3000

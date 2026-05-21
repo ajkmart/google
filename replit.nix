@@ -1,5 +1,8 @@
 {pkgs}: {
   deps = [
+    pkgs.ffmpeg
+    pkgs.chromium
+    pkgs.playwright-driver
     pkgs.libgbm
     pkgs.eudev
     pkgs.libxkbcommon
