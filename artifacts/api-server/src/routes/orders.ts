@@ -674,7 +674,7 @@ router.get("/", customerAuth, async (req, res) => {
     const status = req.query["status"] as string | undefined;
     const type = req.query["type"] as string | undefined;
 
-    const conds: any[] = [eq(ordersTable.userId, customerId), isNull(ordersTable.deletedAt)];
+    const conds: SQL[] = [eq(ordersTable.userId, customerId), isNull(ordersTable.deletedAt)]; // drizzle dynamic query
     if (status && status !== "all") conds.push(eq(ordersTable.status, status));
     if (type   && type   !== "all") conds.push(eq(ordersTable.type,   type));
 

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { whatsappDeliveryLogsTable } from "@workspace/db/schema";
-import { and, desc, eq, gte, ilike, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, lte, sql, type SQL } from "drizzle-orm";
 import { addAuditEntry, getClientIp, type AdminRequest } from "../admin-shared.js";
 import { sendSuccess, sendNotFound, sendValidationError, sendError } from "../../lib/response.js";
 import { logger } from '../../lib/logger.js';
@@ -17,7 +17,7 @@ router.get("/delivery-log", async (req, res) => {
   const startDate = (req.query.startDate as string | undefined)?.trim();
   const endDate = (req.query.endDate as string | undefined)?.trim();
 
-  const conditions: any[] = [];
+  const conditions: SQL[] = []; // drizzle dynamic query
   if (status) conditions.push(eq(whatsappDeliveryLogsTable.status, status));
   if (phone) conditions.push(ilike(whatsappDeliveryLogsTable.phone, `%${phone}%`));
   if (startDate) {
@@ -59,11 +59,11 @@ router.get("/delivery-log", async (req, res) => {
       limit,
       offset,
     });
-  } catch (err: any) {
-    sendError(res, "Failed to fetch WhatsApp delivery log", 500, err?.message);
+  } catch (err: unknown) {
+    sendError(res, "Failed to fetch WhatsApp delivery log", 500, (err as Error | null)?.message);
   }
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error({ error: err instanceof Error ? (err as Error).message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -103,7 +103,7 @@ router.post("/delivery-log/retry", async (req, res) => {
 
   sendSuccess(res, { success: true });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error({ error: err instanceof Error ? (err as Error).message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -126,8 +126,8 @@ router.get("/delivery-log/stats", async (req, res) => {
     } as Record<string, number>);
 
     sendSuccess(res, { stats });
-  } catch (err: any) {
-    sendError(res, "Failed to fetch WhatsApp delivery stats", 500, err?.message);
+  } catch (err: unknown) {
+    sendError(res, "Failed to fetch WhatsApp delivery stats", 500, (err as Error | null)?.message);
   }
 });
 

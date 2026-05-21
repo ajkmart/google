@@ -36,7 +36,7 @@ function getPool(): Pool | null {
   if (!_pool) {
     _pool = new Pool({ ...buildPgPoolConfig(databaseUrl), max: 5 });
     _pool.on("error", (err) => {
-      logger.error("[webhooks pool] Unexpected error:", err.message);
+      logger.error("[webhooks pool] Unexpected error:", (err as Error).message);
     });
   }
   return _pool;
@@ -102,8 +102,8 @@ router.get("/whatsapp/delivery-log", adminAuth, async (req, res) => {
     );
 
     sendSuccess(res, { logs: rows, total: parseInt(countRows[0]!.count, 10), limit, offset });
-  } catch (err: any) {
-    logger.error("[WhatsApp delivery log] Query error:", err.message);
+  } catch (err: unknown) {
+    logger.error("[WhatsApp delivery log] Query error:", (err as Error).message);
     sendError(res, "Failed to fetch delivery log", 500);
   }
   } catch (err) {
@@ -218,18 +218,19 @@ router.post("/whatsapp", async (req, res) => {
       const value = change?.value;
       if (!value) continue;
 
-      const messages: any[] = value?.messages ?? [];
-      const statuses: any[] = value?.statuses ?? [];
+      const messages: unknown[] = (value as Record<string, unknown>)?.messages as unknown[] ?? [];
+      const statuses: unknown[] = (value as Record<string, unknown>)?.statuses as unknown[] ?? [];
 
       for (const msg of messages) {
-        const from = msg?.from;
-        const type = msg?.type;
+        const msgR = msg as Record<string, unknown>;
+        const from = msgR?.from;
+        const type = msgR?.type;
         logger.info(`[WhatsApp webhook] Incoming message from ${from} — type: ${type}`);
       }
 
       for (const status of statuses) {
-        await processDeliveryStatus(status, value).catch((err: any) =>
-          logger.error("[WhatsApp webhook] Status processing error:", err?.message)
+        await processDeliveryStatus(status as Record<string, unknown>, value).catch((err: unknown) =>
+          logger.error("[WhatsApp webhook] Status processing error:", (err as Error | null)?.message)
         );
       }
     }
@@ -242,7 +243,7 @@ router.post("/whatsapp", async (req, res) => {
 
 /* ─── Delivery status processor ─────────────────────────────────────────── */
 
-async function processDeliveryStatus(status: any, value: any): Promise<void> {
+async function processDeliveryStatus(status: Record<string, unknown>, value: Record<string, unknown>): Promise<void> {
   const waMessageId = status?.id as string | undefined;
   const statusVal   = (status?.status as string | undefined) ?? "unknown";
   const recipient   = (status?.recipient_id as string | undefined) ?? "";
@@ -317,8 +318,8 @@ async function triggerFallback(phone: string, waMessageId: string, pool: Pool): 
       } else {
         logger.warn(`[WhatsApp fallback] SMS dispatch failed: ${result.error ?? "unknown"}`);
       }
-    } catch (err: any) {
-      logger.error(`[WhatsApp fallback] SMS dispatch threw:`, err?.message);
+    } catch (err: unknown) {
+      logger.error(`[WhatsApp fallback] SMS dispatch threw:`, (err as Error | null)?.message);
     }
   }
 
@@ -352,8 +353,8 @@ async function triggerFallback(phone: string, waMessageId: string, pool: Pool): 
       } else {
         logger.warn(`[WhatsApp fallback] No user found for phone ${phone} — push skipped`);
       }
-    } catch (err: any) {
-      logger.error(`[WhatsApp fallback] Push dispatch threw:`, err?.message);
+    } catch (err: unknown) {
+      logger.error(`[WhatsApp fallback] Push dispatch threw:`, (err as Error | null)?.message);
     }
   }
 

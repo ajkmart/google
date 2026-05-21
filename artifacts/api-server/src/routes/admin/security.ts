@@ -56,8 +56,8 @@ router.get("/security/data-exports", adminAuth, async (req, res) => {
       limit,
       offset,
     });
-  } catch (err: any) {
-    logger.error({ err: err.message }, "[security/data-exports] DB query failed");
+  } catch (err: unknown) {
+    logger.error({ err: (err as Error).message }, "[security/data-exports] DB query failed");
     sendError(res, "Failed to load data export logs", 500);
   }
 });
@@ -135,8 +135,8 @@ router.get("/security/token-audit", adminAuth, async (req, res) => {
       limit,
       offset,
     });
-  } catch (err: any) {
-    logger.error({ err: err.message }, "[security/token-audit] DB query failed");
+  } catch (err: unknown) {
+    logger.error({ err: (err as Error).message }, "[security/token-audit] DB query failed");
     sendError(res, "Failed to load token audit log", 500);
   }
 });
@@ -251,8 +251,8 @@ router.get("/security/token-timeline/:userId", adminAuth, async (req, res) => {
       familyCount: familyMap.size,
       families,
     });
-  } catch (err: any) {
-    logger.error({ err: err.message, userId }, "[security/token-timeline] DB query failed");
+  } catch (err: unknown) {
+    logger.error({ err: (err as Error).message, userId }, "[security/token-timeline] DB query failed");
     sendError(res, "Failed to load token timeline", 500);
   }
 });
@@ -363,8 +363,8 @@ router.get("/security/token-export/:userId", adminAuth, async (req, res) => {
       .setHeader("Cache-Control", "no-store")
       .status(200)
       .send(csv);
-  } catch (err: any) {
-    logger.error({ err: err.message, userId }, "[security/token-export] Failed");
+  } catch (err: unknown) {
+    logger.error({ err: (err as Error).message, userId }, "[security/token-export] Failed");
     sendError(res, "Failed to export token history", 500);
   }
 });
@@ -457,8 +457,8 @@ router.post("/security/revoke-family/:userId/:familyId", adminAuth, async (req, 
       revokedCount: activeCount,
       message: `${activeCount} token(s) in this session family revoked.`,
     });
-  } catch (err: any) {
-    logger.error({ err: err.message, userId, familyId }, "[security/revoke-family] Failed");
+  } catch (err: unknown) {
+    logger.error({ err: (err as Error).message, userId, familyId }, "[security/revoke-family] Failed");
     sendError(res, "Failed to revoke token family", 500);
   }
 });
@@ -537,8 +537,8 @@ router.post("/security/force-logout/:userId", adminAuth, async (req, res) => {
       revokedCount: activeCount,
       message: `${activeCount} active session(s) revoked. The user will need to log in again on all devices.`,
     });
-  } catch (err: any) {
-    logger.error({ err: err.message, userId }, "[security/force-logout] Failed");
+  } catch (err: unknown) {
+    logger.error({ err: (err as Error).message, userId }, "[security/force-logout] Failed");
     sendError(res, "Failed to force logout user", 500);
   }
 });

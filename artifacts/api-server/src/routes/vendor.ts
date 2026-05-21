@@ -1,9 +1,9 @@
-import { Router, type IRouter, type Request, type NextFunction } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { z } from "zod";
 import { logger } from "../lib/logger.js";
 import { db } from "@workspace/db";
 import { usersTable, ordersTable, productsTable, promoCodesTable, walletTransactionsTable, notificationsTable, reviewsTable, liveLocationsTable, deliveryWhitelistTable, deliveryAccessRequestsTable, riderProfilesTable, vendorProfilesTable, vendorSchedulesTable, stockSubscriptionsTable, orderAuditLogTable, productStockHistoryTable } from "@workspace/db/schema";
-import { eq, desc, and, sql, count, sum, gte, or, ilike, isNull, avg, lte } from "drizzle-orm";
+import { eq, desc, and, sql, count, sum, gte, or, ilike, isNull, avg, lte, type SQL } from "drizzle-orm";
 import { generateId } from "../lib/id.js";
 import { getCachedSettings } from "./admin.js";
 import { requireRole } from "../middleware/security.js";
@@ -23,7 +23,7 @@ router.use(requireRole("vendor", { vendorApprovalCheck: true }));
    requireRole sets req.vendorId but not req.vendorUser. Routes that call
    formatUser(req.vendorUser!) crash with "Cannot read properties of undefined".
    This middleware fetches the user row once per request and caches it on req. ── */
-router.use(async (req: Request, res: any, next: any) => {
+router.use(async (req: Request, res: Response, next: NextFunction) => {
   try {
     const vendorId = req.vendorId;
     if (!vendorId) { next(); return; }
@@ -69,8 +69,8 @@ const patchStoreSchema = z.object({
   storeLng:          z.union([z.string(), z.number()]).optional().nullable(),
 });
 
-function safeNum(v: any, def = 0) { return parseFloat(String(v ?? def)) || def; }
-function formatUser(user: any) {
+function safeNum(v: unknown, def = 0) { return parseFloat(String(v ?? def)) || def; }
+function formatUser(user: Record<string, unknown>) {
   return {
     id: user.id, phone: user.phone, name: user.name, email: user.email,
     username: user.username,
@@ -337,10 +337,10 @@ router.get("/orders", async (req, res, next) => {
   try {
   const vendorId = req.vendorId!;
   const status = req.query["status"] as string | undefined;
-  const conditions: any[] = [eq(ordersTable.vendorId, vendorId), isNull(ordersTable.deletedAt)];
+  const conditions: SQL[] = [eq(ordersTable.vendorId, vendorId), isNull(ordersTable.deletedAt)];
   if (status && status !== "all") {
-    if (status === "new") conditions.push(or(eq(ordersTable.status, "pending"), eq(ordersTable.status, "confirmed")));
-    else if (status === "active") conditions.push(or(eq(ordersTable.status, "preparing"), eq(ordersTable.status, "ready"), eq(ordersTable.status, "picked_up"), eq(ordersTable.status, "out_for_delivery")));
+    if (status === "new") conditions.push(or(eq(ordersTable.status, "pending"), eq(ordersTable.status, "confirmed"))!);
+    else if (status === "active") conditions.push(or(eq(ordersTable.status, "preparing"), eq(ordersTable.status, "ready"), eq(ordersTable.status, "picked_up"), eq(ordersTable.status, "out_for_delivery"))!);
     else conditions.push(eq(ordersTable.status, status));
   }
   const orders = await db.select({
@@ -708,14 +708,14 @@ router.get("/products", async (req, res, next) => {
     const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
     const offset = (pageNum - 1) * limitNum;
 
-    const conditions: any[] = [eq(productsTable.vendorId, vendorId), isNull(productsTable.deletedAt)];
+    const conditions: SQL[] = [eq(productsTable.vendorId, vendorId), isNull(productsTable.deletedAt)];
     if (category) conditions.push(eq(productsTable.category, category));
     if (inStock === "true") conditions.push(eq(productsTable.inStock, true));
     if (inStock === "false") conditions.push(eq(productsTable.inStock, false));
     if (search) conditions.push(or(
       ilike(productsTable.name, `%${search}%`),
       ilike(productsTable.category, `%${search}%`),
-    ));
+    )!);
 
     const [products, totalResult] = await Promise.all([
       db.select().from(productsTable)
@@ -772,12 +772,12 @@ router.post("/products/bulk", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const user = req.vendorUser!;
-    const { products: items } = req.body as { products: any[] };
+    const { products: items } = req.body as { products: Record<string, unknown>[] };
     if (!Array.isArray(items) || items.length === 0) { sendValidationError(res, "products array is required"); return; }
     if (items.length > 500) { sendValidationError(res, "Max 500 products per bulk import"); return; }
     const s = await getCachedSettings();
     const autoApprove = (s["product_auto_approve"] ?? "on") === "on";
-    const rows = items.map((p: any) => ({
+    const rows = items.map((p) => ({
       id: generateId(),
       name: String(p.name ?? ""),
       description: p.description ? String(p.description) : null,
@@ -1276,7 +1276,7 @@ router.get("/reviews", async (req, res, next) => {
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(100, parseInt(limit, 10) || 20);
     const offset = (pageNum - 1) * limitNum;
-    const conditions: any[] = [eq(reviewsTable.vendorId, vendorId), eq(reviewsTable.hidden, false), isNull(reviewsTable.deletedAt)];
+    const conditions: SQL[] = [eq(reviewsTable.vendorId, vendorId), eq(reviewsTable.hidden, false), isNull(reviewsTable.deletedAt)];
     if (rating) conditions.push(eq(reviewsTable.rating, parseInt(rating, 10)));
     const [reviews, totalResult, avgResult] = await Promise.all([
       db.select({ review: reviewsTable, customerName: usersTable.name, customerAvatar: usersTable.avatar })

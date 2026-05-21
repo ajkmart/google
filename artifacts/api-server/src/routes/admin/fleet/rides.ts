@@ -103,8 +103,8 @@ router.get("/rides", async (req: Request, res: Response) => {
       nextCursor: result.nextCursor,
       hasMore: result.hasMore,
     });
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to fetch rides", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to fetch rides", 500);
   }
 });
 
@@ -144,8 +144,8 @@ router.get("/rides-enriched", async (req: Request, res: Response) => {
       sortDir: (req.query["sortDir"] as string) === "asc" ? "asc" : "desc",
     });
     sendSuccess(res, result);
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to fetch enriched rides", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to fetch enriched rides", 500);
   }
 });
 
@@ -198,8 +198,8 @@ router.patch("/rides/:id/status", async (req: Request, res: Response) => {
       fare: parseFloat(result.fare),
       distance: parseFloat(result.distance),
     });
-  } catch (error: any) {
-    const errMsg = error.message || String(error);
+  } catch (error: unknown) {
+    const errMsg = (error as Error).message || String(error);
     logger.error("Ride status update error:", errMsg);
 
     if (errMsg.includes("not found")) {
@@ -219,8 +219,8 @@ router.get("/ride-services", async (_req: Request, res: Response) => {
       .from(rideServiceTypesTable)
       .orderBy(asc(rideServiceTypesTable.sortOrder));
     sendSuccess(res, { services: services.map(formatSvc) });
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to fetch ride services", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to fetch ride services", 500);
   }
 });
 
@@ -275,8 +275,8 @@ router.post("/ride-services", async (req: Request, res: Response) => {
       })
       .returning();
     sendCreated(res, { service: formatSvc(created) });
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to create ride service", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to create ride service", 500);
   }
 });
 
@@ -328,8 +328,8 @@ router.patch("/ride-services/:id", async (req: Request, res: Response) => {
       .where(eq(rideServiceTypesTable.id, svcId))
       .returning();
     sendSuccess(res, { service: formatSvc(updated) });
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to update ride service", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to update ride service", 500);
   }
 });
 
@@ -357,8 +357,8 @@ router.delete("/ride-services/:id", async (req: Request, res: Response) => {
       .delete(rideServiceTypesTable)
       .where(eq(rideServiceTypesTable.id, svcId));
     sendSuccess(res);
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to delete ride service", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to delete ride service", 500);
   }
 });
 
@@ -383,14 +383,14 @@ router.get("/locations", async (_req: Request, res: Response) => {
         asc(popularLocationsTable.name),
       );
     sendSuccess(res, {
-      locations: locs.map((l: any) => ({
+      locations: locs.map((l) => ({
         ...l,
         lat: parseFloat(String(l.lat)),
         lng: parseFloat(String(l.lng)),
       })),
     });
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to fetch locations", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to fetch locations", 500);
   }
 });
 
@@ -429,8 +429,8 @@ router.post("/locations", async (req: Request, res: Response) => {
       lat: parseFloat(String(loc!.lat)),
       lng: parseFloat(String(loc!.lng)),
     });
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to create location", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to create location", 500);
   }
 });
 
@@ -461,8 +461,8 @@ router.patch("/locations/:id", async (req: Request, res: Response) => {
       lat: parseFloat(String(updated.lat)),
       lng: parseFloat(String(updated.lng)),
     });
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to update location", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to update location", 500);
   }
 });
 
@@ -481,8 +481,8 @@ router.delete("/locations/:id", async (req: Request, res: Response) => {
       .delete(popularLocationsTable)
       .where(eq(popularLocationsTable.id, req.params["id"] as string));
     sendSuccess(res);
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to delete location", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to delete location", 500);
   }
 });
 
@@ -520,8 +520,8 @@ router.get("/school-routes", async (_req: Request, res: Response) => {
         asc(schoolRoutesTable.schoolName),
       );
     sendSuccess(res, { routes: routes.map(fmtRoute) });
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to fetch school routes", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to fetch school routes", 500);
   }
 });
 
@@ -580,8 +580,8 @@ router.post("/school-routes", async (req: Request, res: Response) => {
       })
       .returning();
     sendCreated(res, fmtRoute(route!));
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to create school route", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to create school route", 500);
   }
 });
 
@@ -640,8 +640,8 @@ router.patch("/school-routes/:id", async (req: Request, res: Response) => {
       return;
     }
     sendSuccess(res, fmtRoute(updated));
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to update school route", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to update school route", 500);
   }
 });
 
@@ -678,8 +678,8 @@ router.delete("/school-routes/:id", async (req: Request, res: Response) => {
     }
     await db.delete(schoolRoutesTable).where(eq(schoolRoutesTable.id, routeId));
     sendSuccess(res);
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to delete school route", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to delete school route", 500);
   }
 });
 
@@ -695,7 +695,7 @@ router.get("/school-subscriptions", async (req: Request, res: Response) => {
     const subs = await query.orderBy(desc(schoolSubscriptionsTable.createdAt));
     /* Enrich with user info */
     const enriched = await Promise.all(
-      subs.map(async (sub: any) => {
+      subs.map(async (sub) => {
         const [user] = await db
           .select({ name: usersTable.name, phone: usersTable.phone })
           .from(usersTable)
@@ -732,10 +732,10 @@ router.get("/school-subscriptions", async (req: Request, res: Response) => {
       }),
     );
     sendSuccess(res, { subscriptions: enriched, total: enriched.length });
-  } catch (error: any) {
+  } catch (error: unknown) {
     sendError(
       res,
-      error.message || "Failed to fetch school subscriptions",
+      (error as Error).message || "Failed to fetch school subscriptions",
       500,
     );
   }
@@ -789,7 +789,7 @@ router.get("/live-riders", async (_req: Request, res: Response) => {
         ),
       );
 
-    const enriched = locs.map((loc: any) => {
+    const enriched = locs.map((loc) => {
       const updatedAt =
         loc.updatedAt instanceof Date ? loc.updatedAt : new Date(loc.updatedAt);
       const ageSeconds = Math.floor((Date.now() - updatedAt.getTime()) / 1000);
@@ -825,7 +825,7 @@ router.get("/live-riders", async (_req: Request, res: Response) => {
     });
 
     /* Sort: online first, then by freshness */
-    enriched.sort((a: any, b: any) => {
+    enriched.sort((a, b) => {
       if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
       return a.ageSeconds - b.ageSeconds;
     });
@@ -833,11 +833,11 @@ router.get("/live-riders", async (_req: Request, res: Response) => {
     sendSuccess(res, {
       riders: enriched,
       total: enriched.length,
-      freshCount: enriched.filter((r: any) => r.isFresh).length,
+      freshCount: enriched.filter((r) => r.isFresh).length,
       staleTimeoutSec,
     });
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to fetch live riders", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to fetch live riders", 500);
   }
 });
 
@@ -869,7 +869,7 @@ router.get("/customer-locations", async (_req: Request, res: Response) => {
       .where(eq(liveLocationsTable.role, "customer"))
       .orderBy(desc(liveLocationsTable.updatedAt));
 
-    const enriched = locs.map((loc: any) => {
+    const enriched = locs.map((loc) => {
       const updatedAt =
         loc.updatedAt instanceof Date
           ? loc.updatedAt
@@ -893,10 +893,10 @@ router.get("/customer-locations", async (_req: Request, res: Response) => {
     sendSuccess(res, {
       customers: enriched,
       total: enriched.length,
-      freshCount: enriched.filter((c: any) => c.isFresh).length,
+      freshCount: enriched.filter((c) => c.isFresh).length,
     });
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to fetch customer locations", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to fetch customer locations", 500);
   }
 });
 
@@ -925,10 +925,10 @@ router.patch("/riders/:id/online", async (req: Request, res: Response) => {
       result: "success",
     });
     sendSuccess(res, { isOnline });
-  } catch (error: any) {
+  } catch (error: unknown) {
     sendError(
       res,
-      error.message || "Failed to update rider online status",
+      (error as Error).message || "Failed to update rider online status",
       500,
     );
   }
@@ -1065,8 +1065,8 @@ router.get("/revenue-trend", async (_req: Request, res: Response) => {
     });
     const days = await Promise.all(dayPromises);
     sendSuccess(res, { trend: days });
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to fetch revenue trend", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to fetch revenue trend", 500);
   }
 });
 
@@ -1125,19 +1125,19 @@ router.get("/leaderboard", async (_req: Request, res: Response) => {
       .limit(5);
 
     sendSuccess(res, {
-      vendors: vendors.map((v: any) => ({
+      vendors: vendors.map((v) => ({
         ...v,
         totalRevenue: parseFloat(String(v.totalRevenue)),
         totalOrders: Number(v.totalOrders),
       })),
-      riders: riders.map((r: any) => ({
+      riders: riders.map((r) => ({
         ...r,
         totalEarned: parseFloat(String(r.totalEarned)),
         completedTrips: Number(r.completedTrips),
       })),
     });
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to fetch leaderboard", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to fetch leaderboard", 500);
   }
 });
 
@@ -1259,8 +1259,8 @@ async function dashboardExportHandler(_req: Request, res: Response) {
       `attachment; filename="dashboard-${now.toISOString().slice(0, 10)}.tson"`,
     );
     sendSuccess(res, snapshot);
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to generate dashboard export", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to generate dashboard export", 500);
   }
 }
 
@@ -1295,8 +1295,8 @@ router.post("/rides/:id/cancel", async (req: Request, res: Response) => {
         }),
     );
     sendSuccess(res, result);
-  } catch (error: any) {
-    const errMsg = error.message || String(error);
+  } catch (error: unknown) {
+    const errMsg = (error as Error).message || String(error);
     logger.error("Ride cancel error:", errMsg);
     sendError(
       res,
@@ -1331,8 +1331,8 @@ router.post("/rides/:id/refund", async (req: Request, res: Response) => {
         }),
     );
     sendSuccess(res, result);
-  } catch (error: any) {
-    const errMsg = error.message || String(error);
+  } catch (error: unknown) {
+    const errMsg = (error as Error).message || String(error);
     logger.error("Ride refund error:", errMsg);
     sendError(
       res,
@@ -1377,8 +1377,8 @@ router.post("/rides/:id/reassign", async (req: Request, res: Response) => {
         }),
     );
     sendSuccess(res, result);
-  } catch (error: any) {
-    const errMsg = error.message || String(error);
+  } catch (error: unknown) {
+    const errMsg = (error as Error).message || String(error);
     logger.error("Ride reassign error:", errMsg);
 
     if (errMsg.includes("not found")) {
@@ -1404,7 +1404,7 @@ router.get("/rides/:id/audit-trail", async (req: Request, res: Response) => {
       .from(rideEventLogsTable)
       .where(eq(rideEventLogsTable.rideId, rideId))
       .orderBy(desc(rideEventLogsTable.createdAt));
-    const trail = events.map((e: any) => ({
+    const trail = events.map((e) => ({
       action: e.event,
       details: e.notes,
       ip: null,
@@ -1414,8 +1414,8 @@ router.get("/rides/:id/audit-trail", async (req: Request, res: Response) => {
         e.createdAt instanceof Date ? e.createdAt.toISOString() : e.createdAt,
     }));
     sendSuccess(res, { trail, rideId });
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to fetch audit trail", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to fetch audit trail", 500);
   }
 });
 
@@ -1522,13 +1522,13 @@ router.get("/rides/:id/detail", async (req: Request, res: Response) => {
         surgeMultiplier,
         total: fare,
       },
-      eventLogs: eventLogs.map((e: any) => ({
+      eventLogs: eventLogs.map((e) => ({
         ...e,
         lat: e.lat ? parseFloat(e.lat) : null,
         lng: e.lng ? parseFloat(e.lng) : null,
         createdAt: e.createdAt.toISOString(),
       })),
-      bids: bidRows.map((b: any) => ({
+      bids: bidRows.map((b) => ({
         ...b,
         fare: parseFloat(b.fare),
         createdAt: b.createdAt.toISOString(),
@@ -1536,8 +1536,8 @@ router.get("/rides/:id/detail", async (req: Request, res: Response) => {
       })),
       notifiedRiderCount: Number(notifiedCount[0]?.cnt ?? 0),
     });
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to fetch ride detail", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to fetch ride detail", 500);
   }
 });
 
@@ -1554,7 +1554,7 @@ router.get("/dispatch-monitor", async (_req: Request, res: Response) => {
       )
       .orderBy(desc(ridesTable.createdAt));
 
-    const rideIds = activeRides.map((r: any) => r.id);
+    const rideIds = activeRides.map((r) => r.id);
     let notifiedCounts: Record<string, number> = {};
     if (rideIds.length > 0) {
       const counts = await db
@@ -1562,17 +1562,17 @@ router.get("/dispatch-monitor", async (_req: Request, res: Response) => {
         .from(rideNotifiedRidersTable)
         .where(
           sql`${rideNotifiedRidersTable.rideId} IN (${sql.join(
-            rideIds.map((id: any) => sql`${id}`),
+            rideIds.map((id) => sql`${id}`),
             sql`, `,
           )})`,
         )
         .groupBy(rideNotifiedRidersTable.rideId);
       notifiedCounts = Object.fromEntries(
-        counts.map((c: any) => [c.rideId, Number(c.cnt)]),
+        counts.map((c) => [c.rideId, Number(c.cnt)]),
       );
     }
 
-    const userIds = [...new Set(activeRides.map((r: any) => r.userId))];
+    const userIds = [...new Set(activeRides.map((r) => r.userId))];
     let userMap: Record<string, { name: string | null; phone: string | null }> =
       {};
     if (userIds.length > 0) {
@@ -1590,7 +1590,7 @@ router.get("/dispatch-monitor", async (_req: Request, res: Response) => {
           )})`,
         );
       userMap = Object.fromEntries(
-        users.map((u: any) => [u.id, { name: u.name, phone: u.phone }]),
+        users.map((u) => [u.id, { name: u.name, phone: u.phone }]),
       );
     }
 
@@ -1604,18 +1604,18 @@ router.get("/dispatch-monitor", async (_req: Request, res: Response) => {
             .from(rideBidsTable)
             .where(
               sql`${rideBidsTable.rideId} IN (${sql.join(
-                rideIds.map((id: any) => sql`${id}`),
+                rideIds.map((id) => sql`${id}`),
                 sql`, `,
               )})`,
             )
             .groupBy(rideBidsTable.rideId)
         : [];
     const bidCountMap = Object.fromEntries(
-      bidCounts.map((b: any) => [b.rideId, Number(b.total)]),
+      bidCounts.map((b) => [b.rideId, Number(b.total)]),
     );
 
     sendSuccess(res, {
-      rides: activeRides.map((r: any) => ({
+      rides: activeRides.map((r) => ({
         id: r.id,
         type: r.type,
         status: r.status,
@@ -1635,8 +1635,8 @@ router.get("/dispatch-monitor", async (_req: Request, res: Response) => {
       })),
       total: activeRides.length,
     });
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to fetch dispatch monitor", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to fetch dispatch monitor", 500);
   }
 });
 
@@ -1681,7 +1681,7 @@ router.get("/fleet-analytics", async (req: Request, res: Response) => {
       )
       .limit(10000);
 
-    const heatmap = heatPoints.map((p: any) => ({
+    const heatmap = heatPoints.map((p) => ({
       lat: parseFloat(String(p.latitude)),
       lng: parseFloat(String(p.longitude)),
       weight: 1,
@@ -1791,7 +1791,7 @@ router.get("/fleet-analytics", async (req: Request, res: Response) => {
             )
         : [];
     const nameMap = new Map(
-      riderNames.map((r: any) => [r.id, r.name ?? "Unknown"]),
+      riderNames.map((r) => [r.id, r.name ?? "Unknown"]),
     );
 
     const riderDistances = [...riderDistanceMap.entries()]
@@ -1855,7 +1855,7 @@ router.get("/fleet-analytics", async (req: Request, res: Response) => {
       .map(([date, byType]) => ({ date, ...byType }));
 
     const revenueServiceTypes = [
-      ...new Set(revenueByTypeRaw.map((r: any) => r.type)),
+      ...new Set(revenueByTypeRaw.map((r) => r.type)),
     ].sort() as string[];
 
     sendSuccess(res, {
@@ -1869,8 +1869,8 @@ router.get("/fleet-analytics", async (req: Request, res: Response) => {
       from: from.toISOString().slice(0, 10),
       to: to.toISOString().slice(0, 10),
     });
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to fetch fleet analytics", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to fetch fleet analytics", 500);
   }
 });
 
@@ -1941,7 +1941,7 @@ router.get("/riders/:userId/route", async (req: Request, res: Response) => {
       )
       .orderBy(asc(locationHistoryTable.createdAt));
 
-    const points = logs.map((l: any) => ({
+    const points = logs.map((l) => ({
       latitude: (l.coords as { lat: number; lng: number }).lat,
       longitude: (l.coords as { lat: number; lng: number }).lng,
       speed: l.speed != null ? parseFloat(String(l.speed)) : null,
@@ -1960,8 +1960,8 @@ router.get("/riders/:userId/route", async (req: Request, res: Response) => {
       route: points,
       total: points.length,
     });
-  } catch (error: any) {
-    sendError(res, error.message || "Failed to fetch rider route", 500);
+  } catch (error: unknown) {
+    sendError(res, (error as Error).message || "Failed to fetch rider route", 500);
   }
 });
 

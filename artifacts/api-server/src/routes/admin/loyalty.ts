@@ -226,12 +226,12 @@ function assertRecord(value: unknown, field: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function validateCampaignInput(payload: any): string[] {
+function validateCampaignInput(payload: Record<string, unknown>): string[] {
   const errors: string[] = [];
   if (!payload.name || typeof payload.name !== "string" || !payload.name.trim()) {
     errors.push("Campaign name is required");
   }
-  if (payload.pointsReward === undefined || !Number.isInteger(payload.pointsReward) || payload.pointsReward < 0) {
+  if (payload.pointsReward === undefined || !Number.isInteger(payload.pointsReward) || (payload.pointsReward as number) < 0) {
     errors.push("pointsReward must be a non-negative integer");
   }
   try {
@@ -246,12 +246,12 @@ function validateCampaignInput(payload: any): string[] {
   return errors;
 }
 
-function validateRewardInput(payload: any): string[] {
+function validateRewardInput(payload: Record<string, unknown>): string[] {
   const errors: string[] = [];
   if (!payload.name || typeof payload.name !== "string" || !payload.name.trim()) {
     errors.push("Reward name is required");
   }
-  if (payload.pointsCost === undefined || !Number.isInteger(payload.pointsCost) || payload.pointsCost < 0) {
+  if (payload.pointsCost === undefined || !Number.isInteger(payload.pointsCost) || (payload.pointsCost as number) < 0) {
     errors.push("pointsCost must be a non-negative integer");
   }
   if (!payload.rewardType || typeof payload.rewardType !== "string" || !payload.rewardType.trim()) {

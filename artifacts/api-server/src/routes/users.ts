@@ -363,7 +363,7 @@ async function saveAvatarBuffer(userId: string, buffer: Buffer, mime: string) {
 }
 
 router.post("/avatar", (req, res, next) => {
-  (avatarUpload.single("avatar") as any)(req, res, (err: unknown) => {
+  (avatarUpload.single("avatar") as unknown as import("express").RequestHandler)(req, res, (err: unknown) => {
     if (err) {
       sendValidationError(res, err instanceof multer.MulterError
         ? (err.code === "LIMIT_FILE_SIZE" ? `File too large. Maximum ${MAX_AVATAR_SIZE / 1024 / 1024}MB allowed` : err.message)

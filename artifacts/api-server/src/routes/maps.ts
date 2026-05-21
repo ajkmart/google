@@ -71,7 +71,7 @@ async function revGeoCacheSet(lat: number, lng: number, address: string): Promis
  * Google Geocoding result.  Priority order:
  *   route (street name) → sublocality_level_1 → locality → formatted_address
  */
-function extractStreetAddress(result: any): string {
+function extractStreetAddress(result: { address_components?: Array<{ long_name: string; types: string[] }>; formatted_address?: string }): string {
   const components: Array<{ long_name: string; types: string[] }> =
     result.address_components ?? [];
 
@@ -1214,9 +1214,9 @@ async function handleMapsTest(req: import("express").Request, res: import("expre
         error = body?.error ?? `HTTP ${r.status}`;
       }
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     ok = false;
-    error = e?.message ?? "Request timed out";
+    error = (e as Error | null)?.message ?? "Request timed out";
   }
 
   const latencyMs = Date.now() - start;
@@ -1287,8 +1287,8 @@ async function handleMapsUsage(_req: import("express").Request, res: import("exp
       costEstimates,
       totalRows: rows.length,
     });
-  } catch (e: any) {
-    sendError(res, e?.message ?? "Failed to fetch usage data", 500);
+  } catch (e: unknown) {
+    sendError(res, (e as Error | null)?.message ?? "Failed to fetch usage data", 500);
   }
 }
 

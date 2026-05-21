@@ -7,7 +7,7 @@ import {
   riderProfilesTable,
   vendorProfilesTable,
 } from "@workspace/db/schema";
-import { eq, desc, and, ne, or, ilike } from "drizzle-orm";
+import { eq, desc, and, ne, or, ilike, type SQL } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { customerAuth, requireRole } from "../middleware/security.js";
 import { adminAuth } from "./admin.js";
@@ -213,7 +213,7 @@ router.post(
     { name: "idBack", maxCount: 1 },
     { name: "selfie", maxCount: 1 },
     { name: "idPhoto", maxCount: 1 },
-  ]) as any) as any,
+  ]) as unknown as import("express").RequestHandler),
   validateBody(KycSubmitTextSchema),
   async (req, res) => {
     try {
@@ -393,13 +393,14 @@ router.post(
             "KYC submitted successfully. Our team will review within 24 hours.",
         });
         emitKycSubmitted({ userId, submittedAt: new Date().toISOString() });
-      } catch (err: any) {
-        if (err?.statusCode === 400) {
-          res.status(400).json({ error: err.message });
+      } catch (err: unknown) {
+        const errAsRecord = err as Record<string, unknown>;
+        if (errAsRecord?.statusCode === 400) {
+          res.status(400).json({ error: errAsRecord.message });
           return;
         }
-        if (err?.statusCode === 409) {
-          res.status(409).json({ error: err.message });
+        if (errAsRecord?.statusCode === 409) {
+          res.status(409).json({ error: errAsRecord.message });
           return;
         }
         logger.error({ err }, "KYC submit error");
@@ -597,13 +598,14 @@ router.post("/submit-base64", customerAuth, validateBody(KycSubmitBase64Schema),
           "KYC submitted successfully. Our team will review within 24 hours.",
       });
       emitKycSubmitted({ userId, submittedAt: new Date().toISOString() });
-    } catch (err: any) {
-      if (err?.statusCode === 400) {
-        res.status(400).json({ error: err.message });
+    } catch (err: unknown) {
+      const errAsRec2 = err as Record<string, unknown>;
+      if (errAsRec2?.statusCode === 400) {
+        res.status(400).json({ error: errAsRec2.message });
         return;
       }
-      if (err?.statusCode === 409) {
-        res.status(409).json({ error: err.message });
+      if (errAsRec2?.statusCode === 409) {
+        res.status(409).json({ error: errAsRec2.message });
         return;
       }
       logger.error({ err }, "KYC submit-base64 error");
@@ -816,7 +818,7 @@ router.get("/admin/list", adminAuth, async (req, res) => {
     const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
     const offset = (pageNum - 1) * limitNum;
 
-    const conditions: any[] = [];
+    const conditions: SQL[] = []; // drizzle dynamic query
     if (status && status !== "all") {
       conditions.push(eq(kycVerificationsTable.status, status));
     }

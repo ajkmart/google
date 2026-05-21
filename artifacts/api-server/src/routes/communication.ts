@@ -1,5 +1,5 @@
 import { randomInt } from "crypto";
-import { Router } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import {
@@ -17,6 +17,9 @@ import { eq, and, or, desc, sql, lt, count, gt, gte } from "drizzle-orm";
 import { generateId } from "../lib/id.js";
 import { getIO } from "../lib/socketio.js";
 import { verifyUserJwt } from "../middleware/security.js";
+import type { JwtUserPayload } from "../middleware/security.js";
+// Augmented request carrying the authenticated user payload
+type CommRequest = Request & { user: JwtUserPayload };
 import { getCachedSettings } from "./admin-shared.js";
 import { moderateContent, checkFlagKeywords, getModerationConfigFromSettings } from "../services/contentModeration.js";
 import { translateMessage, composeMessage, transcribeAudio } from "../services/communicationAI.js";
@@ -54,7 +57,7 @@ async function emitDashboardUpdate() {
   }
 }
 
-function authMiddleware(req: any, res: any, next: any) {
+function authMiddleware(req: CommRequest, res: Response, next: NextFunction) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) {
     return res.status(401).json({ error: "Authentication required" });
@@ -64,7 +67,7 @@ function authMiddleware(req: any, res: any, next: any) {
     return res.status(401).json({ error: "Invalid token" });
   }
   req.user = payload;
-  next();
+  return next();
 }
 
 router.use(authMiddleware);
@@ -179,7 +182,7 @@ async function canCommunicate(
   return { allowed: true };
 }
 
-function extractPrimaryRole(roles: any): string {
+function extractPrimaryRole(roles: unknown): string {
   if (!roles) return "customer";
   if (typeof roles === "string") return roles;
   if (Array.isArray(roles)) return roles[0] || "customer";
@@ -201,7 +204,7 @@ async function checkAiDailyLimit(userId: string, settings: Record<string, string
   return (usage?.count || 0) < limit;
 }
 
-router.get("/me/ajk-id", async (req: any, res) => {
+router.get("/me/ajk-id", async (req: CommRequest, res) => {
   try {
     const [user] = await db.select({ ajkId: usersTable.ajkId }).from(usersTable).where(eq(usersTable.id, req.user.userId)).limit(1);
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -226,7 +229,7 @@ router.get("/me/ajk-id", async (req: any, res) => {
   return;
 });
 
-router.get("/search/:ajkId", async (req: any, res) => {
+router.get("/search/:ajkId", async (req: CommRequest, res) => {
   try {
     const { ajkId } = req.params as Record<string, string>;
     const [user] = await db
@@ -245,7 +248,7 @@ router.get("/search/:ajkId", async (req: any, res) => {
 
 const sendRequestSchema = z.object({ receiverId: z.string().min(1) });
 
-router.post("/requests", async (req: any, res) => {
+router.post("/requests", async (req: CommRequest, res) => {
   try {
     const parsed = sendRequestSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid request" });
@@ -314,7 +317,7 @@ router.post("/requests", async (req: any, res) => {
   return;
 });
 
-router.patch("/requests/:id/accept", async (req: any, res) => {
+router.patch("/requests/:id/accept", async (req: CommRequest, res) => {
   try {
     const { id } = req.params as Record<string, string>;
     const [request] = await db.select().from(communicationRequestsTable).where(eq(communicationRequestsTable.id, id)).limit(1);
@@ -350,7 +353,7 @@ router.patch("/requests/:id/accept", async (req: any, res) => {
   return;
 });
 
-router.patch("/requests/:id/reject", async (req: any, res) => {
+router.patch("/requests/:id/reject", async (req: CommRequest, res) => {
   try {
     const { id } = req.params as Record<string, string>;
     const [request] = await db.select().from(communicationRequestsTable).where(eq(communicationRequestsTable.id, id)).limit(1);
@@ -371,7 +374,7 @@ router.patch("/requests/:id/reject", async (req: any, res) => {
   return;
 });
 
-router.patch("/requests/:id/cancel", async (req: any, res) => {
+router.patch("/requests/:id/cancel", async (req: CommRequest, res) => {
   try {
     const { id } = req.params as Record<string, string>;
     const [request] = await db.select().from(communicationRequestsTable).where(eq(communicationRequestsTable.id, id)).limit(1);
@@ -393,12 +396,12 @@ router.patch("/requests/:id/cancel", async (req: any, res) => {
   return;
 });
 
-router.get("/requests", async (req: any, res) => {
+router.get("/requests", async (req: CommRequest, res) => {
   try {
     const userId = req.user.userId;
     const type = req.query.type || "received";
-    const page = parseInt(req.query.page || "1", 10);
-    const limit = Math.min(parseInt(req.query.limit || "20", 10), 50);
+    const page = parseInt(req.query.page as string || "1", 10);
+    const limit = Math.min(parseInt(req.query.limit as string || "20", 10), 50);
     const offset = (page - 1) * limit;
 
     const condition = type === "sent"
@@ -459,7 +462,7 @@ router.get("/requests", async (req: any, res) => {
   }
 });
 
-router.get("/conversations", async (req: any, res) => {
+router.get("/conversations", async (req: CommRequest, res) => {
   try {
     const userId = req.user.userId;
     const conversations = await db
@@ -528,11 +531,11 @@ router.get("/conversations", async (req: any, res) => {
   }
 });
 
-router.get("/conversations/:id/messages", async (req: any, res) => {
+router.get("/conversations/:id/messages", async (req: CommRequest, res) => {
   try {
     const { id } = req.params as Record<string, string>;
-    const page = parseInt(req.query.page || "1", 10);
-    const limit = Math.min(parseInt(req.query.limit || "50", 10), 100);
+    const page = parseInt(req.query.page as string || "1", 10);
+    const limit = Math.min(parseInt(req.query.limit as string || "50", 10), 100);
     const offset = (page - 1) * limit;
 
     const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, id)).limit(1);
@@ -570,7 +573,7 @@ const sendMessageSchema = z.object({
   voiceNoteTranscript: z.string().optional(),
 });
 
-router.post("/conversations/:id/messages", async (req: any, res) => {
+router.post("/conversations/:id/messages", async (req: CommRequest, res) => {
   try {
     const { id } = req.params as Record<string, string>;
     const parsed = sendMessageSchema.safeParse(req.body);
@@ -680,7 +683,7 @@ router.post("/conversations/:id/messages", async (req: any, res) => {
   return;
 });
 
-router.patch("/messages/:id/read", async (req: any, res) => {
+router.patch("/messages/:id/read", async (req: CommRequest, res) => {
   try {
     const { id } = req.params as Record<string, string>;
     const [msg] = await db.select().from(chatMessagesTable).where(eq(chatMessagesTable.id, id)).limit(1);
@@ -707,7 +710,7 @@ router.patch("/messages/:id/read", async (req: any, res) => {
   return;
 });
 
-router.patch("/conversations/:id/read-all", async (req: any, res) => {
+router.patch("/conversations/:id/read-all", async (req: CommRequest, res) => {
   try {
     const { id } = req.params as Record<string, string>;
     const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, id)).limit(1);
@@ -736,7 +739,7 @@ router.patch("/conversations/:id/read-all", async (req: any, res) => {
   return;
 });
 
-router.post("/translate", async (req: any, res) => {
+router.post("/translate", async (req: CommRequest, res) => {
   try {
     const { text, targetLang } = req.body;
     if (!text || !targetLang) return res.status(400).json({ error: "text and targetLang required" });
@@ -755,7 +758,7 @@ router.post("/translate", async (req: any, res) => {
   return;
 });
 
-router.post("/compose-assist", async (req: any, res) => {
+router.post("/compose-assist", async (req: CommRequest, res) => {
   try {
     const { intent, language } = req.body;
     if (!intent) return res.status(400).json({ error: "intent is required" });
@@ -783,7 +786,7 @@ const voiceUpload = multer({
   },
 });
 
-router.post("/voice-notes/upload", voiceUpload.single("audio") as any, async (req: any, res) => {
+router.post("/voice-notes/upload", voiceUpload.single("audio") as unknown as import("express").RequestHandler, async (req: CommRequest, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No audio file uploaded" });
 
@@ -879,7 +882,7 @@ function getIceServersFromSettings(settings: Record<string, string>): IceServer[
   return iceServers;
 }
 
-router.post("/calls/initiate", async (req: any, res) => {
+router.post("/calls/initiate", async (req: CommRequest, res) => {
   try {
     const { calleeId, conversationId } = req.body;
     if (!calleeId) return res.status(400).json({ error: "calleeId is required" });
@@ -925,7 +928,7 @@ router.post("/calls/initiate", async (req: any, res) => {
   return;
 });
 
-router.get("/calls/:id/ice-config", async (req: any, res) => {
+router.get("/calls/:id/ice-config", async (req: CommRequest, res) => {
   try {
     const { id } = req.params as Record<string, string>;
     const userId = req.user.userId;
@@ -941,7 +944,7 @@ router.get("/calls/:id/ice-config", async (req: any, res) => {
   return;
 });
 
-router.post("/calls/:id/answer", async (req: any, res) => {
+router.post("/calls/:id/answer", async (req: CommRequest, res) => {
   try {
     const { id } = req.params as Record<string, string>;
     const userId = req.user.userId;
@@ -964,7 +967,7 @@ router.post("/calls/:id/answer", async (req: any, res) => {
   return;
 });
 
-router.post("/calls/:id/end", async (req: any, res) => {
+router.post("/calls/:id/end", async (req: CommRequest, res) => {
   try {
     const { id } = req.params as Record<string, string>;
     const userId = req.user.userId;
@@ -994,7 +997,7 @@ router.post("/calls/:id/end", async (req: any, res) => {
   return;
 });
 
-router.post("/calls/:id/reject", async (req: any, res) => {
+router.post("/calls/:id/reject", async (req: CommRequest, res) => {
   try {
     const { id } = req.params as Record<string, string>;
     const userId = req.user.userId;
@@ -1016,11 +1019,11 @@ router.post("/calls/:id/reject", async (req: any, res) => {
   return;
 });
 
-router.get("/calls/history", async (req: any, res) => {
+router.get("/calls/history", async (req: CommRequest, res) => {
   try {
     const userId = req.user.userId;
-    const page = parseInt(req.query.page || "1", 10);
-    const limit = Math.min(parseInt(req.query.limit || "20", 10), 50);
+    const page = parseInt(req.query.page as string || "1", 10);
+    const limit = Math.min(parseInt(req.query.limit as string || "20", 10), 50);
     const offset = (page - 1) * limit;
 
     const calls = await db
@@ -1054,12 +1057,12 @@ router.get("/calls/history", async (req: any, res) => {
 });
 
 /* ── POST /communication/block — Block a user ── */
-router.post("/block", async (req: any, res: any) => {
+router.post("/block", async (req: CommRequest, res: Response) => {
   try {
-  const userId = (req.user as { id: string }).id;
+  const userId = req.user.userId;
   const { blockedUserId } = req.body as { blockedUserId?: string };
   if (!blockedUserId || typeof blockedUserId !== "string") {
-    return res.status(400).json({ error: "blockedUserId required" });
+    res.status(400).json({ error: "blockedUserId required" }); return;
   }
   try {
     await db.execute(sql`
@@ -1088,12 +1091,12 @@ router.post("/block", async (req: any, res: any) => {
 });
 
 /* ── POST /communication/report — Report a user ── */
-router.post("/report", async (req: any, res: any) => {
+router.post("/report", async (req: CommRequest, res: Response) => {
   try {
-  const userId = (req.user as { id: string }).id;
+  const userId = req.user.userId;
   const { reportedUserId, reason, messageId } = req.body as { reportedUserId?: string; reason?: string; messageId?: string };
   if (!reportedUserId || !reason) {
-    return res.status(400).json({ error: "reportedUserId and reason required" });
+    res.status(400).json({ error: "reportedUserId and reason required" }); return;
   }
   try {
     await db.insert(chatReportsTable).values({

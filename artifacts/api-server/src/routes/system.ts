@@ -533,8 +533,8 @@ router.post("/remove-all", async (_req, res, next: NextFunction) => {
       preserved: ["admin_accounts", "platform_settings"],
       ...snap,
     });
-  } catch (e: any) {
-    sendError(res, `Remove all failed: ${e.message}`, 500);
+  } catch (e: unknown) {
+    sendError(res, `Remove all failed: ${(e as Error).message}`, 500);
   }
 });
 

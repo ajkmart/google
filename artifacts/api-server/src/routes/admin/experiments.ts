@@ -56,7 +56,7 @@ router.post("/experiments", async (req, res) => {
   }
 });
 
-function validateExperimentPayload(payload: any, partial = false): string[] {
+function validateExperimentPayload(payload: Record<string, unknown>, partial = false): string[] {
   const errors: string[] = [];
   if (!partial || payload.name !== undefined) {
     if (!payload.name || typeof payload.name !== "string" || !payload.name.trim()) {
@@ -125,7 +125,7 @@ router.put("/experiments/:id", async (req, res) => {
     const [existing] = await db.select().from(abExperimentsTable).where(eq(abExperimentsTable.id, id)).limit(1);
     if (!existing) { sendNotFound(res, "Experiment not found"); return; }
 
-    const updates: any = { updatedAt: new Date() };
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (name !== undefined) updates.name = String(name).trim();
     if (description !== undefined) updates.description = String(description);
     if (variants !== undefined) updates.variants = variants;

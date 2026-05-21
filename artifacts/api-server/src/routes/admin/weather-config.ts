@@ -62,16 +62,16 @@ router.post("/test", async (req, res) => {
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`;
     const geoResp = await fetch(geoUrl);
     if (!geoResp.ok) { sendValidationError(res, `Geocoding API returned HTTP ${geoResp.status}`); return; }
-    const geo: any = await geoResp.json();
-    const place = geo?.results?.[0];
+    const geo = await geoResp.json() as { results?: Array<{ latitude: number; longitude: number; name?: string; country?: string }> };
+    const place = geo.results?.[0];
     if (place?.latitude == null || place?.longitude == null) { sendValidationError(res, `City "${city}" not found in geocoder`); return; }
 
     // 2) fetch current conditions
     const wxUrl = `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current=temperature_2m,weather_code`;
     const wxResp = await fetch(wxUrl);
     if (!wxResp.ok) { sendValidationError(res, `Forecast API returned HTTP ${wxResp.status}`); return; }
-    const wx: any = await wxResp.json();
-    const temp = wx?.current?.temperature_2m;
+    const wx = await wxResp.json() as { current?: { temperature_2m?: number; weather_code?: number } };
+    const temp = wx.current?.temperature_2m;
     const latencyMs = Date.now() - start;
     sendSuccess(res, {
       ok: true,

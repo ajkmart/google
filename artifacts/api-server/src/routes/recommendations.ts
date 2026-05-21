@@ -62,7 +62,7 @@ router.get("/for-you", customerAuth, async (req, res) => {
     .where(eq(userInteractionsTable.userId, userId));
   const excludeIds = new Set(interactedIds.map(r => r.productId));
 
-  let recommendations: any[] = [];
+  let recommendations: (Omit<typeof productsTable.$inferSelect, "price" | "originalPrice" | "rating"> & { price: number; originalPrice: number | undefined; rating: number; reason: string })[] = [];
 
   if (userCategories.length > 0) {
     const topCategories = userCategories.map(c => c.category);

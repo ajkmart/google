@@ -772,7 +772,7 @@ router.patch("/:id/accept-bid", customerAuth, async (req, res) => {
     return;
   }
 
-  let updated: any;
+  let updated: { rideUpdate: typeof ridesTable.$inferSelect; bid: typeof rideBidsTable.$inferSelect } | undefined;
   try {
     updated = await db.transaction(async (tx) => {
       const [ride] = await tx.select().from(ridesTable)

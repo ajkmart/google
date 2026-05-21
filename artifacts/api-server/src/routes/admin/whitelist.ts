@@ -54,8 +54,8 @@ router.post("/", async (req, res) => {
       expiresAt: expiresAt ? new Date(expiresAt) : null,
     }).returning();
     sendSuccess(res, { entry: row });
-  } catch (err: any) {
-    if (err.message?.includes("unique")) {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message?.includes("unique")) {
       sendError(res, "This identifier is already in the whitelist");
       return;
     }

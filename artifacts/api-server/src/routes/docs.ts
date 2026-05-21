@@ -77,7 +77,7 @@ const swaggerUiOptions: swaggerUi.SwaggerUiOptions = {
 const router = Router();
 
 router.use(adminAuth);
-router.use(swaggerUi.serve as any);
-router.use(swaggerUi.setup(spec, swaggerUiOptions) as any);
+router.use(swaggerUi.serve as unknown as import("express").RequestHandler[]);
+router.use(swaggerUi.setup(spec, swaggerUiOptions) as unknown as import("express").RequestHandler);
 
 export default router;

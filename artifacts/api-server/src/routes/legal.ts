@@ -6,7 +6,7 @@ import {
   termsVersionsTable,
   usersTable,
 } from "@workspace/db/schema";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import {
   invalidatePlatformSettingsCache,
   invalidateSettingsCache,
@@ -302,7 +302,7 @@ router.get("/consent-log", async (req, res) => {
       terms_acceptance: ["terms", "terms_acceptance"],
     };
 
-    const filters: any[] = [];
+    const filters: SQL[] = []; // drizzle dynamic query
     if (policy) {
       const aliases = POLICY_ALIASES[policy] ?? [policy];
       filters.push(

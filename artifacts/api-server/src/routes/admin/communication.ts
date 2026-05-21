@@ -273,7 +273,7 @@ router.get("/communication/flags", async (req, res) => {
       .offset(offset);
 
     const messageIds = flags.map(f => f.messageId).filter(Boolean) as string[];
-    let messages: any[] = [];
+    let messages: (typeof chatMessagesTable.$inferSelect)[] = [];
     if (messageIds.length > 0) {
       messages = await db
         .select()
@@ -293,10 +293,10 @@ router.get("/communication/flags", async (req, res) => {
   }
 });
 
-router.patch("/communication/flags/:id/resolve", async (req: any, res) => {
+router.patch("/communication/flags/:id/resolve", async (req, res) => {
   try {
     const { id } = req.params as Record<string, string>;
-    const adminId = req.adminPayload?.adminId || null;
+    const adminId = (req as import("../admin-shared.js").AdminRequest).adminPayload?.adminId || null;
     await db.update(communicationFlagsTable).set({
       resolvedAt: new Date(),
       reviewedByAdminId: adminId,
@@ -389,13 +389,13 @@ router.get("/communication/roles/ai-status", async (_req, res) => {
   }
 });
 
-router.post("/communication/roles/ai-generate", async (req: any, res) => {
+router.post("/communication/roles/ai-generate", async (req, res) => {
   try {
-    const { description } = req.body;
+    const { description } = req.body as Record<string, unknown>;
     if (!description) return res.status(400).json({ error: "Description is required" });
 
-    const adminId = req.adminPayload?.adminId || "admin";
-    const template = await generateRoleTemplate(description, adminId);
+    const adminId = (req as import("../admin-shared.js").AdminRequest).adminPayload?.adminId || "admin";
+    const template = await generateRoleTemplate(String(description), adminId);
     res.json({ data: template });
   } catch (e) {
     res.status(500).json({ error: "Failed to generate role template" });
@@ -533,7 +533,7 @@ router.get("/communication/users/search", async (req, res) => {
 router.get("/communication/export/:type", async (req, res) => {
   try {
     const { type } = req.params as Record<string, string>;
-    let rows: any[] = [];
+    let rows: Record<string, unknown>[] = [];
     let defaultHeaders: string[] = [];
 
     if (type === "messages") {

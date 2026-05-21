@@ -498,7 +498,7 @@ router.get("/", async (req, res) => {
           .where(eq(abExperimentsTable.status, "active"));
         const assignments: { experimentId: string; experimentName: string; variant: string }[] = [];
         for (const exp of activeExperiments) {
-          const variants = (exp.variants as unknown[]) || [];
+          const variants = (exp.variants as { weight?: number; name?: string }[] | null) || [];
           if (variants.length < 2) continue;
           const trafficHash = crypto.createHash("md5").update(`${userId}:${exp.id}:traffic`).digest("hex");
           const trafficBucket = parseInt(trafficHash.slice(0, 8), 16) % 100;
@@ -522,13 +522,13 @@ router.get("/", async (req, res) => {
   });
 });
 
-function assignVariant(userId: string, experimentId: string, variants: any[]): string {
+function assignVariant(userId: string, experimentId: string, variants: { weight?: number; name?: string }[]): string {
   const hash = crypto.createHash("md5").update(`${userId}:${experimentId}`).digest("hex");
   const bucket = parseInt(hash.slice(0, 8), 16) % 100;
   let cumulative = 0;
   for (const v of variants) {
     cumulative += (v.weight ?? Math.floor(100 / variants.length));
-    if (bucket < cumulative) return v.name;
+    if (bucket < cumulative) return v.name ?? "control";
   }
   return variants[variants.length - 1]?.name ?? "control";
 }
@@ -547,7 +547,7 @@ router.get("/experiments", async (req, res) => {
     const assignments: { experimentId: string; experimentName: string; variant: string }[] = [];
 
     for (const exp of activeExperiments) {
-      const variants = (exp.variants as unknown[]) || [];
+      const variants = (exp.variants as { weight?: number; name?: string }[] | null) || [];
       if (variants.length < 2) continue;
 
       const trafficHash = crypto.createHash("md5").update(`${userId}:${exp.id}:traffic`).digest("hex");

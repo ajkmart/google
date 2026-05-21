@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { and, asc, desc, eq, gte, sql, inArray, count } from "drizzle-orm";
+import { and, asc, desc, eq, gte, sql, inArray, count, type SQL } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   vanRoutesTable,
@@ -2084,7 +2084,7 @@ router.get("/admin/bookings", adminAuth, async (req, res, next) => {
       ? String(req.query["status"])
       : null;
 
-    const conditions: any[] = [];
+    const conditions: SQL[] = []; // drizzle dynamic query
     if (dateFilter)
       conditions.push(eq(vanBookingsTable.travelDate, dateFilter));
     if (routeFilter) conditions.push(eq(vanBookingsTable.routeId, routeFilter));

@@ -13,7 +13,7 @@ import {
   vanSchedulesTable,
   vanDriversTable,
 } from "@workspace/db/schema";
-import { and, desc, eq, gte, inArray, lte, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, ilike, or, sql, type SQL } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
 import { getCachedSettings } from "../admin-shared.js";
 import { alertAccountRestriction } from "../../services/email.js";
@@ -275,7 +275,7 @@ router.get("/conditions", async (req, res) => {
   try {
     const { userId, role, severity, status, search, dateFrom, dateTo } = req.query as Record<string, string>;
 
-    const where: any[] = [];
+    const where: SQL[] = []; // drizzle dynamic query
     if (userId) where.push(eq(accountConditionsTable.userId, userId));
     if (role && role !== "all") where.push(eq(accountConditionsTable.userRole, role));
     if (severity && severity !== "all") where.push(eq(accountConditionsTable.severity, severity as typeof accountConditionsTable.severity._.data));
@@ -612,7 +612,7 @@ router.patch("/condition-rules/:id", async (req, res) => {
   }
   try {
     const validated = p.data;
-    const updates: any = { ...validated, updatedAt: new Date() };
+    const updates: Record<string, unknown> = { ...validated, updatedAt: new Date() };
     if (updates.threshold !== undefined) updates.threshold = String(updates.threshold);
     if (updates.cooldownHours !== undefined) updates.cooldownHours = Number(updates.cooldownHours);
     const [updated] = await db
@@ -907,7 +907,7 @@ router.patch("/condition-settings", async (req, res) => {
         .returning();
       return res.json({ success: true, data: created });
     }
-    const updates: any = { updatedAt: new Date() };
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (mode !== undefined) updates.mode = mode;
     if (customThresholds !== undefined) updates.customThresholds = customThresholds;
     if (aiParameters !== undefined) updates.aiParameters = aiParameters;

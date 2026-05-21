@@ -53,7 +53,7 @@ router.post("/admin/sentry-webhook", async (req, res) => {
       .update(bodyStr)
       .digest("hex");
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), code: "HMAC_COMPUTATION_FAILED", timestamp: new Date().toISOString() }, "[sentry-webhook] HMAC computation failed");
+    logger.error({ error: err instanceof Error ? (err as Error).message : String(err), code: "HMAC_COMPUTATION_FAILED", timestamp: new Date().toISOString() }, "[sentry-webhook] HMAC computation failed");
     sendError(res, "HMAC computation failed", 500);
     return;
   }
@@ -64,7 +64,7 @@ router.post("/admin/sentry-webhook", async (req, res) => {
     sigBuf = Buffer.from(signature, "hex");
     expBuf = Buffer.from(expected, "hex");
   } catch (err) {
-    logger.warn({ error: err instanceof Error ? err.message : String(err), code: "INVALID_SIGNATURE_FORMAT", timestamp: new Date().toISOString() }, "[sentry-webhook] Invalid signature format");
+    logger.warn({ error: err instanceof Error ? (err as Error).message : String(err), code: "INVALID_SIGNATURE_FORMAT", timestamp: new Date().toISOString() }, "[sentry-webhook] Invalid signature format");
     sendError(res, "Invalid signature format", 400);
     return;
   }
@@ -105,7 +105,7 @@ router.post("/admin/sentry-webhook", async (req, res) => {
       .where(eq(sentryKnownIssuesTable.fingerprint, fingerprint))
       .limit(1)
       .catch((err: unknown) => {
-        logger.warn({ err: err instanceof Error ? err.message : String(err), fingerprint }, "[sentry-webhook] known-issues lookup failed");
+        logger.warn({ err: err instanceof Error ? (err as Error).message : String(err), fingerprint }, "[sentry-webhook] known-issues lookup failed");
         return [] as { fingerprint: string }[];
       });
 
@@ -114,7 +114,7 @@ router.post("/admin/sentry-webhook", async (req, res) => {
         .set({ lastSeenAt: new Date() })
         .where(eq(sentryKnownIssuesTable.fingerprint, fingerprint))
         .catch((err: unknown) => {
-          logger.warn({ err: err instanceof Error ? err.message : String(err), fingerprint }, "[sentry-webhook] lastSeenAt update (known issue) failed");
+          logger.warn({ err: err instanceof Error ? (err as Error).message : String(err), fingerprint }, "[sentry-webhook] lastSeenAt update (known issue) failed");
         });
       sendSuccess(res, { ack: true, known: true });
       return;
@@ -135,7 +135,7 @@ router.post("/admin/sentry-webhook", async (req, res) => {
         .set({ lastSeenAt: new Date() })
         .where(eq(sentryKnownIssuesTable.fingerprint, fingerprint))
         .catch((err: unknown) => {
-          logger.warn({ err: err instanceof Error ? err.message : String(err), fingerprint }, "[sentry-webhook] lastSeenAt update (conflict race) failed");
+          logger.warn({ err: err instanceof Error ? (err as Error).message : String(err), fingerprint }, "[sentry-webhook] lastSeenAt update (conflict race) failed");
         });
       sendSuccess(res, { ack: true, known: true });
       return;
@@ -184,12 +184,12 @@ router.post("/admin/sentry-webhook", async (req, res) => {
 
     logger.info({ fingerprint, title, sentryId }, "[sentry-webhook] New issue type detected");
     sendSuccess(res, { ack: true, known: false, fingerprint });
-  } catch (err: any) {
-    logger.error({ err: err.message }, "[sentry-webhook] DB operation failed");
+  } catch (err: unknown) {
+    logger.error({ err: (err as Error).message }, "[sentry-webhook] DB operation failed");
     sendError(res, "Internal error", 500);
   }
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error({ error: err instanceof Error ? (err as Error).message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
