@@ -106,8 +106,10 @@ function getJwtExpiry(token: string): number | null {
   }
 }
 
-/** How many milliseconds before expiry to warn the admin. */
-const SESSION_WARN_BEFORE_MS = 60_000; // 1 minute
+/** Five minutes before expiry → show a dismissable warning banner. */
+const SESSION_WARN_BEFORE_MS = 5 * 60_000;
+/** Sixty seconds before expiry → auto-refresh silently (no user action needed). */
+const PROACTIVE_REFRESH_BEFORE_MS = 60_000;
 
 /**
  * Admin Auth Provider
@@ -121,28 +123,54 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   // This persists across renders so concurrent calls share one in-flight promise
   const refreshPromiseRef = useRef<Promise<string> | null>(null);
 
-  // Timer that fires the session-expiry warning toast
+  // Timer that fires the 5-minute warning toast
   const expiryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Tracks which token the current timer was set for (avoids duplicate timers)
+  // Timer that silently auto-refreshes the token 60s before expiry
+  const proactiveRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Tracks which token the current timers were set for (avoids duplicate timers)
   const timerTokenRef = useRef<string | null>(null);
   // Deduplication flag: prevents the same session-expiry toast from showing
   // multiple times if scheduleExpiryWarning is called concurrently.
   const expiryToastShownRef = useRef<boolean>(false);
 
-  /** Schedule a warning toast 60s before the access token expires. */
+  /**
+   * Schedule both session timers whenever the access token changes:
+   *  1. Proactive silent refresh  — 60 s before expiry (no user action needed).
+   *  2. Warning toast             — 5 min before expiry with "Extend Session" CTA.
+   */
   const scheduleExpiryWarning = useCallback((token: string, refreshFn: () => Promise<string>) => {
     if (timerTokenRef.current === token) return; // already scheduled for this token
+
+    // Clear any previous timers
     if (expiryTimerRef.current) {
       clearTimeout(expiryTimerRef.current);
       expiryTimerRef.current = null;
+    }
+    if (proactiveRefreshTimerRef.current) {
+      clearTimeout(proactiveRefreshTimerRef.current);
+      proactiveRefreshTimerRef.current = null;
     }
     timerTokenRef.current = token;
 
     const expiresAt = getJwtExpiry(token);
     if (!expiresAt) return;
 
+    // ── 1. Proactive silent refresh at T-60s ──────────────────────────────
+    const msUntilRefresh = expiresAt - Date.now() - PROACTIVE_REFRESH_BEFORE_MS;
+    if (msUntilRefresh > 0) {
+      proactiveRefreshTimerRef.current = setTimeout(() => {
+        proactiveRefreshTimerRef.current = null;
+        refreshFn().catch((err) => {
+          log.warn("[adminAuth] Proactive token refresh failed:", err);
+          // refreshFn() already shows the "Session expired" toast and redirects
+          // on a genuine 401 — nothing else to do here.
+        });
+      }, msUntilRefresh);
+    }
+
+    // ── 2. Warning toast at T-5min ────────────────────────────────────────
     const msLeft = expiresAt - Date.now() - SESSION_WARN_BEFORE_MS;
-    if (msLeft <= 0) return; // already expiring — let the 401 handler deal with it
+    if (msLeft <= 0) return; // less than 5 min left — proactive refresh will handle it
 
     expiryToastShownRef.current = false;
     expiryTimerRef.current = setTimeout(() => {
@@ -150,30 +178,34 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       if (expiryToastShownRef.current) return;
       expiryToastShownRef.current = true;
       toast({
-        title: "Your session expires in 1 minute",
-        description: 'Click "Stay logged in" to continue without interruption.',
-        duration: 55_000,
+        title: "Your session expires in 5 minutes",
+        description: 'Click "Extend Session" to stay logged in.',
+        duration: 4 * 60_000, // dismiss just before the auto-refresh fires
         action: (
           <ToastAction
-            altText="Stay logged in"
+            altText="Extend Session"
             onClick={() => {
               refreshFn().catch((err) => {
-                log.warn("[adminAuth] Session refresh failed:", err);
+                log.warn("[adminAuth] Manual session extend failed:", err);
               });
             }}
           >
-            Stay logged in
+            Extend Session
           </ToastAction>
         ),
       });
     }, msLeft);
   }, []);
 
-  /** Cancel the expiry warning timer (called on logout or successful refresh). */
+  /** Cancel all session timers (called on logout or after a successful refresh). */
   const cancelExpiryWarning = useCallback(() => {
     if (expiryTimerRef.current) {
       clearTimeout(expiryTimerRef.current);
       expiryTimerRef.current = null;
+    }
+    if (proactiveRefreshTimerRef.current) {
+      clearTimeout(proactiveRefreshTimerRef.current);
+      proactiveRefreshTimerRef.current = null;
     }
     timerTokenRef.current = null;
   }, []);
@@ -200,13 +232,21 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
         if (!response.ok) {
           if (response.status === 401) {
-            // Refresh token expired or invalid - clear auth
+            // Refresh token expired or invalid — clear auth, toast, redirect.
             cancelExpiryWarning();
+            toast({
+              variant: "destructive",
+              title: "Session expired",
+              description: "Please log in again to continue.",
+            });
             setState({
               ...INITIAL_STATE,
               isLoading: false,
               error: "Session expired. Please log in again.",
             });
+            // Soft-navigate via the event so the React router redirects without
+            // a full page reload (preserves unsaved form state in other tabs).
+            window.dispatchEvent(new CustomEvent("admin:force-redirect-to-login"));
             throw new Error("Session expired");
           }
           throw new Error("Failed to refresh token");
@@ -250,6 +290,35 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => cancelExpiryWarning(); // Cleanup on unmount to prevent race conditions
   }, [state.accessToken, scheduleExpiryWarning, cancelExpiryWarning, refreshAccessToken]);
+
+  /**
+   * Session check when the tab regains focus after a long idle period.
+   * If the in-memory token is missing or within 60 s of expiry, attempt a
+   * silent refresh so the admin never hits a 401 on their first post-idle call.
+   */
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState !== "visible") return;
+      // Nothing to check when already logged out
+      if (!state.accessToken) return;
+
+      const expiresAt = getJwtExpiry(state.accessToken);
+      // Malformed token — let the next API call's 401 handler take over
+      if (!expiresAt) return;
+
+      const msLeft = expiresAt - Date.now();
+      // If already expired or within the 60-second proactive window → refresh now
+      if (msLeft < PROACTIVE_REFRESH_BEFORE_MS) {
+        refreshAccessToken().catch((err) => {
+          // refreshAccessToken() already shows the toast and redirects on 401
+          log.warn("[adminAuth] Visibility-change token refresh failed:", err);
+        });
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [state.accessToken, refreshAccessToken]);
 
   /**
    * On mount, attempt to restore session by refreshing access token
