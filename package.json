@@ -18,7 +18,7 @@
     "audit:fix": "pnpm audit --fix",
     "lint": "eslint . --cache --cache-location .eslintcache",
     "lint:fix": "eslint . --fix --cache --cache-location .eslintcache",
-    "lint:ci": "eslint artifacts/api-server/src --cache --cache-location .eslintcache && eslint artifacts/admin/src --cache --cache-location .eslintcache && eslint artifacts/rider-app/src --cache --cache-location .eslintcache && eslint artifacts/vendor-app/src --cache --cache-location .eslintcache && eslint lib --cache --cache-location .eslintcache",
+    "lint:ci": "concurrently --max-processes 5 --names api,admin,rider,vendor,lib \"eslint artifacts/api-server/src --cache --cache-location .eslintcache\" \"eslint artifacts/admin/src --cache --cache-location .eslintcache\" \"eslint artifacts/rider-app/src --cache --cache-location .eslintcache\" \"eslint artifacts/vendor-app/src --cache --cache-location .eslintcache\" \"eslint lib --cache --cache-location .eslintcache\"",
     "lint:api": "eslint artifacts/api-server/src --cache --cache-location .eslintcache",
     "lint:admin": "eslint artifacts/admin/src --cache --cache-location .eslintcache",
     "lint:check": "eslint . --max-warnings 0",
