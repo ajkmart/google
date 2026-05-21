@@ -223,6 +223,9 @@ export default function Notifications() {
     queryKey: ["rider-notifications"],
     queryFn: () => api.getNotifications(),
     refetchInterval: 30000,
+    staleTime: 15_000,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30_000),
   });
 
   const notifs: NotifRecord[] = data?.notifications || []; // eslint-disable-line react-hooks/exhaustive-deps

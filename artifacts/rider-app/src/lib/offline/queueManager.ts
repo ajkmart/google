@@ -256,6 +256,22 @@ export function registerActionExecutor(fn: ActionExecutor): void {
   _executor = fn;
 }
 
+/** Returns the number of actions currently pending in the queue.
+ *  Useful for surfacing a "N actions queued" badge in the UI. */
+export async function getQueueSize(): Promise<number> {
+  try {
+    const db = await openDB();
+    return await new Promise<number>((resolve, reject) => {
+      const tx = db.transaction(STORE, "readonly");
+      const req = tx.objectStore(STORE).count();
+      req.onsuccess = () => resolve(req.result ?? 0);
+      req.onerror = () => reject(tx.error);
+    });
+  } catch {
+    return 0;
+  }
+}
+
 type ActionSuccessCallback = (action: QueuedAction) => void;
 const _successCallbacks = new Map<ActionType, Set<ActionSuccessCallback>>();
 

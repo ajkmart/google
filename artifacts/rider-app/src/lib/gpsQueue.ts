@@ -8,8 +8,21 @@
 
 import { validateGpsPing, type GpsPing } from "./gps/validation";
 
+/* Lightweight warn logger that mirrors the project-wide console.warn pattern */
+function _warnGps(msg: string, ...args: unknown[]): void {
+  console.warn("[gpsQueue]", msg, ...args); // eslint-disable-line no-console
+}
+
 /* Last valid ping seen — used by the validator to compute speed between pings */
 let _lastValidPing: GpsPing | null = null;
+
+/* Exponential-backoff state for batch drain failures.
+   On each consecutive non-spoof failure the wait doubles (2 s → 4 s → 8 s → 30 s cap).
+   A successful drain or a spoof rejection (permanent) resets the counter. */
+let _drainRetryCount = 0;
+const DRAIN_BACKOFF_BASE_MS = 2_000;
+const DRAIN_BACKOFF_MAX_MS = 30_000;
+let _drainBackoffTimer: ReturnType<typeof setTimeout> | null = null;
 
 export interface QueuedPing {
   id: string;
@@ -121,8 +134,14 @@ export async function enqueue(ping: QueuedPing): Promise<void> {
     isMockProvider: ping.mockProvider,
   });
   if (!result.valid) {
-    /* Rejected pings are silently dropped from the queue.
-       The audit log in gps/validation.ts captures the reason. */
+    /* Log the drop so on-device diagnostics (DevTools / Sentry) can surface
+       spoofing or sensor anomalies without hitting the server. */
+    _warnGps("ping rejected — not enqueued", {
+      reason: result.reason,
+      lat: ping.latitude,
+      lng: ping.longitude,
+      mock: ping.mockProvider,
+    });
     return;
   }
   /* Propagate suspicious metadata so the batch payload carries the flag
@@ -356,6 +375,7 @@ async function drainQueue(): Promise<void> {
       try {
         await _drainFn(chunk);
         await clearQueue(chunk.map((p) => p.id));
+        _drainRetryCount = 0; // reset backoff on each successful chunk
       } catch (rawErr: unknown) {
         const err = rawErr as Record<string, unknown>;
         const responseData = err.responseData as Record<string, unknown> | undefined;
@@ -366,23 +386,42 @@ async function drainQueue(): Promise<void> {
           responseDataNested?.code === "GPS_SPOOF_DETECTED" ||
           err.spoofDetected === true;
         if (isSpoofRejection) {
+          _warnGps("batch rejected as spoof — discarding chunk", chunk.length, "pings");
           await clearQueue(chunk.map((p) => p.id));
+          _drainRetryCount = 0; // reset backoff on permanent rejection
           continue;
         }
         /* G1: For non-spoof transient failures (network/5xx), keep the rest of
            the queue in IDB for the next online event but do NOT abandon the
            remaining chunks of this drain pass — they are independent batches
-           and may succeed where the failed one didn't. We intentionally
-           continue rather than break, and the failed chunk is left in IDB
-           because we never called clearQueue() for it. */
+           and may succeed where the failed one didn't.
+           Apply exponential backoff before the next drain attempt so we don't
+           hammer a struggling server. */
+        _drainRetryCount += 1;
+        const backoffMs = Math.min(
+          DRAIN_BACKOFF_BASE_MS * 2 ** (_drainRetryCount - 1),
+          DRAIN_BACKOFF_MAX_MS
+        );
+        _warnGps(`batch drain failed (attempt ${_drainRetryCount}) — retry in ${backoffMs}ms`);
+        if (_drainBackoffTimer !== null) clearTimeout(_drainBackoffTimer);
+        _drainBackoffTimer = setTimeout(() => {
+          _drainBackoffTimer = null;
+          drainQueue();
+        }, backoffMs);
         continue;
       }
     }
   } catch (err) {
-    console.warn("[artifacts/rider-app/src/lib/gpsQueue.ts]", err);
+    _warnGps("drainQueue outer catch", err);
   } finally {
-    // eslint-disable-line no-console
     _draining = false;
+    /* NOTE: _drainRetryCount is intentionally NOT reset here.
+       It is only reset inside the chunk-level try block (on success) or on a
+       spoof rejection (permanent). This ensures the backoff delay truly
+       doubles across consecutive failed drain passes:
+         pass 1 fails → count=1 → retry in 2 s
+         pass 2 fails → count=2 → retry in 4 s
+         pass 3 fails → count=3 → retry in 8 s … cap 30 s */
   }
 }
 

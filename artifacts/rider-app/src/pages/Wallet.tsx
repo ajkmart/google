@@ -344,6 +344,52 @@ type WalletTx = {
 
 type TxFilter = "all" | "credit" | "debit" | "bonus" | "fees";
 
+function SkeletonWallet() {
+  return (
+    <div className="min-h-screen bg-[#F5F6F8]">
+      <div
+        className="relative overflow-hidden rounded-b-[2rem] bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 px-5 pb-8"
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}
+      >
+        <div className="absolute top-0 right-0 h-64 w-64 translate-x-1/3 -translate-y-1/2 rounded-full bg-white/[0.03]" />
+        <div className="absolute bottom-0 left-0 h-44 w-44 -translate-x-1/4 translate-y-1/2 rounded-full bg-white/[0.02]" />
+        <div className="relative">
+          <div className="mb-6 flex animate-pulse items-center justify-between">
+            <div className="h-3 w-24 rounded bg-white/10" />
+            <div className="h-8 w-8 rounded-full bg-white/5" />
+          </div>
+          <div className="mb-6 h-12 w-52 animate-pulse rounded-xl bg-white/10" />
+          <div className="mb-5 flex animate-pulse gap-3">
+            <div className="h-16 flex-1 rounded-2xl bg-white/5" />
+            <div className="h-16 flex-1 rounded-2xl bg-white/5" />
+            <div className="h-16 flex-1 rounded-2xl bg-white/5" />
+          </div>
+          <div className="flex animate-pulse gap-3">
+            <div className="h-13 flex-1 rounded-2xl bg-white/15" />
+            <div className="h-13 flex-1 rounded-2xl bg-white/10" />
+          </div>
+        </div>
+      </div>
+      <div className="-mt-4 space-y-4 px-5 py-5">
+        <div className="animate-pulse rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="mb-4 h-4 w-32 rounded bg-gray-200" />
+          <div className="flex h-20 items-end gap-3">
+            {[20, 35, 15, 45, 30, 50, 25].map((h, i) => (
+              <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
+                <div
+                  className="w-full max-w-[20px] rounded-md bg-gray-100"
+                  style={{ height: `${h}px` }}
+                />
+                <div className="h-2 w-4 rounded bg-gray-100" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Wallet() {
   const { user, refreshUser } = useAuth();
   const { config } = usePlatformConfig();
@@ -565,49 +611,7 @@ export default function Wallet() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#F5F6F8]">
-        <div
-          className="relative overflow-hidden rounded-b-[2rem] bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 px-5 pb-8"
-          style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}
-        >
-          <div className="absolute top-0 right-0 h-64 w-64 translate-x-1/3 -translate-y-1/2 rounded-full bg-white/[0.03]" />
-          <div className="absolute bottom-0 left-0 h-44 w-44 -translate-x-1/4 translate-y-1/2 rounded-full bg-white/[0.02]" />
-          <div className="relative">
-            <div className="mb-6 flex animate-pulse items-center justify-between">
-              <div className="h-3 w-24 rounded bg-white/10" />
-              <div className="h-8 w-8 rounded-full bg-white/5" />
-            </div>
-            <div className="mb-6 h-12 w-52 animate-pulse rounded-xl bg-white/10" />
-            <div className="mb-5 flex animate-pulse gap-3">
-              <div className="h-16 flex-1 rounded-2xl bg-white/5" />
-              <div className="h-16 flex-1 rounded-2xl bg-white/5" />
-              <div className="h-16 flex-1 rounded-2xl bg-white/5" />
-            </div>
-            <div className="flex animate-pulse gap-3">
-              <div className="h-13 flex-1 rounded-2xl bg-white/15" />
-              <div className="h-13 flex-1 rounded-2xl bg-white/10" />
-            </div>
-          </div>
-        </div>
-        <div className="-mt-4 space-y-4 px-5 py-5">
-          <div className="animate-pulse rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-            <div className="mb-4 h-4 w-32 rounded bg-gray-200" />
-            <div className="flex h-20 items-end gap-3">
-              {[20, 35, 15, 45, 30, 50, 25].map((h, i) => (
-                <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
-                  <div
-                    className="w-full max-w-[20px] rounded-md bg-gray-100"
-                    style={{ height: `${h}px` }}
-                  />
-                  <div className="h-2 w-4 rounded bg-gray-100" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <SkeletonWallet />;
   }
 
   if (isError) {
@@ -1098,7 +1102,18 @@ export default function Wallet() {
                 </div>
               ) : (
                 (() => {
-                  const depositList: any[] = depositsData?.deposits ?? depositsData ?? [];
+                  interface DepositItem {
+                    id: string;
+                    status: string;
+                    method?: string;
+                    createdAt: string;
+                    note?: string;
+                    amount: number | string;
+                  }
+                  const depositList: DepositItem[] =
+                    (depositsData as { deposits?: DepositItem[] } | null)?.deposits ??
+                    (depositsData as DepositItem[] | null) ??
+                    [];
                   if (depositList.length === 0)
                     return (
                       <div className="px-5 py-8 text-center">
@@ -1107,7 +1122,7 @@ export default function Wallet() {
                     );
                   return (
                     <div className="divide-y divide-gray-50">
-                      {depositList.map((dep: any) => {
+                      {depositList.map((dep: DepositItem) => {
                         const st =
                           dep.status === "verified"
                             ? "verified"

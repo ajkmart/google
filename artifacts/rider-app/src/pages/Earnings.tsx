@@ -30,6 +30,40 @@ import { useAuth } from "../lib/rider-auth";
 import { usePlatformConfig } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
 
+function SkeletonEarnings() {
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="animate-pulse space-y-2 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="h-3 w-16 rounded-full bg-gray-100" />
+          <div className="h-8 w-28 rounded-full bg-gray-200" />
+          <div className="h-2.5 w-20 rounded-full bg-gray-100" />
+        </div>
+        <div className="animate-pulse space-y-2 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="h-3 w-16 rounded-full bg-gray-100" />
+          <div className="h-8 w-12 rounded-full bg-gray-200" />
+          <div className="h-2.5 w-16 rounded-full bg-gray-100" />
+        </div>
+      </div>
+      <div className="animate-pulse space-y-3 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="h-3 w-24 rounded-full bg-gray-100" />
+        <div className="h-3.5 w-full rounded-full bg-gray-200" />
+        <div className="h-2.5 w-28 rounded-full bg-gray-100" />
+      </div>
+      <div className="animate-pulse rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="mb-3 h-3 w-24 rounded-full bg-gray-100" />
+        <div className="grid grid-cols-2 gap-3">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="space-y-2 rounded-2xl bg-gray-50 p-4">
+              <div className="mx-auto h-6 w-16 rounded-full bg-gray-200" />
+              <div className="mx-auto h-2.5 w-20 rounded-full bg-gray-100" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
 type Period = "today" | "week" | "month";
 
 export default function Earnings() {
@@ -52,6 +86,9 @@ export default function Earnings() {
     queryKey: ["rider-earnings"],
     queryFn: () => api.getEarnings(),
     refetchInterval: 60000,
+    staleTime: 30_000,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30_000),
   });
 
   type PeriodBreakdown = {
@@ -172,36 +209,7 @@ export default function Earnings() {
         </div>
 
         {isLoading ? (
-          <>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="animate-pulse space-y-2 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-                <div className="h-3 w-16 rounded-full bg-gray-100" />
-                <div className="h-8 w-28 rounded-full bg-gray-200" />
-                <div className="h-2.5 w-20 rounded-full bg-gray-100" />
-              </div>
-              <div className="animate-pulse space-y-2 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-                <div className="h-3 w-16 rounded-full bg-gray-100" />
-                <div className="h-8 w-12 rounded-full bg-gray-200" />
-                <div className="h-2.5 w-16 rounded-full bg-gray-100" />
-              </div>
-            </div>
-            <div className="animate-pulse space-y-3 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-              <div className="h-3 w-24 rounded-full bg-gray-100" />
-              <div className="h-3.5 w-full rounded-full bg-gray-200" />
-              <div className="h-2.5 w-28 rounded-full bg-gray-100" />
-            </div>
-            <div className="animate-pulse rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-              <div className="mb-3 h-3 w-24 rounded-full bg-gray-100" />
-              <div className="grid grid-cols-2 gap-3">
-                {[0, 1, 2, 3].map((i) => (
-                  <div key={i} className="space-y-2 rounded-2xl bg-gray-50 p-4">
-                    <div className="mx-auto h-6 w-16 rounded-full bg-gray-200" />
-                    <div className="mx-auto h-2.5 w-20 rounded-full bg-gray-100" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
+          <SkeletonEarnings />
         ) : isError ? (
           <ErrorState
             title={T("somethingWentWrong")}

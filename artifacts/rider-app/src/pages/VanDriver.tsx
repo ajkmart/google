@@ -193,18 +193,25 @@ export default function VanDriver() {
     queryKey: ["van-driver-today"],
     queryFn: fetchTodaySchedules,
     refetchInterval: 60_000,
+    staleTime: 30_000,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30_000),
   });
 
   const { data: metrics } = useQuery<DriverMetrics>({
     queryKey: ["van-driver-metrics"],
     queryFn: fetchMetrics,
     refetchInterval: 30_000,
+    staleTime: 15_000,
   });
 
   const { data: eligibility, isLoading: loadingEligibility } = useQuery<EligibilityResult>({
     queryKey: ["van-driver-eligibility"],
     queryFn: fetchEligibility,
     refetchInterval: 60_000,
+    staleTime: 30_000,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30_000),
   });
 
   const { data: passengers = [], isLoading: loadingPassengers } = useQuery<Passenger[]>({
@@ -215,6 +222,9 @@ export default function VanDriver() {
         : Promise.resolve([]),
     enabled: !!selectedSchedule,
     refetchInterval: 15_000,
+    staleTime: 10_000,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30_000),
   });
 
   const boardMut = useMutation({
