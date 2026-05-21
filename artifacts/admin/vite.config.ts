@@ -65,6 +65,9 @@ export default defineConfig({
     port,
     host: "0.0.0.0",
     allowedHosts: true,
+    hmr: process.env.REPL_ID
+      ? { clientPort: 443, protocol: "wss" }
+      : undefined,
     fs: {
       strict: true,
       deny: ["**/.*"],
