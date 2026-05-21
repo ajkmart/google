@@ -1,0 +1,45 @@
+// Result: 22-char base62 ID — URL-safe, collision-resistant,
+// no timestamp leakage, compatible with all existing DB columns (text)
+// Example: "0000K8Hs3mXPqVzJ7rNyWc"
+PART B — AJK ID Format (verify existing is correct):
+Current AJK ID generation in register.ts (lines 688-696):
+  ajkId = "AJK-";
+  for (let i = 0; i < 6; i++) ajkId += ajkChars.charAt(randomInt(0, ajkChars.length));
+This is correct — "AJK-XXXXXX" with 10-attempt collision retry.
+No change needed. ✅
+PART C — ensureWalletP2PColumns (if stub exists):
+Search for any runtime DB-alter calls:
+  grep -r "ensureWallet" artifacts/api-server/src/
+If found as a stub:
+- Remove the runtime ALTER TABLE call
+- Create a proper Drizzle migration instead:
+File: lib/db/migrations/XXXX_wallet_p2p.sql
+  ALTER TABLE wallet_transactions
+    ADD COLUMN IF NOT EXISTS receiver_id   TEXT REFERENCES users(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS receiver_name TEXT,
+    ADD COLUMN IF NOT EXISTS p2p_note      TEXT;
+  CREATE INDEX IF NOT EXISTS idx_wallet_txn_receiver
+    ON wallet_transactions(receiver_id);
+- Add columns to lib/db/src/schema/wallet_transactions.ts
+- Run: drizzle-kit push (or include in next migration batch)
+PART D — ensureComplianceTables (if stub exists):
+Search: grep -r "ensureCompliance" artifacts/api-server/src/
+If found:
+- Create proper schema file: lib/db/src/schema/compliance_checks.ts
+- Export from lib/db/src/schema/index.ts
+- Create SQL migration stub
+compliance_checks table:
+  CREATE TABLE compliance_checks (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT REFERENCES users(id) ON DELETE CASCADE,
+    check_type  TEXT NOT NULL,   -- cnic | kyc | pep_screening | aml
+    result      TEXT NOT NULL,   -- pass | fail | review
+    score       INTEGER,
+    details     JSONB,
+    checked_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    checked_by  TEXT            -- "system" or admin ID
+  );
+Acceptance: generateId() produces 22-char base62 IDs.
+            No runtime ALTER TABLE calls in any route file.
+            All stubs replaced with proper schema + migrations.
+            `pnpm tsc --noEmit` still 0 errors.
