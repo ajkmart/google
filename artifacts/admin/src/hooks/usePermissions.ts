@@ -4,6 +4,13 @@
  * Decodes the `perms` claim from the in-memory access JWT and exposes
  * helpers for hiding UI a user cannot use. Backend routes still enforce
  * the permission via requirePermission middleware — UI gating is UX only.
+ *
+ * IMPORTANT — legacyToken:
+ *   When `legacyToken` is true the JWT has no `perms` claim (issued by an
+ *   older server build). `has()` / `hasAny()` / `hasAll()` return FALSE for
+ *   non-super-admins in this state — they never silently grant access.
+ *   Components should NOT use `legacyToken` as a permission bypass; read it
+ *   only as a diagnostic flag (e.g. to trigger a forced token refresh).
  */
 import { useMemo } from "react";
 import { useAdminAuth } from "../lib/adminAuthContext";
@@ -45,7 +52,11 @@ export interface PermissionContext {
   role: string | null;
   /** Super admins implicitly bypass all permission checks. */
   isSuper: boolean;
-  /** True when the JWT included no perms claim (legacy token). */
+  /**
+   * True when the JWT has no `perms` claim (issued by an older server).
+   * Diagnostic only — has() / hasAny() / hasAll() still return false for
+   * non-super admins; never use this flag to grant access.
+   */
   legacyToken: boolean;
   has: (perm: string) => boolean;
   hasAny: (perms: string[]) => boolean;
@@ -59,11 +70,17 @@ export function usePermissions(): PermissionContext {
     const role = payload?.role ?? state.user?.role ?? null;
     const isSuper = role === "super";
     const permissions: string[] = Array.isArray(payload?.perms) ? payload!.perms! : [];
+    // legacyToken = true means the JWT was issued without a perms claim.
+    // It is purely informational — it NEVER causes has() to return true.
     const legacyToken = !payload || payload.perms === undefined;
 
-    const has = (perm: string) => isSuper || permissions.includes(perm);
-    const hasAny = (perms: string[]) => isSuper || perms.some((p) => permissions.includes(p));
-    const hasAll = (perms: string[]) => isSuper || perms.every((p) => permissions.includes(p));
+    // has() grants access only to super admins or admins whose token explicitly
+    // lists the permission. legacyToken never widens this.
+    const has = (perm: string): boolean => isSuper || permissions.includes(perm);
+    const hasAny = (perms: string[]): boolean =>
+      isSuper || perms.some((p) => permissions.includes(p));
+    const hasAll = (perms: string[]): boolean =>
+      isSuper || perms.every((p) => permissions.includes(p));
 
     return { permissions, role, isSuper, legacyToken, has, hasAny, hasAll };
   }, [state.accessToken, state.user?.role]);
@@ -90,11 +107,11 @@ export function PermissionGate({
   allOf,
   fallback = null,
   children,
-}: PermissionGateProps) {
+}: PermissionGateProps): React.ReactNode {
   const { has, hasAny, hasAll } = usePermissions();
   let allowed = true;
   if (perm) allowed = allowed && has(perm);
   if (anyOf?.length) allowed = allowed && hasAny(anyOf);
   if (allOf?.length) allowed = allowed && hasAll(allOf);
-  return allowed ? children : fallback; // Remove incorrect type casting that causes runtime errors
+  return allowed ? children : fallback;
 }

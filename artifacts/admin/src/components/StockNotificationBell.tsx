@@ -109,7 +109,7 @@ function NotificationRow({ n }: { n: StockNotification }) {
 
 export function StockNotificationBell() {
   const { state } = useAdminAuth();
-  const { has, isSuper, legacyToken } = usePermissions();
+  const { has, isSuper } = usePermissions();
 
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<StockNotification[]>([]);
@@ -263,9 +263,8 @@ export function StockNotificationBell() {
   const lowAndOut = notifications.filter((n) => n.isLow || n.isOutOfStock);
   const displayList = open ? (lowAndOut.length > 0 ? lowAndOut : notifications).slice(0, 20) : [];
 
-  // Only render for admins with inventory.view permission.
-  // Legacy tokens (no perms claim) and super-admins always see the bell.
-  if (!legacyToken && !isSuper && !has("inventory.view")) return null;
+  // Only render for super-admins or admins with inventory.view permission.
+  if (!isSuper && !has("inventory.view")) return null;
 
   return (
     <div className="relative" ref={dropdownRef}>
