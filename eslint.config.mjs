@@ -9,19 +9,25 @@ const require = createRequire(import.meta.url);
 const { rules: localRules } = require("./eslint-rules/no-silent-catch.cjs");
 
 export default [
-  // ─── TypeScript files (all workspaces) ────────────────────────────
+  // ─── Global ignores (replaces .eslintignore) ──────────────────────
   {
-    files: ["**/*.ts", "**/*.tsx"],
     ignores: [
       "**/node_modules/**",
       "**/dist/**",
+      "**/build/**",
+      "**/.expo/**",
+      "**/coverage/**",
       "**/.vite/**",
       "**/artifacts/ajkmart/**", // READ-ONLY — do not lint
     ],
+  },
+  // ─── TypeScript files (all workspaces) ────────────────────────────
+  {
+    files: ["**/*.ts", "**/*.tsx"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        project: true,
+        projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
       globals: { ...globals.node, ...globals.browser },
