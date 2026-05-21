@@ -88,8 +88,8 @@ export function PullToRefresh({
     (e: React.TouchEvent) => {
       if (refreshing) return;
       if (isAtTop()) {
-        startY.current = e.touches[0].clientY;
-        startX.current = e.touches[0].clientX;
+        startY.current = e.touches[0]!.clientY;
+        startX.current = e.touches[0]!.clientX;
         pulling.current = true;
         intentLocked.current = false;
         isVertical.current = false;
@@ -101,8 +101,8 @@ export function PullToRefresh({
   const onTouchMove = useCallback(
     (e: React.TouchEvent) => {
       if (!pulling.current || refreshing) return;
-      const currentY = e.touches[0].clientY;
-      const currentX = e.touches[0].clientX;
+      const currentY = e.touches[0]!.clientY;
+      const currentX = e.touches[0]!.clientX;
       const dy = currentY - startY.current;
       const dx = currentX - startX.current;
 

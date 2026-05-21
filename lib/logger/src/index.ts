@@ -64,7 +64,7 @@ const COLOURS = [
 let _colourIdx = 0;
 
 function pickColour(): string {
-  return COLOURS[_colourIdx++ % COLOURS.length];
+  return COLOURS[_colourIdx++ % COLOURS.length]!;
 }
 
 export interface Logger {

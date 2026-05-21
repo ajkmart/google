@@ -125,7 +125,7 @@ function AdjustPointsModal({ user, onClose }: { user: LoyaltyUser; onClose: () =
         <div className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-sm font-bold text-amber-700">
-              {(user.name || user.phone || "U")[0].toUpperCase()}
+              {(user.name || user.phone || "U")[0]!.toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{user.name || user.phone}</p>
@@ -426,7 +426,7 @@ export default function LoyaltyPage() {
                         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700"
                         aria-hidden="true"
                       >
-                        {(u.name || u.phone || "U")[0].toUpperCase()}
+                        {(u.name || u.phone || "U")[0]!.toUpperCase()}
                       </div>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold">{u.name || "—"}</p>
@@ -522,7 +522,7 @@ export default function LoyaltyPage() {
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">
-                              {(u.name || u.phone || "U")[0].toUpperCase()}
+                              {(u.name || u.phone || "U")[0]!.toUpperCase()}
                             </div>
                             <div className="min-w-0">
                               <p className="truncate text-sm font-semibold">{u.name || "—"}</p>

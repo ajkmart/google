@@ -203,7 +203,7 @@ export default function CategoriesPage() {
     if (type === "TOP_LEVEL") {
       const sorted = [...categories].sort((a, b) => a.sortOrder - b.sortOrder);
       const reordered = [...sorted];
-      const [moved] = reordered.splice(source.index, 1);
+      const moved = reordered.splice(source.index, 1)[0]!;
       reordered.splice(destination.index, 0, moved);
       const items = reordered.map((cat, i) => ({ id: cat.id, sortOrder: i }));
       reorderMutation.mutate(items);
@@ -213,7 +213,7 @@ export default function CategoriesPage() {
       const parent = categories.find((c) => c.id === parentId);
       if (!parent?.children) return;
       const sorted = [...parent.children].sort((a, b) => a.sortOrder - b.sortOrder);
-      const [moved] = sorted.splice(source.index, 1);
+      const moved = sorted.splice(source.index, 1)[0]!;
       sorted.splice(destination.index, 0, moved);
       const items = sorted.map((ch, i) => ({ id: ch.id, sortOrder: i }));
       reorderMutation.mutate(items);

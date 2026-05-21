@@ -577,7 +577,7 @@ function VehiclesTab() {
     const tiers: Record<string, SeatTier> = {};
     for (let i = 1; i <= totalSeats; i++) {
       if (existing && existing[String(i)]) {
-        tiers[String(i)] = existing[String(i)];
+        tiers[String(i)] = existing[String(i)]!;
       } else {
         const posInRow = (i - 1) % seatsPerRow;
         const isLastRow = i > totalSeats - seatsPerRow;

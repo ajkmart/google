@@ -65,7 +65,7 @@ export function WalletAdjustModal({ mode, subject, onClose }: WalletAdjustModalP
   const T = (key: TranslationKey) => tDual(key, language);
   const { toast } = useToast();
   const options = OPTIONS[mode];
-  const [action, setAction] = useState<string>(options[0].key);
+  const [action, setAction] = useState<string>(options[0]!.key);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
 
@@ -113,8 +113,8 @@ export function WalletAdjustModal({ mode, subject, onClose }: WalletAdjustModalP
           toast({ title: actionToastTitle(mode, action), description: desc });
           onClose();
         },
-        onError: (e: Error) =>
-          toast({ title: "Failed", description: e.message, variant: "destructive" }),
+        onError: (e: unknown) =>
+          toast({ title: "Failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" }),
       }
     );
   };

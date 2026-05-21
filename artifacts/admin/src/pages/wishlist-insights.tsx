@@ -149,7 +149,7 @@ export default function WishlistInsights() {
   const { data, isLoading, refetch } = useWishlistAnalytics();
   const products: WishlistProduct[] = data?.products || [];
 
-  const topCount = products.length > 0 ? products[0].wishlistCount : 0;
+  const topCount = products.length > 0 ? products[0]!.wishlistCount : 0;
 
   const totalWishlists = products.reduce((s, p) => s + p.wishlistCount, 0);
   const outOfStock = products.filter((p) => !p.productInStock).length;

@@ -145,6 +145,169 @@ export interface TermsVersionRow {
   isCurrent?: boolean;
 }
 
+/* ── Admin dashboard stats ─────────────────────────────────────────── */
+
+export interface AdminStats {
+  totalUsers: number;
+  totalOrders: number;
+  totalRevenue: number;
+  activeRiders: number;
+  activeVendors: number;
+  pendingOrders?: number;
+  pendingKyc?: number;
+  pendingWithdrawals?: number;
+  todayOrders?: number;
+  todayRevenue?: number;
+}
+
+/* ── Orders ─────────────────────────────────────────────────────────── */
+
+export interface AdminOrderItem {
+  id: string;
+  productId: string;
+  name: string;
+  quantity: number;
+  price: number;
+  imageUrl?: string | null;
+}
+
+export interface AdminOrder {
+  id: string;
+  userId: string;
+  vendorId?: string | null;
+  status: string;
+  total: number;
+  subtotal?: number;
+  deliveryFee?: number;
+  discount?: number;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  address?: string | null;
+  notes?: string | null;
+  items?: AdminOrderItem[];
+  createdAt: string;
+  updatedAt?: string;
+  customerName?: string;
+  customerPhone?: string;
+  vendorName?: string;
+  riderId?: string | null;
+  riderName?: string;
+}
+
+/* ── Riders ─────────────────────────────────────────────────────────── */
+
+export interface AdminRider {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string | null;
+  isOnline?: boolean;
+  isActive?: boolean;
+  vehicleType?: string | null;
+  vehiclePlate?: string | null;
+  vehicleRegNo?: string | null;
+  kycStatus?: "pending" | "approved" | "rejected" | "not_submitted";
+  walletBalance?: number;
+  totalEarnings?: number;
+  totalRides?: number;
+  rating?: number | null;
+  createdAt?: string;
+  lastActive?: string | null;
+}
+
+/* ── Vendors ─────────────────────────────────────────────────────────── */
+
+export interface AdminVendor {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string | null;
+  storeName?: string | null;
+  storeCategory?: string | null;
+  storeIsOpen?: boolean;
+  isActive?: boolean;
+  isApproved?: boolean;
+  approvalStatus?: "pending" | "approved" | "rejected";
+  walletBalance?: number;
+  totalOrders?: number;
+  rating?: number | null;
+  kycStatus?: "pending" | "approved" | "rejected" | "not_submitted";
+  createdAt?: string;
+  storeAddress?: string | null;
+  businessType?: string | null;
+  ntn?: string | null;
+}
+
+/* ── Wallet / Finance ────────────────────────────────────────────────── */
+
+export interface AdminTransaction {
+  id: string;
+  userId: string;
+  type: "deposit" | "withdrawal" | "transfer" | "refund" | "commission" | "bonus" | "payout";
+  amount: number;
+  currency?: string;
+  status: "pending" | "completed" | "failed" | "reversed";
+  description?: string | null;
+  referenceId?: string | null;
+  createdAt: string;
+  userName?: string;
+  userPhone?: string;
+}
+
+export interface AdminWithdrawal {
+  id: string;
+  userId: string;
+  amount: number;
+  status: "pending" | "approved" | "rejected" | "completed";
+  accountNumber?: string | null;
+  bankName?: string | null;
+  iban?: string | null;
+  notes?: string | null;
+  approverId?: string | null;
+  approvedAt?: string | null;
+  createdAt: string;
+  userName?: string;
+  userPhone?: string;
+  userRole?: string;
+}
+
+export interface AdminDepositRequest {
+  id: string;
+  userId: string;
+  amount: number;
+  status: "pending" | "approved" | "rejected";
+  paymentMethod?: string | null;
+  transactionId?: string | null;
+  screenshotUrl?: string | null;
+  notes?: string | null;
+  verifiedBy?: string | null;
+  verifiedAt?: string | null;
+  createdAt: string;
+  userName?: string;
+  userPhone?: string;
+}
+
+/* ── KYC ─────────────────────────────────────────────────────────────── */
+
+export interface AdminKycRecord {
+  id: string;
+  userId: string;
+  status: "pending" | "approved" | "rejected";
+  fullName?: string | null;
+  cnic?: string | null;
+  frontIdPhotoUrl?: string | null;
+  backIdPhotoUrl?: string | null;
+  selfiePhotoUrl?: string | null;
+  rejectionReason?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  submittedAt?: string | null;
+  createdAt: string;
+  userName?: string;
+  userPhone?: string;
+  userRole?: string;
+}
+
 /* ── Type guards ───────────────────────────────────────────────────── */
 
 export function isApiOk<T>(v: unknown): v is ApiOk<T> {

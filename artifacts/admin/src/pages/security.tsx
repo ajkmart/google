@@ -637,7 +637,7 @@ export default function SecurityPage() {
   };
   const isValidIpOrCidr = (entry: string) => {
     if (entry.includes("/")) {
-      const [ip, prefix] = entry.split("/");
+      const [ip = "", prefix = ""] = entry.split("/");
       const p = parseInt(prefix, 10);
       return isValidIPv4(ip) && !isNaN(p) && p >= 0 && p <= 32 && String(p) === prefix;
     }
@@ -1246,7 +1246,7 @@ export default function SecurityPage() {
                           <div className="flex gap-2">
                             {ROLES.map((role) => {
                               const on = roles[role];
-                              const colors = ROLE_COLORS[role];
+                              const colors = ROLE_COLORS[role]!;
                               return (
                                 <button
                                   key={role}
@@ -1378,7 +1378,7 @@ export default function SecurityPage() {
                           <div className="flex gap-2">
                             {ROLES.map((role) => {
                               const on = roles[role];
-                              const colors = ROLE_COLORS[role];
+                              const colors = ROLE_COLORS[role]!;
                               return (
                                 <button
                                   key={role}

@@ -2714,7 +2714,7 @@ function FleetAnalyticsTab() {
   const revenueServiceTypes: string[] = data?.revenueServiceTypes ?? [];
 
   const mapCenter: [number, number] =
-    heatPoints.length > 0 ? [heatPoints[0].lat, heatPoints[0].lng] : [33.7294, 73.0931];
+    heatPoints.length > 0 ? [heatPoints[0]!.lat, heatPoints[0]!.lng] : [33.7294, 73.0931];
 
   /* Stable color palette per service type */
   const SVC_COLORS: Record<string, string> = {

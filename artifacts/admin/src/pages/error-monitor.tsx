@@ -1398,7 +1398,7 @@ export default function ErrorMonitor() {
           >
             {report.updatedAt &&
               (!viewedErrorTimestamps[report.id] ||
-                report.updatedAt > viewedErrorTimestamps[report.id]) && (
+                report.updatedAt > viewedErrorTimestamps[report.id]!) && (
                 <span
                   style={{
                     width: 8,

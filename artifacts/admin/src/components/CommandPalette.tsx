@@ -514,7 +514,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       return "group" in it && typeof it.group === "string" ? it.group : null;
     };
     const cur = groupOf(item);
-    const prev = idx > 0 ? groupOf(allItems[idx - 1]) : null;
+    const prev = idx > 0 ? groupOf(allItems[idx - 1]!) : null;
     return cur !== prev ? cur : null;
   };
 

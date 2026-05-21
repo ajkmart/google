@@ -167,7 +167,7 @@ export function loadFacebookAccessToken(appId: string): Promise<string> {
 }
 
 export function decodeGoogleJwtPayload(idToken: string): Record<string, string> {
-  const b64url = idToken.split(".")[1];
+  const b64url = idToken.split(".")[1]!;
   const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
   return JSON.parse(
     decodeURIComponent(

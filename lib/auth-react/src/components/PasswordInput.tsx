@@ -21,7 +21,7 @@ function calcStrength(password: string): PasswordStrength {
     3: { label: "Strong", color: "#3b82f6" },
     4: { label: "Very strong", color: "#10b981" },
   };
-  return { score: clamped, ...map[clamped] };
+  return { score: clamped, ...map[clamped]! };
 }
 
 export interface PasswordInputProps {

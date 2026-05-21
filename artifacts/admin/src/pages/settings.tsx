@@ -383,7 +383,7 @@ export default function SettingsPage() {
     const byCategory: Record<string, Setting[]> = {};
     for (const s of settings) {
       if (!byCategory[s.category]) byCategory[s.category] = [];
-      byCategory[s.category].push(s);
+      byCategory[s.category]!.push(s);
     }
     return byCategory;
   }, [settings]);
@@ -763,9 +763,9 @@ export default function SettingsPage() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-foreground truncate text-sm font-semibold">{activeCfg.label}</p>
-              {dirtyCounts[activeTop10] > 0 && (
+              {(dirtyCounts[activeTop10] ?? 0) > 0 && (
                 <p className="text-[11px] leading-tight font-medium text-amber-600">
-                  {dirtyCounts[activeTop10]} unsaved
+                  {dirtyCounts[activeTop10] ?? 0} unsaved
                 </p>
               )}
             </div>
@@ -1135,12 +1135,12 @@ export default function SettingsPage() {
                         {activeChildSettingsCount} settings
                       </Badge>
                     )}
-                    {dirtyCounts[activeTop10] > 0 && (
+                    {(dirtyCounts[activeTop10] ?? 0) > 0 && (
                       <Badge
                         variant="outline"
                         className="border-amber-200 bg-amber-50 text-[10px] font-bold text-amber-700"
                       >
-                        {dirtyCounts[activeTop10]} changed
+                        {dirtyCounts[activeTop10] ?? 0} changed
                       </Badge>
                     )}
                   </div>

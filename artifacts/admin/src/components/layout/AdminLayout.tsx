@@ -168,6 +168,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         const t = setTimeout(() => setJustConnected(false), 2500);
         return () => clearTimeout(t);
       }
+      return undefined;
     };
     socketStatus$.listeners.add(handler);
     return () => {
@@ -387,8 +388,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       if (e.key !== "Tab") return;
       const focusables = Array.from(drawer.querySelectorAll<HTMLElement>(FOCUSABLE));
       if (focusables.length === 0) return;
-      const firstEl = focusables[0];
-      const lastEl = focusables[focusables.length - 1];
+      const firstEl = focusables[0]!;
+      const lastEl = focusables[focusables.length - 1]!;
       if (e.shiftKey) {
         if (document.activeElement === firstEl) {
           e.preventDefault();

@@ -93,13 +93,13 @@ const PAY_TABS: { id: PayTab; label: string; Icon: LucideIcon; color: string; ac
     },
   ];
 
-const SERVICE_ICONS: Record<string, LucideIcon> = {
+const SERVICE_ICONS = {
   mart: ShoppingCart,
   food: UtensilsCrossed,
   pharmacy: Pill,
   parcel: Package,
   rides: Car,
-};
+} satisfies Record<string, LucideIcon>;
 function getServiceIcon(key: string): LucideIcon {
   if (key.includes("mart")) return SERVICE_ICONS.mart;
   if (key.includes("food")) return SERVICE_ICONS.food;

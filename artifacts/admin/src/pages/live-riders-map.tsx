@@ -1078,10 +1078,10 @@ export default function LiveRidersMap() {
       batteryLevel: hb?.batteryLevel ?? null,
       lastSeen: hb?.lastSeen ?? r.updatedAt,
       lastActive: r.lastActive ?? null,
-      vehicleType:
-        vehicleTypeOverrides[r.userId] !== undefined
-          ? vehicleTypeOverrides[r.userId]
-          : r.vehicleType,
+      vehicleType: (() => {
+        const vtOv = vehicleTypeOverrides[r.userId];
+        return vtOv !== undefined ? vtOv : r.vehicleType;
+      })(),
       currentTripId:
         currentTripIdOverrides[r.userId] !== undefined
           ? currentTripIdOverrides[r.userId]
@@ -1229,7 +1229,7 @@ export default function LiveRidersMap() {
       const dimmed = status === "offline" && wasRecentlyActive(rider);
       const labelText = showLabels
         ? rider.name
-          ? rider.name.split(" ")[0].slice(0, 10)
+          ? rider.name.split(" ")[0]!.slice(0, 10)
           : riderNumberMap.get(rider.userId) != null
             ? `#${riderNumberMap.get(rider.userId)}`
             : undefined

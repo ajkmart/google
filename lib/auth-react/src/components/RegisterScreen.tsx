@@ -245,7 +245,7 @@ export function RegisterScreen({
     }
   }, [initialData]);
 
-  const currentStep = steps[stepIndex];
+  const currentStep = steps[stepIndex]!;
   const isLastStep = stepIndex === steps.length - 1;
   const totalVisibleSteps = steps.filter((s) => !isOtpStep(s)).length + 1;
 
@@ -462,7 +462,7 @@ export function RegisterScreen({
     );
   }
 
-  const stepNum = steps.filter((_, i) => !isOtpStep(steps[i]) && i <= stepIndex).length;
+  const stepNum = steps.filter((_, i) => !isOtpStep(steps[i]!) && i <= stepIndex).length;
 
   const stepContent = (
     <>

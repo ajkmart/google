@@ -43,7 +43,7 @@ export interface AuthTheme {
   errorBorder: string;
 }
 
-export const DEFAULT_THEMES: Record<string, AuthTheme> = {
+export const DEFAULT_THEMES = {
   rider: {
     primary: "#22c55e",
     primaryDark: "#15803d",

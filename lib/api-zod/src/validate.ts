@@ -121,7 +121,7 @@ export function createSchemaRegistry(
   options?: ValidationOptions
 ): (path: string, data: unknown) => void {
   return function validateRegisteredResponse(path: string, data: unknown): void {
-    const cleanPath = path.split("?")[0];
+    const cleanPath = path.split("?")[0] ?? path;
     for (const { pattern, schema } of entries) {
       const matched =
         typeof pattern === "string" ? cleanPath.includes(pattern) : pattern.test(cleanPath);
