@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { LastUpdated } from "@/components/ui/LastUpdated";
+import { ImageLightbox } from "@/components/ui/ImageLightbox";
 import { SafeImage } from "@/components/ui/SafeImage";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
@@ -62,6 +63,7 @@ import {
   Trash2,
   X,
   XCircle,
+  ZoomIn,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -598,7 +600,14 @@ export default function Products() {
   const [imageUploading, setImageUploading] = useState(false);
   const [uploadPercent, setUploadPercent] = useState<number | null>(null);
   const [formErrors, setFormErrors] = useState<ProductFormErrors>({});
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const imageBlobRef = useRef<string | null>(null);
+
+  const fullImgUrl = (path?: string | null): string | null => {
+    if (!path) return null;
+    if (path.startsWith("http") || path.startsWith("blob:")) return path;
+    return `${window.location.origin}${path}`;
+  };
 
   useEffect(() => {
     return () => {
@@ -1582,23 +1591,49 @@ export default function Products() {
                         pendingProducts.map((p: ProductRow) => (
                           <TableRow key={p.id} className="hover:bg-amber-50/40">
                             <TableCell>
-                              <p className="text-foreground font-semibold">{p.name}</p>
-                              <div className="mt-1 flex items-center gap-2">
-                                <Badge
-                                  variant={p.type === "food" ? "default" : "secondary"}
-                                  className="text-[10px] uppercase"
-                                >
-                                  {p.type}
-                                </Badge>
-                                {p.unit && (
-                                  <span className="text-muted-foreground text-xs">{p.unit}</span>
+                              <div className="flex items-start gap-3">
+                                {p.image ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setLightboxSrc(fullImgUrl(p.image))}
+                                    className="group relative mt-0.5 h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-gray-100"
+                                    title="View image"
+                                  >
+                                    <SafeImage
+                                      src={fullImgUrl(p.image) ?? ""}
+                                      alt={p.name}
+                                      className="h-12 w-12 rounded-xl"
+                                      loading="eager"
+                                    />
+                                    <span className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/40 opacity-0 transition group-hover:opacity-100">
+                                      <ZoomIn className="h-4 w-4 text-white" />
+                                    </span>
+                                  </button>
+                                ) : (
+                                  <span className="mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-100">
+                                    <ImageIcon className="h-5 w-5 text-gray-300" />
+                                  </span>
                                 )}
+                                <div className="min-w-0">
+                                  <p className="text-foreground font-semibold">{p.name}</p>
+                                  <div className="mt-1 flex items-center gap-2">
+                                    <Badge
+                                      variant={p.type === "food" ? "default" : "secondary"}
+                                      className="text-[10px] uppercase"
+                                    >
+                                      {p.type}
+                                    </Badge>
+                                    {p.unit && (
+                                      <span className="text-muted-foreground text-xs">{p.unit}</span>
+                                    )}
+                                  </div>
+                                  {p.description && (
+                                    <p className="text-muted-foreground mt-0.5 line-clamp-1 text-xs">
+                                      {p.description}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
-                              {p.description && (
-                                <p className="text-muted-foreground mt-0.5 line-clamp-1 text-xs">
-                                  {p.description}
-                                </p>
-                              )}
                             </TableCell>
                             <TableCell className="text-sm font-medium capitalize">
                               {p.category}
@@ -1991,17 +2026,43 @@ export default function Products() {
                                 />
                               </TableCell>
                               <TableCell>
-                                <p className="text-foreground font-semibold">{p.name}</p>
-                                <div className="mt-1 flex items-center gap-2">
-                                  <Badge
-                                    variant={p.type === "food" ? "default" : "secondary"}
-                                    className="text-[10px] uppercase"
-                                  >
-                                    {p.type}
-                                  </Badge>
-                                  {p.unit && (
-                                    <span className="text-muted-foreground text-xs">{p.unit}</span>
+                                <div className="flex items-center gap-3">
+                                  {p.image ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setLightboxSrc(fullImgUrl(p.image))}
+                                      className="group relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-gray-100"
+                                      title="View image"
+                                    >
+                                      <SafeImage
+                                        src={fullImgUrl(p.image) ?? ""}
+                                        alt={p.name}
+                                        className="h-10 w-10 rounded-lg"
+                                        loading="eager"
+                                      />
+                                      <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/40 opacity-0 transition group-hover:opacity-100">
+                                        <ZoomIn className="h-4 w-4 text-white" />
+                                      </span>
+                                    </button>
+                                  ) : (
+                                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+                                      <ImageIcon className="h-4 w-4 text-gray-300" />
+                                    </span>
                                   )}
+                                  <div className="min-w-0">
+                                    <p className="text-foreground font-semibold">{p.name}</p>
+                                    <div className="mt-0.5 flex items-center gap-2">
+                                      <Badge
+                                        variant={p.type === "food" ? "default" : "secondary"}
+                                        className="text-[10px] uppercase"
+                                      >
+                                        {p.type}
+                                      </Badge>
+                                      {p.unit && (
+                                        <span className="text-muted-foreground text-xs">{p.unit}</span>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
                               </TableCell>
                               <TableCell className="text-sm font-medium capitalize">
@@ -2097,6 +2158,14 @@ export default function Products() {
             </>
           )}
         </div>
+
+        {lightboxSrc && (
+          <ImageLightbox
+            src={lightboxSrc}
+            label="Product Image"
+            onClose={() => setLightboxSrc(null)}
+          />
+        )}
 
         {stockHistoryProduct && (
           <StockHistoryDialog

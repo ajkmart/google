@@ -93,6 +93,10 @@ type KycRecord = {
   frontIdPhoto?: string;
   backIdPhoto?: string;
   selfiePhoto?: string;
+  idFront?: string;
+  idBack?: string;
+  idPhoto?: string;
+  selfie?: string;
   rejectionReason?: string;
   reviewedAt?: string;
   submittedAt: string;
@@ -630,13 +634,23 @@ function KycDetailPanel({
               </div>
               <div className="grid grid-cols-3 gap-3 p-4">
                 {[
-                  { key: "frontIdPhoto" as const, label: "CNIC Front" },
-                  { key: "backIdPhoto" as const, label: "CNIC Back" },
-                  { key: "selfiePhoto" as const, label: "Selfie" },
-                ].map(({ key, label }) => {
-                  const url = fullApiUrl(details[key]);
+                  {
+                    keys: ["frontIdPhoto", "idFront", "idPhoto"] as const,
+                    label: "CNIC Front",
+                  },
+                  {
+                    keys: ["backIdPhoto", "idBack"] as const,
+                    label: "CNIC Back",
+                  },
+                  {
+                    keys: ["selfiePhoto", "selfie"] as const,
+                    label: "Selfie",
+                  },
+                ].map(({ keys, label }) => {
+                  const raw = keys.map((k) => details[k as keyof KycRecord] as string | undefined).find(Boolean);
+                  const url = fullApiUrl(raw);
                   return (
-                    <div key={key} className="text-center">
+                    <div key={label} className="text-center">
                       {url ? (
                         <button
                           onClick={() => setPhoto({ url, label })}
