@@ -63,30 +63,43 @@ export default defineConfig(async ({ command }) => {
       chunkSizeWarningLimit: 2000,
       rollupOptions: {
         output: {
-          manualChunks: {
+          manualChunks(id) {
             /* ── Stable vendor chunks (hash unchanged between feature deploys) ── */
-            "vendor-react": ["react", "react-dom"],
-            "vendor-query": ["@tanstack/react-query"],
-            "vendor-router": ["wouter"],
-            "vendor-radix": [
-              "@radix-ui/react-dialog",
-              "@radix-ui/react-dropdown-menu",
-              "@radix-ui/react-select",
-              "@radix-ui/react-tabs",
-              "@radix-ui/react-toast",
-              "@radix-ui/react-tooltip",
-              "@radix-ui/react-popover",
-              "@radix-ui/react-label",
-              "@radix-ui/react-switch",
-              "@radix-ui/react-checkbox",
-              "@radix-ui/react-slot",
-            ],
-            "vendor-charts": ["recharts"],
+            /* Match react and react-dom exactly, not react-leaflet / react-map-gl */
+            if (/\/node_modules\/(react|react-dom)\//.test(id)) return "vendor-react";
+            if (id.includes("/node_modules/@tanstack/react-query")) return "vendor-query";
+            if (id.includes("/node_modules/wouter")) return "vendor-router";
+            if (id.includes("/node_modules/@radix-ui/")) return "vendor-radix";
+            if (id.includes("/node_modules/recharts")) return "vendor-charts";
             /* Leaflet (OSM map) — loaded on all map pages */
-            "vendor-map": ["leaflet", "react-leaflet"],
-            /* Mapbox GL — only loaded when admin configures Mapbox provider */
-            "vendor-mapbox": ["mapbox-gl", "react-map-gl"],
-            "vendor-icons": ["lucide-react"],
+            if (id.includes("/node_modules/leaflet") || id.includes("/node_modules/react-leaflet"))
+              return "vendor-map";
+            /* Mapbox GL — only loaded when admin configures Mapbox provider (~1.7 MB, can't split further) */
+            if (id.includes("/node_modules/mapbox-gl") || id.includes("/node_modules/react-map-gl"))
+              return "vendor-mapbox";
+            if (id.includes("/node_modules/lucide-react")) return "vendor-icons";
+
+            /* ── Feature page chunks (group related lazy pages together) ──
+               NOTE: analytics.tsx is intentionally excluded — it is a hub page
+               that lazily loads sub-analytics pages; including it in the same
+               chunk as its dynamic-import children causes a Rollup circular-
+               chunk warning. The sub-pages are grouped together instead. */
+            if (
+              id.includes("/pages/transactions") ||
+              id.includes("/pages/Withdrawals") ||
+              id.includes("/pages/DepositRequests") ||
+              id.includes("/pages/wallet-transfers")
+            )
+              return "pages-finance";
+            if (
+              id.includes("/pages/revenue-analytics") ||
+              id.includes("/pages/search-analytics") ||
+              id.includes("/pages/overview-analytics")
+            )
+              return "pages-analytics";
+            /* Operations pages (orders, rides, pharmacy, parcel, van) are kept
+               as individual lazy chunks — they share no code and load
+               independently, so grouping them would only hurt cache granularity. */
           },
         },
       },
