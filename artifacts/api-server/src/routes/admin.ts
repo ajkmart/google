@@ -48,6 +48,7 @@ import webhookRegistrationsRoutes from "./admin/webhook-registrations.js";
 import whatsappDeliveryRoutes from "./admin/whatsapp-delivery.js";
 import whitelistRoutes from "./admin/whitelist.js";
 import wishlistAnalyticsRoutes from "./admin/wishlist-analytics.js";
+import sosRoutes from "./sos.js";
 export {
   adminAuth,
   DEFAULT_PLATFORM_SETTINGS,
@@ -112,6 +113,7 @@ router.use(broadcastsRoutes);
 router.use(authControlRoutes);
 router.use(adminAccountsRoutes);
 router.use(statsRoutes);
+router.use("/sos", sosRoutes);
 router.get("/pending-counts", async (_req: Request, res: Response) => {
   try {
     const [
