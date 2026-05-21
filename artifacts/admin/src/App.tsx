@@ -23,6 +23,7 @@ const _adminEnv = auditAdminEnv();
 bootAccessibilitySettings();
 
 import { AdminLayout } from "@/components/layout/AdminLayout";
+import { FirstLoginCredentialsDialog } from "@/components/FirstLoginCredentialsDialog";
 import Broadcast from "@/pages/broadcast";
 import Categories from "@/pages/categories";
 import Dashboard from "@/pages/dashboard";
@@ -488,6 +489,7 @@ export default function App() {
                 <LanguageInit />
                 <IntegrationsInit />
                 <AppRoutes />
+                <FirstLoginCredentialsDialog />
                 <Toaster />
               </WouterRouter>
             </AdminAuthProvider>

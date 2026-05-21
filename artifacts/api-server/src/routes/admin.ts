@@ -10,6 +10,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { logger } from "../lib/logger.js";
 import { csrfProtection } from "../middleware/admin-auth.js";
 import { adminAuth } from "./admin-shared.js";
+import adminAccountsRoutes from "./admin/admin-accounts.js";
 import authControlRoutes from "./admin/auth-control.js";
 import broadcastsRoutes from "./admin/broadcasts.js";
 import businessRulesRoutes from "./admin/business-rules.js";
@@ -108,6 +109,7 @@ router.use(inventorySettingsRoutes);
 router.use(securityRoutes);
 router.use(broadcastsRoutes);
 router.use(authControlRoutes);
+router.use(adminAccountsRoutes);
 router.get("/pending-counts", async (_req: Request, res: Response) => {
   try {
     const [

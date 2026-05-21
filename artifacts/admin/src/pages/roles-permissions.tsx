@@ -30,7 +30,9 @@ import { fetchAdmin } from "@/lib/adminFetcher";
 import { isAbortError, useAbortableEffect } from "@/lib/useAbortableEffect";
 import {
   AlertTriangle,
+  Ban,
   BarChart2,
+  CheckCircle2,
   ClipboardCheck,
   CreditCard,
   Database,
@@ -39,6 +41,7 @@ import {
   KeyRound,
   LayoutGrid,
   Lock,
+  LogOut,
   Package,
   Pencil,
   Plus,
@@ -81,6 +84,7 @@ interface AdminAccount {
   email?: string;
   role?: string;
   isActive?: boolean;
+  lastLoginAt?: string | null;
 }
 
 /* ── Helpers ─────────────────────────────────────────────────────── */
@@ -1011,6 +1015,13 @@ export default function RolesPermissionsPage() {
             activeAdminEffective={activeAdminEffective}
             onSelect={selectAdmin}
             onToggleRole={(adminId, roleId) => setSensitiveRoleToggle({ adminId, roleId })}
+            onAdminUpdated={(adminId, updates) => {
+              setAdmins((prev) => prev.map((a) => (a.id === adminId ? { ...a, ...updates } : a)));
+            }}
+            onAdminDeleted={(adminId) => {
+              setAdmins((prev) => prev.filter((a) => a.id !== adminId));
+              if (activeAdminId === adminId) setActiveAdminId(null);
+            }}
             canManage={canManage}
             loading={adminsLoading}
             search={adminSearch}
@@ -1514,6 +1525,8 @@ interface AdminAssignmentsProps {
   activeAdminEffective: string[];
   onSelect: (a: AdminAccount) => void;
   onToggleRole: (adminId: string, roleId: string) => void;
+  onAdminUpdated: (adminId: string, updates: Partial<AdminAccount>) => void;
+  onAdminDeleted: (adminId: string) => void;
   canManage: boolean;
   loading: boolean;
   search: string;
@@ -1531,6 +1544,8 @@ function AdminAssignments({
   activeAdminEffective,
   onSelect,
   onToggleRole,
+  onAdminUpdated,
+  onAdminDeleted,
   canManage,
   loading,
   search,
@@ -1538,7 +1553,65 @@ function AdminAssignments({
   effectiveSearch,
   onEffectiveSearchChange,
 }: AdminAssignmentsProps) {
+  const { toast } = useToast();
   const active = allAdmins.find((a) => a.id === activeAdminId) ?? null;
+
+  const [suspending, setSuspending] = useState(false);
+  const [revoking, setRevoking] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const handleToggleSuspend = async () => {
+    if (!active) return;
+    const newActive = !(active.isActive ?? true);
+    setSuspending(true);
+    try {
+      await fetchAdmin(`/admin-accounts/${active.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isActive: newActive }),
+      });
+      onAdminUpdated(active.id, { isActive: newActive });
+      toast({
+        title: newActive ? "Admin activated" : "Admin suspended",
+        description: `${active.name ?? active.username ?? active.id} has been ${newActive ? "reactivated" : "suspended"}.`,
+      });
+    } catch (err) {
+      toast({ title: "Action failed", description: String(err), variant: "destructive" });
+    } finally {
+      setSuspending(false);
+    }
+  };
+
+  const handleRevokeSessions = async () => {
+    if (!active) return;
+    setRevoking(true);
+    try {
+      await fetchAdmin(`/admin-accounts/${active.id}/revoke-sessions`, { method: "POST" });
+      toast({
+        title: "Sessions revoked",
+        description: `All active sessions for ${active.name ?? active.username ?? active.id} have been invalidated.`,
+      });
+    } catch (err) {
+      toast({ title: "Revoke failed", description: String(err), variant: "destructive" });
+    } finally {
+      setRevoking(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!active) return;
+    setDeleting(true);
+    try {
+      await fetchAdmin(`/admin-accounts/${active.id}`, { method: "DELETE" });
+      toast({ title: "Admin deleted", description: `${active.name ?? active.username ?? active.id} was removed.` });
+      onAdminDeleted(active.id);
+    } catch (err) {
+      toast({ title: "Delete failed", description: String(err), variant: "destructive" });
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
 
   const displayName = (a: AdminAccount) => a.name || a.username || a.email || a.id;
   const displayEmail = (a: AdminAccount) =>
@@ -1645,34 +1718,98 @@ function AdminAssignments({
           </div>
         ) : (
           <>
+            <ConfirmDialog
+              open={confirmDelete}
+              title="Delete admin account?"
+              description={`Permanently delete "${displayName(active)}"? This cannot be undone. Their active sessions will be revoked first.`}
+              confirmLabel={deleting ? "Deleting…" : "Delete"}
+              variant="destructive"
+              onConfirm={() => void handleDelete()}
+              onClose={() => setConfirmDelete(false)}
+            />
             {/* Admin header */}
-            <div className="flex items-center gap-3 border-b p-4">
-              <div
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-bold text-white ${colorForString(active.id, ADMIN_AVATAR_COLORS)}`}
-              >
-                {initials(displayName(active))}
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="font-semibold">{displayName(active)}</h2>
-                  {active.isActive === false ? (
-                    <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
-                      inactive
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
-                      active
-                    </span>
-                  )}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-bold text-white ${colorForString(active.id, ADMIN_AVATAR_COLORS)}`}
+                >
+                  {initials(displayName(active))}
                 </div>
-                <p className="text-muted-foreground text-xs">
-                  {displayEmail(active) && <span>{displayEmail(active)} · </span>}
-                  Legacy role: <code className="font-mono">{active.role || "—"}</code>
-                  {" · "}
-                  {(adminRoleMap[active.id] ?? []).length} RBAC role
-                  {(adminRoleMap[active.id] ?? []).length !== 1 ? "s" : ""} assigned
-                </p>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-semibold">{displayName(active)}</h2>
+                    {active.isActive === false ? (
+                      <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                        inactive
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                        active
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-muted-foreground text-xs">
+                    {displayEmail(active) && <span>{displayEmail(active)} · </span>}
+                    Role: <code className="font-mono">{active.role || "—"}</code>
+                    {" · "}
+                    {(adminRoleMap[active.id] ?? []).length} RBAC role
+                    {(adminRoleMap[active.id] ?? []).length !== 1 ? "s" : ""} assigned
+                    {active.lastLoginAt && (
+                      <>
+                        {" · "}Last login:{" "}
+                        {new Date(active.lastLoginAt).toLocaleDateString()}
+                      </>
+                    )}
+                  </p>
+                </div>
               </div>
+              {canManage && (
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleToggleSuspend()}
+                    disabled={suspending || revoking || deleting}
+                    className={
+                      active.isActive === false
+                        ? "text-emerald-700 hover:bg-emerald-50"
+                        : "text-amber-700 hover:bg-amber-50"
+                    }
+                  >
+                    {suspending ? (
+                      <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : active.isActive === false ? (
+                      <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                    ) : (
+                      <Ban className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    {active.isActive === false ? "Activate" : "Suspend"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleRevokeSessions()}
+                    disabled={suspending || revoking || deleting}
+                  >
+                    {revoking ? (
+                      <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <LogOut className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    Revoke Sessions
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setConfirmDelete(true)}
+                    disabled={suspending || revoking || deleting}
+                    className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                  >
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                    Delete
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 gap-6 p-4 lg:grid-cols-2">
