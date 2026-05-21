@@ -44,7 +44,9 @@ test.describe("Vendor Products", () => {
     await page.waitForLoadState("networkidle");
 
     const searchInput = page
-      .locator("input[placeholder*='search' i], input[placeholder*='product' i], input[type='search']")
+      .locator(
+        "input[placeholder*='search' i], input[placeholder*='product' i], input[type='search']"
+      )
       .first();
     await expect(searchInput).toBeVisible({ timeout: 10_000 });
   });
@@ -66,7 +68,9 @@ test.describe("Vendor Products", () => {
     await expect(formOrDialog).toBeVisible({ timeout: 8_000 });
 
     const nameInput = page
-      .locator("input[name='name'], input[placeholder*='name' i], input[placeholder*='product name' i]")
+      .locator(
+        "input[name='name'], input[placeholder*='name' i], input[placeholder*='product name' i]"
+      )
       .first();
     await expect(nameInput).toBeVisible({ timeout: 5_000 });
   });

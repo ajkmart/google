@@ -70,16 +70,16 @@ export default function ConsentLogPage() {
   const log = useQuery<ApiPaginated<ConsentLogEntry>>({
     queryKey: ["legal", "consent-log", policyFilter, versionFilter, dateFrom, dateTo],
     queryFn: () =>
-      (adminFetch(`/legal/consent-log?${buildQs()}`) as Promise<ApiPaginated<ConsentLogEntry>>).catch(
-        (err) => {
-          // 404 means the endpoint isn't configured yet — treat as empty list,
-          // not an error, so the page doesn't show a red error state.
-          if (err instanceof AdminFetchError && err.status === 404) {
-            return { items: [], total: 0 } as ApiPaginated<ConsentLogEntry>;
-          }
-          throw err;
+      (
+        adminFetch(`/legal/consent-log?${buildQs()}`) as Promise<ApiPaginated<ConsentLogEntry>>
+      ).catch((err) => {
+        // 404 means the endpoint isn't configured yet — treat as empty list,
+        // not an error, so the page doesn't show a red error state.
+        if (err instanceof AdminFetchError && err.status === 404) {
+          return { items: [], total: 0 } as ApiPaginated<ConsentLogEntry>;
         }
-      ),
+        throw err;
+      }),
     retry: false,
   });
 

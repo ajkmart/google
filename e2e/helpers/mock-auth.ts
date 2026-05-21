@@ -112,8 +112,20 @@ const MOCK_WALLET = {
     balance: 45000,
     currency: "PKR",
     transactions: [
-      { id: "txn-001", type: "credit", amount: 2500, description: "Order payout", date: new Date().toISOString() },
-      { id: "txn-002", type: "credit", amount: 1800, description: "Order payout", date: new Date(Date.now() - 86400_000).toISOString() },
+      {
+        id: "txn-001",
+        type: "credit",
+        amount: 2500,
+        description: "Order payout",
+        date: new Date().toISOString(),
+      },
+      {
+        id: "txn-002",
+        type: "credit",
+        amount: 1800,
+        description: "Order payout",
+        date: new Date(Date.now() - 86400_000).toISOString(),
+      },
     ],
   },
 };
@@ -130,44 +142,111 @@ export async function mockVendorAuth(page: Page) {
   });
 
   await page.route("**/api/vendor/me", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: MOCK_VENDOR }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: MOCK_VENDOR }),
+    });
   });
   await page.route("**/api/users/me", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: MOCK_VENDOR }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: MOCK_VENDOR }),
+    });
   });
   await page.route("**/api/auth/me", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: MOCK_VENDOR }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: MOCK_VENDOR }),
+    });
   });
   await page.route("**/api/auth/refresh", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { accessToken: "e2e-fake-vendor-access-token", refreshToken: "e2e-fake-vendor-refresh-token" } }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        data: {
+          accessToken: "e2e-fake-vendor-access-token",
+          refreshToken: "e2e-fake-vendor-refresh-token",
+        },
+      }),
+    });
   });
   await page.route("**/api/vendor/dashboard**", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: MOCK_VENDOR_STATS }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: MOCK_VENDOR_STATS }),
+    });
   });
   await page.route("**/api/vendor/analytics**", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: MOCK_VENDOR_STATS }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: MOCK_VENDOR_STATS }),
+    });
   });
   await page.route("**/api/orders**", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(MOCK_ORDERS) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(MOCK_ORDERS),
+    });
   });
   await page.route("**/api/products**", async (route) => {
     if (route.request().method() === "GET") {
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(MOCK_PRODUCTS) });
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_PRODUCTS),
+      });
     } else {
       await route.continue();
     }
   });
   await page.route("**/api/wallet**", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(MOCK_WALLET) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(MOCK_WALLET),
+    });
   });
   await page.route("**/api/vendor/store**", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { storeName: "E2E Test Store", storeCategory: "Grocery", storeIsOpen: true, storeDescription: "Test store for E2E" } }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        data: {
+          storeName: "E2E Test Store",
+          storeCategory: "Grocery",
+          storeIsOpen: true,
+          storeDescription: "Test store for E2E",
+        },
+      }),
+    });
   });
   await page.route("**/api/notifications**", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: [], total: 0 }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: [], total: 0 }),
+    });
   });
   await page.route("**/api/maps/config**", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ provider: "osm", enabled: true, defaultLat: 33.7291, defaultLng: 73.3949 }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        provider: "osm",
+        enabled: true,
+        defaultLat: 33.7291,
+        defaultLng: 73.3949,
+      }),
+    });
   });
 }
 
@@ -201,9 +280,33 @@ const MOCK_RIDER_EARNINGS = {
 const MOCK_RIDE_HISTORY = {
   success: true,
   data: [
-    { id: "ride-001", status: "completed", fare: 350, distance: 3.2, from: "Muzaffarabad Bazaar", to: "Hospital Road", createdAt: new Date().toISOString() },
-    { id: "ride-002", status: "completed", fare: 520, distance: 5.1, from: "Mirpur Chowk", to: "AJK University", createdAt: new Date(Date.now() - 86400_000).toISOString() },
-    { id: "ride-003", status: "cancelled", fare: 0, distance: 0, from: "Rawalakot", to: "Bagh", createdAt: new Date(Date.now() - 2 * 86400_000).toISOString() },
+    {
+      id: "ride-001",
+      status: "completed",
+      fare: 350,
+      distance: 3.2,
+      from: "Muzaffarabad Bazaar",
+      to: "Hospital Road",
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "ride-002",
+      status: "completed",
+      fare: 520,
+      distance: 5.1,
+      from: "Mirpur Chowk",
+      to: "AJK University",
+      createdAt: new Date(Date.now() - 86400_000).toISOString(),
+    },
+    {
+      id: "ride-003",
+      status: "cancelled",
+      fare: 0,
+      distance: 0,
+      from: "Rawalakot",
+      to: "Bagh",
+      createdAt: new Date(Date.now() - 2 * 86400_000).toISOString(),
+    },
   ],
   total: 3,
   page: 1,
@@ -219,46 +322,107 @@ export async function mockRiderAuth(page: Page) {
   });
 
   await page.route("**/api/rider/me", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: MOCK_RIDER }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: MOCK_RIDER }),
+    });
   });
   await page.route("**/api/users/me", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: MOCK_RIDER }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: MOCK_RIDER }),
+    });
   });
   await page.route("**/api/auth/me", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: MOCK_RIDER }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: MOCK_RIDER }),
+    });
   });
   await page.route("**/api/auth/refresh", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { accessToken: "e2e-fake-rider-access-token", refreshToken: "e2e-fake-rider-refresh-token" } }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        data: {
+          accessToken: "e2e-fake-rider-access-token",
+          refreshToken: "e2e-fake-rider-refresh-token",
+        },
+      }),
+    });
   });
   await page.route("**/api/rider/earnings**", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(MOCK_RIDER_EARNINGS) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(MOCK_RIDER_EARNINGS),
+    });
   });
   await page.route("**/api/rides**", async (route) => {
     if (route.request().method() === "GET") {
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(MOCK_RIDE_HISTORY) });
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_RIDE_HISTORY),
+      });
     } else {
       await route.continue();
     }
   });
   await page.route("**/api/rider/rides**", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(MOCK_RIDE_HISTORY) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(MOCK_RIDE_HISTORY),
+    });
   });
   await page.route("**/api/wallet**", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { balance: 8500, currency: "PKR", transactions: [] } }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        data: { balance: 8500, currency: "PKR", transactions: [] },
+      }),
+    });
   });
   await page.route("**/api/rider/status**", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { isOnline: false } }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: { isOnline: false } }),
+    });
   });
   await page.route("**/api/locations/rider**", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true }),
+    });
   });
   await page.route("**/api/notifications**", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: [], total: 0 }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: [], total: 0 }),
+    });
   });
   await page.route("**/api/rider/profile**", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: MOCK_RIDER }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: MOCK_RIDER }),
+    });
   });
   await page.route("**/api/rider/penalty**", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: [] }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: [] }),
+    });
   });
 }

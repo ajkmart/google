@@ -23,12 +23,10 @@ const mockUpdateChain = {
 
 const mockDb = {
   select: vi.fn().mockReturnValue(mockSelectChain),
-  insert: vi
-    .fn()
-    .mockReturnValue({
-      values: vi.fn().mockReturnThis(),
-      onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
-    }),
+  insert: vi.fn().mockReturnValue({
+    values: vi.fn().mockReturnThis(),
+    onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+  }),
   update: vi.fn().mockReturnValue(mockUpdateChain),
   delete: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) }),
 };
@@ -205,14 +203,12 @@ vi.mock("../../src/routes/admin-shared.js", () => ({
 vi.mock("../../src/routes/auth/helpers.js", () => ({
   isValidCanonicalPhone: vi.fn().mockResolvedValue(true),
   hashOtp: vi.fn().mockReturnValue("hashed_otp"),
-  issueTokensForUser: vi
-    .fn()
-    .mockResolvedValue({
-      token: "new_access_token",
-      refreshToken: "rotated_refresh",
-      user: { id: "usr_001" },
-      isNewUser: false,
-    }),
+  issueTokensForUser: vi.fn().mockResolvedValue({
+    token: "new_access_token",
+    refreshToken: "rotated_refresh",
+    user: { id: "usr_001" },
+    isNewUser: false,
+  }),
   extractAuthUser: vi.fn().mockReturnValue({ userId: "usr_001" }),
   storePendingTotpSecret: vi.fn().mockResolvedValue(undefined),
   getPendingTotpSecret: vi.fn().mockResolvedValue(null),

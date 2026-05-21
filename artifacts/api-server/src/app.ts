@@ -891,7 +891,7 @@ export async function createServer() {
      The admin-gated /api/docs (docs.ts YAML route) is left untouched. */
   app.use(
     "/api-docs",
-    // @ts-expect-error -- swagger-ui-express array type doesn't satisfy Express 5 overloads; runtime behavior is correct
+    // @ts-ignore -- swagger-ui-express serve array doesn't satisfy Express 5 overloads; runtime behavior is correct
     swaggerUi.serve,
     swaggerUi.setup(swaggerSpec, {
       customSiteTitle: "AJKMart API Docs",

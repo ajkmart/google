@@ -7,6 +7,5 @@
   "bracketSpacing": true,
   "arrowParens": "always",
   "endOfLine": "lf",
-  "plugins": ["prettier-plugin-organize-imports", "prettier-plugin-tailwindcss"],
-  "importOrder": ["^(react|react-native)$", "<THIRD_PARTY_MODULES>", "^@workspace/(.*)$", "^[./]"]
+  "plugins": ["prettier-plugin-organize-imports", "prettier-plugin-tailwindcss"]
 }

@@ -18,7 +18,9 @@ test.describe("Admin Users", () => {
     await page.waitForLoadState("domcontentloaded");
 
     const searchInput = page
-      .locator("input[placeholder*='search' i], input[placeholder*='filter' i], input[type='search']")
+      .locator(
+        "input[placeholder*='search' i], input[placeholder*='filter' i], input[type='search']"
+      )
       .first();
     await expect(searchInput).toBeVisible({ timeout: 10_000 });
   });
@@ -28,7 +30,10 @@ test.describe("Admin Users", () => {
     await page.waitForLoadState("domcontentloaded");
 
     await expect(
-      page.locator("th, [role='columnheader']").filter({ hasText: /name|phone|role|status/i }).first()
+      page
+        .locator("th, [role='columnheader']")
+        .filter({ hasText: /name|phone|role|status/i })
+        .first()
     ).toBeVisible({ timeout: 12_000 });
   });
 

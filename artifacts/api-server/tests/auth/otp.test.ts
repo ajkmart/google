@@ -238,21 +238,17 @@ vi.mock("../../src/services/totp.js", () => ({
   decryptTotpSecret: vi.fn().mockReturnValue("SECRET"),
 }));
 vi.mock("../../src/services/auth/tokenRotation.js", () => ({
-  rotateRefreshToken: vi
-    .fn()
-    .mockResolvedValue({
-      accessToken: "access_token",
-      refreshToken: "new_refresh",
-      expiresAt: new Date(Date.now() + 86400_000),
-    }),
+  rotateRefreshToken: vi.fn().mockResolvedValue({
+    accessToken: "access_token",
+    refreshToken: "new_refresh",
+    expiresAt: new Date(Date.now() + 86400_000),
+  }),
   invalidateTokenFamily: vi.fn().mockResolvedValue(undefined),
-  detectAndInvalidateFamily: vi
-    .fn()
-    .mockResolvedValue({
-      userId: "usr_001",
-      expiresAt: new Date(Date.now() + 86400_000),
-      revokedAt: null,
-    }),
+  detectAndInvalidateFamily: vi.fn().mockResolvedValue({
+    userId: "usr_001",
+    expiresAt: new Date(Date.now() + 86400_000),
+    revokedAt: null,
+  }),
 }));
 vi.mock("../../src/lib/id.js", () => ({ generateId: vi.fn().mockReturnValue("gen_id") }));
 vi.mock("../../src/lib/getUserLanguage.js", () => ({
@@ -274,14 +270,12 @@ vi.mock("../../src/routes/auth/auth-common.js", () => ({
   handleUnifiedLogin: vi.fn(),
   consumeRecoveryCode: vi.fn(),
   doRefresh: vi.fn(),
-  issueTokensForUser: vi
-    .fn()
-    .mockResolvedValue({
-      token: "access_token",
-      refreshToken: "refresh_token",
-      user: { id: "usr_001" },
-      isNewUser: false,
-    }),
+  issueTokensForUser: vi.fn().mockResolvedValue({
+    token: "access_token",
+    refreshToken: "refresh_token",
+    user: { id: "usr_001" },
+    isNewUser: false,
+  }),
 }));
 
 function resetChains() {

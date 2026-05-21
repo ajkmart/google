@@ -1,9 +1,8 @@
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FilterBar, PageHeader, StatCardSkeleton } from "@/components/shared";
-import { ErrorRetry } from "@/components/ui/ErrorRetry";
-import { parseApiError } from "@/lib/errorParser";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ErrorRetry } from "@/components/ui/ErrorRetry";
 import { Input } from "@/components/ui/input";
 import { LastUpdated } from "@/components/ui/LastUpdated";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -16,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useTransactions } from "@/hooks/use-admin";
+import { parseApiError } from "@/lib/errorParser";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";

@@ -10,7 +10,20 @@ import {
   stockSubscriptionsTable,
   usersTable,
 } from "@workspace/db/schema";
-import { and, asc, count, desc, eq, gte, inArray, isNull, lte, or, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  lte,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 import {

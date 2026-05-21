@@ -31,7 +31,9 @@ test.describe("Vendor Dashboard", () => {
     await page.goto("/vendor");
     await page.waitForLoadState("networkidle");
 
-    const navLinks = page.locator("nav a, [role='navigation'] a, [class*='bottom-nav'] a, [class*='tab-bar'] a");
+    const navLinks = page.locator(
+      "nav a, [role='navigation'] a, [class*='bottom-nav'] a, [class*='tab-bar'] a"
+    );
     const count = await navLinks.count();
     expect(count).toBeGreaterThan(0);
   });

@@ -23,7 +23,9 @@ test.describe("Rider Home / Dashboard", () => {
     await page.waitForLoadState("networkidle");
 
     const welcome = page
-      .locator("h1, h2, [class*='text-2xl'], [class*='welcome'], [class*='greeting'], [class*='name']")
+      .locator(
+        "h1, h2, [class*='text-2xl'], [class*='welcome'], [class*='greeting'], [class*='name']"
+      )
       .filter({ hasText: /welcome|hello|rider|good/i })
       .first();
 
@@ -67,9 +69,7 @@ test.describe("Rider Home / Dashboard", () => {
     await page.waitForLoadState("networkidle");
 
     const bellIcon = page
-      .locator(
-        "button[aria-label*='notification' i], [class*='notification'], [data-icon='bell']"
-      )
+      .locator("button[aria-label*='notification' i], [class*='notification'], [data-icon='bell']")
       .first();
     await expect(bellIcon).toBeVisible({ timeout: 10_000 });
   });

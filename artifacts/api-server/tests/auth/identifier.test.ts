@@ -25,18 +25,14 @@ const mockSelectChain = {
 
 const mockDb = {
   select: vi.fn().mockReturnValue(mockSelectChain),
-  update: vi
-    .fn()
-    .mockReturnValue({
-      set: vi.fn().mockReturnThis(),
-      where: vi.fn().mockResolvedValue(undefined),
-    }),
-  insert: vi
-    .fn()
-    .mockReturnValue({
-      values: vi.fn().mockReturnThis(),
-      onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
-    }),
+  update: vi.fn().mockReturnValue({
+    set: vi.fn().mockReturnThis(),
+    where: vi.fn().mockResolvedValue(undefined),
+  }),
+  insert: vi.fn().mockReturnValue({
+    values: vi.fn().mockReturnThis(),
+    onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+  }),
   delete: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) }),
 };
 
@@ -147,13 +143,11 @@ vi.mock("../../src/services/totp.js", () => ({
 vi.mock("../../src/services/auth/tokenRotation.js", () => ({
   rotateRefreshToken: vi.fn().mockResolvedValue({ token: "new_refresh", record: {} }),
   invalidateTokenFamily: vi.fn().mockResolvedValue(undefined),
-  detectAndInvalidateFamily: vi
-    .fn()
-    .mockResolvedValue({
-      userId: "usr_001",
-      expiresAt: new Date(Date.now() + 86400_000),
-      revokedAt: null,
-    }),
+  detectAndInvalidateFamily: vi.fn().mockResolvedValue({
+    userId: "usr_001",
+    expiresAt: new Date(Date.now() + 86400_000),
+    revokedAt: null,
+  }),
 }));
 vi.mock("../../src/lib/id.js", () => ({ generateId: vi.fn().mockReturnValue("test_id") }));
 vi.mock("../../src/lib/getUserLanguage.js", () => ({
@@ -173,14 +167,12 @@ vi.mock("../../src/routes/admin-shared.js", () => ({
 vi.mock("../../src/routes/auth/helpers.js", () => ({
   isValidCanonicalPhone: vi.fn().mockResolvedValue(true),
   hashOtp: vi.fn().mockReturnValue("hashed_otp"),
-  issueTokensForUser: vi
-    .fn()
-    .mockResolvedValue({
-      token: "access_token",
-      refreshToken: "refresh_token",
-      user: { id: "usr_001" },
-      isNewUser: false,
-    }),
+  issueTokensForUser: vi.fn().mockResolvedValue({
+    token: "access_token",
+    refreshToken: "refresh_token",
+    user: { id: "usr_001" },
+    isNewUser: false,
+  }),
   extractAuthUser: vi.fn().mockReturnValue({ userId: "usr_001" }),
   storePendingTotpSecret: vi.fn().mockResolvedValue(undefined),
   getPendingTotpSecret: vi.fn().mockResolvedValue(null),

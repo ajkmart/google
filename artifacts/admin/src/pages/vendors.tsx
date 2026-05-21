@@ -1442,28 +1442,28 @@ export default function Vendors() {
             </div>
           </form>
         </AdminFormSheet>
-      <ConfirmDialog
-        open={!!bulkConfirmAction}
-        title={
-          bulkConfirmAction === "approve"
-            ? `Approve ${selectedIds.size} Vendor${selectedIds.size !== 1 ? "s" : ""}?`
-            : `Suspend ${selectedIds.size} Vendor${selectedIds.size !== 1 ? "s" : ""}?`
-        }
-        description={
-          bulkConfirmAction === "approve"
-            ? "These vendors will be approved and activated on the platform immediately."
-            : "These vendors will be suspended and cannot accept new orders."
-        }
-        confirmLabel={bulkConfirmAction === "approve" ? "Approve All" : "Suspend All"}
-        variant={bulkConfirmAction === "suspend" ? "destructive" : "default"}
-        busy={bulkActing}
-        onConfirm={() =>
-          bulkConfirmAction === "approve" ? handleBulkApprove() : handleBulkSuspend()
-        }
-        onClose={() => {
-          if (!bulkActing) setBulkConfirmAction(null);
-        }}
-      />
+        <ConfirmDialog
+          open={!!bulkConfirmAction}
+          title={
+            bulkConfirmAction === "approve"
+              ? `Approve ${selectedIds.size} Vendor${selectedIds.size !== 1 ? "s" : ""}?`
+              : `Suspend ${selectedIds.size} Vendor${selectedIds.size !== 1 ? "s" : ""}?`
+          }
+          description={
+            bulkConfirmAction === "approve"
+              ? "These vendors will be approved and activated on the platform immediately."
+              : "These vendors will be suspended and cannot accept new orders."
+          }
+          confirmLabel={bulkConfirmAction === "approve" ? "Approve All" : "Suspend All"}
+          variant={bulkConfirmAction === "suspend" ? "destructive" : "default"}
+          busy={bulkActing}
+          onConfirm={() =>
+            bulkConfirmAction === "approve" ? handleBulkApprove() : handleBulkSuspend()
+          }
+          onClose={() => {
+            if (!bulkActing) setBulkConfirmAction(null);
+          }}
+        />
       </PullToRefresh>
     </ErrorBoundary>
   );

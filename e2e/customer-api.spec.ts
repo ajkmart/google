@@ -53,8 +53,8 @@ test.describe("Customer API — Rides", () => {
       data: {
         pickupLat: 33.7291,
         pickupLng: 73.3949,
-        dropLat: 33.7400,
-        dropLng: 73.4100,
+        dropLat: 33.74,
+        dropLng: 73.41,
         vehicleType: "bike",
       },
     });
@@ -148,7 +148,9 @@ test.describe("Customer API — Security & Rate Limiting", () => {
     expect(requestId.length).toBeGreaterThan(10);
   });
 
-  test("response exposes X-RateLimit-Remaining via Access-Control-Expose-Headers", async ({ request }) => {
+  test("response exposes X-RateLimit-Remaining via Access-Control-Expose-Headers", async ({
+    request,
+  }) => {
     const res = await request.get(`${API}/health`);
     const exposeHeader = res.headers()["access-control-expose-headers"] ?? "";
     const hasRateLimit =

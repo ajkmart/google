@@ -34,13 +34,9 @@ test.describe("Rider Profile", () => {
     await page.goto("/rider/profile");
     await page.waitForLoadState("networkidle");
 
-    const vehicleEl = page
-      .locator("[class*='vehicle'], [class*='bike'], [class*='car']")
-      .first();
+    const vehicleEl = page.locator("[class*='vehicle'], [class*='bike'], [class*='car']").first();
 
-    const anySection = page
-      .locator("section, [class*='section'], [class*='card']")
-      .first();
+    const anySection = page.locator("section, [class*='section'], [class*='card']").first();
     await expect(anySection).toBeVisible({ timeout: 10_000 });
   });
 

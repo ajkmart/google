@@ -157,20 +157,16 @@ vi.mock("../../src/services/totp.js", () => ({
   decryptTotpSecret: vi.fn().mockReturnValue("TOTP_SECRET_123"),
 }));
 vi.mock("../../src/services/auth/tokenRotation.js", () => ({
-  rotateRefreshToken: vi
-    .fn()
-    .mockResolvedValue({
-      token: "new_refresh",
-      record: { expiresAt: new Date(Date.now() + 86400_000), userId: "usr_001" },
-    }),
+  rotateRefreshToken: vi.fn().mockResolvedValue({
+    token: "new_refresh",
+    record: { expiresAt: new Date(Date.now() + 86400_000), userId: "usr_001" },
+  }),
   invalidateTokenFamily: vi.fn().mockResolvedValue(undefined),
-  detectAndInvalidateFamily: vi
-    .fn()
-    .mockResolvedValue({
-      userId: "usr_001",
-      expiresAt: new Date(Date.now() + 86400_000),
-      revokedAt: null,
-    }),
+  detectAndInvalidateFamily: vi.fn().mockResolvedValue({
+    userId: "usr_001",
+    expiresAt: new Date(Date.now() + 86400_000),
+    revokedAt: null,
+  }),
 }));
 vi.mock("../../src/lib/id.js", () => ({ generateId: vi.fn().mockReturnValue("gen_id") }));
 vi.mock("../../src/lib/getUserLanguage.js", () => ({

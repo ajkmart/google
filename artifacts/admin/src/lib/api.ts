@@ -14,24 +14,24 @@
  */
 
 export {
+  // Error class
+  AdminFetchError,
+  adminAbsoluteFetch,
+  adminDelete,
+  adminFetch,
+  // HTTP verb helpers
+  adminGet,
+  adminPatch,
+  adminPost,
+  adminPut,
   // Core fetch helpers
   fetchAdmin,
   fetchAdminAbsolute,
   fetchAdminAbsoluteResponse,
-  adminFetch,
-  adminAbsoluteFetch,
-  // HTTP verb helpers
-  adminGet,
-  adminPost,
-  adminPut,
-  adminPatch,
-  adminDelete,
   // Token accessor (read-only, for non-fetch call sites like Socket.IO auth)
   getAdminAccessToken,
   // File upload
   uploadAdminImageWithProgress,
-  // Error class
-  AdminFetchError,
 } from "./adminFetcher";
 
 /**

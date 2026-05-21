@@ -5,7 +5,12 @@ test.describe("Admin Orders", () => {
     await page.goto("/admin/orders");
     await page.waitForLoadState("domcontentloaded");
 
-    await expect(page.locator("h1").filter({ hasText: /orders/i }).first()).toBeVisible({
+    await expect(
+      page
+        .locator("h1")
+        .filter({ hasText: /orders/i })
+        .first()
+    ).toBeVisible({
       timeout: 15_000,
     });
   });
@@ -20,7 +25,9 @@ test.describe("Admin Orders", () => {
     await expect(tableOrList).toBeVisible({ timeout: 12_000 });
   });
 
-  test("status filter tabs visible (Pending / Active / Completed / Cancelled)", async ({ page }) => {
+  test("status filter tabs visible (Pending / Active / Completed / Cancelled)", async ({
+    page,
+  }) => {
     await page.goto("/admin/orders");
     await page.waitForLoadState("domcontentloaded");
 

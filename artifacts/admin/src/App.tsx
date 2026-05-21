@@ -334,7 +334,10 @@ function AppRoutes() {
         <ProtectedRoute component={AnalyticsPage} requirePermission="finance.transactions.view" />
       </Route>
       <Route path="/revenue-analytics">
-        <ProtectedRoute component={RevenueAnalytics} requirePermission="finance.transactions.view" />
+        <ProtectedRoute
+          component={RevenueAnalytics}
+          requirePermission="finance.transactions.view"
+        />
       </Route>
       <Route path="/search-analytics">
         <ProtectedRoute component={SearchAnalyticsPage} requirePermission="system.settings.view" />
@@ -374,11 +377,7 @@ function AppRoutes() {
         <ProtectedRoute component={ErrorMonitor} requirePermission="system.settings.view" />
       </Route>
       <Route path="/live-riders-map">
-        <ProtectedRoute
-          component={LiveRidersMap}
-          requirePermission="fleet.rides.view"
-          fullScreen
-        />
+        <ProtectedRoute component={LiveRidersMap} requirePermission="fleet.rides.view" fullScreen />
       </Route>
       <Route path="/chat-monitor">
         <ProtectedRoute component={ChatMonitor} requirePermission="support.chat.view" />

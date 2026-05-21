@@ -560,9 +560,16 @@ export default function Products() {
         method: "DELETE",
         body: JSON.stringify({ ids }),
       })) as { deleted: number };
-      toast({ title: "Products deleted", description: `${result.deleted} product${result.deleted !== 1 ? "s" : ""} removed.` });
+      toast({
+        title: "Products deleted",
+        description: `${result.deleted} product${result.deleted !== 1 ? "s" : ""} removed.`,
+      });
     } catch (e: unknown) {
-      toast({ title: "Delete failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+      toast({
+        title: "Delete failed",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
     }
     setSelectedProductIds(new Set());
     setBulkDeleteConfirm(false);
@@ -577,9 +584,16 @@ export default function Products() {
         method: "POST",
         body: JSON.stringify({ ids }),
       })) as { approved: number };
-      toast({ title: "Products approved", description: `${result.approved} product${result.approved !== 1 ? "s" : ""} approved.` });
+      toast({
+        title: "Products approved",
+        description: `${result.approved} product${result.approved !== 1 ? "s" : ""} approved.`,
+      });
     } catch (e: unknown) {
-      toast({ title: "Approve failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+      toast({
+        title: "Approve failed",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
     }
     setSelectedProductIds(new Set());
     setBulkApproveConfirm(false);
@@ -2183,7 +2197,9 @@ export default function Products() {
           variant="default"
           busy={bulkApproving}
           onConfirm={handleBulkApproveSelected}
-          onClose={() => { if (!bulkApproving) setBulkApproveConfirm(false); }}
+          onClose={() => {
+            if (!bulkApproving) setBulkApproveConfirm(false);
+          }}
         />
         <ConfirmDialog
           open={bulkDeleteConfirm}
@@ -2193,7 +2209,9 @@ export default function Products() {
           variant="destructive"
           busy={bulkDeleting}
           onConfirm={handleBulkDelete}
-          onClose={() => { if (!bulkDeleting) setBulkDeleteConfirm(false); }}
+          onClose={() => {
+            if (!bulkDeleting) setBulkDeleteConfirm(false);
+          }}
         />
 
         {/* Bulk Edit Dialog */}
