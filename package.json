@@ -4,18 +4,45 @@
   "license": "MIT",
   "scripts": {
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
+    "prepare": "husky",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "typecheck:all": "tsc --build && concurrently 'tsc -p artifacts/api-server/tsconfig.json --noEmit' 'tsc -p artifacts/admin/tsconfig.json --noEmit' 'tsc -p artifacts/rider-app/tsconfig.json --noEmit' 'tsc -p artifacts/vendor-app/tsconfig.json --noEmit'",
     "e2e": "playwright test",
     "e2e:admin": "playwright test --project=admin",
     "e2e:vendor": "playwright test --project=vendor",
     "e2e:rider": "playwright test --project=rider",
     "e2e:report": "playwright show-report e2e/reports"
   },
+  "lint-staged": {
+    "artifacts/api-server/src/**/*.ts": [
+      "node_modules/.bin/tsc -p artifacts/api-server/tsconfig.json --noEmit",
+      "node_modules/.bin/eslint --max-warnings 0"
+    ],
+    "artifacts/admin/src/**/*.{ts,tsx}": [
+      "node_modules/.bin/tsc -p artifacts/admin/tsconfig.json --noEmit",
+      "node_modules/.bin/eslint --max-warnings 0"
+    ],
+    "artifacts/rider-app/src/**/*.{ts,tsx}": [
+      "node_modules/.bin/tsc -p artifacts/rider-app/tsconfig.json --noEmit",
+      "node_modules/.bin/eslint --max-warnings 0"
+    ],
+    "artifacts/vendor-app/src/**/*.{ts,tsx}": [
+      "node_modules/.bin/tsc -p artifacts/vendor-app/tsconfig.json --noEmit",
+      "node_modules/.bin/eslint --max-warnings 0"
+    ],
+    "lib/**/*.{ts,tsx}": [
+      "node_modules/.bin/eslint --max-warnings 0"
+    ],
+    "**/*.{json,md}": ["prettier --write"]
+  },
   "private": true,
   "devDependencies": {
     "@playwright/test": "^1.60.0",
+    "concurrently": "^9.1.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.1",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2"
   },

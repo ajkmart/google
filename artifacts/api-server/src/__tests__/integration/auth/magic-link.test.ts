@@ -104,7 +104,7 @@ describe("Magic Link — send & verify", () => {
       expect(mockSendMagicLinkEmail).toHaveBeenCalledOnce();
       expect(capturedToken).not.toBeNull();
       expect(typeof capturedToken).toBe("string");
-      expect((capturedToken as string).length).toBeGreaterThan(10);
+      expect((capturedToken as unknown as string).length).toBeGreaterThan(10);
     });
 
     it("returns 200 for an unregistered email (anti-enumeration)", async () => {
