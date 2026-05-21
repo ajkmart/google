@@ -110,3 +110,4 @@ export * from "./business_rules";
 export * from "./account_recovery_tokens";
 export * from "./auth_events";
 export * from "./trusted_devices";
+export * from "./compliance_checks";
