@@ -24,8 +24,10 @@ import {
   NAV_GROUPS,
   NAV_ITEMS as navItems,
   readFavorites,
+  type NavItem,
   writeFavorites,
 } from "@/lib/navConfig";
+import { usePermissions } from "@/hooks/usePermissions";
 import { safeLocalGet, safeLocalSet } from "@/lib/safeStorage";
 import { useLanguage } from "@/lib/useLanguage";
 import { useTheme } from "@/lib/useTheme";
@@ -59,6 +61,16 @@ const log = createLogger("[AdminLayout]");
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const { state, logout } = useAdminAuth();
+  const { has, hasAny, isSuper } = usePermissions();
+  const canSeeItem = useCallback(
+    (item: NavItem): boolean => {
+      if (isSuper) return true;
+      if (!item.requirePermission) return true;
+      if (Array.isArray(item.requirePermission)) return hasAny(item.requirePermission);
+      return has(item.requirePermission);
+    },
+    [isSuper, has, hasAny]
+  );
   const { isDark, toggleDark } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(
@@ -574,6 +586,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               {favorites.map((href) => {
                 const item = navItems.find((n) => n.href === href);
                 if (!item) return null;
+                if (!canSeeItem(item)) return null;
                 const Icon = item.icon;
                 const active = isActive(item.href);
                 return (
@@ -651,7 +664,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         >
           {navFilterTrim &&
             NAV_GROUPS.every((g) =>
-              g.items.every((i) => {
+              g.items.filter((i) => canSeeItem(i)).every((i) => {
                 const label = T(i.nameKey).toLowerCase();
                 const desc = (NAV_DESCRIPTIONS[i.href] || "").toLowerCase();
                 return (
@@ -670,10 +683,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           {NAV_GROUPS.map((group) => {
             const isExpanded = expandedGroups.has(group.key);
             const showMini = mini && !isMobile;
+            // First filter to only items this admin has permission to see.
+            const permittedItems = group.items.filter((item) => canSeeItem(item));
             // When the user is filtering, show every group expanded so matches across
             // groups are visible at once.
             const filteredItems = navFilterTrim
-              ? group.items.filter((item) => {
+              ? permittedItems.filter((item) => {
                   const label = T(item.nameKey).toLowerCase();
                   const desc = (NAV_DESCRIPTIONS[item.href] || "").toLowerCase();
                   return (
@@ -682,8 +697,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     item.href.toLowerCase().includes(navFilterTrim)
                   );
                 })
-              : group.items;
-            if (navFilterTrim && filteredItems.length === 0) return null;
+              : permittedItems;
+            // Hide entire group if no permitted items remain (with or without filter).
+            if (filteredItems.length === 0) return null;
             const effectiveExpanded = navFilterTrim ? true : isExpanded;
             const hasActiveItem = filteredItems.some((i) => isActive(i.href));
 
