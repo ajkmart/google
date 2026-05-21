@@ -250,7 +250,8 @@ function AppRoutes() {
         }
 
         try {
-          const AudioContextCtor = (window as any).AudioContext || (window as any).webkitAudioContext;
+          const AudioContextCtor = (window as Window & { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext
+            || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
           if (!AudioContextCtor) return;
           const ctx = new AudioContextCtor();
           const osc = ctx.createOscillator();

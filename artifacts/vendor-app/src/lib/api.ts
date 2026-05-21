@@ -229,6 +229,7 @@ const _resiClient = createResilientFetcher({
   cooldownMs: 30_000,
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function apiFetch(path: string, opts: RequestInit & { _timeoutMs?: number } = {}): Promise<any> {
   /* _resiClient handles circuit-breaking, 5xx retry, and 401→refresh internally.
      This wrapper adds CSRF headers and vendor-specific 403 handling on top. */
@@ -339,7 +340,7 @@ export const api = {
 
   /* Store management */
   getStore:      () => apiFetch("/vendors/store"),
-  updateStore:   (data: any) => apiFetch("/vendors/store", { method: "PATCH", body: JSON.stringify(data) }),
+  updateStore:   (data: Record<string, unknown>) => apiFetch("/vendors/store", { method: "PATCH", body: JSON.stringify(data) }),
 
   /* Stats & Analytics */
   getStats:      () => apiFetch("/vendors/stats"),
@@ -359,17 +360,17 @@ export const api = {
     const qs = params.toString();
     return apiFetch(`/vendors/products${qs ? `?${qs}` : ""}`);
   },
-  createProduct:  (data: any) => apiFetch("/vendors/products", { method: "POST", body: JSON.stringify(data) }),
-  bulkAddProducts:(products: any[]) => apiFetch("/vendors/products/bulk", { method: "POST", body: JSON.stringify({ products }) }),
+  createProduct:  (data: Record<string, unknown>) => apiFetch("/vendors/products", { method: "POST", body: JSON.stringify(data) }),
+  bulkAddProducts:(products: Record<string, unknown>[]) => apiFetch("/vendors/products/bulk", { method: "POST", body: JSON.stringify({ products }) }),
   bulkEditProducts:(products: Array<{ id: string; price?: number; stock?: number | null }>) => apiFetch("/vendors/products/bulk", { method: "PATCH", body: JSON.stringify({ products }) }),
-  updateProduct:  (id: string, data: any) => apiFetch(`/vendors/products/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  updateProduct:  (id: string, data: Record<string, unknown>) => apiFetch(`/vendors/products/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteProduct:  (id: string) => apiFetch(`/vendors/products/${id}`, { method: "DELETE" }),
   getProductStockHistory: (id: string) => apiFetch(`/vendors/products/${id}/stock-history`),
 
   /* Promos */
   getPromos:     () => apiFetch("/vendors/promos"),
-  createPromo:   (data: any) => apiFetch("/vendors/promos", { method: "POST", body: JSON.stringify(data) }),
-  updatePromo:   (id: string, data: any) => apiFetch(`/vendors/promos/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  createPromo:   (data: Record<string, unknown>) => apiFetch("/vendors/promos", { method: "POST", body: JSON.stringify(data) }),
+  updatePromo:   (id: string, data: Record<string, unknown>) => apiFetch(`/vendors/promos/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   togglePromo:   (id: string) => apiFetch(`/vendors/promos/${id}/toggle`, { method: "PATCH", body: "{}" }),
   deletePromo:   (id: string) => apiFetch(`/vendors/promos/${id}`, { method: "DELETE" }),
 

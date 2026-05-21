@@ -316,7 +316,7 @@ export default function Dashboard() {
       await api.updateStore({ storeHours: hours });
       await refreshUser();
       showToast("✅ Schedule saved");
-    } catch (e: any) {
+    } catch (e: unknown) {
       showToast("❌ " + errMsg(e));
     } finally {
       setSchedSaving(false);
@@ -582,7 +582,7 @@ export default function Dashboard() {
 
         {/* Weekly Store Schedule Editor */}
         <ScheduleEditor
-          storeHours={(user as any)?.storeHours}
+          storeHours={user?.storeHours}
           onSave={saveSchedule}
           saving={schedSaving}
         />
