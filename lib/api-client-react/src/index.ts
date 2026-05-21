@@ -1,3 +1,6 @@
+// Generated API types & hooks — run `pnpm orval` to regenerate from the OpenAPI spec.
+// If this file is absent after a fresh clone, run `node scripts/ensure-generated-stub.mjs`
+// from the lib/api-client-react directory to create an empty stub, then re-run orval.
 export * from "./generated/api";
 export * from "./generated/api.schemas";
 export {
@@ -38,6 +41,7 @@ export type {
   ResilientFetcherConfig,
   ResilientFetcher,
 } from "./resilience";
+export { queryClient } from "./queryClient";
 export {
   rateRide,
   getDispatchStatus,
