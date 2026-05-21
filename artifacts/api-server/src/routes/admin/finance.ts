@@ -109,7 +109,6 @@ router.get(
           userId: walletTransactionsTable.userId,
           type: walletTransactionsTable.type,
           amount: walletTransactionsTable.amount,
-          status: walletTransactionsTable.status,
           reference: walletTransactionsTable.reference,
           description: walletTransactionsTable.description,
           createdAt: walletTransactionsTable.createdAt,
@@ -146,7 +145,7 @@ router.get(
           escape(userMap[t.userId]?.phone ?? ""),
           escape(t.type),
           escape(parseFloat(t.amount).toFixed(2)),
-          escape(t.status ?? ""),
+          "",
           escape(t.reference ?? ""),
           escape(t.description ?? ""),
         ].join(",")

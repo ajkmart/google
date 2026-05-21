@@ -35,6 +35,14 @@ export class TimeoutError extends Error {
 const FETCH_TIMEOUT_MS = 30_000;
 
 /**
+ * API base URL.  Empty string = same origin (Replit reverse proxy handles
+ * routing — admin on :3000 and API on :5000 share the same public domain).
+ * Set VITE_API_BASE_URL only when admin and API are on different domains
+ * (e.g. VITE_API_BASE_URL=https://api.yourdomain.com in external production).
+ */
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "";
+
+/**
  * Returns an AbortSignal that fires after `ms` milliseconds.
  * Sets the abort reason to a TimeoutError so callers can distinguish
  * our timeout from external aborts (e.g. component unmount).
@@ -128,7 +136,7 @@ function onAdminRefreshFailed(_isTransient: boolean): void {
 // always use the latest handlers set by setupAdminFetcherHandlers.
 
 const [_adminScopedFetcher] = createApiFetcher({
-  baseUrl: "/api/admin",
+  baseUrl: `${API_BASE}/api/admin`,
   getToken: () => getAccessToken?.() ?? null,
   setToken: () => {
     /* no-op: refreshFn (auth context) manages in-memory state */
@@ -147,7 +155,7 @@ const [_adminScopedFetcher] = createApiFetcher({
 });
 
 const [_adminAbsoluteFetcher] = createApiFetcher({
-  baseUrl: "",
+  baseUrl: API_BASE,
   getToken: () => getAccessToken?.() ?? null,
   setToken: () => {
     /* no-op: refreshFn (auth context) manages in-memory state */
@@ -420,7 +428,7 @@ export async function uploadAdminImageWithProgress(
 
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open("POST", "/api/admin/uploads/admin", true);
+      xhr.open("POST", `${API_BASE}/api/admin/uploads/admin`, true);
       xhr.withCredentials = true;
       if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
       if (csrf) xhr.setRequestHeader("X-CSRF-Token", csrf);

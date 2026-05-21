@@ -78,10 +78,10 @@ router.get("/analytics", async (req, res) => {
               )
             )
             .groupBy(ordersTable.type)
-        : Promise.resolve([]),
+        : Promise.resolve([] as Array<{ type: string | null; total: string | null }>),
 
       /* Pharmacy needs a separate label */
-      Promise.resolve([]),
+      Promise.resolve([] as Array<{ type: string | null; total: string | null }>),
 
       /* User growth over time */
       wantGrowth

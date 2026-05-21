@@ -90,15 +90,25 @@ setImmediate(() => {
 /* ══════════════════════════════════════════════════════════════
    JWT CONFIGURATION — fail-fast if secret is absent or too short
    ══════════════════════════════════════════════════════════════ */
-const _jwtSecret = process.env["JWT_SECRET"];
-if (!_jwtSecret || _jwtSecret.length < 32) {
-  const msg = !_jwtSecret
-    ? "[AUTH] FATAL: JWT_SECRET environment variable is not set. Minimum 32 characters required."
-    : `[AUTH] FATAL: JWT_SECRET too short (${_jwtSecret.length} chars, need ≥32).`;
-  logger.error(msg);
-  process.exit(1);
+function resolveJwtSecret(): string {
+  const val = process.env["JWT_SECRET"];
+  if (!val || val.length < 32) {
+    const msg = !val
+      ? "[AUTH] FATAL: JWT_SECRET environment variable is not set. Minimum 32 characters required."
+      : `[AUTH] FATAL: JWT_SECRET too short (${val.length} chars, need ≥32).`;
+    if (process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging") {
+      logger.error(msg);
+      process.exit(1);
+    }
+    logger.warn(
+      "[AUTH] WARNING: JWT_SECRET is not set or too short. " +
+        "Using unsafe dev fallback — set a strong secret before deploying to production."
+    );
+    return (val ?? "") + "dev_jwt_fallback_pad_to_32_chars_min!!";
+  }
+  return val;
 }
-export const JWT_SECRET: string = _jwtSecret;
+export const JWT_SECRET: string = resolveJwtSecret();
 
 /* Access token TTL defaults — overridden at runtime by platform settings jwt_access_ttl_sec / jwt_refresh_ttl_days */
 export const ACCESS_TOKEN_TTL_SEC = 900; /* 15 minutes */
@@ -129,8 +139,15 @@ const _adminAccessTokenSecret = (() => {
     const msg = !val
       ? "[FATAL] ADMIN_ACCESS_TOKEN_SECRET is not set. Set a secret of at least 32 characters before starting the server."
       : `[FATAL] ADMIN_ACCESS_TOKEN_SECRET too short (${val.length} chars, need ≥32). Set a longer secret before starting the server.`;
-    logger.error(msg);
-    process.exit(1);
+    if (process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging") {
+      logger.error(msg);
+      process.exit(1);
+    }
+    logger.warn(
+      "[AUTH] WARNING: ADMIN_ACCESS_TOKEN_SECRET is not set or too short. " +
+        "Using unsafe dev fallback — set a strong secret before deploying to production."
+    );
+    return (val ?? "") + "dev_admin_fallback_pad_to_32_chars!!";
   }
   return val;
 })();

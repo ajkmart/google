@@ -51,6 +51,7 @@ const DEV_PLACEHOLDER_SECRETS = new Set([
   "e2f5a8b1c4d7e0f3a6b9c2d5e8f1a4b7c0d3e6f9a2b5c8d1e4f7a0b3c6d9e2", // audit-ok
   "f9a2b5c8d1e4f7a0b3c6d9e2f5a8b1c4d7e0f3a6b9c2d5e8f1a4b7c0d3e6f9", // audit-ok
   "dev-placeholder-jwt-secret",
+  "dev-placeholder-jwt-secret-000000",
 ]);
 const JWT_SECRET_VARS = [
   "JWT_SECRET",
@@ -63,7 +64,7 @@ const JWT_SECRET_VARS = [
   "RIDER_JWT_SECRET",
 ];
 
-const DEV_PLACEHOLDER_JWT = "dev-placeholder-jwt-secret";
+const DEV_PLACEHOLDER_JWT = "dev-placeholder-jwt-secret-000000";
 
 function checkEnv(): void {
   const nodeEnv = process.env.NODE_ENV ?? "";
@@ -145,7 +146,7 @@ function checkEnv(): void {
       }
     }
     if (!process.env.ENCRYPTION_MASTER_KEY) {
-      process.env.ENCRYPTION_MASTER_KEY = "dev-placeholder-master-key-16ch";
+      process.env.ENCRYPTION_MASTER_KEY = "dev-placeholder-master-key-0000000";
       substituted.push("ENCRYPTION_MASTER_KEY");
     }
 
@@ -219,6 +220,17 @@ function checkEnv(): void {
   if (!isProduction && missing.length > 0) {
     logger.warn("[env:check] Development mode — continuing despite missing critical vars.");
     logger.warn("[env:check] Add missing secrets in the Replit Secrets panel, then restart.\n");
+  }
+
+  /* ── Recommended-but-optional vars ─────────────────────────────────────────
+     These degrade specific features when absent but never block startup.      */
+  const RECOMMENDED_VARS = ["ALLOWED_ORIGINS", "SENTRY_DSN", "REDIS_URL"] as const;
+  const missingRecommended = RECOMMENDED_VARS.filter((v) => !process.env[v]);
+  if (missingRecommended.length > 0) {
+    logger.warn(
+      { missingRecommended },
+      "[env:check] Recommended env vars not set — some features may be limited (CORS auto-detect, error tracking, session caching)"
+    );
   }
 }
 
@@ -447,6 +459,23 @@ async function main() {
       }
     });
   }
+
+  /* ── Startup summary — structured log of key config (no secret values) ───── */
+  logger.info(
+    {
+      nodeEnv: process.env.NODE_ENV ?? "development",
+      port: listenPort,
+      allowedOrigins: process.env.ALLOWED_ORIGINS
+        ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+        : "(auto-detect from REPLIT_DEV_DOMAIN)",
+      jwtSecret: process.env.JWT_SECRET ? "SET" : "MISSING",
+      databaseUrl: process.env.DATABASE_URL ? "SET" : "MISSING",
+      encryptionKey: process.env.ENCRYPTION_MASTER_KEY ? "SET" : "MISSING",
+      sentryDsn: process.env.SENTRY_DSN ? "SET" : "not configured",
+      redisUrl: process.env.REDIS_URL ? "SET" : "not configured",
+    },
+    "[startup:summary] AJKMart API server configuration"
+  );
 
   bindServer(listenPort);
 

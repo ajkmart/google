@@ -58,9 +58,14 @@ export function auditAdminEnv(): AdminEnv {
   // Optional keys (consumed via fallbacks) are skipped from the warning
   // sweep — only declared but malformed keys surface.
   const OPTIONAL_VITE_KEYS = new Set([
-    /* `error-reporter.ts#getApiBase()` falls back to
-       `window.location.origin/api` when this is not set. */
+    /* `error-reporter.ts#getApiBase()` and `adminFetcher.tsx#API_BASE` fall
+       back to same-origin (empty string) when this is not set — correct for
+       Replit where admin and API share the same reverse-proxied domain. */
     "VITE_API_BASE_URL",
+    /* Sentry DSN — when absent, Sentry is silently disabled. */
+    "VITE_SENTRY_DSN",
+    /* App version tag — defaults to "dev" when not injected at build time. */
+    "VITE_APP_VERSION",
   ]);
   const viteKeys = Object.keys(env).filter((k) => k.startsWith("VITE_"));
   for (const key of viteKeys) {
