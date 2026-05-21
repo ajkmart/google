@@ -14,12 +14,15 @@ import {
 } from "@/components/ui/table";
 import { adminFetch } from "@/lib/adminFetcher";
 import { useQuery } from "@tanstack/react-query";
-import { Heart, Loader2, Package, TrendingUp } from "lucide-react";
+import { Heart, Loader2, Package, Percent, TrendingUp } from "lucide-react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
+  Legend,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -37,7 +40,7 @@ type WishlistProduct = {
   vendorName: string | null;
 };
 
-const CHART_COLORS = [
+const BAR_COLORS = [
   "#f43f5e",
   "#fb7185",
   "#f9a8d4",
@@ -50,6 +53,19 @@ const CHART_COLORS = [
   "#831843",
 ];
 
+const PIE_COLORS = [
+  "#f43f5e",
+  "#6366f1",
+  "#f97316",
+  "#22c55e",
+  "#3b82f6",
+  "#8b5cf6",
+  "#ec4899",
+  "#14b8a6",
+  "#f59e0b",
+  "#84cc16",
+];
+
 function useWishlistAnalytics() {
   return useQuery({
     queryKey: ["admin-wishlist-analytics"],
@@ -58,7 +74,13 @@ function useWishlistAnalytics() {
   });
 }
 
-const CustomTooltip = ({ active, payload }: any) => {
+const BarTooltip = ({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: { fullName?: string }; value: number; color: string }>;
+}) => {
   if (!active || !payload?.length) return null;
   const d = payload[0];
   return (
@@ -66,6 +88,60 @@ const CustomTooltip = ({ active, payload }: any) => {
       <p className="mb-0.5 leading-snug font-bold text-gray-800">{d?.payload?.fullName}</p>
       <p className="font-semibold text-pink-600">{d?.value} saves</p>
     </div>
+  );
+};
+
+const PieTooltip = ({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ name: string; value: number; payload: { pct: string } }>;
+}) => {
+  if (!active || !payload?.length) return null;
+  const d = payload[0];
+  return (
+    <div className="rounded-xl border border-gray-100 bg-white px-3 py-2 text-xs shadow-lg">
+      <p className="font-bold text-gray-800">{d?.name}</p>
+      <p className="text-gray-600">
+        {d?.value} saves ({d?.payload?.pct}%)
+      </p>
+    </div>
+  );
+};
+
+const CustomPieLabel = ({
+  cx,
+  cy,
+  midAngle,
+  innerRadius,
+  outerRadius,
+  percent,
+}: {
+  cx: number;
+  cy: number;
+  midAngle: number;
+  innerRadius: number;
+  outerRadius: number;
+  percent: number;
+}) => {
+  if (percent < 0.06) return null;
+  const RADIAN = Math.PI / 180;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="white"
+      textAnchor="middle"
+      dominantBaseline="central"
+      fontSize={10}
+      fontWeight={700}
+    >
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
   );
 };
 
@@ -77,13 +153,34 @@ export default function WishlistInsights() {
 
   const totalWishlists = products.reduce((s, p) => s + p.wishlistCount, 0);
   const outOfStock = products.filter((p) => !p.productInStock).length;
+  const inStockWishlisted = products.filter((p) => p.productInStock).length;
 
-  // Top 10 products for bar chart
+  /* Wishlist conversion approximation: in-stock wishlisted items / total = availability rate */
+  const availabilityRate =
+    products.length > 0 ? ((inStockWishlisted / products.length) * 100).toFixed(1) : "0";
+
+  /* Top 10 products for bar chart */
   const chartData = products.slice(0, 10).map((p) => ({
     name: p.productName.length > 16 ? p.productName.slice(0, 14) + "…" : p.productName,
     fullName: p.productName,
     count: p.wishlistCount,
   }));
+
+  /* Category distribution for pie chart */
+  const categoryMap = new Map<string, number>();
+  for (const p of products) {
+    const cat = p.productCategory || "Other";
+    categoryMap.set(cat, (categoryMap.get(cat) ?? 0) + p.wishlistCount);
+  }
+  const totalCatCount = Array.from(categoryMap.values()).reduce((s, v) => s + v, 0);
+  const categoryPieData = Array.from(categoryMap.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([name, value]) => ({
+      name,
+      value,
+      pct: totalCatCount > 0 ? ((value / totalCatCount) * 100).toFixed(1) : "0",
+    }));
 
   return (
     <ErrorBoundary
@@ -108,7 +205,7 @@ export default function WishlistInsights() {
           />
 
           {/* Stat cards */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Card className="rounded-2xl p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-50">
@@ -126,8 +223,19 @@ export default function WishlistInsights() {
                   <TrendingUp className="h-5 w-5 text-amber-500" />
                 </div>
                 <div>
-                  <p className="text-muted-foreground text-xs">Total Wishlist Saves</p>
+                  <p className="text-muted-foreground text-xs">Total Saves</p>
                   <p className="text-xl font-bold">{totalWishlists.toLocaleString()}</p>
+                </div>
+              </div>
+            </Card>
+            <Card className="rounded-2xl p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
+                  <Percent className="h-5 w-5 text-green-500" />
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs">In-Stock Rate</p>
+                  <p className="text-xl font-bold">{availabilityRate}%</p>
                 </div>
               </div>
             </Card>
@@ -144,70 +252,142 @@ export default function WishlistInsights() {
             </Card>
           </div>
 
-          {/* Bar chart — most wishlisted */}
-          <Card className="overflow-hidden rounded-2xl shadow-sm">
-            <div className="flex items-center gap-2 border-b bg-gradient-to-r from-pink-50 to-rose-50 px-4 py-3">
-              <Heart className="h-4 w-4 text-pink-500" />
-              <span className="text-sm font-semibold text-gray-800">
-                Most Wishlisted Products — Top 10
-              </span>
-            </div>
-            <CardContent className="p-4">
-              {isLoading ? (
-                <div className="flex h-56 animate-pulse items-center justify-center">
-                  <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
-                </div>
-              ) : chartData.length === 0 ? (
-                <div className="text-muted-foreground py-16 text-center">
-                  <Heart className="mx-auto mb-3 h-10 w-10 opacity-30" />
-                  <p className="text-sm">No wishlist data yet</p>
-                </div>
-              ) : (
-                <>
-                  <div className="h-56">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={chartData}
-                        layout="vertical"
-                        margin={{ top: 0, right: 32, left: 8, bottom: 0 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#fce7f3" />
-                        <XAxis
-                          type="number"
-                          tick={{ fontSize: 10, fill: "#9ca3af" }}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <YAxis
-                          type="category"
-                          dataKey="name"
-                          width={110}
-                          tick={{ fontSize: 10, fill: "#374151" }}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <Tooltip content={<CustomTooltip />} cursor={{ fill: "#fff1f2" }} />
-                        <Bar
-                          dataKey="count"
-                          name="Wishlist saves"
-                          radius={[0, 6, 6, 0]}
-                          barSize={16}
-                          label={{ position: "right", fontSize: 10, fill: "#9ca3af" }}
-                        >
-                          {chartData.map((_, i) => (
-                            <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+          {/* Bar chart + Category pie — side by side */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            {/* Bar chart — most wishlisted */}
+            <Card className="overflow-hidden rounded-2xl shadow-sm">
+              <div className="flex items-center gap-2 border-b bg-gradient-to-r from-pink-50 to-rose-50 px-4 py-3">
+                <Heart className="h-4 w-4 text-pink-500" />
+                <span className="text-sm font-semibold text-gray-800">
+                  Most Wishlisted — Top 10
+                </span>
+              </div>
+              <CardContent className="p-4">
+                {isLoading ? (
+                  <div className="flex h-56 animate-pulse items-center justify-center">
+                    <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
                   </div>
-                  <p className="mt-1 text-right text-[10px] text-gray-400">
-                    Showing top {chartData.length} of {products.length} wishlisted products
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                ) : chartData.length === 0 ? (
+                  <div className="text-muted-foreground py-16 text-center">
+                    <Heart className="mx-auto mb-3 h-10 w-10 opacity-30" />
+                    <p className="text-sm">No wishlist data yet</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="h-56">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={chartData}
+                          layout="vertical"
+                          margin={{ top: 0, right: 32, left: 8, bottom: 0 }}
+                        >
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            horizontal={false}
+                            stroke="#fce7f3"
+                          />
+                          <XAxis
+                            type="number"
+                            tick={{ fontSize: 10, fill: "#9ca3af" }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <YAxis
+                            type="category"
+                            dataKey="name"
+                            width={110}
+                            tick={{ fontSize: 10, fill: "#374151" }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <Tooltip content={<BarTooltip />} cursor={{ fill: "#fff1f2" }} />
+                          <Bar
+                            dataKey="count"
+                            name="Wishlist saves"
+                            radius={[0, 6, 6, 0]}
+                            barSize={16}
+                            label={{ position: "right", fontSize: 10, fill: "#9ca3af" }}
+                          >
+                            {chartData.map((_, i) => (
+                              <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <p className="mt-1 text-right text-[10px] text-gray-400">
+                      Top {chartData.length} of {products.length} wishlisted products
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Category wishlist distribution — PieChart */}
+            <Card className="overflow-hidden rounded-2xl shadow-sm">
+              <div className="flex items-center gap-2 border-b bg-gradient-to-r from-purple-50 to-indigo-50 px-4 py-3">
+                <TrendingUp className="h-4 w-4 text-purple-500" />
+                <span className="text-sm font-semibold text-gray-800">
+                  Category Distribution
+                </span>
+              </div>
+              <CardContent className="p-4">
+                {isLoading ? (
+                  <div className="flex h-56 animate-pulse items-center justify-center">
+                    <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+                  </div>
+                ) : categoryPieData.length === 0 ? (
+                  <div className="text-muted-foreground py-16 text-center">
+                    <Package className="mx-auto mb-3 h-10 w-10 opacity-30" />
+                    <p className="text-sm">No category data yet</p>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <div className="h-52 flex-1">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={categoryPieData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={36}
+                            outerRadius={78}
+                            dataKey="value"
+                            labelLine={false}
+                            label={CustomPieLabel}
+                          >
+                            {categoryPieData.map((_, i) => (
+                              <Cell
+                                key={i}
+                                fill={PIE_COLORS[i % PIE_COLORS.length]}
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip content={<PieTooltip />} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="shrink-0 space-y-2 overflow-y-auto" style={{ maxHeight: 200 }}>
+                      {categoryPieData.map((entry, i) => (
+                        <div key={entry.name} className="flex items-center gap-1.5">
+                          <span
+                            className="h-2.5 w-2.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+                          />
+                          <div className="min-w-0">
+                            <p className="max-w-[90px] truncate text-[11px] font-semibold text-gray-700">
+                              {entry.name}
+                            </p>
+                            <p className="text-[10px] text-gray-400">{entry.pct}%</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Full ranked table */}
           <Card className="overflow-hidden rounded-2xl">
@@ -227,7 +407,10 @@ export default function WishlistInsights() {
             ) : (
               <>
                 {/* Mobile card list */}
-                <section className="divide-border divide-y md:hidden" aria-label="Wishlist ranking">
+                <section
+                  className="divide-border divide-y md:hidden"
+                  aria-label="Wishlist ranking"
+                >
                   {products.map((p, i) => {
                     const pct = topCount > 0 ? Math.round((p.wishlistCount / topCount) * 100) : 0;
                     return (
@@ -243,7 +426,10 @@ export default function WishlistInsights() {
                           />
                         ) : (
                           <div className="bg-muted flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
-                            <Package className="text-muted-foreground h-5 w-5" aria-hidden="true" />
+                            <Package
+                              className="text-muted-foreground h-5 w-5"
+                              aria-hidden="true"
+                            />
                           </div>
                         )}
                         <div className="min-w-0 flex-1">

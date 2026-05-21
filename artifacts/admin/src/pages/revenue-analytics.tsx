@@ -24,7 +24,10 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Legend,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -33,7 +36,7 @@ import {
 
 function SkeletonBlock({ className }: { className?: string }) {
   return (
-    <div className={`relative overflow-hidden rounded-2xl bg-gray-100 ${className}`}>
+    <div className={`relative overflow-hidden rounded-2xl bg-gray-100 ${className ?? ""}`}>
       <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent" />
     </div>
   );
@@ -73,24 +76,54 @@ function exportCsv(
 }
 
 const SHORT_MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
+
 function formatMonthLabel(m: string): string {
   const [year, month] = m.split("-");
   const idx = parseInt(month ?? "1", 10) - 1;
   return `${SHORT_MONTHS[idx]} ${(year ?? "").slice(2)}`;
 }
+
+const PIE_COLORS = ["#f97316", "#6366f1", "#22c55e"];
+
+const CustomPieLabel = ({
+  cx,
+  cy,
+  midAngle,
+  innerRadius,
+  outerRadius,
+  percent,
+  name,
+}: {
+  cx: number;
+  cy: number;
+  midAngle: number;
+  innerRadius: number;
+  outerRadius: number;
+  percent: number;
+  name: string;
+}) => {
+  if (percent < 0.05) return null;
+  const RADIAN = Math.PI / 180;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="white"
+      textAnchor="middle"
+      dominantBaseline="central"
+      fontSize={10}
+      fontWeight={600}
+    >
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  );
+};
 
 export default function RevenueAnalytics() {
   const { language } = useLanguage();
@@ -121,6 +154,10 @@ export default function RevenueAnalytics() {
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <SkeletonBlock className="h-48" />
           <SkeletonBlock className="h-48" />
+        </div>
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <SkeletonBlock className="h-64" />
+          <SkeletonBlock className="h-64" />
         </div>
       </div>
     );
@@ -176,6 +213,21 @@ export default function RevenueAnalytics() {
     grandTotal > 0 ? ((categoryTotals.pharmacy / grandTotal) * 100).toFixed(1) : "0.0";
 
   const growthPositive = momGrowth >= 0;
+
+  /* Pie chart data — revenue split by service category */
+  const pieData = [
+    { name: "Mart/Food", value: categoryTotals.orders },
+    { name: "Rides", value: categoryTotals.rides },
+    { name: "Pharmacy", value: categoryTotals.pharmacy },
+  ].filter((d) => d.value > 0);
+
+  /* Daily gross vs net — derive net as 85% of gross (platform keeps 15% commission) */
+  const PLATFORM_COMMISSION = 0.15;
+  const grossNetData = monthly.slice(-6).map((m) => ({
+    name: formatMonthLabel(m.month),
+    Gross: parseFloat(m.total.toFixed(2)),
+    Net: parseFloat((m.total * (1 - PLATFORM_COMMISSION)).toFixed(2)),
+  }));
 
   return (
     <ErrorBoundary
@@ -307,6 +359,126 @@ export default function RevenueAnalytics() {
             </div>
           )}
         </Card>
+
+        {/* Gross vs Net + Commission Pie — side by side */}
+        <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-2">
+          {/* Gross vs Net revenue (last 6 months) */}
+          <Card className="border-border/50 rounded-2xl p-4 shadow-sm sm:p-5">
+            <h2 className="mb-4 flex items-center gap-2 text-base font-bold">
+              <TrendingUp className="h-4 w-4 text-blue-500" /> Gross vs Net Revenue
+              <span className="text-muted-foreground ml-auto text-xs font-normal">
+                Last 6 months
+              </span>
+            </h2>
+            {grossNetData.length === 0 ? (
+              <div className="text-muted-foreground flex h-48 items-center justify-center text-sm">
+                No data available yet
+              </div>
+            ) : (
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={grossNetData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={42}
+                      tickFormatter={(v: number) =>
+                        v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)
+                      }
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: "12px",
+                        fontSize: "12px",
+                        border: "1px solid hsl(var(--border))",
+                      }}
+                      formatter={(v: number | string, name: string) => [
+                        `Rs. ${Math.round(Number(v)).toLocaleString()}`,
+                        name,
+                      ]}
+                    />
+                    <Legend wrapperStyle={{ fontSize: "11px" }} />
+                    <Bar dataKey="Gross" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={18} />
+                    <Bar dataKey="Net" fill="#22c55e" radius={[4, 4, 0, 0]} barSize={18} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+            <p className="text-muted-foreground mt-2 text-[10px]">
+              Net = Gross after 15% platform commission
+            </p>
+          </Card>
+
+          {/* Commission breakdown — PieChart */}
+          <Card className="border-border/50 rounded-2xl p-4 shadow-sm sm:p-5">
+            <h2 className="mb-4 flex items-center gap-2 text-base font-bold">
+              <BarChart2 className="h-4 w-4 text-purple-500" /> Revenue by Service
+            </h2>
+            {pieData.length === 0 ? (
+              <div className="text-muted-foreground flex h-48 items-center justify-center text-sm">
+                No data available yet
+              </div>
+            ) : (
+              <div className="flex items-center gap-4">
+                <div className="h-48 flex-1">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={80}
+                        dataKey="value"
+                        labelLine={false}
+                        label={CustomPieLabel}
+                      >
+                        {pieData.map((_, i) => (
+                          <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: "12px",
+                          fontSize: "12px",
+                          border: "1px solid hsl(var(--border))",
+                        }}
+                        formatter={(v: number | string) => [
+                          `Rs. ${Math.round(Number(v)).toLocaleString()}`,
+                          "Revenue",
+                        ]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="shrink-0 space-y-3">
+                  {pieData.map((entry, i) => (
+                    <div key={entry.name} className="flex items-center gap-2">
+                      <span
+                        className="h-3 w-3 shrink-0 rounded-full"
+                        style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+                      />
+                      <div>
+                        <p className="text-xs font-semibold">{entry.name}</p>
+                        <p className="text-muted-foreground text-[10px]">
+                          {formatCurrency(entry.value)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
 
         {/* Category totals & Top Vendors */}
         <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-2">
