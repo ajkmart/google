@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LastUpdated } from "@/components/ui/LastUpdated";
 import { useDiagnostics, useHealthDashboard, useUnlockAdminIpLockout } from "@/hooks/use-admin";
-import { useQueryClient } from "@tanstack/react-query";
+import { adminAbsoluteFetch, adminFetch } from "@/lib/adminFetcher";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
   AlertTriangle,
@@ -40,10 +41,14 @@ import {
   ToggleLeft,
   ToggleRight,
   UserX,
+  Users,
+  Radio,
+  Package,
+  ListChecks,
   XCircle,
   Zap,
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 
 /* ── helpers ── */
@@ -179,6 +184,287 @@ function ChannelBadge({ configured, label }: { configured: boolean; label: strin
   );
 }
 
+/* ── System Check card ── */
+type CheckStatus = "ok" | "warning" | "error" | "not_configured" | "loading";
+
+function CheckCard({
+  icon: Icon,
+  label,
+  status,
+  detail,
+  sub,
+}: {
+  icon: React.ElementType;
+  label: string;
+  status: CheckStatus;
+  detail?: string;
+  sub?: string;
+}) {
+  const cfg: Record<CheckStatus, { border: string; bg: string; dot: string; badge: string; text: string; label: string }> = {
+    ok: { border: "border-emerald-500/25", bg: "bg-emerald-500/5", dot: "bg-emerald-500", badge: "bg-emerald-500/15 text-emerald-400", text: "text-emerald-400", label: "OK" },
+    warning: { border: "border-amber-500/25", bg: "bg-amber-500/5", dot: "bg-amber-400 animate-pulse", badge: "bg-amber-500/15 text-amber-400", text: "text-amber-400", label: "Degraded" },
+    error: { border: "border-red-500/25", bg: "bg-red-500/5", dot: "bg-red-500 animate-pulse", badge: "bg-red-500/15 text-red-400", text: "text-red-400", label: "Error" },
+    not_configured: { border: "border-slate-700/40", bg: "bg-slate-800/30", dot: "bg-slate-600", badge: "bg-slate-700/60 text-slate-500", text: "text-slate-500", label: "Not set up" },
+    loading: { border: "border-slate-700/40", bg: "bg-slate-800/30", dot: "bg-slate-700 animate-pulse", badge: "bg-slate-700/60 text-slate-500", text: "text-slate-500", label: "—" },
+  };
+  const c = cfg[status];
+  return (
+    <div className={`flex items-start justify-between rounded-xl border p-4 ${c.border} ${c.bg}`}>
+      <div className="flex min-w-0 items-start gap-3">
+        <div className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${c.dot}`} />
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <Icon size={13} className="shrink-0 text-slate-400" />
+            <span className="text-sm font-medium text-slate-200">{label}</span>
+          </div>
+          {detail && <p className={`mt-0.5 font-mono text-xs ${c.text}`}>{detail}</p>}
+          {sub && <p className="mt-0.5 text-xs text-slate-600">{sub}</p>}
+        </div>
+      </div>
+      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${c.badge}`}>
+        {status === "loading" ? "…" : c.label}
+      </span>
+    </div>
+  );
+}
+
+/* ── SystemChecksSection ── */
+function SystemChecksSection() {
+  const qc = useQueryClient();
+
+  const { data: healthRaw, isLoading: healthLoading } = useQuery<Record<string, unknown>>({
+    queryKey: ["public-health-check"],
+    queryFn: async () => {
+      const t0 = Date.now();
+      const d = (await adminAbsoluteFetch("/api/health")) as Record<string, unknown>;
+      return { ...(d ?? {}), _apiMs: Date.now() - t0 };
+    },
+    refetchInterval: 30_000,
+    staleTime: 20_000,
+  });
+
+  const { data: activeUsers, isLoading: usersLoading } = useQuery({
+    queryKey: ["stats-active-users"],
+    queryFn: () => adminFetch("/stats/active-users") as Promise<{ online: number; total: number }>,
+    refetchInterval: 30_000,
+    staleTime: 20_000,
+  });
+
+  const { data: socketData, isLoading: socketLoading } = useQuery({
+    queryKey: ["stats-socket-connections"],
+    queryFn: () => adminFetch("/stats/socket-connections") as Promise<{ connected: number }>,
+    refetchInterval: 30_000,
+    staleTime: 20_000,
+  });
+
+  const { data: storageData, isLoading: storageLoading } = useQuery({
+    queryKey: ["stats-storage"],
+    queryFn: () => adminFetch("/stats/storage") as Promise<{ status: string; usedPct: number | null; freeGb: number | null; usedGb: number | null }>,
+    refetchInterval: 30_000,
+    staleTime: 20_000,
+  });
+
+  const { data: queueData, isLoading: queueLoading } = useQuery({
+    queryKey: ["stats-queue"],
+    queryFn: () => adminFetch("/stats/queue") as Promise<{ pending: number; status: string }>,
+    refetchInterval: 30_000,
+    staleTime: 20_000,
+  });
+
+  const checks = (healthRaw as { checks?: Record<string, { status: string; latencyMs?: number }> } | undefined)?.checks;
+  const apiMs = (healthRaw as { _apiMs?: number } | undefined)?._apiMs ?? null;
+
+  const dbStatus: CheckStatus = healthLoading ? "loading" : checks?.database?.status === "ok" ? "ok" : checks?.database?.status ? "error" : "error";
+  const apiStatus: CheckStatus = healthLoading ? "loading" : apiMs == null ? "error" : apiMs < 500 ? "ok" : apiMs < 1500 ? "warning" : "error";
+  const smtpStatus: CheckStatus = healthLoading ? "loading" : (checks?.smtp as { status?: string } | undefined)?.status === "ok" ? "ok" : (checks?.smtp as { status?: string } | undefined)?.status === "not_configured" ? "not_configured" : "not_configured";
+  const smsStatus: CheckStatus = healthLoading ? "loading" : (checks?.sms as { status?: string } | undefined)?.status === "ok" ? "ok" : "not_configured";
+
+  const usersStatus: CheckStatus = usersLoading ? "loading" : activeUsers != null ? "ok" : "error";
+  const socketStatus: CheckStatus = socketLoading ? "loading" : socketData != null ? "ok" : "error";
+
+  const storagePct = storageData?.usedPct ?? null;
+  const storageStatus: CheckStatus = storageLoading
+    ? "loading"
+    : storagePct == null
+      ? "not_configured"
+      : storagePct > 90
+        ? "error"
+        : storagePct > 80
+          ? "warning"
+          : "ok";
+
+  const queuePending = queueData?.pending ?? null;
+  const queueStatus: CheckStatus = queueLoading ? "loading" : queuePending == null ? "error" : queuePending > 500 ? "warning" : "ok";
+
+  const handleRefreshAll = () => {
+    void qc.invalidateQueries({ queryKey: ["public-health-check"] });
+    void qc.invalidateQueries({ queryKey: ["stats-active-users"] });
+    void qc.invalidateQueries({ queryKey: ["stats-socket-connections"] });
+    void qc.invalidateQueries({ queryKey: ["stats-storage"] });
+    void qc.invalidateQueries({ queryKey: ["stats-queue"] });
+  };
+
+  const allOk = [dbStatus, apiStatus, usersStatus, socketStatus, storageStatus, queueStatus].every(
+    (s) => s === "ok" || s === "not_configured"
+  );
+
+  return (
+    <Section title="System Checks" icon={ListChecks}>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          {allOk && !healthLoading && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-400">
+              <CheckCircle2 size={11} /> All systems operational
+            </span>
+          )}
+        </div>
+        <button
+          onClick={handleRefreshAll}
+          className="flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-300"
+        >
+          <RefreshCw size={11} />
+          Refresh all
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <CheckCard
+          icon={Database}
+          label="Database Connection"
+          status={dbStatus}
+          detail={checks?.database?.latencyMs != null ? `${checks.database.latencyMs}ms latency` : undefined}
+          sub="PostgreSQL primary"
+        />
+        <CheckCard
+          icon={Gauge}
+          label="API Response Time"
+          status={apiStatus}
+          detail={apiMs != null ? `${apiMs}ms` : undefined}
+          sub="GET /api/health round-trip"
+        />
+        <CheckCard
+          icon={Users}
+          label="Active Users (Online)"
+          status={usersStatus}
+          detail={activeUsers != null ? `${activeUsers.online} online / ${activeUsers.total} total` : undefined}
+          sub="Users with isOnline = true"
+        />
+        <CheckCard
+          icon={Radio}
+          label="Socket.IO Connections"
+          status={socketStatus}
+          detail={socketData != null ? `${socketData.connected} connected` : undefined}
+          sub="Real-time clients"
+        />
+        <CheckCard
+          icon={HardDrive}
+          label="Storage Usage"
+          status={storageStatus}
+          detail={
+            storageData?.usedGb != null && storageData.freeGb != null
+              ? `${storageData.usedGb} GB used · ${storageData.freeGb} GB free${storagePct != null ? ` (${storagePct}%)` : ""}`
+              : storagePct != null
+                ? `${storagePct}% used`
+                : undefined
+          }
+          sub="Disk filesystem"
+        />
+        <CheckCard
+          icon={Mail}
+          label="Email / SMS Gateway"
+          status={smtpStatus === "ok" || smsStatus === "ok" ? "ok" : smtpStatus === "not_configured" && smsStatus === "not_configured" ? "not_configured" : "warning"}
+          detail={[smtpStatus === "ok" ? "SMTP ✓" : null, smsStatus === "ok" ? "SMS ✓" : null].filter(Boolean).join(" · ") || "No gateway configured"}
+          sub="Notification providers"
+        />
+        <CheckCard
+          icon={Package}
+          label="Pending Queue Jobs"
+          status={queueStatus}
+          detail={queuePending != null ? `${queuePending} pending notifications` : undefined}
+          sub="Unread notification queue"
+        />
+      </div>
+    </Section>
+  );
+}
+
+/* ── SchemaDriftSection ── */
+function SchemaDriftSection() {
+  const { data: drift, isLoading } = useQuery({
+    queryKey: ["schema-drift"],
+    queryFn: () => adminAbsoluteFetch("/api/health/schema-drift") as Promise<{ ok?: boolean; status?: string; missingTables?: string[]; extraColumns?: { table: string; columns: string[] }[]; missingColumns?: { table: string; columns: string[] }[] }>,
+    staleTime: 5 * 60_000,
+    refetchInterval: 5 * 60_000,
+  });
+
+  const hasDrift =
+    (drift?.missingTables?.length ?? 0) > 0 ||
+    (drift?.missingColumns?.length ?? 0) > 0;
+  const isOk = drift?.ok !== false && !hasDrift;
+
+  return (
+    <Section title="Schema Drift" icon={Layers}>
+      {isLoading ? (
+        <div className="space-y-3">
+          {[...Array(2)].map((_, i) => (
+            <SkeletonBlock key={i} className="h-9" />
+          ))}
+        </div>
+      ) : !drift ? (
+        <div className="flex items-center gap-2 rounded-xl border border-slate-700/40 bg-slate-800/40 px-4 py-3">
+          <Info size={14} className="text-slate-500" />
+          <span className="text-sm text-slate-500">Schema drift check unavailable</span>
+        </div>
+      ) : isOk ? (
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3">
+          <CheckCircle2 size={14} className="text-emerald-400" />
+          <span className="text-sm text-emerald-300">Schema is in sync — all tables and columns match Drizzle definitions</span>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+            <AlertTriangle size={14} className="text-amber-400" />
+            <span className="text-sm text-amber-300">Schema drift detected — run migration to fix</span>
+          </div>
+
+          {(drift.missingTables?.length ?? 0) > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-semibold tracking-wide text-red-400 uppercase">Missing Tables</p>
+              <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2">
+                {drift.missingTables!.map((t) => (
+                  <p key={t} className="font-mono text-xs text-red-300">{t}</p>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(drift.missingColumns?.length ?? 0) > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-semibold tracking-wide text-amber-400 uppercase">Missing Columns</p>
+              <div className="space-y-1">
+                {drift.missingColumns!.map((entry) => (
+                  <div key={entry.table} className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+                    <p className="text-xs font-medium text-amber-300">{entry.table}</p>
+                    <p className="mt-0.5 font-mono text-xs text-slate-500">{entry.columns.join(", ")}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="border-t border-slate-700/40 pt-3">
+            <p className="text-xs text-slate-600">
+              Run{" "}
+              <code className="rounded bg-slate-800 px-1 text-slate-400">pnpm -F db push-force</code>{" "}
+              to apply schema changes, then reload this page.
+            </p>
+          </div>
+        </div>
+      )}
+    </Section>
+  );
+}
+
 /* ── main page ── */
 export default function HealthDashboard() {
   const qc = useQueryClient();
@@ -186,6 +472,26 @@ export default function HealthDashboard() {
 
   const handleRefresh = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["admin-health-dashboard"] });
+    qc.invalidateQueries({ queryKey: ["public-health-check"] });
+    qc.invalidateQueries({ queryKey: ["stats-active-users"] });
+    qc.invalidateQueries({ queryKey: ["stats-socket-connections"] });
+    qc.invalidateQueries({ queryKey: ["stats-storage"] });
+    qc.invalidateQueries({ queryKey: ["stats-queue"] });
+    qc.invalidateQueries({ queryKey: ["schema-drift"] });
+    qc.invalidateQueries({ queryKey: ["admin-diagnostics"] });
+  }, [qc]);
+
+  /* auto-refresh every 30 seconds */
+  useEffect(() => {
+    const id = setInterval(() => {
+      void qc.invalidateQueries({ queryKey: ["admin-health-dashboard"] });
+      void qc.invalidateQueries({ queryKey: ["public-health-check"] });
+      void qc.invalidateQueries({ queryKey: ["stats-active-users"] });
+      void qc.invalidateQueries({ queryKey: ["stats-socket-connections"] });
+      void qc.invalidateQueries({ queryKey: ["stats-storage"] });
+      void qc.invalidateQueries({ queryKey: ["stats-queue"] });
+    }, 30_000);
+    return () => clearInterval(id);
   }, [qc]);
 
   interface HealthIssue {
@@ -291,6 +597,12 @@ export default function HealthDashboard() {
             </span>
           </div>
         )}
+
+        {/* ── 7 System Check Cards ── */}
+        <SystemChecksSection />
+
+        {/* ── Schema Drift Detection ── */}
+        <SchemaDriftSection />
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           {/* ── Server Health ── */}

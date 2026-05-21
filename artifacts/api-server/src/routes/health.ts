@@ -127,6 +127,21 @@ router.get("/", async (_req, res) => {
       : {};
 
     /* ── Detailed sub-system checks ── */
+    const hasSms = !!(
+      process.env["TWILIO_ACCOUNT_SID"] ||
+      process.env["SMS_API_KEY"] ||
+      process.env["VONAGE_API_KEY"] ||
+      process.env["AFRICAS_TALKING_API_KEY"] ||
+      process.env["NETSMS_KEY"] ||
+      process.env["SMS_GATEWAY_URL"]
+    );
+
+    const diskPct2 = diskPct ?? null;
+    const usedGb =
+      diskFreeGb != null && diskPct2 != null && diskPct2 > 0
+        ? (diskFreeGb / (1 - diskPct2 / 100)) * (diskPct2 / 100)
+        : null;
+
     const checks = {
       database: {
         status: db2 === "ok" ? "ok" : "error",
@@ -137,11 +152,24 @@ router.get("/", async (_req, res) => {
         : { status: "skipped", reason: "REDIS_URL not set" },
       storage:
         diskFreeGb !== null
-          ? { status: "ok", freeGb: diskFreeGb }
+          ? {
+              status: diskPct2 != null && diskPct2 > 90 ? "warning" : "ok",
+              freeGb: Math.round(diskFreeGb * 10) / 10,
+              usedGb: usedGb != null ? Math.round(usedGb * 10) / 10 : null,
+              usedMb: usedGb != null ? Math.round(usedGb * 1024) : null,
+              totalMb:
+                diskFreeGb != null && diskPct2 != null && diskPct2 > 0
+                  ? Math.round((diskFreeGb / (1 - diskPct2 / 100)) * 1024)
+                  : null,
+              usedPct: diskPct2,
+            }
           : { status: "error", reason: "statfs unavailable" },
       smtp: process.env["SMTP_HOST"]
         ? { status: "ok", provider: process.env["SMTP_HOST"] }
-        : { status: "skipped", reason: "SMTP_HOST not set" },
+        : { status: "not_configured", reason: "SMTP_HOST not set" },
+      sms: hasSms
+        ? { status: "ok" }
+        : { status: "not_configured", reason: "No SMS provider env vars set" },
     };
 
     res.status(httpStatus).json({
@@ -153,6 +181,7 @@ router.get("/", async (_req, res) => {
       timestamp: new Date().toISOString(),
       serverEpoch: SERVER_EPOCH,
       environment: process.env["NODE_ENV"] ?? "development",
+      nodeVersion: process.version,
       version: appVersion,
       appVersion,
       p95Ms,

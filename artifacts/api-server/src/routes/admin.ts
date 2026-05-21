@@ -11,6 +11,7 @@ import { logger } from "../lib/logger.js";
 import { csrfProtection } from "../middleware/admin-auth.js";
 import { adminAuth } from "./admin-shared.js";
 import adminAccountsRoutes from "./admin/admin-accounts.js";
+import { router as statsRoutes } from "./admin/stats.js";
 import authControlRoutes from "./admin/auth-control.js";
 import broadcastsRoutes from "./admin/broadcasts.js";
 import businessRulesRoutes from "./admin/business-rules.js";
@@ -110,6 +111,7 @@ router.use(securityRoutes);
 router.use(broadcastsRoutes);
 router.use(authControlRoutes);
 router.use(adminAccountsRoutes);
+router.use(statsRoutes);
 router.get("/pending-counts", async (_req: Request, res: Response) => {
   try {
     const [

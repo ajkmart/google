@@ -595,8 +595,12 @@ export default function ErrorMonitor() {
     enabled: activeTab === "customers",
   });
 
-  const reports = useMemo<ErrorReport[]>(() => data?.reports ?? [], [data?.reports]);
-  const pagination: Pagination = data?.pagination || {
+  const reports = useMemo<ErrorReport[]>(() => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data as ErrorReport[];
+    return (data as { reports?: ErrorReport[]; items?: ErrorReport[] })?.reports ?? (data as { items?: ErrorReport[] })?.items ?? [];
+  }, [data]);
+  const pagination: Pagination = (data as { pagination?: Pagination } | null)?.pagination || {
     page: 1,
     limit: 30,
     total: 0,
