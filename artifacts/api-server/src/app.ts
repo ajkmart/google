@@ -5,6 +5,7 @@ import compression from "compression";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
 import { pinoInstance, logger } from "./lib/logger.js";
+import { requestContext, requestContextMiddleware } from "./middleware/request-context.js";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { readFileSync, existsSync, mkdirSync } from "fs";
 import { resolve, dirname } from "path";
@@ -327,15 +328,29 @@ export async function createServer() {
     },
     serializers: {
       req: (req) => ({
-        method: req.method,
-        url: req.url,
-        requestId: req.id,
+        id:        req.id,
+        method:    req.method,
+        url:       req.url,
+        userAgent: (req.raw as { headers?: Record<string, string> })?.headers?.["user-agent"],
       }),
       res: (res) => ({
         statusCode: res.statusCode,
       }),
     },
+    customSuccessMessage: (req, res) => {
+      const ctx = requestContext.getStore();
+      const ms = ctx ? Date.now() - ctx.startMs : 0;
+      return `${req.method} ${(req as { url?: string }).url ?? ""} → ${res.statusCode} (${ms}ms)`;
+    },
+    customErrorMessage: (_req, _res, err) =>
+      `ERROR: ${(err as Error).message ?? String(err)}`,
   }));
+
+  /* ── Per-request AsyncLocalStorage context ──────────────────────────────
+     Mount AFTER pinoHttp (so genReqId has fired and req.id is set) and
+     BEFORE all other middleware so every downstream call can read the
+     context via requestContext.getStore(). */
+  app.use(requestContextMiddleware);
 
   /* ── First-run setup gate ────────────────────────────────────────────────
      When DATABASE_URL (or JWT_SECRET) is missing, every HTTP request gets

@@ -5,7 +5,7 @@ import { platformSettingsTable } from "@workspace/db/schema";
 import { adminAuth } from "./admin-shared.js";
 import { getLastDriftReport, checkSchemaDrift } from "../services/schemaDrift.service.js";
 import { redisClient } from "../lib/redis.js";
-import { getP95Ms, getMemoryPct, getDiskPct } from "../lib/metrics/responseTime.js";
+import { getP95Ms, getMemoryPct, getDiskPct, getDiskFreeGb } from "../lib/metrics/responseTime.js";
 import { getVpnCircuitBreakerStatus } from "../middleware/security.js";
 import { logger } from '../lib/logger.js';
 
@@ -93,6 +93,7 @@ router.get("/", async (_req, res) => {
   }
 
   const vpnDetection = getVpnCircuitBreakerStatus();
+  const diskFreeGb   = getDiskFreeGb();
 
   const dbPoolStats = pool
     ? {
@@ -102,6 +103,23 @@ router.get("/", async (_req, res) => {
       }
     : {};
 
+  /* ── Detailed sub-system checks ── */
+  const checks = {
+    database: {
+      status:    db2 === "ok" ? "ok" : "error",
+      latencyMs: dbQueryMs,
+    },
+    redis: redisClient
+      ? { status: redis2 === "ok" ? "ok" : "error" }
+      : { status: "skipped", reason: "REDIS_URL not set" },
+    storage: diskFreeGb !== null
+      ? { status: "ok",    freeGb: diskFreeGb }
+      : { status: "error", reason: "statfs unavailable" },
+    smtp: process.env["SMTP_HOST"]
+      ? { status: "ok",      provider: process.env["SMTP_HOST"] }
+      : { status: "skipped", reason: "SMTP_HOST not set" },
+  };
+
   res.status(httpStatus).json({
     status: overallStatus,
     db: db2,
@@ -110,12 +128,15 @@ router.get("/", async (_req, res) => {
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
     serverEpoch: SERVER_EPOCH,
+    environment: process.env["NODE_ENV"] ?? "development",
+    version: appVersion,
     appVersion,
     p95Ms,
     dbQueryMs,
     memoryPct,
     diskPct,
     vpnDetection: { status: vpnDetection.status },
+    checks,
   });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
