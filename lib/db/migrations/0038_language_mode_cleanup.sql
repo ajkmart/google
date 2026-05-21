@@ -1,5 +1,6 @@
 -- Migrate existing rows using removed language codes to "en"
-UPDATE user_settings SET language = 'en' WHERE language IN ('en_roman', 'en_ur');
+-- Cast to text first to avoid enum cast errors on values that don't exist in enum
+UPDATE user_settings SET language = 'en' WHERE language::text IN ('en_roman', 'en_ur');
 
 -- Recreate enum without the removed values
 -- PostgreSQL doesn't support DROP VALUE so we rename + recreate
