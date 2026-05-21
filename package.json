@@ -13,7 +13,9 @@
     "e2e:admin": "playwright test --project=admin",
     "e2e:vendor": "playwright test --project=vendor",
     "e2e:rider": "playwright test --project=rider",
-    "e2e:report": "playwright show-report e2e/reports"
+    "e2e:report": "playwright show-report e2e/reports",
+    "audit:check": "pnpm audit --audit-level moderate",
+    "audit:fix": "pnpm audit --fix"
   },
   "lint-staged": {
     "artifacts/api-server/src/**/*.ts": [
@@ -35,7 +37,9 @@
     "lib/**/*.{ts,tsx}": [
       "node_modules/.bin/eslint --max-warnings 0"
     ],
-    "**/*.{json,md}": ["prettier --write"]
+    "**/*.{json,md}": [
+      "prettier --write"
+    ]
   },
   "private": true,
   "devDependencies": {

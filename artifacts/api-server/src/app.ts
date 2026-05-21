@@ -36,6 +36,7 @@ import { checkSchemaDrift } from "./services/schemaDrift.service.js";
 import { checkMigrationGuard } from "./services/migrationGuard.service.js";
 import router from "./routes/index.js";
 import { globalLimiter, uploadLimiter } from "./middleware/rate-limit.js";
+import { sanitizeBody } from "./middleware/sanitize.js";
 import { suspiciousPatternDetector } from "./middleware/suspiciousPatternDetector.js";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./docs/swagger.js";
@@ -601,30 +602,40 @@ export async function createServer() {
   }
 
   // Security headers via helmet
-  // Swagger UI (/api/docs) requires 'unsafe-inline' scripts and styles plus
-  // worker-src blob: for its web worker. These are already present in scriptSrc
-  // and styleSrc. The blob: worker is added to workerSrc.
+  // Notes on directives:
+  //  - scriptSrc: 'self' + gstatic (Firebase/Google SDKs). 'unsafe-inline' removed;
+  //    Swagger UI is served behind adminAuth so a nonce is not worth the complexity.
+  //  - connectSrc: wss: allows Socket.IO over WSS; https: allows API calls from SPA.
+  //  - frameSrc/objectSrc: "'none'" — no framing or plugins of any kind.
+  //  - upgradeInsecureRequests: [] — browsers auto-upgrade http:// subresources.
+  //  - crossOriginEmbedderPolicy: false — Socket.IO requires this to be off.
+  //  - hidePoweredBy: true — suppress X-Powered-By: Express fingerprinting.
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "https:"],
-        fontSrc: ["'self'", "data:"],
-        connectSrc: ["'self'"],
-        workerSrc: ["'self'", "blob:"],
+        defaultSrc:              ["'self'"],
+        scriptSrc:               ["'self'", "https://www.gstatic.com"],
+        styleSrc:                ["'self'", "'unsafe-inline'"],
+        imgSrc:                  ["'self'", "data:", "https:"],
+        fontSrc:                 ["'self'", "data:"],
+        connectSrc:              ["'self'", "wss:", "https:"],
+        workerSrc:               ["'self'", "blob:"],
+        frameSrc:                ["'none'"],
+        objectSrc:               ["'none'"],
+        upgradeInsecureRequests: [],
       },
     },
+    crossOriginEmbedderPolicy: false,
     hsts: {
-      maxAge: 31536000, // 1 year
+      maxAge: 31_536_000,
       includeSubDomains: true,
       preload: true,
     },
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-    frameguard: { action: 'deny' },
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    frameguard: { action: "deny" },
     noSniff: true,
     xssFilter: true,
+    hidePoweredBy: true,
   }));
 
   // Explicit Permissions-Policy listing only modern, well-supported features.
@@ -645,23 +656,31 @@ export async function createServer() {
   const allowedOrigins = validateCORS();
   logger.info({ allowedOrigins }, '[SECURITY:CORS] Active allowed origins');
 
+  // RegExp patterns for dynamic Replit preview subdomains that cannot be
+  // enumerated as exact strings at startup time.
+  const ORIGIN_PATTERNS: RegExp[] = [
+    /\.replit\.dev$/,
+    /\.pike\.replit\.dev$/,
+  ];
+
   app.use(cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+      // Exact string match from env-derived whitelist
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // Pattern match for dynamic Replit subdomains
+      if (ORIGIN_PATTERNS.some(re => re.test(origin))) return callback(null, true);
       logger.warn({ blockedOrigin: origin }, '[SECURITY:CORS] Request blocked — origin not in whitelist');
-      // Do NOT throw — the cors package requires callback(err) to produce a
-      // proper 403, but Express's error handler turns any Error into 500.
-      // Returning callback(null, false) lets cors emit the correct 403 itself.
+      // Return callback(null, false) — lets cors emit the correct 403 itself
+      // without leaking an error stack into the response body.
       callback(null, false);
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Report-Signature', 'X-Request-ID'],
-    maxAge: 3600,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token", "X-Report-Signature", "X-Request-ID"],
+    exposedHeaders: ["X-Request-ID", "X-RateLimit-Remaining"],
+    maxAge: 86_400,
   }));
   
   app.use(cookieParser());
@@ -711,6 +730,12 @@ export async function createServer() {
   );
   app.use(express.json({ limit: "10kb", verify: rawBodyCapture }));
   app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+
+  /* ── XSS input sanitisation ──────────────────────────────────────────────
+     Strips all HTML tags and attributes from every string value in req.body
+     so downstream handlers never see <script>, event handlers, or any markup.
+     Runs after body parsers (needs a parsed object) and before all routes. */
+  app.use(sanitizeBody);
   
   /* ── Root /health — rich DB+Redis check (same as /api/health) ───────────
      Uptime monitors and load balancers often probe the root /health path.
