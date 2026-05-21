@@ -10,7 +10,7 @@ import {
   stockSubscriptionsTable,
   usersTable,
 } from "@workspace/db/schema";
-import { and, asc, count, desc, eq, gte, isNull, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 import {
@@ -1657,6 +1657,46 @@ router.post("/uploads/admin", async (req, res) => {
     sendSuccess(res, { url });
   } catch (e: unknown) {
     sendError(res, e instanceof Error ? e.message : "Upload failed", 500);
+  }
+});
+
+/* ── POST /products/bulk-approve — approve multiple pending products ── */
+router.post("/products/bulk-approve", adminAuth, async (req, res) => {
+  try {
+    const { ids } = req.body as { ids: string[] };
+    if (!Array.isArray(ids) || ids.length === 0) {
+      sendValidationError(res, "ids must be a non-empty array");
+      return;
+    }
+    const updated = await db
+      .update(productsTable)
+      .set({ approvalStatus: "approved", inStock: true, updatedAt: new Date() })
+      .where(inArray(productsTable.id, ids))
+      .returning({ id: productsTable.id });
+    sendSuccess(res, { approved: updated.length, ids: updated.map((r) => r.id) });
+  } catch (err) {
+    logger.error({ err }, "[products/bulk-approve] failed");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
+/* ── DELETE /products/bulk — soft-delete multiple products ── */
+router.delete("/products/bulk", adminAuth, async (req, res) => {
+  try {
+    const { ids } = req.body as { ids: string[] };
+    if (!Array.isArray(ids) || ids.length === 0) {
+      sendValidationError(res, "ids must be a non-empty array");
+      return;
+    }
+    const deleted = await db
+      .update(productsTable)
+      .set({ deletedAt: new Date() })
+      .where(inArray(productsTable.id, ids))
+      .returning({ id: productsTable.id });
+    sendSuccess(res, { deleted: deleted.length, ids: deleted.map((r) => r.id) });
+  } catch (err) {
+    logger.error({ err }, "[products/bulk-delete] failed");
+    res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
 

@@ -1,4 +1,5 @@
 import { AdminFormSheet } from "@/components/AdminFormSheet";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PageHeader } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
@@ -424,6 +425,10 @@ export default function Products() {
   const [bulkStock, setBulkStock] = useState<"" | "in" | "out">("");
   const [bulkApplying, setBulkApplying] = useState(false);
   const [refillSending, setRefillSending] = useState(false);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkApproveConfirm, setBulkApproveConfirm] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkApproving, setBulkApproving] = useState(false);
 
   const [pricingRules, setPricingRules] = useState<
     Array<{
@@ -545,6 +550,40 @@ export default function Products() {
     setBulkStock("");
     setBulkApplying(false);
   }, [selectedProductIds, bulkPrice, bulkCategory, bulkStock, toast]);
+  const handleBulkDelete = useCallback(async () => {
+    setBulkDeleting(true);
+    const ids = Array.from(selectedProductIds);
+    try {
+      const result = (await adminFetch("/products/bulk", {
+        method: "DELETE",
+        body: JSON.stringify({ ids }),
+      })) as { deleted: number };
+      toast({ title: "Products deleted", description: `${result.deleted} product${result.deleted !== 1 ? "s" : ""} removed.` });
+    } catch (e: unknown) {
+      toast({ title: "Delete failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    }
+    setSelectedProductIds(new Set());
+    setBulkDeleteConfirm(false);
+    setBulkDeleting(false);
+  }, [selectedProductIds, toast]);
+
+  const handleBulkApproveSelected = useCallback(async () => {
+    setBulkApproving(true);
+    const ids = Array.from(selectedProductIds);
+    try {
+      const result = (await adminFetch("/products/bulk-approve", {
+        method: "POST",
+        body: JSON.stringify({ ids }),
+      })) as { approved: number };
+      toast({ title: "Products approved", description: `${result.approved} product${result.approved !== 1 ? "s" : ""} approved.` });
+    } catch (e: unknown) {
+      toast({ title: "Approve failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    }
+    setSelectedProductIds(new Set());
+    setBulkApproveConfirm(false);
+    setBulkApproving(false);
+  }, [selectedProductIds, toast]);
+
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [vendorFilter, setVendorFilter] = useState("");
@@ -1834,6 +1873,22 @@ export default function Products() {
                     </Button>
                     <Button
                       size="sm"
+                      className="h-8 border-0 bg-green-600 text-xs text-white hover:bg-green-700"
+                      disabled={!canWrite}
+                      onClick={() => setBulkApproveConfirm(true)}
+                    >
+                      <CheckCircle className="mr-1 h-3.5 w-3.5" /> Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-8 border-0 bg-red-600 text-xs text-white hover:bg-red-700"
+                      disabled={!canWrite}
+                      onClick={() => setBulkDeleteConfirm(true)}
+                    >
+                      <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
+                    </Button>
+                    <Button
+                      size="sm"
                       variant="ghost"
                       className="h-8 text-xs text-white hover:bg-white/20"
                       onClick={() => setSelectedProductIds(new Set())}
@@ -2050,6 +2105,27 @@ export default function Products() {
             onClose={() => setStockHistoryProduct(null)}
           />
         )}
+
+        <ConfirmDialog
+          open={bulkApproveConfirm}
+          title={`Approve ${selectedProductIds.size} Product${selectedProductIds.size !== 1 ? "s" : ""}?`}
+          description="Selected products will be approved and marked as in-stock on the platform."
+          confirmLabel="Approve All"
+          variant="default"
+          busy={bulkApproving}
+          onConfirm={handleBulkApproveSelected}
+          onClose={() => { if (!bulkApproving) setBulkApproveConfirm(false); }}
+        />
+        <ConfirmDialog
+          open={bulkDeleteConfirm}
+          title={`Delete ${selectedProductIds.size} Product${selectedProductIds.size !== 1 ? "s" : ""}?`}
+          description="These products will be permanently removed. This action cannot be undone."
+          confirmLabel="Delete All"
+          variant="destructive"
+          busy={bulkDeleting}
+          onConfirm={handleBulkDelete}
+          onClose={() => { if (!bulkDeleting) setBulkDeleteConfirm(false); }}
+        />
 
         {/* Bulk Edit Dialog */}
         {showBulkEdit && (

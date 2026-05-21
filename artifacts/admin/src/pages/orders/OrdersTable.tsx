@@ -50,6 +50,9 @@ interface OrdersTableProps {
   sortedLength: number;
   toastFn: (opts: any) => void;
   T: (key: TranslationKey) => string;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+  onSelectAll?: (checked: boolean) => void;
 }
 
 export function OrdersTable({
@@ -71,6 +74,9 @@ export function OrdersTable({
   sortedLength,
   toastFn,
   T,
+  selectedIds,
+  onToggleSelect,
+  onSelectAll,
 }: OrdersTableProps) {
   return (
     <Card className="border-border/50 hidden overflow-hidden rounded-2xl shadow-sm md:block">
@@ -78,6 +84,19 @@ export function OrdersTable({
         <Table className="min-w-[700px]">
           <TableHeader className="bg-muted/50">
             <TableRow>
+              <TableHead className="w-10">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded accent-blue-600"
+                  checked={
+                    paginated.length > 0 &&
+                    !!selectedIds &&
+                    paginated.every((o: any) => selectedIds.has(o.id))
+                  }
+                  onChange={(e) => onSelectAll?.(e.target.checked)}
+                  aria-label="Select all orders"
+                />
+              </TableHead>
               <TableHead>
                 <SortHeader
                   label={T("orderId")}
@@ -139,6 +158,9 @@ export function OrdersTable({
               Array.from({ length: Math.min(pageSize, 6) }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell>
+                    <Skeleton className="h-4 w-4 rounded" />
+                  </TableCell>
+                  <TableCell>
                     <Skeleton className="h-4 w-24" />
                   </TableCell>
                   <TableCell>
@@ -166,7 +188,7 @@ export function OrdersTable({
               ))
             ) : paginated.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6}>
+                <TableCell colSpan={7}>
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <ShoppingBag
                       className="text-muted-foreground/25 mb-3 h-10 w-10"
@@ -193,7 +215,7 @@ export function OrdersTable({
               paginated.map((order: any) => (
                 <TableRow
                   key={order.id}
-                  className="hover:bg-muted/30 cursor-pointer"
+                  className={`hover:bg-muted/30 cursor-pointer ${selectedIds?.has(order.id) ? "bg-blue-50 dark:bg-blue-950/20" : ""}`}
                   onClick={() => onSelectOrder(order)}
                   tabIndex={0}
                   role="button"
@@ -205,6 +227,15 @@ export function OrdersTable({
                     }
                   }}
                 >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded accent-blue-600"
+                      checked={selectedIds?.has(order.id) ?? false}
+                      onChange={() => onToggleSelect?.(order.id)}
+                      aria-label={`Select order ${order.id.slice(-8).toUpperCase()}`}
+                    />
+                  </TableCell>
                   <TableCell>
                     <p className="font-mono text-sm font-medium">
                       {order.id.slice(-8).toUpperCase()}

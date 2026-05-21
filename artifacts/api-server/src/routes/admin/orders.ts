@@ -1412,4 +1412,36 @@ router.patch(
   })
 );
 
+/* ── PATCH /orders/bulk-status — update status on multiple orders at once ── */
+const bulkOrderStatusSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1).max(200),
+  status: z.string().min(1),
+});
+router.patch(
+  "/orders/bulk-status",
+  requirePermission("orders.manage"),
+  validateBody(bulkOrderStatusSchema),
+  async (req, res) => {
+    try {
+      const { ids, status } = req.body as z.infer<typeof bulkOrderStatusSchema>;
+      const updated = await db
+        .update(ordersTable)
+        .set({ status, updatedAt: new Date() })
+        .where(inArray(ordersTable.id, ids))
+        .returning({ id: ordersTable.id });
+      addAuditEntry({
+        action: "orders_bulk_status",
+        ip: getClientIp(req),
+        adminId: (req as AdminRequest).adminId,
+        details: `Bulk status → ${status} for ${updated.length} orders`,
+        result: "success",
+      });
+      sendSuccess(res, { updated: updated.length, ids: updated.map((r) => r.id) });
+    } catch (err) {
+      logger.error({ err }, "[orders/bulk-status] failed");
+      sendError(res, "Internal server error", 500);
+    }
+  }
+);
+
 export default router;

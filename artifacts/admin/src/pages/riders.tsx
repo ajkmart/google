@@ -1,5 +1,5 @@
 import { AdminFormSheet } from "@/components/AdminFormSheet";
-import { PromptDialog } from "@/components/ConfirmDialog";
+import { ConfirmDialog, PromptDialog } from "@/components/ConfirmDialog";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { FilterBar, PageHeader, StatCard, StatCardSkeleton } from "@/components/shared";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
   useApproveUser,
+  useBulkBanUsers,
   useOverrideSuspension,
   useRejectUser,
   useRestrictRider,
@@ -53,6 +54,7 @@ import {
   Wallet,
   Wifi,
   WifiOff,
+  X,
   XCircle,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
@@ -355,8 +357,27 @@ export default function Riders() {
   const [rejectTarget, setRejectTarget] = useState<any>(null);
   const [suspendModal, setSuspendModal] = useState<any>(null);
   const [detailModal, setDetailModal] = useState<any>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBanConfirm, setBulkBanConfirm] = useState(false);
+  const bulkBanMutation = useBulkBanUsers();
 
   const riders: any[] = data?.users || data?.riders || [];
+
+  const handleBulkBan = useCallback(() => {
+    const ids = Array.from(selectedIds);
+    bulkBanMutation.mutate(
+      { ids, action: "ban" },
+      {
+        onSuccess: () => {
+          toast({ title: `${ids.length} rider${ids.length !== 1 ? "s" : ""} banned` });
+          setSelectedIds(new Set());
+          setBulkBanConfirm(false);
+        },
+        onError: (e) =>
+          toast({ title: "Bulk ban failed", description: e.message, variant: "destructive" }),
+      }
+    );
+  }, [selectedIds, bulkBanMutation, toast]);
 
   const handleToggleOnline = (r: any) => {
     toggleOnlineMutation.mutate(
@@ -641,6 +662,33 @@ export default function Riders() {
           </div>
         </Card>
 
+        {/* Bulk Action Bar */}
+        {selectedIds.size > 0 && (
+          <div className="sticky top-0 z-20 flex items-center justify-between rounded-2xl bg-red-600 px-4 py-3 text-white shadow-lg">
+            <span className="text-sm font-semibold">
+              {selectedIds.size} rider{selectedIds.size > 1 ? "s" : ""} selected
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-8 text-xs"
+                onClick={() => setBulkBanConfirm(true)}
+              >
+                <Ban className="mr-1 h-3.5 w-3.5" /> Ban Selected
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 text-xs text-white hover:bg-white/20"
+                onClick={() => setSelectedIds(new Set())}
+              >
+                <X className="h-3.5 w-3.5" /> Clear
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Riders List */}
         {isLoading ? (
           <div className="space-y-3">
@@ -668,6 +716,20 @@ export default function Riders() {
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                     {/* Rider Info */}
                     <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 shrink-0 rounded accent-blue-600"
+                        checked={selectedIds.has(r.id)}
+                        onChange={() =>
+                          setSelectedIds((prev) => {
+                            const s = new Set(prev);
+                            s.has(r.id) ? s.delete(r.id) : s.add(r.id);
+                            return s;
+                          })
+                        }
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`Select ${r.name || "rider"}`}
+                      />
                       <div
                         className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-lg font-bold ${r.isOnline && r.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
                       >
@@ -864,6 +926,18 @@ export default function Riders() {
         {detailModal && (
           <RiderDetailDrawer rider={detailModal} onClose={() => setDetailModal(null)} />
         )}
+        <ConfirmDialog
+          open={bulkBanConfirm}
+          title={`Ban ${selectedIds.size} Rider${selectedIds.size !== 1 ? "s" : ""}?`}
+          description="These riders will be permanently banned and will not be able to accept new rides."
+          confirmLabel="Ban All"
+          variant="destructive"
+          busy={bulkBanMutation.isPending}
+          onConfirm={handleBulkBan}
+          onClose={() => {
+            if (!bulkBanMutation.isPending) setBulkBanConfirm(false);
+          }}
+        />
         <PromptDialog
           open={!!rejectTarget}
           title="Reject rider"

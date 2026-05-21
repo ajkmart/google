@@ -1,4 +1,5 @@
 import { AdminFormSheet } from "@/components/AdminFormSheet";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { WalletAdjustModal } from "@/components/WalletAdjustModal";
@@ -699,6 +700,8 @@ export default function Vendors() {
   const [verifyModal, setVerifyModal] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [tierUpdating, setTierUpdating] = useState<string | null>(null);
+  const [bulkConfirmAction, setBulkConfirmAction] = useState<"approve" | "suspend" | null>(null);
+  const [bulkActing, setBulkActing] = useState(false);
 
   // Declare qc and sort state BEFORE any callbacks that close over them
   const qc = useQueryClient();
@@ -740,6 +743,7 @@ export default function Vendors() {
   }, []);
 
   const handleBulkApprove = useCallback(async () => {
+    setBulkActing(true);
     const ids = Array.from(selectedIds);
     const results = await Promise.allSettled(
       ids.map((id) =>
@@ -757,10 +761,13 @@ export default function Vendors() {
       toast({ title: `${succeeded} vendor${succeeded !== 1 ? "s" : ""} approved` });
     }
     setSelectedIds(new Set());
+    setBulkActing(false);
+    setBulkConfirmAction(null);
     await qc.invalidateQueries({ queryKey: ["admin-vendors"] });
   }, [selectedIds, toast, qc]);
 
   const handleBulkSuspend = useCallback(async () => {
+    setBulkActing(true);
     const ids = Array.from(selectedIds);
     const results = await Promise.allSettled(
       ids.map((id) =>
@@ -778,6 +785,8 @@ export default function Vendors() {
       toast({ title: `${succeeded} vendor${succeeded !== 1 ? "s" : ""} suspended` });
     }
     setSelectedIds(new Set());
+    setBulkActing(false);
+    setBulkConfirmAction(null);
     await qc.invalidateQueries({ queryKey: ["admin-vendors"] });
   }, [selectedIds, toast, qc]);
 
@@ -988,7 +997,7 @@ export default function Vendors() {
                 size="sm"
                 variant="secondary"
                 className="h-8 text-xs"
-                onClick={handleBulkApprove}
+                onClick={() => setBulkConfirmAction("approve")}
               >
                 <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Approve All
               </Button>
@@ -996,7 +1005,7 @@ export default function Vendors() {
                 size="sm"
                 variant="secondary"
                 className="h-8 text-xs"
-                onClick={handleBulkSuspend}
+                onClick={() => setBulkConfirmAction("suspend")}
               >
                 <Ban className="mr-1 h-3.5 w-3.5" /> Suspend All
               </Button>
@@ -1433,6 +1442,28 @@ export default function Vendors() {
             </div>
           </form>
         </AdminFormSheet>
+      <ConfirmDialog
+        open={!!bulkConfirmAction}
+        title={
+          bulkConfirmAction === "approve"
+            ? `Approve ${selectedIds.size} Vendor${selectedIds.size !== 1 ? "s" : ""}?`
+            : `Suspend ${selectedIds.size} Vendor${selectedIds.size !== 1 ? "s" : ""}?`
+        }
+        description={
+          bulkConfirmAction === "approve"
+            ? "These vendors will be approved and activated on the platform immediately."
+            : "These vendors will be suspended and cannot accept new orders."
+        }
+        confirmLabel={bulkConfirmAction === "approve" ? "Approve All" : "Suspend All"}
+        variant={bulkConfirmAction === "suspend" ? "destructive" : "default"}
+        busy={bulkActing}
+        onConfirm={() =>
+          bulkConfirmAction === "approve" ? handleBulkApprove() : handleBulkSuspend()
+        }
+        onClose={() => {
+          if (!bulkActing) setBulkConfirmAction(null);
+        }}
+      />
       </PullToRefresh>
     </ErrorBoundary>
   );

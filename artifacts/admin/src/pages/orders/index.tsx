@@ -1,3 +1,4 @@
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { ActionBar, PageHeader } from "@/components/shared";
@@ -14,6 +15,7 @@ import {
   useUpdateOrder,
 } from "@/hooks/use-admin";
 import { useToast } from "@/hooks/use-toast";
+import { adminFetch } from "@/lib/adminFetcher";
 import { formatCurrency } from "@/lib/format";
 import { useLanguage } from "@/lib/useLanguage";
 import { useQueryClient } from "@tanstack/react-query";
@@ -62,6 +64,9 @@ export default function Orders() {
   const [riderSearch, setRiderSearch] = useState("");
   const [showDeliverConfirm, setShowDeliverConfirm] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkFulfilledConfirm, setBulkFulfilledConfirm] = useState(false);
+  const [bulkFulfilling, setBulkFulfilling] = useState(false);
 
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -304,6 +309,31 @@ export default function Orders() {
   const pendingOrders = useMemo(() => orders.filter((o: any) => o.status === "pending"), [orders]);
 
   const qc = useQueryClient();
+
+  const handleBulkMarkFulfilled = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    setBulkFulfilling(true);
+    try {
+      const result = (await adminFetch("/orders/bulk-status", {
+        method: "PATCH",
+        body: JSON.stringify({ ids, status: "delivered" }),
+      })) as { updated: number };
+      toast({
+        title: `${result.updated} order${result.updated !== 1 ? "s" : ""} marked as delivered`,
+      });
+      setSelectedIds(new Set());
+      setBulkFulfilledConfirm(false);
+      qc.invalidateQueries({ queryKey: ["admin-orders-enriched"] });
+    } catch (e: unknown) {
+      toast({
+        title: "Bulk update failed",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
+    }
+    setBulkFulfilling(false);
+  }, [selectedIds, toast, qc]);
+
   const handlePullRefresh = useCallback(async () => {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["admin-orders-enriched"] }),
@@ -424,6 +454,32 @@ export default function Orders() {
           clearAll={clearAllFilters}
         />
 
+        {selectedIds.size > 0 && (
+          <div className="sticky top-0 z-20 flex items-center justify-between rounded-2xl bg-blue-600 px-4 py-3 text-white shadow-lg">
+            <span className="text-sm font-semibold">
+              {selectedIds.size} order{selectedIds.size > 1 ? "s" : ""} selected
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-8 text-xs"
+                onClick={() => setBulkFulfilledConfirm(true)}
+              >
+                <ShoppingBag className="mr-1 h-3.5 w-3.5" /> Mark Fulfilled
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 text-xs text-white hover:bg-white/20"
+                onClick={() => setSelectedIds(new Set())}
+              >
+                ✕ Clear
+              </Button>
+            </div>
+          </div>
+        )}
+
         {isError && orders.length === 0 && (
           <Card
             className="space-y-3 rounded-2xl border-red-200 bg-red-50 p-6 text-center"
@@ -481,6 +537,17 @@ export default function Orders() {
             sortedLength={serverTotal}
             toastFn={toast}
             T={T}
+            selectedIds={selectedIds}
+            onToggleSelect={(id) =>
+              setSelectedIds((prev) => {
+                const s = new Set(prev);
+                s.has(id) ? s.delete(id) : s.add(id);
+                return s;
+              })
+            }
+            onSelectAll={(checked) =>
+              setSelectedIds(checked ? new Set(orders.map((o: any) => o.id)) : new Set())
+            }
           />
         )}
 
@@ -499,6 +566,19 @@ export default function Orders() {
             sortedLength={serverTotal}
           />
         )}
+
+        <ConfirmDialog
+          open={bulkFulfilledConfirm}
+          title={`Mark ${selectedIds.size} Order${selectedIds.size !== 1 ? "s" : ""} as Delivered?`}
+          description="These orders will be marked as delivered. This updates their status immediately."
+          confirmLabel="Mark Fulfilled"
+          variant="default"
+          busy={bulkFulfilling}
+          onConfirm={handleBulkMarkFulfilled}
+          onClose={() => {
+            if (!bulkFulfilling) setBulkFulfilledConfirm(false);
+          }}
+        />
 
         {showDeliverConfirm && (
           <DeliverConfirmDialog
