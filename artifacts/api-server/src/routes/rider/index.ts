@@ -204,7 +204,7 @@ const depositSchema = z.object({
 
 
 const idParamSchema = z.object({ id: z.string().min(1, "ID is required") });
-const otpVerifySchema = z.object({ otp: z.string().min(1, "OTP is required").max(10, "OTP is too long") });
+const otpVerifySchema = z.object({ otp: z.string().min(1, "OTP is required").max(10, "OTP is too long").regex(/^\d+$/, "OTP must contain digits only") });
 
 const locationSchema = z.object({
   latitude: z.number().min(-90).max(90),

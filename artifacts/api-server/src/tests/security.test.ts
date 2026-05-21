@@ -69,7 +69,7 @@ describe("CORS security – production mode", () => {
 
     try {
       const res = await supertest(app)
-        .get("/health")
+        .get("/api/health")
         .set("Origin", "https://ajkmart.example.com");
 
       expect(res.status).toBe(200);
@@ -85,7 +85,7 @@ describe("CORS security – production mode", () => {
     process.env["FRONTEND_URL"] = "https://ajkmart.example.com";
 
     try {
-      const res = await supertest(app).get("/health");
+      const res = await supertest(app).get("/api/health");
       expect(res.status).toBe(200);
     } finally {
       process.env["NODE_ENV"] = originalEnv;

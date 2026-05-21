@@ -1010,13 +1010,13 @@ export async function customerAuth(req: Request, res: Response, next: NextFuncti
   const raw = tokenHeader || (header?.startsWith("Bearer ") ? header.slice(7) : null);
 
   if (!raw) {
-    res.status(401).json({ error: "Authentication required" });
+    res.status(401).json({ success: false, error: "Authentication required" });
     return;
   }
 
   const payload = verifyUserJwt(raw);
   if (!payload) {
-    res.status(401).json({ error: "Invalid or expired token" });
+    res.status(401).json({ success: false, error: "Invalid or expired token" });
     return;
   }
 
@@ -1034,13 +1034,13 @@ export async function riderAuth(req: Request, res: Response, next: NextFunction)
   const raw = tokenHeader || (header?.startsWith("Bearer ") ? header.slice(7) : null);
 
   if (!raw) {
-    res.status(401).json({ error: "Authentication required" });
+    res.status(401).json({ success: false, error: "Authentication required" });
     return;
   }
 
   const payload = verifyUserJwt(raw);
   if (!payload) {
-    res.status(401).json({ error: "Invalid or expired token" });
+    res.status(401).json({ success: false, error: "Invalid or expired token" });
     return;
   }
 

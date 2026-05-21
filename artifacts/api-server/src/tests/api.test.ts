@@ -38,14 +38,15 @@ beforeAll(async () => {
 function makeAdminToken(overrides: Record<string, unknown> = {}): string {
   return jwt.sign(
     {
-      adminId: "test-admin-health-check",
+      sub: "test-admin-health-check",
       role: "super_admin",
       name: "Health Check Bot",
       perms: [],
+      pv: 0,
       ...overrides,
     },
-    jwtSecret,
-    { expiresIn: "1h" },
+    process.env["ADMIN_ACCESS_TOKEN_SECRET"] ?? jwtSecret,
+    { expiresIn: "1h", issuer: process.env["JWT_ISSUER"] ?? "ajkmart-admin", algorithm: "HS256" },
   );
 }
 
@@ -56,8 +57,8 @@ function api() {
 // ─── Public endpoints ─────────────────────────────────────────────────────────
 
 describe("Public endpoints", () => {
-  it("GET /health returns 200 with {status: ok}", async () => {
-    const res = await api().get("/health");
+  it("GET /api/health returns 200 with {status: ok}", async () => {
+    const res = await api().get("/api/health");
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ status: "ok" });
     expect(typeof res.body.timestamp).toBe("string");
@@ -70,11 +71,11 @@ describe("Public endpoints", () => {
     expect(Array.isArray(res.body.data?.categories)).toBe(true);
   });
 
-  it("GET /api/products returns 200 with a products array", async () => {
-    const res = await api().get("/api/products");
+  it("GET /api/products/trending-searches returns 200 with a searches array", async () => {
+    const res = await api().get("/api/products/trending-searches");
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(Array.isArray(res.body.data?.products)).toBe(true);
+    expect(Array.isArray(res.body.data?.searches)).toBe(true);
   });
 
   it("GET /api/banners returns 200 with a banners array", async () => {

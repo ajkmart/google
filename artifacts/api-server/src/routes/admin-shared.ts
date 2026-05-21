@@ -324,7 +324,7 @@ export async function verifyAdminSecret(input: string): Promise<boolean> {
 export const adminAuth = (req: AdminRequest, res: Response, next: NextFunction): void => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Unauthorized: No token provided" });
+    res.status(401).json({ success: false, error: "Unauthorized: No token provided" });
     return;
   }
 
@@ -347,7 +347,7 @@ export const adminAuth = (req: AdminRequest, res: Response, next: NextFunction):
     next();
   } catch (err) {
     pinoLogger.warn({ err, ip: getClientIp(req) }, "[admin-shared] Invalid admin token");
-    res.status(401).json({ error: "Unauthorized: Invalid or expired token" });
+    res.status(401).json({ success: false, error: "Unauthorized: Invalid or expired token" });
   }
 };
 
