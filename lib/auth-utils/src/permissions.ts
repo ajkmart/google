@@ -188,3 +188,11 @@ export function compactPermissions(perms: Iterable<string>): string[] {
   for (const p of perms) if (_ALL.has(p)) seen.add(p);
   return Array.from(seen).sort();
 }
+
+/**
+ * Returns true when `required` is present in the user's permission list.
+ * Accepts either a raw string or a typed PermissionId — both work.
+ */
+export function hasPermission(userPerms: string[], required: string): boolean {
+  return userPerms.includes(required);
+}

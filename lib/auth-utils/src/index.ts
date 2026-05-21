@@ -19,3 +19,20 @@ export { MagicLinkSender } from "./magic-link/index";
 export type { MagicLinkSenderProps } from "./magic-link/types";
 export { useAuthConfig, invalidateAuthConfigCache } from "./useAuthConfig";
 export type { AuthConfig } from "./useAuthConfig";
+
+// Permissions / RBAC catalog
+export {
+  PERMISSIONS,
+  PERMISSION_IDS,
+  DEFAULT_ROLE_PERMISSIONS,
+  assertPermissionId,
+  isPermissionId,
+  permissionsByCategory,
+  compactPermissions,
+  hasPermission,
+} from "./permissions";
+export type {
+  PermissionId,
+  PermissionCategory,
+  PermissionDef,
+} from "./permissions";
