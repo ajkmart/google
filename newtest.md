@@ -1421,3 +1421,294 @@ Task: Verify all improvements from Prompts 1-13 are working end-to-end.
    Install: `pnpm exec playwright install chromium --with-deps`
    For CI: use `--reporter=dot` for compact output.
 ```
+
+---
+
+## 🖥️ Admin Panel — Complete Structure & Route Map
+
+> Yeh section `admin-guide.md` ki complete information ko cover karta hai.
+> Har route, permission, API endpoint aur cross-app connection detail mein hai.
+
+---
+
+### Admin App Architecture
+
+```
+artifacts/admin/
+├── src/
+│   ├── App.tsx                   # Root router — SARI routes yahan register hain
+│   ├── components/
+│   │   ├── layout/AdminLayout.tsx   # Sidebar + header shell
+│   │   ├── MobileDrawer.tsx         # Mobile sidebar drawer
+│   │   ├── CommandPalette.tsx       # Cmd+K global search
+│   │   └── PullToRefresh.tsx        # Blue accent pull-to-refresh
+│   ├── lib/
+│   │   ├── adminAuthContext.tsx     # JWT state, login/logout, refresh
+│   │   ├── navConfig.ts             # ALL nav groups, items, icons, permissions
+│   │   └── adminFetcher.ts          # Authenticated fetch interceptor
+│   └── pages/                       # Har page ka alag file
+```
+
+**Auth:** Admin ka alag JWT system hai — customer/rider/vendor tokens se bilkul alag.
+**Router:** Wouter — `base="/admin"` pe mount hai.
+**API Base:** Har request `/api/admin/*` ya `/api/*` pe jati hai.
+
+---
+
+### Admin Auth Endpoints
+
+| Endpoint | Method | Kaam |
+|----------|--------|------|
+| `/api/admin/v2/login` | POST | Username + password login |
+| `/api/admin/v2/logout` | POST | Session khatam karo |
+| `/api/admin/v2/me` | GET | Current admin ka profile |
+| `/api/admin/v2/check-session` | GET | Token valid hai ya nahi |
+| `/api/admin/v2/forgot-password` | POST | Reset link bhejo |
+| `/api/admin/v2/reset-password` | POST | Naya password set karo |
+| `/api/admin/v2/mfa/status` | GET | TOTP enabled hai ya nahi |
+| `/api/admin/v2/sessions` | GET | Active sessions list |
+
+---
+
+### Permission System — RBAC
+
+| Permission Key | Kahan Use Hota Hai |
+|---------------|-------------------|
+| `dashboard.view` | Dashboard |
+| `orders.view` | Orders management |
+| `fleet.rides.view` | Rides, Van, Live Map, Riders, SOS |
+| `fleet.pharmacy.view` | Pharmacy orders |
+| `fleet.parcel.view` | Parcel deliveries |
+| `vendors.view` | Vendors, Delivery Access, Inventory |
+| `users.view` | Users management |
+| `finance.kyc.view` | KYC verification |
+| `finance.transactions.view` | Transactions, Analytics |
+| `finance.withdrawals.view` | Withdrawals |
+| `finance.deposits.review` | Deposit requests |
+| `content.products.view` | Products, Categories, Reviews, Banners, FAQs, Deep Links |
+| `promotions.view` | Promo Codes, Flash Deals, Loyalty |
+| `support.broadcast.send` | Communications, Broadcast, SMS |
+| `support.chat.view` | Support Chat, Chat Monitor |
+| `system.settings.view` | Settings, Health, Error Monitor, Webhooks |
+| `system.settings.edit` | Auth Methods, OTP Control |
+| `system.audit.view` | Audit Logs, Consent Log |
+| `system.roles.manage` | Roles & Permissions |
+| `system.maintenance` | Launch Control |
+
+---
+
+### Complete Route Registry — App.tsx
+
+Yeh sari routes `artifacts/admin/src/App.tsx` mein register hain:
+
+#### Auth Routes (login required nahi)
+| Route | Page File |
+|-------|-----------|
+| `/admin/login` | `login.tsx` |
+| `/admin/forgot-password` | `forgot-password.tsx` |
+| `/admin/reset-password` | `reset-password.tsx` |
+| `/admin/set-new-password` | `set-new-password.tsx` |
+
+#### Operations Group
+| Route | Page | Permission | Backend API |
+|-------|------|-----------|-------------|
+| `/admin/dashboard` | `dashboard.tsx` | `dashboard.view` | `GET /api/stats` |
+| `/admin/orders` | `orders/index.tsx` | `orders.view` | `GET /api/admin/orders` |
+| `/admin/rides` | `rides.tsx` | `fleet.rides.view` | `GET /api/admin/rides` |
+| `/admin/van` | `van.tsx` | `fleet.rides.view` | `GET /api/admin/routes` |
+| `/admin/pharmacy` | `pharmacy.tsx` | `fleet.pharmacy.view` | `GET /api/pharmacy/orders` |
+| `/admin/parcel` | `parcel.tsx` | `fleet.parcel.view` | `GET /api/parcel/my-bookings` |
+| `/admin/delivery-access` | `delivery-access.tsx` | `vendors.view` | `GET /api/admin/delivery-access` |
+
+#### People Group
+| Route | Page | Permission | Backend API |
+|-------|------|-----------|-------------|
+| `/admin/users` | `users.tsx` | `users.view` | `GET /api/admin/users` |
+| `/admin/riders` | `riders.tsx` | `fleet.rides.view` | `GET /api/admin/riders` |
+| `/admin/vendors` | `vendors.tsx` | `vendors.view` | `GET /api/admin/vendors` |
+| `/admin/kyc` | `kyc.tsx` | `finance.kyc.view` | `GET /api/admin/kyc` |
+
+#### Catalog Group
+| Route | Page | Permission | Backend API |
+|-------|------|-----------|-------------|
+| `/admin/products` | `products.tsx` | `content.products.view` | `GET /api/admin/products` |
+| `/admin/categories` | `categories.tsx` | `content.products.view` | `GET /api/admin/categories/tree` |
+| `/admin/reviews` | `reviews.tsx` | `content.products.view` | `GET /api/reviews/product/:id` |
+| `/admin/vendor-inventory-settings` | `vendor-inventory-settings.tsx` | `vendors.view` | `GET /api/admin/inventory-settings` |
+
+#### Finance Group
+| Route | Page | Permission | Backend API |
+|-------|------|-----------|-------------|
+| `/admin/transactions` | `transactions.tsx` | `finance.transactions.view` | `GET /api/admin/transactions` |
+| `/admin/withdrawals` | `Withdrawals.tsx` | `finance.withdrawals.view` | `GET /api/admin/withdrawal-requests` |
+| `/admin/deposit-requests` | `DepositRequests.tsx` | `finance.deposits.review` | `GET /api/admin/deposit-requests` |
+| `/admin/wallet-transfers` | `wallet-transfers.tsx` | `finance.transactions.view` | `GET /api/admin/wallet-transfers` |
+| `/admin/loyalty` | `loyalty.tsx` | `promotions.view` | `GET /api/admin/loyalty/campaigns` |
+
+#### Marketing Group
+| Route | Page | Permission | Backend API |
+|-------|------|-----------|-------------|
+| `/admin/promotions` | `promotions-hub.tsx` | `promotions.view` | `GET /api/admin/promo-codes` |
+| `/admin/promo-codes` | `promo-codes.tsx` | `promotions.view` | `GET /api/admin/promo-codes` |
+| `/admin/flash-deals` | `flash-deals.tsx` | `promotions.view` | `GET /api/admin/flash-deals` |
+| `/admin/banners` | `banners.tsx` | `content.products.view` | `GET /api/admin/banners` |
+| `/admin/popups` | `popups.tsx` | `content.products.view` | `GET /api/admin/popups` |
+
+#### Communications Group
+| Route | Page | Permission | Backend API |
+|-------|------|-----------|-------------|
+| `/admin/communications` | `communication.tsx` | `support.broadcast.send` | `GET /api/admin/communication/dashboard` |
+| `/admin/broadcast` | `broadcast.tsx` | `support.broadcast.send` | `POST /api/admin/broadcast` |
+| `/admin/support-chat` | `support-chat.tsx` | `support.chat.view` | `GET /api/admin/support-chat` |
+| `/admin/faq-management` | `faq-management.tsx` | `content.products.view` | `GET /api/admin/faq` |
+| `/admin/sms-gateways` | `sms-gateways.tsx` | `support.broadcast.send` | `GET /api/admin/sms-gateways` |
+
+#### Analytics Group
+| Route | Page | Permission | Backend API |
+|-------|------|-----------|-------------|
+| `/admin/analytics` | `analytics.tsx` | `finance.transactions.view` | `GET /api/stats` |
+| `/admin/revenue-analytics` | `revenue-analytics.tsx` | `finance.transactions.view` | `GET /api/stats/metrics` |
+| `/admin/search-analytics` | `search-analytics.tsx` | `system.settings.view` | `GET /api/admin/search-analytics` |
+| `/admin/wishlist-insights` | `wishlist-insights.tsx` | `content.products.view` | `GET /api/admin/wishlist-analytics` |
+| `/admin/qr-codes` | `qr-codes.tsx` | `content.products.view` | `GET /api/admin/qr-codes` |
+| `/admin/experiments` | `experiments.tsx` | `system.settings.view` | `GET /api/admin/experiments` |
+
+#### Security Group
+| Route | Page | Permission | Backend API |
+|-------|------|-----------|-------------|
+| `/admin/security` | `security.tsx` | `system.settings.view` | `GET /api/admin/security/audit-logs` |
+| `/admin/audit-logs` | `audit-logs.tsx` | `system.audit.view` | `GET /api/admin/security/audit-logs` |
+| `/admin/consent-log` | `consent-log.tsx` | `system.audit.view` | `GET /api/legal/consent-log` |
+| `/admin/roles-permissions` | `roles-permissions.tsx` | `system.roles.manage` | `GET /api/admin/role-presets` |
+| `/admin/sos-alerts` | `sos-alerts.tsx` | `fleet.rides.view` | `GET /api/sos/alerts` |
+
+#### Health & Monitoring Group
+| Route | Page | Permission | Backend API |
+|-------|------|-----------|-------------|
+| `/admin/health-dashboard` | `health-dashboard.tsx` | `system.settings.view` | `GET /api/health` |
+| `/admin/error-monitor` | `error-monitor.tsx` | `system.settings.view` | `GET /api/error-reports` |
+| `/admin/live-riders-map` | `live-riders-map.tsx` | `fleet.rides.view` | Socket.io `rider:location` |
+| `/admin/chat-monitor` | `chat-monitor.tsx` | `support.chat.view` | `GET /api/admin/chat-monitor/conversations` |
+
+#### Configuration Group
+| Route | Page | Permission | Backend API |
+|-------|------|-----------|-------------|
+| `/admin/settings` | `settings.tsx` | `system.settings.view` | `GET /api/settings` |
+| `/admin/app-management` | `app-management.tsx` | `system.settings.view` | `PATCH /api/admin/launch/feature/:id` |
+| `/admin/auth-methods` | `auth-methods.tsx` | `system.settings.edit` | `GET /api/admin/auth/methods` |
+| `/admin/auth-control` | `auth-control.tsx` | `system.settings.edit` | `GET /api/admin/auth/events` |
+| `/admin/launch-control` | `launch-control.tsx` | `system.maintenance` | `POST /api/admin/launch/mode` |
+| `/admin/otp-control` | `otp-control.tsx` | `system.settings.edit` | `GET /api/admin/otp/status` |
+| `/admin/business-rules` | `business-rules.tsx` | `system.settings.view` | `GET /api/business-rules` |
+| `/admin/deep-links` | `deep-links.tsx` | `content.products.view` | `GET /api/admin/deep-links` |
+| `/admin/webhooks` | `webhook-manager.tsx` | `system.settings.view` | `GET /api/admin/webhooks` |
+| `/admin/whatsapp-delivery-log` | `whatsapp-delivery-log.tsx` | `system.settings.view` | `GET /api/admin/whatsapp/delivery-log` |
+| `/admin/account-conditions` | `account-conditions.tsx` | `system.settings.view` | `GET /api/admin/conditions` |
+| `/admin/condition-rules` | `condition-rules.tsx` | `system.settings.view` | `GET /api/admin/condition-rules` |
+| `/admin/accessibility` | `accessibility.tsx` | `system.settings.view` | Local settings |
+
+#### Error Pages
+| Route | Page |
+|-------|------|
+| `/admin/403` | `forbidden.tsx` |
+| `/admin/404` | `not-found.tsx` |
+| `*` (catch-all) | `not-found.tsx` |
+
+---
+
+### Admin ↔ Customer App E2E Connection
+
+| Admin Action | Customer App Mein Kya Hota Hai |
+|-------------|-------------------------------|
+| Products → Approve | Product customer search mein nazar aata hai |
+| Banners → Add/Edit | Home screen carousel update hota hai |
+| Flash Deals → Manage | Flash deal section update hota hai |
+| Promo Codes → Create | Customer checkout mein coupon apply hota hai |
+| Auth Methods → Toggle | Customer login screen mein method show/hide hota hai |
+| OTP Control → Disable | Customer OTP login block ho jata hai |
+| Delivery Access | Customer order area restrict hota hai |
+| Categories → CRUD | Customer sidebar categories update hoti hai |
+
+### Admin ↔ Vendor App E2E Connection
+
+| Admin Action | Vendor App Mein Kya Hota Hai |
+|-------------|------------------------------|
+| Vendors → Approve | Vendor dashboard fully open hota hai |
+| Vendors → Suspend | Vendor suspended message dekhta hai |
+| Products → Approve | Vendor product customer search mein aata hai |
+| Inventory Settings | Vendor low-stock warnings configure hoti hai |
+
+### Admin ↔ Rider App E2E Connection
+
+| Admin Action | Rider App Mein Kya Hota Hai |
+|-------------|------------------------------|
+| Riders → Approve | Rider online ja sakta hai |
+| Rides → Assign | Rider ko dispatch notification milti hai |
+| Live Map → View | Admin real-time GPS dekhta hai |
+| SOS → Acknowledge | Rider SOS alert marked as seen |
+| Finance → Bonus | Rider wallet credit hota hai |
+
+---
+
+### Settings Sub-Sections
+
+`/admin/settings` page multiple tabs mein split hai:
+
+| Tab | Sub-Component | Kya Configure Hota Hai |
+|-----|--------------|------------------------|
+| `general` | `settings-general.tsx` | App name, language, timezone |
+| `payment` | `settings-payment.tsx` | Payment gateways, wallet limits |
+| `integrations` | `settings-integrations.tsx` | Maps, SMS, WhatsApp, Sentry, Firebase |
+| `security` | `settings-security.tsx` | Session TTL, IP allowlist |
+| `system` | `settings-system.tsx` | DB pool, maintenance mode |
+| `weather` | `settings-weather.tsx` | Weather API provider |
+| `compliance` | `settings-compliance.tsx` | GDPR, data retention |
+| `branding` | `settings-branding.tsx` | Logo, colors, app store info |
+
+---
+
+### Real-Time Features
+
+| Feature | Socket Room | Events |
+|---------|------------|--------|
+| Live Riders Map | `admin-fleet` | `rider:location`, `rider:offline`, `rider:online` |
+| SOS Alerts | `admin-sos` | `sos:new` |
+| Order Updates | per-order room | `order:status` |
+
+---
+
+### Database Tables Used by Admin
+
+| Admin Section | Main Tables |
+|--------------|-------------|
+| Users | `users`, `rider_profiles`, `vendor_profiles`, `sessions` |
+| Orders | `orders`, `order_items`, `products` |
+| Rides | `rides`, `live_locations`, `ride_bids` |
+| Finance | `wallet_transactions`, `withdrawal_requests`, `deposit_requests` |
+| Marketing | `promo_codes`, `flash_deals`, `banners`, `popups` |
+| Settings | `platform_settings` (single-row JSON config) |
+| System | `error_reports`, `experiments`, `webhooks`, `deep_links`, `audit_logs` |
+
+---
+
+### Naya Page Add Karne Ka Tariqa
+
+```
+1. Page file banao:
+   artifacts/admin/src/pages/mera-page.tsx
+   export default function MeraPage() { ... }
+
+2. App.tsx mein lazy import karo:
+   const MeraPage = lazy(() => import("@/pages/mera-page"));
+
+3. App.tsx ke AppRoutes Switch mein Route add karo:
+   <Route path="/mera-route">
+     <ProtectedRoute component={MeraPage} requirePermission="permission.key" />
+   </Route>
+
+4. navConfig.ts mein nav entry add karo:
+   { nameKey: "navMeraPage", href: "/mera-route", icon: SomeIcon, requirePermission: "permission.key" }
+
+5. lib/i18n/src/index.ts mein translation key add karo:
+   navMeraPage: "Mera Page"  (English, Urdu, Roman Urdu teeno mein)
+```
