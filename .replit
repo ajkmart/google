@@ -15,78 +15,117 @@ args = ["pnpm", "store", "prune"]
 env = { "CI" = "true" }
 
 [workflows]
-runButton = "Project"
+  runButton = "Project"
 
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
+  [[workflows.workflow]]
+  name = "Project"
+  mode = "sequential"
+  author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "API Server"
+  [[workflows.workflow.tasks]]
+  task = "workflow.run"
+  args = "DB Migrate"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Rider App"
+  [[workflows.workflow.tasks]]
+  task = "workflow.run"
+  args = "All Services"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Vendor App"
+  [[workflows.workflow]]
+  name = "DB Migrate"
+  author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Admin App"
+  [workflows.workflow.metadata]
+  outputType = "console"
 
-[[workflows.workflow]]
-name = "API Server"
-author = "agent"
+  [[workflows.workflow.tasks]]
+  task = "shell.exec"
+  args = "cd lib/db && pnpm push"
 
-[workflows.workflow.metadata]
-outputType = "webview"
+  [[workflows.workflow]]
+  name = "All Services"
+  mode = "parallel"
+  author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd artifacts/api-server && NODE_ENV=development node ./scripts/start-with-restart.mjs"
-waitForPort = 5000
+  [[workflows.workflow.tasks]]
+  task = "workflow.run"
+  args = "API Server"
 
-[[workflows.workflow]]
-name = "Rider App"
-author = "agent"
+  [[workflows.workflow.tasks]]
+  task = "workflow.run"
+  args = "Rider App"
 
-[workflows.workflow.metadata]
-outputType = "console"
+  [[workflows.workflow.tasks]]
+  task = "workflow.run"
+  args = "Vendor App"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd artifacts/rider-app && pnpm dev"
-waitForPort = 3002
+  [[workflows.workflow.tasks]]
+  task = "workflow.run"
+  args = "Admin App"
 
-[[workflows.workflow]]
-name = "Vendor App"
-author = "agent"
+  [[workflows.workflow.tasks]]
+  task = "workflow.run"
+  args = "AJKMart App"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd artifacts/vendor-app && PORT=3001 pnpm dev"
-waitForPort = 3001
+  [[workflows.workflow]]
+  name = "API Server"
+  author = "agent"
 
-[workflows.workflow.metadata]
-outputType = "console"
+  [workflows.workflow.metadata]
+  outputType = "webview"
 
-[[workflows.workflow]]
-name = "Admin App"
-author = "agent"
+  [[workflows.workflow.tasks]]
+  task = "shell.exec"
+  args = "cd artifacts/api-server && NODE_ENV=development node ./scripts/start-with-restart.mjs"
+  waitForPort = 5000
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd artifacts/admin && PORT=3000 pnpm dev"
-waitForPort = 3000
+  [[workflows.workflow]]
+  name = "Rider App"
+  author = "agent"
 
-[workflows.workflow.metadata]
-outputType = "console"
+  [workflows.workflow.metadata]
+  outputType = "console"
 
-[agent]
+  [[workflows.workflow.tasks]]
+  task = "shell.exec"
+  args = "cd artifacts/rider-app && pnpm dev"
+  waitForPort = 3002
+
+  [[workflows.workflow]]
+  name = "Vendor App"
+  author = "agent"
+
+  [workflows.workflow.metadata]
+  outputType = "console"
+
+  [[workflows.workflow.tasks]]
+  task = "shell.exec"
+  args = "cd artifacts/vendor-app && PORT=3001 pnpm dev"
+  waitForPort = 3001
+
+  [[workflows.workflow]]
+  name = "Admin App"
+  author = "agent"
+
+  [workflows.workflow.metadata]
+  outputType = "console"
+
+  [[workflows.workflow.tasks]]
+  task = "shell.exec"
+  args = "cd artifacts/admin && PORT=3000 pnpm dev"
+  waitForPort = 3000
+
+  [[workflows.workflow]]
+  name = "AJKMart App"
+  author = "agent"
+
+  [workflows.workflow.metadata]
+  outputType = "console"
+
+  [[workflows.workflow.tasks]]
+  task = "shell.exec"
+  args = "cd artifacts/ajkmart && pnpm dev"
+
+  [agent]
 stack = "BEST_EFFORT_FALLBACK"
 expertMode = true
 integrations = ["javascript_gemini_ai_integrations:2.0.0"]
