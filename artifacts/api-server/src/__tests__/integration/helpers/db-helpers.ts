@@ -13,6 +13,9 @@ import {
   riderProfilesTable,
   vendorProfilesTable,
   refreshTokensTable,
+  ridesTable,
+  walletTransactionsTable,
+  idempotencyKeysTable,
 } from "@workspace/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { randomInt } from "crypto";
@@ -72,6 +75,8 @@ export interface CreateUserOpts {
   phoneVerified?: boolean;
   emailVerified?: boolean;
   ajkId?: string;
+  walletBalance?: string;
+  blockedServices?: string;
 }
 
 export async function createTestUser(opts: CreateUserOpts = {}): Promise<string> {
@@ -83,12 +88,13 @@ export async function createTestUser(opts: CreateUserOpts = {}): Promise<string>
     email: opts.email ?? null,
     roles: opts.roles ?? "customer",
     passwordHash: opts.passwordHash ?? "dummy_hash:dummy_salt",
-    walletBalance: "0",
+    walletBalance: opts.walletBalance ?? "0",
     isActive: opts.isActive ?? true,
     approvalStatus: opts.approvalStatus ?? "approved",
     phoneVerified: opts.phoneVerified ?? true,
     emailVerified: opts.emailVerified ?? false,
     ajkId: opts.ajkId ?? generateTestAjkId(),
+    blockedServices: opts.blockedServices ?? "",
   });
   return id;
 }
@@ -205,4 +211,131 @@ export async function cleanupRefreshTokens(userId: string): Promise<void> {
   await db
     .delete(refreshTokensTable)
     .where(eq(refreshTokensTable.userId, userId));
+}
+
+// ─── Wallet Helpers ────────────────────────────────────────────────────────────
+
+/** Set a user's wallet balance directly in the DB. */
+export async function setWalletBalance(userId: string, amount: number): Promise<void> {
+  await db
+    .update(usersTable)
+    .set({ walletBalance: amount.toFixed(2) })
+    .where(eq(usersTable.id, userId));
+}
+
+/** Freeze a user's wallet by adding "wallet" to their blockedServices. */
+export async function freezeWallet(userId: string): Promise<void> {
+  await db
+    .update(usersTable)
+    .set({ blockedServices: "wallet" })
+    .where(eq(usersTable.id, userId));
+}
+
+/** Get a user's current wallet balance from the DB. */
+export async function getWalletBalance(userId: string): Promise<number> {
+  const [user] = await db
+    .select({ walletBalance: usersTable.walletBalance })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId))
+    .limit(1);
+  return parseFloat(user?.walletBalance ?? "0");
+}
+
+/** Clean up all wallet transactions for a user. */
+export async function cleanupWalletTransactions(userId: string): Promise<void> {
+  await db
+    .delete(walletTransactionsTable)
+    .where(eq(walletTransactionsTable.userId, userId));
+}
+
+/** Clean up idempotency keys for a user. */
+export async function cleanupIdempotencyKeys(userId: string): Promise<void> {
+  await db
+    .delete(idempotencyKeysTable)
+    .where(eq(idempotencyKeysTable.userId, userId));
+}
+
+// ─── Ride Helpers ─────────────────────────────────────────────────────────────
+
+export interface CreateTestRideOpts {
+  id?: string;
+  userId: string;
+  riderId?: string;
+  type?: string;
+  status?: string;
+  tripOtp?: string;
+  otpVerified?: boolean;
+  paymentMethod?: string;
+  pickupAddress?: string;
+  dropAddress?: string;
+  fare?: string;
+  distance?: string;
+}
+
+/** Create a ride row directly in the DB for integration tests. */
+export async function createTestRide(opts: CreateTestRideOpts): Promise<string> {
+  const id = opts.id ?? generateTestId();
+  await db.insert(ridesTable).values({
+    id,
+    userId: opts.userId,
+    riderId: opts.riderId ?? null,
+    type: opts.type ?? "bike",
+    status: opts.status ?? "searching",
+    pickupAddress: opts.pickupAddress ?? "Test Pickup",
+    dropAddress: opts.dropAddress ?? "Test Drop",
+    pickupLat: "33.7215",
+    pickupLng: "73.0433",
+    dropLat: "33.7300",
+    dropLng: "73.0500",
+    fare: opts.fare ?? "150.00",
+    distance: opts.distance ?? "3.5",
+    paymentMethod: opts.paymentMethod ?? "cash",
+    tripOtp: opts.tripOtp ?? null,
+    otpVerified: opts.otpVerified ?? false,
+  });
+  return id;
+}
+
+/** Set the tripOtp on a ride row. */
+export async function setRideOtp(rideId: string, otp: string): Promise<void> {
+  await db
+    .update(ridesTable)
+    .set({ tripOtp: otp, updatedAt: new Date() })
+    .where(eq(ridesTable.id, rideId));
+}
+
+/** Create a rider profile for a user. */
+export async function createRiderProfile(userId: string, opts: {
+  vehicleType?: string;
+  vehiclePlate?: string;
+} = {}): Promise<void> {
+  await db
+    .insert(riderProfilesTable)
+    .values({
+      userId,
+      vehicleType: opts.vehicleType ?? "bike",
+      vehiclePlate: opts.vehiclePlate ?? "ABC-123",
+    })
+    .onConflictDoNothing();
+}
+
+/** Clean up all rides for a user (as customer or rider). */
+export async function cleanupRides(userId: string): Promise<void> {
+  await db
+    .delete(ridesTable)
+    .where(eq(ridesTable.userId, userId));
+}
+
+/** Clean up a specific ride by ID. */
+export async function deleteRide(rideId: string): Promise<void> {
+  await db
+    .delete(ridesTable)
+    .where(eq(ridesTable.id, rideId));
+}
+
+/** Clean up ride OTP attempts for a ride. */
+export async function cleanupRideOtpAttempts(rideId: string): Promise<void> {
+  await db
+    .delete(otpAttemptsTable)
+    .where(eq(otpAttemptsTable.key, rideId));
 }

@@ -171,7 +171,7 @@ const amountField = z.union([z.number().positive(), z.string().min(1)])
 const paymentMethodField = z.string().min(1, "paymentMethod is required")
   .regex(/^[a-z_]+$/, "paymentMethod must be a lowercase identifier");
 
-const depositSchema = z.object({
+export const depositSchema = z.object({
   amount: amountField,
   paymentMethod: paymentMethodField,
   transactionId: z.string().min(1, "transactionId required"),
@@ -180,7 +180,7 @@ const depositSchema = z.object({
   note: z.string().max(200).optional(),
 });
 
-const sendSchema = z.object({
+export const sendSchema = z.object({
   receiverPhone: z.string().optional(),
   ajkId: z.string().optional(),
   amount: amountField,
@@ -189,7 +189,7 @@ const sendSchema = z.object({
   message: "receiverPhone or ajkId is required",
 });
 
-const withdrawSchema = z.object({
+export const withdrawSchema = z.object({
   amount: amountField,
   paymentMethod: paymentMethodField,
   accountNumber: z.string().min(1, "accountNumber required"),
