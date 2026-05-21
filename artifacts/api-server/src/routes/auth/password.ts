@@ -53,8 +53,6 @@ import {
 } from "./helpers.js";
 import { handleUnifiedLogin } from "./auth-common.js";
 
-const resetTokenBlacklist = new Set<string>();
-
 const router: IRouter = Router();
 
 /**
@@ -470,11 +468,26 @@ router.post("/reset-password", verifyCaptcha, sharedValidateBody(ResetPasswordSc
     sendUnauthorized(res, "Invalid or expired reset token");
     return;
   }
-  if (payload.purpose !== "password_reset" || payload.userId !== user.id || resetTokenBlacklist.has(payload.jti)) {
+  if (payload.purpose !== "password_reset" || payload.userId !== user.id) {
     sendUnauthorized(res, "Invalid or expired reset token");
     return;
   }
-  resetTokenBlacklist.add(payload.jti);
+  /* Persist the used JTI to the DB so the token cannot be reused even after a
+     server restart (the in-memory blacklist would be cleared on restart). */
+  const jtiKey = `reset_jti:${payload.jti}`;
+  const [usedJti] = await db.select({ key: rateLimitsTable.key }).from(rateLimitsTable).where(eq(rateLimitsTable.key, jtiKey)).limit(1);
+  if (usedJti) {
+    sendUnauthorized(res, "Invalid or expired reset token");
+    return;
+  }
+  await db.insert(rateLimitsTable).values({
+    key: jtiKey,
+    attempts: 1,
+    windowStart: new Date(),
+    updatedAt: new Date(),
+  }).catch((err: unknown) => {
+    logger.warn({ err }, "[auth] reset token JTI persist failed");
+  });
 
   if (user.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", userRole)) {
     if (!totpCode) {

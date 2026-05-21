@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { createHash } from "crypto";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import { refreshTokensTable, userSessionsTable } from "@workspace/db/schema";
@@ -40,7 +41,7 @@ router.post("/sessions/revoke", async (req, res) => {
     const parse = SessionRevokeSchema.safeParse(req.body);
     if (!parse.success) { sendError(res, "Invalid request body", 400); return; }
     const ip = getClientIp(req);
-    const currentHash = require("crypto").createHash("sha256").update(rawToken).digest("hex");
+    const currentHash = createHash("sha256").update(rawToken).digest("hex");
     if (parse.data.revokeAllExceptCurrent) {
       const sessions = await db.select().from(userSessionsTable).where(and(eq(userSessionsTable.userId, auth.userId), isNull(userSessionsTable.revokedAt)));
       const otherSessions = sessions.filter((s) => s.tokenHash !== currentHash);
