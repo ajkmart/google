@@ -592,8 +592,8 @@ export const api = {
 
   /* Rider */
   getMe:        (signal?: AbortSignal) => apiFetch("/riders/me?appRole=rider", signal ? { signal } : {}),
-  setOnline:    (isOnline: boolean) => apiFetch("/riders/online", { method: "PATCH", body: JSON.stringify({ isOnline }) }),
-  updateProfile:(data: Record<string, unknown>) => apiFetch("/riders/profile", { method: "PATCH", body: JSON.stringify(data) }),
+  setOnline:    (isOnline: boolean): Promise<{ isOnline: boolean; serviceZoneWarning?: string }> => apiFetch("/riders/online", { method: "PATCH", body: JSON.stringify({ isOnline }) }),
+  updateProfile:(data: Record<string, unknown>): Promise<{ success: boolean; pendingVerification?: boolean }> => apiFetch("/riders/profile", { method: "PATCH", body: JSON.stringify(data) }),
   getRequests:  (): Promise<RiderRequestsResponse> =>
     apiFetch("/riders/requests", {}, true).then((env: ApiEnvelope<{ orders: Order[]; rides: Ride[] }> & { serverTime?: string }) => {
       const payload = env.data ?? { orders: [], rides: [] };
@@ -609,7 +609,7 @@ export const api = {
   updateOrder:  (id: string, status: string, proofPhoto?: string) => apiFetch(`/riders/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, ...(proofPhoto ? { proofPhoto } : {}) }) }),
   acceptRide:   (id: string) => apiFetch(`/riders/rides/${id}/accept`, { method: "POST", body: "{}" }),
   updateRide:   (id: string, status: string, loc?: { lat: number; lng: number }) => apiFetch(`/riders/rides/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, ...(loc || {}) }) }),
-  verifyRideOtp:(id: string, otp: string) => apiFetch(`/riders/rides/${id}/verify-otp`, { method: "POST", body: JSON.stringify({ otp }) }),
+  verifyRideOtp:(id: string, otp: string): Promise<{ success: boolean }> => apiFetch(`/riders/rides/${id}/verify-otp`, { method: "POST", body: JSON.stringify({ otp }) }),
   counterRide:  (id: string, data: { counterFare: number; note?: string }) => apiFetch(`/riders/rides/${id}/counter`, { method: "POST", body: JSON.stringify(data) }),
   rejectOffer:  (id: string) => apiFetch(`/riders/rides/${id}/reject-offer`, { method: "POST", body: "{}" }),
   ignoreRide:   (id: string) => apiFetch(`/riders/rides/${id}/ignore`, { method: "POST", body: "{}" }),

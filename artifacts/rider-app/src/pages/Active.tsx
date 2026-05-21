@@ -17,6 +17,7 @@ import {
   SkeletonActive, ElapsedBadge, haversineDistance, compressImage,
   RIDE_STEPS,
 } from "../components/active/ActiveHelpers";
+import { parseRideOtpPayload, parseAdminChatPayload } from "../lib/socketEvents";
 import { ActiveOrderPanel } from "../components/active/ActiveOrderPanel";
 import { ActiveRidePanel } from "../components/active/ActiveRidePanel";
 import { ActiveModals } from "../components/active/ActiveModals";
@@ -64,8 +65,10 @@ export default function Active() {
 
   useEffect(() => {
     if (!sharedSocket) return;
-    const handler = (msg: { message: string; sentAt: string; from: "admin" }) => {
+    const handler = (raw: unknown) => {
       if (!isMountedRef.current) return;
+      const msg = parseAdminChatPayload(raw);
+      if (!msg) return;
       setAdminMessages(prev => [...prev, { text: msg.message, ts: msg.sentAt, from: "admin" }]);
       setShowAdminChat(true);
     };
@@ -89,8 +92,10 @@ export default function Active() {
 
   useEffect(() => {
     if (!sharedSocket) return;
-    const onRideOtp = (data: { rideId: string; otp: string }) => {
+    const onRideOtp = (raw: unknown) => {
       if (!isMountedRef.current) return;
+      const data = parseRideOtpPayload(raw);
+      if (!data) return;
       /* The real shape returned by api.getActive() and cached under
          ["rider-active"] is: { order?: {...}, ride?: {...} }
          Update ride.otp in-place so the OTP button gate becomes active

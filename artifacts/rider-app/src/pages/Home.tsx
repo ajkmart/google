@@ -9,6 +9,7 @@ import { api, type Order, type Ride } from "../lib/api";
 import { usePlatformConfig } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
 import { useSocket } from "../lib/socket";
+import { parseRideAssignedPayload } from "../lib/socketEvents";
 import { tDual } from "@workspace/i18n";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -414,14 +415,25 @@ export default function Home() {
       qc.invalidateQueries({ queryKey: ["rider-active"] });
       qc.invalidateQueries({ queryKey: ["rider-earnings"] });
     };
+    /* ride:assigned — server pushes the assigned ride summary to the rider.
+       We validate the payload shape before invalidating queries so malformed
+       payloads can never trigger unexpected re-renders. */
+    const handleRideAssigned = (raw: unknown) => {
+      const payload = parseRideAssignedPayload(raw);
+      if (!payload) return;
+      qc.invalidateQueries({ queryKey: ["rider-requests"] });
+      qc.invalidateQueries({ queryKey: ["rider-active"] });
+    };
     sharedSocket.on("rider:new_request", handleNewRequest);
     sharedSocket.on("new:request", handleNewRequest);
+    sharedSocket.on("ride:assigned", handleRideAssigned);
     sharedSocket.on("rider:request-cancelled", handleStateChange);
     sharedSocket.on("rider:ride-updated", handleCompletionEvent);
     sharedSocket.on("rider:order-updated", handleCompletionEvent);
     return () => {
       sharedSocket.off("rider:new_request", handleNewRequest);
       sharedSocket.off("new:request", handleNewRequest);
+      sharedSocket.off("ride:assigned", handleRideAssigned);
       sharedSocket.off("rider:request-cancelled", handleStateChange);
       sharedSocket.off("rider:ride-updated", handleCompletionEvent);
       sharedSocket.off("rider:order-updated", handleCompletionEvent);

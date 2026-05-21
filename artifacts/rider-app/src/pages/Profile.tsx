@@ -1055,7 +1055,7 @@ export default function Profile() {
           {logoutConfirm ? T("tapAgainLogout") : T("logoutFromDevice")}
         </button>
 
-        <ProfileFooter config={config as any} language={language} />
+        <ProfileFooter config={config} language={language} />
 
       </div>
     </div>
