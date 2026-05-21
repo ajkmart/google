@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "bash", "python-3.11"]
+modules = ["nodejs-20", "web", "bash", "python-3.11", "postgresql-16"]
 
 [[artifacts]]
 id = "artifacts/api-server"
@@ -136,6 +136,9 @@ ENCRYPTION_MASTER_KEY = "7679a42a8c4a1a2bc106d5b24bc1c1235d34794fcdac1fa95be4d82
 VAPID_PRIVATE_KEY = "b3egnGyDJYSVsOB4z-PGhf5YbGeuVKcHtNpJPQ-r-eM"
 ADMIN_SEED_PASSWORD = "SuperAdmin@2024!"
 DATABASE_URL = "postgresql://neondb_owner:npg_8CZnNQxSivM4@ep-withered-pond-aod3mqmg-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+
+[userenv.development]
+E2E_BYPASS_SECRET = "e2e-playwright-bypass-2024"
 
 [[ports]]
 localPort = 3000

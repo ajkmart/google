@@ -149,7 +149,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
         <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 22, padding: 28, boxShadow: "0 24px 70px rgba(0,0,0,0.45)" }}>
           {errorText && (
-            <div style={{ marginBottom: 16, borderRadius: 14, border: "1px solid rgba(239,68,68,0.25)", background: "rgba(239,68,68,0.08)", padding: "10px 12px", color: "#fca5a5", fontSize: 13 }}>
+            <div data-testid="login-error" role="alert" style={{ marginBottom: 16, borderRadius: 14, border: "1px solid rgba(239,68,68,0.25)", background: "rgba(239,68,68,0.08)", padding: "10px 12px", color: "#fca5a5", fontSize: 13 }}>
               {errorText}
             </div>
           )}
