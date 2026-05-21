@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { tDual, type TranslationKey } from "@workspace/i18n";
-import { Bell, Home, MapPin, MessageCircle, RefreshCw, User, Wallet } from "lucide-react";
+import { Bell, Home, MapPin, RefreshCw, TrendingUp, User, Wallet } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { api } from "../lib/api";
 import { useQueueStatus } from "../lib/offline/queueManager";
@@ -19,8 +19,8 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: "/", labelKey: "home", Icon: Home },
   { href: "/active", labelKey: "active", Icon: MapPin },
-  { href: "/chat", labelKey: "chat" as TranslationKey, Icon: MessageCircle },
   { href: "/wallet", labelKey: "wallet", Icon: Wallet, moduleKey: "wallet" },
+  { href: "/earnings", labelKey: "earnings", Icon: TrendingUp },
   { href: "/notifications", labelKey: "alerts", Icon: Bell },
   { href: "/profile", labelKey: "profile", Icon: User },
 ];
