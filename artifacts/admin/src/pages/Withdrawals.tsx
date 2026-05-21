@@ -16,6 +16,7 @@ import {
 } from "@/hooks/use-admin";
 import { useToast } from "@/hooks/use-toast";
 import { useErrorHandler } from "@/hooks/useErrorHandler";
+import { parseApiError } from "@/lib/errorParser";
 import { formatCurrency } from "@/lib/format";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
@@ -155,9 +156,9 @@ function ApproveModal({ w, onClose }: { w: Withdrawal; onClose: () => void }) {
           });
           onClose();
         },
-        onError: (e: any) => {
+        onError: (e: unknown) => {
           onApproveError(e);
-          toast({ title: "Error", description: e.message, variant: "destructive" });
+          toast({ title: "Error", description: parseApiError(e), variant: "destructive" });
         },
       }
     );
@@ -266,16 +267,16 @@ function RejectModal({ w, onClose }: { w: Withdrawal; onClose: () => void }) {
     reject.mutate(
       { id: w.id, reason: reason.trim() },
       {
-        onSuccess: (data: any) => {
+        onSuccess: (data: { refunded?: number }) => {
           toast({
             title: "Withdrawal rejected",
-            description: `${fc(data.refunded)} refunded to the rider's wallet.`,
+            description: `${fc(data.refunded ?? Number(w.amount))} refunded to the rider's wallet.`,
           });
           onClose();
         },
-        onError: (e: any) => {
+        onError: (e: unknown) => {
           onRejectError(e);
-          toast({ title: "Error", description: e.message, variant: "destructive" });
+          toast({ title: "Error", description: parseApiError(e), variant: "destructive" });
         },
       }
     );
@@ -377,9 +378,9 @@ function exportWithdrawalsCSV(rows: Withdrawal[]) {
 export default function Withdrawals() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [approveTarget, setApproveTarget] = useState<any | null>(null);
-  const [rejectTarget, setRejectTarget] = useState<any | null>(null);
-  const [sensitiveApproveTarget, setSensitiveApproveTarget] = useState<any | null>(null);
+  const [approveTarget, setApproveTarget] = useState<Withdrawal | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<Withdrawal | null>(null);
+  const [sensitiveApproveTarget, setSensitiveApproveTarget] = useState<Withdrawal | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchRejectReason, setBatchRejectReason] = useState("");
 

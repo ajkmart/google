@@ -14,6 +14,7 @@ import {
   useRejectDeposit,
 } from "@/hooks/use-admin";
 import { useToast } from "@/hooks/use-toast";
+import { parseApiError } from "@/lib/errorParser";
 import { formatCurrency } from "@/lib/format";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
@@ -131,8 +132,8 @@ function ApproveModal({ d, onClose }: { d: Deposit; onClose: () => void }) {
           });
           onClose();
         },
-        onError: (e: any) =>
-          toast({ title: "Error", description: e.message, variant: "destructive" }),
+        onError: (e: unknown) =>
+          toast({ title: "Error", description: parseApiError(e), variant: "destructive" }),
       }
     );
   };
@@ -243,8 +244,8 @@ function RejectModal({ d, onClose }: { d: Deposit; onClose: () => void }) {
           toast({ title: "Deposit rejected", description: "User has been notified." });
           onClose();
         },
-        onError: (e: any) =>
-          toast({ title: "Error", description: e.message, variant: "destructive" }),
+        onError: (e: unknown) =>
+          toast({ title: "Error", description: parseApiError(e), variant: "destructive" }),
       }
     );
   };
@@ -489,8 +490,8 @@ function exportDepositsCSV(rows: Deposit[]) {
 export default function DepositRequests() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [approveTarget, setApproveTarget] = useState<any | null>(null);
-  const [rejectTarget, setRejectTarget] = useState<any | null>(null);
+  const [approveTarget, setApproveTarget] = useState<Deposit | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<Deposit | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkApprove, setShowBulkApprove] = useState(false);
   const [showBulkReject, setShowBulkReject] = useState(false);

@@ -1,6 +1,7 @@
 import { useToast } from "@/hooks/use-toast";
 import { useErrorHandler } from "@/hooks/useErrorHandler";
 import { adminAbsoluteFetch, adminFetch, fetchAdminAbsoluteResponse } from "@/lib/adminFetcher";
+import { parseApiError } from "@/lib/errorParser";
 import { createLogger } from "@/lib/logger";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
@@ -357,10 +358,10 @@ export const useWalletTopup = () => {
       queryClient.invalidateQueries({ queryKey: ["admin-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Failed to topup wallet",
-        description: error?.message || "Unable to complete wallet topup",
+        description: parseApiError(error),
         variant: "destructive",
       });
     },
