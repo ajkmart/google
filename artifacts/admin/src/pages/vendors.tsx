@@ -375,8 +375,8 @@ export default function Vendors() {
       const channelLabel = res?.channel === "push" ? "Push notification sent" : res?.channel === "email" ? "Email sent" : "Invite logged";
       toast({ title: "Invitation sent", description: `${channelLabel} to ${invitePhone.trim() || inviteEmail.trim()}` });
       setInviteOpen(false);
-    } catch (err: any) {
-      toast({ title: "Failed to invite vendor", description: err?.message || "Please try again", variant: "destructive" });
+    } catch (err: unknown) {
+      toast({ title: "Failed to invite vendor", description: err instanceof Error ? err.message : "Please try again", variant: "destructive" });
     }
     setInviteSending(false);
   }, [invitePhone, inviteEmail, inviteStore, toast]);

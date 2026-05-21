@@ -1,11 +1,15 @@
 import { useState, useRef, useCallback, useEffect, type ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[PullToRefresh]");
 
 interface PullToRefreshProps {
   onRefresh: () => Promise<void>;
   children: ReactNode;
   accentColor?: string;
   className?: string;
+  /** Caller can opt in to receive refresh failures (e.g. show a toast). */
+  onRefreshError?: (err: unknown) => void;
 }
 
 function formatAgo(d: Date | null): string {
@@ -15,18 +19,21 @@ function formatAgo(d: Date | null): string {
   if (s < 60) return `${s}s ago`;
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m ago`;
-  return `${Math.floor(m / 60)}h ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
 }
 
 function isAtTop(): boolean {
   return window.scrollY <= 0 && document.documentElement.scrollTop <= 0;
 }
 
-export function PullToRefresh({ onRefresh, children, accentColor = "#1A56DB", className = "" }: PullToRefreshProps) {
+export function PullToRefresh({ onRefresh, children, accentColor = "#F59E0B", className = "", onRefreshError }: PullToRefreshProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [pullY, setPullY] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [agoText, setAgoText] = useState("");
+  const [lastRefreshFailed, setLastRefreshFailed] = useState(false);
   const startY = useRef(0);
   const startX = useRef(0);
   const pulling = useRef(false);
@@ -46,11 +53,19 @@ export function PullToRefresh({ onRefresh, children, accentColor = "#1A56DB", cl
       const now = new Date();
       setLastUpdated(now);
       setAgoText(formatAgo(now));
+      setLastRefreshFailed(false);
+    } catch (err) {
+      setLastRefreshFailed(true);
+      if (onRefreshError) {
+        try { onRefreshError(err); } catch (cbErr) { log.warn("onRefreshError callback threw:", cbErr); }
+      } else {
+        log.warn("onRefresh failed:", err);
+      }
     } finally {
       setRefreshing(false);
       setPullY(0);
     }
-  }, [onRefresh]);
+  }, [onRefresh, onRefreshError]);
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     if (refreshing) return;
@@ -141,8 +156,8 @@ export function PullToRefresh({ onRefresh, children, accentColor = "#1A56DB", cl
 
       {lastUpdated && agoText && !refreshing && (
         <div className="flex items-center justify-center py-1">
-          <span className="text-[10px] font-medium text-gray-300">
-            Updated {agoText}
+          <span className={`text-[10px] font-medium ${lastRefreshFailed ? "text-amber-500" : "text-gray-300"}`}>
+            {lastRefreshFailed ? `Stale — last updated ${agoText}` : `Updated ${agoText}`}
           </span>
         </div>
       )}

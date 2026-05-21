@@ -344,25 +344,25 @@ export async function adminGet(endpoint: string): Promise<any> {
   return fetchAdmin(endpoint, { method: 'GET' });
 }
 
-export async function adminPost(endpoint: string, data?: any): Promise<any> {
+export async function adminPost(endpoint: string, data?: Record<string, unknown>): Promise<unknown> {
   return fetchAdmin(endpoint, {
     method: 'POST',
     body: data ? JSON.stringify(data) : undefined,
   });
 }
 
-export async function adminPut(endpoint: string, data?: any): Promise<any> {
+export async function adminPut(endpoint: string, data?: Record<string, unknown>): Promise<unknown> {
   return fetchAdmin(endpoint, {
     method: 'PUT',
     body: data ? JSON.stringify(data) : undefined,
   });
 }
 
-export async function adminDelete(endpoint: string): Promise<any> {
+export async function adminDelete(endpoint: string): Promise<unknown> {
   return fetchAdmin(endpoint, { method: 'DELETE' });
 }
 
-export async function adminPatch(endpoint: string, data?: any): Promise<any> {
+export async function adminPatch(endpoint: string, data?: Record<string, unknown>): Promise<unknown> {
   return fetchAdmin(endpoint, {
     method: 'PATCH',
     body: data ? JSON.stringify(data) : undefined,
