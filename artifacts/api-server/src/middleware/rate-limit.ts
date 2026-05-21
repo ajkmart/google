@@ -309,8 +309,8 @@ const WINDOW_1_MIN  = 60 * 1000;
 
 /* ── Broad traffic limiters ──────────────────────────────────────────────── */
 
-/** 300 req / 15 min (5000 in non-production) — blanket guard for all /api traffic. */
-export const globalLimiter = createRateLimiter({ prefix: "global", max: process.env.NODE_ENV !== "production" ? 5000 : 300, windowMs: WINDOW_15_MIN });
+/** 500 req / 15 min (5000 in non-production) — blanket guard for all /api traffic. */
+export const globalLimiter = createRateLimiter({ prefix: "global", max: process.env.NODE_ENV !== "production" ? 5000 : 500, windowMs: WINDOW_15_MIN });
 
 /** 20 req / 15 min — legacy guard for OTP/login/social-auth routes (use specific limiters where possible). */
 export const authLimiter = createRateLimiter({ prefix: "auth", max: 20, windowMs: WINDOW_15_MIN });
@@ -452,4 +452,32 @@ export const userApiLimiter = createRateLimiter({
   prefix: "user-api", max: 100, windowMs: WINDOW_1_MIN, tier: "lenient",
   keyGenerator: (req) => userOrIpKey(req),
   extra: { skip: (req: Request) => req.method === "OPTIONS" },
+});
+
+/**
+ * uploadLimiter — 30 uploads / 60 min / IP.
+ * Applied globally to /api/uploads to prevent storage and bandwidth abuse
+ * by unauthenticated or authenticated callers uploading at scale.
+ */
+export const uploadLimiter = createRateLimiter({
+  prefix: "upload",
+  max: 30,
+  windowMs: WINDOW_60_MIN,
+  tier: "standard",
+  keyGenerator: (req) => ipKey(req),
+  message: { success: false, error: "Upload limit reached. Try again in 1 hour." },
+});
+
+/**
+ * adminActionLimiter — 100 requests / 10 min / admin ID (fallback to IP).
+ * Apply to sensitive admin mutation endpoints (bulk deletes, payouts, config
+ * changes) to prevent runaway scripts or compromised tokens from causing damage.
+ */
+export const adminActionLimiter = createRateLimiter({
+  prefix: "admin-action",
+  max: 100,
+  windowMs: 10 * 60 * 1000,
+  tier: "strict",
+  keyGenerator: (req) => (req as Request & { adminId?: string }).adminId ?? ipKey(req),
+  message: { success: false, error: "Admin action rate limit exceeded." },
 });

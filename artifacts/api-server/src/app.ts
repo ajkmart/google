@@ -35,7 +35,7 @@ import { recordResponseTime } from "./lib/metrics/responseTime.js";
 import { checkSchemaDrift } from "./services/schemaDrift.service.js";
 import { checkMigrationGuard } from "./services/migrationGuard.service.js";
 import router from "./routes/index.js";
-import { globalLimiter } from "./middleware/rate-limit.js";
+import { globalLimiter, uploadLimiter } from "./middleware/rate-limit.js";
 import { suspiciousPatternDetector } from "./middleware/suspiciousPatternDetector.js";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./docs/swagger.js";
@@ -667,13 +667,27 @@ export async function createServer() {
   app.use(cookieParser());
 
   /* ── HTTP response compression (gzip/brotli) ──────────────────────────────
-     Applied after cookieParser and before the API router. Skipped for
-     health and proxy paths so they are not affected. */
+     Applied after cookieParser and before the API router.
+     - level 6: balanced speed/ratio (zlib default is 6)
+     - threshold 1024: skip compression for responses < 1 KB (health, tiny 204s)
+     - x-no-compression: opt-out header for internal/proxy calls that handle
+       their own compression or need raw bytes (e.g. binary stream proxies)
+     - Proxy paths skipped: already served by upstream Vite dev servers. */
   // @ts-expect-error -- compression types don't fully align with Express 5 overloads at compile time; runtime behavior is correct
   app.use(compression({
+    level: 6,
+    threshold: 1024,
     filter: (req, res) => {
+      if (req.headers["x-no-compression"]) return false;
       const url = req.originalUrl ?? req.url ?? "";
-      if (url === "/health" || url.startsWith("/admin") || url.startsWith("/vendor") || url.startsWith("/rider") || url.startsWith("/customer") || url.startsWith("/__mockup")) {
+      if (
+        url === "/health" ||
+        url.startsWith("/admin") ||
+        url.startsWith("/vendor") ||
+        url.startsWith("/rider") ||
+        url.startsWith("/customer") ||
+        url.startsWith("/__mockup")
+      ) {
         return false;
       }
       return compression.filter(req, res);
@@ -771,10 +785,35 @@ export async function createServer() {
     }),
   );
 
+  /* ── Cache-Control headers for public / private API routes ───────────────
+     Set before the router so headers are present on all matching responses.
+     - Public static data (categories, banners, platform-config): 5 min CDN cache
+       with stale-while-revalidate so clients never wait on a slow origin fetch.
+     - Auth endpoints: no-store to prevent credential/token caching anywhere.
+     - Wallet/orders: private, no-store — financial data must never be shared. */
+  app.use((req, res, next) => {
+    if (
+      req.path.startsWith("/api/categories") ||
+      req.path.startsWith("/api/banners") ||
+      req.path.startsWith("/api/platform-config")
+    ) {
+      res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=60");
+    } else if (req.path.startsWith("/api/auth")) {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    } else if (
+      req.path.startsWith("/api/wallet") ||
+      req.path.startsWith("/api/orders")
+    ) {
+      res.setHeader("Cache-Control", "private, no-store");
+    }
+    next();
+  });
+
   app.use("/api", (req, res, next) => {
     if (req.path === "/health" || req.path.startsWith("/health/")) return next();
     return globalLimiter(req, res, next);
   });
+  app.use("/api/uploads", uploadLimiter);
   app.use("/api", suspiciousPatternDetector);
   app.use("/api", router);
 
