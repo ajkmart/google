@@ -38,10 +38,6 @@ args = "Vendor App"
 task = "workflow.run"
 args = "Rider App"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Customer App"
-
 [[workflows.workflow]]
 name = "API Server"
 author = "agent"
@@ -89,18 +85,6 @@ outputType = "console"
 task = "shell.exec"
 args = "cd artifacts/rider-app && pnpm dev"
 waitForPort = 3002
-
-[[workflows.workflow]]
-name = "Customer App"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd artifacts/ajkmart && PORT=3003 pnpm dev"
-waitForPort = 3003
 
 [agent]
 stack = "BEST_EFFORT_FALLBACK"
