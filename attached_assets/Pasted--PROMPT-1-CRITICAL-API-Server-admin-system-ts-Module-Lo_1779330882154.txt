@@ -1,0 +1,39 @@
+═══ PROMPT 1 — CRITICAL: API Server admin/system.ts Module Load Fix ═══
+Task: Fix the root cause of the API server crash loop.
+Error: SyntaxError: The requested module './admin/system.js' does not provide
+       an export named 'router'
+Root Cause: When any top-level import inside admin/system.ts fails at ESM
+evaluation time, Node.js reports the parent module as "missing export".
+The file has `export { router }` at the end — but the module never finishes
+loading because of a bad import chain.
+Files to fix:
+- artifacts/api-server/src/routes/admin/system.ts
+STEP 1 — Audit all top-level imports:
+  system.ts imports:
+    - sendAdminAlert, sendAdminPasswordResetLinkEmail → from ../../services/email.js
+    - issueAdminPasswordResetToken → from ../../services/admin-password.service.js
+    - sendOtpSMS → from ../../services/sms.js
+    - sendWhatsAppOTP → from ../../services/whatsapp.js
+    - Large block of DB schema tables from @workspace/db/schema
+    - Large block of named imports from ../admin-shared.js
+    - emitSosNew, emitSosAcknowledged, emitSosResolved → from ../../lib/socketio.js
+    - hashPassword → from ../../services/password.js
+    - auditLog, securityEvents, blockIP, unblockIP, etc. → from ../../middleware/security.js
+    - validateBody → from ../../middleware/validate.js
+STEP 2 — For each import, verify:
+  a) The source file exists at the exact path
+  b) The named export actually exists in the source file
+  c) No circular dependency chain
+STEP 3 — Remove ALL unused imports from system.ts:
+  The file is 113 lines but imports 40+ symbols.
+  Only keep imports that are actually used in the file body.
+  Unused imports are dead weight and can mask load failures.
+STEP 4 — Verify the export:
+  The last line must be: export { router };  OR  export default router;
+  admin.ts uses: import { router as systemRoutes } from "./admin/system.js"
+  So named export `export { router }` is correct — keep it.
+STEP 5 — Add defensive import guard:
+  Wrap service imports in try/catch at module level if they are non-critical.
+  Critical DB imports should stay as-is (fail-fast is correct there).
+Acceptance: API server starts without crash. `admin/system.ts` loads cleanly.
+            `pnpm tsc --noEmit` in api-server shows 0 errors for this file.
