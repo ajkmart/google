@@ -7,6 +7,7 @@ import {
   otpAttemptsTable,
   reviewsTable,
   rideBidsTable,
+  rideEventLogsTable,
   rideRatingsTable,
   rideServiceTypesTable,
   riderPenaltiesTable,
@@ -3254,6 +3255,67 @@ router.post("/rides/:id/reject-offer", async (req, res) => {
       );
 
     sendSuccess(res, undefined, "Ride dismissed");
+  } catch (err) {
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
+    sendError(res, "Internal server error", 500);
+  }
+});
+
+/* ── POST /rider/rides/:id/event-log — GPS-tagged audit event ──
+   Records a rider-emitted lifecycle event (e.g. "arrived_at_pickup",
+   "customer_not_found") against the ride for admin audit.
+   Body: { event: string, lat?: number, lng?: number }
+   Guards: ride must belong to this rider. */
+const rideEventLogSchema = z.object({
+  event: z.string().min(1).max(100),
+  lat: z.number().min(-90).max(90).optional().nullable(),
+  lng: z.number().min(-180).max(180).optional().nullable(),
+});
+
+router.post("/rides/:id/event-log", async (req, res) => {
+  try {
+    const riderId = req.riderId!;
+    const rideId = req.params["id"] as string;
+
+    const parsed = rideEventLogSchema.safeParse(req.body);
+    if (!parsed.success) {
+      sendValidationError(res, parsed.error.issues[0]?.message || "Invalid event data");
+      return;
+    }
+    const { event, lat, lng } = parsed.data;
+
+    const [ride] = await db
+      .select({ id: ridesTable.id, status: ridesTable.status, riderId: ridesTable.riderId })
+      .from(ridesTable)
+      .where(eq(ridesTable.id, rideId))
+      .limit(1);
+
+    if (!ride) {
+      sendNotFound(res, "Ride not found");
+      return;
+    }
+    if (ride.riderId !== riderId) {
+      sendForbidden(res, "You are not assigned to this ride");
+      return;
+    }
+
+    const logId = generateId();
+    await db.insert(rideEventLogsTable).values({
+      id: logId,
+      rideId,
+      riderId,
+      event,
+      lat: lat != null ? String(lat) : null,
+      lng: lng != null ? String(lng) : null,
+    });
+
+    sendSuccess(res, { id: logId, rideId, event }, "Event logged");
   } catch (err) {
     logger.error(
       {
