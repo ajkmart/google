@@ -12,6 +12,12 @@ import { getAdminTiming } from "@/lib/adminTiming";
 import { lockBodyScroll } from "@/lib/domSafety";
 import { createLogger } from "@/lib/logger";
 import {
+  getAdminSocket,
+  resetSosBadge,
+  socketStatus$,
+  type SocketStatus,
+} from "@/lib/adminSocket";
+import {
   BOTTOM_NAV,
   isActivePath,
   NAV_DESCRIPTIONS,
@@ -42,7 +48,7 @@ import {
   X,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { io, type Socket } from "socket.io-client";
+import { type Socket } from "socket.io-client";
 import { Link, useLocation } from "wouter";
 const log = createLogger("[AdminLayout]");
 
@@ -106,6 +112,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const [socketStatus, setSocketStatus] = useState<SocketStatus>(socketStatus$.value);
+  const [justConnected, setJustConnected] = useState(false);
   const [sosCount, setSosCount] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
   const [pendingRidersCount, setPendingRidersCount] = useState(0);
@@ -150,6 +158,41 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       if (cmdHintTimerRef.current) clearTimeout(cmdHintTimerRef.current);
     };
   }, [cmdHintVisible]);
+
+  // Subscribe to socket connection status observable
+  useEffect(() => {
+    const handler = (s: SocketStatus) => {
+      setSocketStatus(s);
+      if (s === "connected") {
+        setJustConnected(true);
+        const t = setTimeout(() => setJustConnected(false), 2500);
+        return () => clearTimeout(t);
+      }
+    };
+    socketStatus$.listeners.add(handler);
+    return () => {
+      socketStatus$.listeners.delete(handler);
+    };
+  }, []);
+
+  // Reset SOS sidebar badge when admin is on the SOS page
+  useEffect(() => {
+    if (location === "/sos-alerts") {
+      resetSosBadge();
+    }
+  }, [location]);
+
+  // Listen for SOS badge updates from the shared socket (localStorage-backed)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const count = (e as CustomEvent<{ count: number }>).detail?.count;
+      if (typeof count === "number") {
+        setSosCount((c) => Math.max(c, count));
+      }
+    };
+    window.addEventListener("sos:badge:update", handler);
+    return () => window.removeEventListener("sos:badge:update", handler);
+  }, []);
 
   // Socket + data fetching
   useEffect(() => {
@@ -207,61 +250,55 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     }, getAdminTiming().layoutErrorPollIntervalMs);
     const cleanupErrorInterval = () => clearInterval(errorInterval);
 
-    // Socket uses in-memory access token from adminAuthContext
-    const socket = io(window.location.origin, {
-      path: "/api/socket.io",
-      query: { rooms: "admin-fleet" },
-      auth: (cb: (data: Record<string, string>) => void) => cb({ token: state.accessToken || "" }),
-      transports: ["websocket", "polling"],
-    });
+    // Use the shared admin socket (same instance as AdminNotificationBell)
+    if (!state.accessToken) return cleanupErrorInterval;
+    const socket = getAdminSocket(state.accessToken);
     socketRef.current = socket;
-    socket.on("connect", () => socket.emit("join", "admin-fleet"));
-    socket.on("sos:new", () => {
+
+    const onSosNew = () => {
       setSosCount((c) => c + 1);
       if ("vibrate" in navigator) navigator.vibrate([200, 100, 200]);
-    });
-    socket.on("sos:resolved", () => setSosCount((c) => Math.max(0, c - 1)));
-
-    // Pending orders: increment on new order, refresh on any status update
-    socket.on("order:new", (data: { status?: string }) => {
+    };
+    const onSosResolved = () => setSosCount((c) => Math.max(0, c - 1));
+    const onOrderNew = (data: { status?: string }) => {
       if (!data || data.status === "pending") setPendingOrdersCount((c) => c + 1);
-    });
-    socket.on("order:update", (data: { status?: string }) => {
-      // When an order leaves pending state, decrement; re-fetch to stay accurate
+    };
+    const onOrderUpdate = (data: { status?: string }) => {
       if (data?.status && data.status !== "pending") {
         fetchPendingCounts();
       }
-    });
+    };
+    const onRiderStatus = () => fetchPendingCounts();
+    const onWalletChange = () => fetchPendingCounts();
+    const onProductSubmitted = () => setPendingProductsCount((c) => c + 1);
+    const onProductApproved = () => setPendingProductsCount((c) => Math.max(0, c - 1));
+    const onProductRejected = () => setPendingProductsCount((c) => Math.max(0, c - 1));
 
-    // Pending rider approvals: any rider status change → refresh
-    socket.on("rider:status", () => {
-      fetchPendingCounts();
-    });
-
-    // Pending withdrawals/deposits: refresh when one is approved/rejected
-    socket.on("wallet:deposit-approved", () => {
-      fetchPendingCounts();
-    });
-    socket.on("wallet:withdrawal-approved", () => {
-      fetchPendingCounts();
-    });
-    socket.on("wallet:withdrawal-rejected", () => {
-      fetchPendingCounts();
-    });
-
-    // Pending product approvals: increment when vendor submits, refresh on approve/reject
-    socket.on("product:submitted", () => {
-      setPendingProductsCount((c) => c + 1);
-    });
-    socket.on("product:approved", () => {
-      setPendingProductsCount((c) => Math.max(0, c - 1));
-    });
-    socket.on("product:rejected", () => {
-      setPendingProductsCount((c) => Math.max(0, c - 1));
-    });
+    socket.on("sos:new", onSosNew);
+    socket.on("sos:resolved", onSosResolved);
+    socket.on("order:new", onOrderNew);
+    socket.on("order:update", onOrderUpdate);
+    socket.on("rider:status", onRiderStatus);
+    socket.on("wallet:deposit-approved", onWalletChange);
+    socket.on("wallet:withdrawal-approved", onWalletChange);
+    socket.on("wallet:withdrawal-rejected", onWalletChange);
+    socket.on("product:submitted", onProductSubmitted);
+    socket.on("product:approved", onProductApproved);
+    socket.on("product:rejected", onProductRejected);
 
     return () => {
-      socket.disconnect();
+      // Only remove our specific listeners — do NOT disconnect the shared socket
+      socket.off("sos:new", onSosNew);
+      socket.off("sos:resolved", onSosResolved);
+      socket.off("order:new", onOrderNew);
+      socket.off("order:update", onOrderUpdate);
+      socket.off("rider:status", onRiderStatus);
+      socket.off("wallet:deposit-approved", onWalletChange);
+      socket.off("wallet:withdrawal-approved", onWalletChange);
+      socket.off("wallet:withdrawal-rejected", onWalletChange);
+      socket.off("product:submitted", onProductSubmitted);
+      socket.off("product:approved", onProductApproved);
+      socket.off("product:rejected", onProductRejected);
       socketRef.current = null;
       cleanupErrorInterval();
     };
@@ -1160,6 +1197,23 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <AlertTriangle className="relative z-10 h-3.5 w-3.5" />
             </div>
           </Link>
+        )}
+
+        {/* Socket connection status banners */}
+        {socketStatus === "disconnected" && !justConnected && (
+          <div className="z-20 bg-red-500 py-1 text-center text-xs text-white">
+            ⚡ Disconnected from real-time server. Some data may be stale.
+          </div>
+        )}
+        {socketStatus === "reconnecting" && (
+          <div className="z-20 bg-yellow-500 py-1 text-center text-xs text-white">
+            🔄 Reconnecting to real-time server…
+          </div>
+        )}
+        {justConnected && socketStatus === "connected" && (
+          <div className="z-20 bg-emerald-500 py-1 text-center text-xs text-white">
+            ✓ Connected to real-time server
+          </div>
         )}
 
         {/* Header */}

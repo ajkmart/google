@@ -550,6 +550,26 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
       });
     });
 
+    /* admin:join event: admin clients request all admin rooms at once */
+    socket.on("admin:join", (payload: { token?: string }) => {
+      if (!payload || typeof payload.token !== "string") return;
+      const adminAuth = { token: payload.token };
+      if (isAuthorizedForAdminFleet(headers, query, adminAuth)) {
+        socket.join("admin-fleet");
+        socket.join("admin-orders");
+        socket.join("admin-support");
+        logger.debug(
+          { socketId: socket.id },
+          "Socket joined admin rooms via admin:join"
+        );
+      } else {
+        logger.debug(
+          { socketId: socket.id },
+          "Socket admin:join denied (unauthorized)"
+        );
+      }
+    });
+
     /* Join event: client can request additional rooms after connect */
     socket.on("join", (room: string) => {
       if (typeof room !== "string") return;

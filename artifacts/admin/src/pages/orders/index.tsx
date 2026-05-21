@@ -16,12 +16,14 @@ import {
 } from "@/hooks/use-admin";
 import { useToast } from "@/hooks/use-toast";
 import { adminFetch } from "@/lib/adminFetcher";
+import { getAdminSocket } from "@/lib/adminSocket";
 import { formatCurrency } from "@/lib/format";
+import { useAdminAuth } from "@/lib/adminAuthContext";
 import { useLanguage } from "@/lib/useLanguage";
 import { useQueryClient } from "@tanstack/react-query";
 import { tDual, type TranslationKey } from "@workspace/i18n";
-import { AlertTriangle, Download, RefreshCw, ShoppingBag } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, Download, RefreshCw, ShoppingBag, Zap } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SortDir, SortKey } from "./constants";
 import { STATUS_LABELS, exportOrdersCSV } from "./constants";
 import { DeliverConfirmDialog } from "./DeliverConfirmDialog";
@@ -48,6 +50,81 @@ export default function Orders() {
   const assignMutation = useAssignRider();
   const refundMutation = useOrderRefund();
   const { toast } = useToast();
+  const { state } = useAdminAuth();
+  const queryClient = useQueryClient();
+
+  // Track which order IDs received a live update recently (for "Updated just now" indicator)
+  const [liveUpdatedOrders, setLiveUpdatedOrders] = useState<Map<string, number>>(new Map());
+  const liveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Real-time order status updates via shared admin socket
+  useEffect(() => {
+    if (!state.accessToken) return;
+    const socket = getAdminSocket(state.accessToken);
+
+    type OrderStatusPayload = {
+      id?: string;
+      orderId?: string;
+      status?: string;
+      updatedAt?: string;
+    };
+
+    const applyOrderUpdate = (data: OrderStatusPayload) => {
+      const id = data.id ?? data.orderId;
+      if (!id || !data.status) return;
+
+      // Update the row in-place across all cached paginated pages
+      queryClient.setQueriesData(
+        { queryKey: ["admin-orders-enriched"], exact: false },
+        (old: unknown) => {
+          if (!old || typeof old !== "object") return old;
+          const page = old as { orders?: unknown[] };
+          if (!Array.isArray(page.orders)) return old;
+          const orders = page.orders as Array<Record<string, unknown>>;
+          const idx = orders.findIndex((o) => o.id === id);
+          if (idx === -1) return old;
+          const updated = [...orders];
+          updated[idx] = {
+            ...updated[idx],
+            status: data.status,
+            updatedAt: data.updatedAt ?? new Date().toISOString(),
+          };
+          return { ...page, orders: updated };
+        }
+      );
+
+      // Mark this order as recently updated for the "Updated just now" badge
+      setLiveUpdatedOrders((prev) => new Map(prev).set(id, Date.now()));
+
+      // Clear the indicator after 6 seconds
+      const existing = liveTimers.current.get(id);
+      if (existing) clearTimeout(existing);
+      const t = setTimeout(() => {
+        setLiveUpdatedOrders((prev) => {
+          const next = new Map(prev);
+          next.delete(id);
+          return next;
+        });
+        liveTimers.current.delete(id);
+      }, 6000);
+      liveTimers.current.set(id, t);
+    };
+
+    socket.on("order:status", applyOrderUpdate);
+    socket.on("order:update", applyOrderUpdate);
+
+    return () => {
+      socket.off("order:status", applyOrderUpdate);
+      socket.off("order:update", applyOrderUpdate);
+    };
+  }, [state.accessToken, queryClient]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      liveTimers.current.forEach((t) => clearTimeout(t));
+    };
+  }, []);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -384,17 +461,26 @@ export default function Orders() {
 
         <ActionBar
           secondary={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportCSV}
-              disabled={exporting}
-              className="h-9 gap-2 rounded-xl"
-              aria-label="Export orders as CSV"
-            >
-              <Download className="h-4 w-4" aria-hidden="true" />{" "}
-              {exporting ? "Exporting..." : "Export CSV"}
-            </Button>
+            <div className="flex items-center gap-2">
+              {liveUpdatedOrders.size > 0 && (
+                <div className="flex animate-pulse items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700">
+                  <Zap className="h-3.5 w-3.5" />
+                  {liveUpdatedOrders.size} order{liveUpdatedOrders.size !== 1 ? "s" : ""} updated
+                  live
+                </div>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportCSV}
+                disabled={exporting}
+                className="h-9 gap-2 rounded-xl"
+                aria-label="Export orders as CSV"
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />{" "}
+                {exporting ? "Exporting..." : "Export CSV"}
+              </Button>
+            </div>
           }
         />
 
