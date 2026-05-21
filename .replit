@@ -30,6 +30,10 @@ args = "DB Migrate"
 task = "workflow.run"
 args = "All Services"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "AJKMart App"
+
   [[workflows.workflow]]
 name = "DB Migrate"
 author = "agent"
@@ -39,7 +43,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd lib/db && pnpm push-force"
+args = "cd lib/db && DATABASE_URL=$(echo $DATABASE_URL | sed 's/-pooler//') pnpm push-force"
 
   [[workflows.workflow]]
   name = "All Services"
@@ -115,15 +119,15 @@ args = "cd lib/db && pnpm push-force"
   waitForPort = 3000
 
   [[workflows.workflow]]
-  name = "AJKMart App"
-  author = "agent"
+name = "AJKMart App"
+author = "agent"
 
   [workflows.workflow.metadata]
-  outputType = "console"
+outputType = "console"
 
-  [[workflows.workflow.tasks]]
-  task = "shell.exec"
-  args = "cd artifacts/ajkmart && pnpm dev"
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd artifacts/ajkmart && PORT=8081 pnpm dev"
 
   [agent]
 stack = "BEST_EFFORT_FALLBACK"

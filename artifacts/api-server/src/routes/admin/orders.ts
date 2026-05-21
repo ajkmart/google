@@ -1419,7 +1419,7 @@ const bulkOrderStatusSchema = z.object({
 });
 router.patch(
   "/orders/bulk-status",
-  requirePermission("orders.manage"),
+  requirePermission("orders.edit"),
   validateBody(bulkOrderStatusSchema),
   async (req, res) => {
     try {
