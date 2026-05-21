@@ -548,9 +548,21 @@ export function signUserJwt(
   );
 }
 
-/** Sign a short-lived access token, embedding tokenVersion + jti for revocation checks.
- *  TTL is read from cached platform settings (jwt_access_ttl_sec), falling back to ACCESS_TOKEN_TTL_SEC.
- *  jti (JWT ID) is a random UUID used for Redis-backed blacklisting on logout. */
+/**
+ * Signs a short-lived access JWT for a user.
+ *
+ * Embeds `tokenVersion` + a random `jti` (JWT ID) in the payload. The `jti`
+ * enables Redis-backed blacklisting on logout. TTL is read from
+ * `platform_settings.jwt_access_ttl_sec`, falling back to `ACCESS_TOKEN_TTL_SEC`
+ * env var, then to 15 minutes.
+ *
+ * @param userId       - The user's database ID
+ * @param phone        - Canonical phone number (for payload identification)
+ * @param role         - Primary role: "customer" | "rider" | "vendor"
+ * @param roles        - All comma-separated roles the user holds (e.g. "customer,rider")
+ * @param tokenVersion - Incremented on password change to invalidate old tokens
+ * @returns Signed JWT string
+ */
 export function signAccessToken(userId: string, phone: string, role: string, roles: string, tokenVersion = 0): string {
   const jti = crypto.randomUUID();
   return jwt.sign(

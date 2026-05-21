@@ -1,16 +1,21 @@
 import type { AppLogger } from "./logger.js";
 
 /**
- * fireAndForget — wraps a fire-and-forget async operation so it is
- * always logged on failure instead of silently swallowed.
+ * Executes an async operation in the background without blocking the caller.
+ * Errors are caught and logged — the calling request continues regardless.
  *
- * Usage:
- *   fireAndForget(emitWebhookEvent("order_delivered", payload), "webhook:order_delivered", logger);
- *   fireAndForget(db.delete(...), "otp-cleanup", logger, { userId, correlationId });
- *
- * The promise is NOT awaited. Errors are logged at `warn` level with the
- * full required schema { message, error, code, correlationId, timestamp }.
+ * The promise is NOT awaited. Errors are emitted at `warn` level with the
+ * full structured schema `{ message, error, code, correlationId, timestamp }`.
  * This keeps the response fast while ensuring failures are visible in logs.
+ *
+ * @example
+ * fireAndForget(emitWebhookEvent("order_delivered", payload), "webhook:order_delivered", logger);
+ * fireAndForget(db.delete(...), "otp-cleanup", logger, { userId, correlationId });
+ *
+ * @param promise - The async operation to execute
+ * @param label   - Identifier used in error logs (e.g. "auth:webhook:registered")
+ * @param log     - Pino logger instance
+ * @param meta    - Optional metadata added to error log (userId, code, etc.)
  */
 export function fireAndForget(
   promise: Promise<unknown>,

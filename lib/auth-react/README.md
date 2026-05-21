@@ -48,3 +48,25 @@ function App() {
 - `PasswordInput` — password field with show/hide toggle
 - `SocialButtons` — Google and Facebook sign-in buttons
 - `BiometricPrompt` — biometric authentication prompt overlay
+
+## Provider
+
+`SharedAuthProvider` wraps the app with both React Query (`QueryClientProvider`) and the shared `AuthContext`. Mount it once at the root of each web app:
+
+```tsx
+import { SharedAuthProvider } from "@workspace/auth-react";
+
+// In your app root (e.g. main.tsx or App.tsx)
+<SharedAuthProvider apiBase="/api">
+  <App />
+</SharedAuthProvider>
+```
+
+## Usage Across Apps
+
+| App | Uses `SharedAuthProvider` | Notes |
+|---|---|---|
+| **Admin Panel** (`artifacts/admin`) | Yes | Admin-scoped JWT, separate login page |
+| **Vendor App** (`artifacts/vendor-app`) | Yes | Vendor-scoped JWT |
+| **Rider App** (`artifacts/rider-app`) | Yes | Rider-scoped JWT |
+| **Customer App** (`artifacts/ajkmart`) | No | Uses native `AuthContext` + `expo-secure-store` |

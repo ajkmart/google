@@ -1,3 +1,10 @@
+/**
+ * @workspace/db schema barrel export.
+ * Every table in lib/db/src/schema/ is re-exported here.
+ * Import tables: import { usersTable, ordersTable } from "@workspace/db/schema"
+ * Import db:     import { db } from "@workspace/db"
+ * Total tables: 105+
+ */
 export * from "./users";
 export * from "./products";
 export * from "./orders";
