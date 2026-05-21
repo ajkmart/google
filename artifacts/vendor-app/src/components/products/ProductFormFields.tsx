@@ -79,13 +79,13 @@ export function ProductFormFields({
           )}
         </Field>
 
-        <Field label="Sale Price (crossed-out)">
+        <Field label="Original Price (shown crossed-out as 'was' price)">
           <input
             type="number"
             inputMode="numeric"
             value={form.originalPrice}
             onChange={(e) => f("originalPrice", e.target.value)}
-            placeholder="Original price"
+            placeholder="e.g. 500 (leave blank if no discount)"
             className={INPUT}
           />
         </Field>

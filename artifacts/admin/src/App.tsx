@@ -179,8 +179,12 @@ function ProtectedRoute({
 }
 
 function AppRoutes() {
+  const { state } = useAdminAuth();
   return (
     <Switch>
+      <Route path="/">
+        <RedirectTo to={state.accessToken ? "/dashboard" : "/login"} />
+      </Route>
       <Route path="/login">
         <Login />
       </Route>

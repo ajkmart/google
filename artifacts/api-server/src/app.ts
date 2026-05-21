@@ -794,7 +794,6 @@ export async function createServer() {
      - x-no-compression: opt-out header for internal/proxy calls that handle
        their own compression or need raw bytes (e.g. binary stream proxies)
      - Proxy paths skipped: already served by upstream Vite dev servers. */
-  // @ts-expect-error -- compression types don't fully align with Express 5 overloads at compile time; runtime behavior is correct
   app.use(
     compression({
       level: 6,
@@ -814,7 +813,7 @@ export async function createServer() {
         }
         return compression.filter(req, res);
       },
-    })
+    }) as unknown as express.RequestHandler
   );
 
   /* Capture raw body bytes on every JSON request so endpoints that rely on

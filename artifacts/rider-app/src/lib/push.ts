@@ -253,12 +253,13 @@ async function registerFcmPush(
 async function registerVapidPush(): Promise<void> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
   try {
-    const base = (riderEnv.baseUrl || "/").replace(/\/$/, "");
-    const reg = await navigator.serviceWorker.register(`${base}/sw.js`, { scope: base + "/" });
+    const swBase = (riderEnv.baseUrl || "/").replace(/\/$/, "");
+    const apiBase = getApiBase().replace(/\/+$/, "");
+    const reg = await navigator.serviceWorker.register(`${swBase}/sw.js`, { scope: swBase + "/" });
     const existing = await reg.pushManager.getSubscription();
     if (existing) return;
 
-    const vapidRes = await fetch(`${base}/api/push/vapid-key`);
+    const vapidRes = await fetch(`${apiBase}/push/vapid-key`);
     if (!vapidRes.ok) return;
     const vj = await vapidRes.json();
     const { publicKey } = (vj?.success === true && "data" in vj ? vj.data : vj) as {
@@ -279,7 +280,7 @@ async function registerVapidPush(): Promise<void> {
       log.warn("VAPID subscription registration skipped — no auth token (rider not logged in)");
       return;
     }
-    await fetch(`${base}/api/push/subscribe`, {
+    await fetch(`${apiBase}/push/subscribe`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({

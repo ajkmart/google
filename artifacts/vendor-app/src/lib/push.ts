@@ -267,7 +267,7 @@ async function registerFcmPush(
 async function registerVapidPush(onError?: PushErrorHandler): Promise<void> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
   try {
-    const base = (vendorEnv.baseUrl || "/").replace(/\/$/, "");
+    const swBase = (vendorEnv.baseUrl || "/").replace(/\/$/, "");
 
     /* Check if permission was denied before attempting registration */
     if (typeof Notification !== "undefined" && Notification.permission === "denied") {
@@ -275,13 +275,13 @@ async function registerVapidPush(onError?: PushErrorHandler): Promise<void> {
       return;
     }
 
-    const reg = await navigator.serviceWorker.register(`${base}/sw.js`);
+    const reg = await navigator.serviceWorker.register(`${swBase}/sw.js`);
     const existing = await reg.pushManager.getSubscription();
     if (existing) {
       /* Re-send the existing subscription to keep the server token fresh. */
       const authToken = getAuthToken();
       if (authToken) {
-        const res = await fetch(`${base}/api/push/subscribe`, {
+        const res = await fetch(`${API_ORIGIN}/api/push/subscribe`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
           body: JSON.stringify({
@@ -309,7 +309,7 @@ async function registerVapidPush(onError?: PushErrorHandler): Promise<void> {
       return;
     }
 
-    const vapidRes = await fetch(`${base}/api/push/vapid-key`);
+    const vapidRes = await fetch(`${API_ORIGIN}/api/push/vapid-key`);
     if (!vapidRes.ok) {
       onError?.("network_error");
       return;
@@ -333,7 +333,7 @@ async function registerVapidPush(onError?: PushErrorHandler): Promise<void> {
       log.warn("VAPID subscription registration skipped — no auth token (user not logged in)");
       return;
     }
-    const res = await fetch(`${base}/api/push/subscribe`, {
+    const res = await fetch(`${API_ORIGIN}/api/push/subscribe`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
       body: JSON.stringify({

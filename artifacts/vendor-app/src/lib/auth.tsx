@@ -55,18 +55,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    /* Try new namespaced key first, fall back to legacy key */
-    const t = localStorage.getItem("ajkmart_vendor_token") || localStorage.getItem("vendor_token");
+    /* api.ts module-init already migrated any localStorage token → sessionStorage
+       and wiped it from localStorage, so we must read from the api module's own
+       token storage (sessionStorage-backed + in-memory cache) rather than
+       directly from localStorage to avoid always appearing logged-out on refresh. */
+    const t = api.getToken();
     if (t) {
       setToken(t);
       api
         .getMe()
         .then((u) => {
           setUser(u);
-          if (!localStorage.getItem("ajkmart_vendor_token")) {
-            localStorage.setItem("ajkmart_vendor_token", t);
-            localStorage.removeItem("vendor_token");
-          }
         })
         .catch((e: Error & { pendingApproval?: boolean }) => {
           api.clearTokens();

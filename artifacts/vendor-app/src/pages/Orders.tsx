@@ -407,7 +407,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
       socket.io.off("reconnect");
       socket.disconnect();
       socketRef.current = null;
-      setSocketConnected(true);
+      setSocketConnected(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
