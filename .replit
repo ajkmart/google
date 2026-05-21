@@ -149,7 +149,7 @@ JWT_ISSUER = "ajkmart"
 VITE_API_PROXY_TARGET = "http://127.0.0.1:5000"
 VAPID_PUBLIC_KEY = "BEmlZZIGCb7ZhembOoH02qzZlnhkFrYkib27NwFgtXBFDcvtHhhWC2hfZEHU4JpDbfHIRgbrCiM_f9gEEc_JHLg"
 VAPID_CONTACT_EMAIL = "mailto:admin@ajkmart.app"
-ALLOWED_ORIGINS = "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:5000,http://localhost:5173,http://localhost:8081,http://localhost:19006"
+ALLOWED_ORIGINS = "https://b3201fc4-f009-4959-85ae-4330c25a4f31-00-1gdu8ql78smb4.sisko.replit.dev,https://b3201fc4-f009-4959-85ae-4330c25a4f31-00-1gdu8ql78smb4.sisko.replit.dev:3000,https://b3201fc4-f009-4959-85ae-4330c25a4f31-00-1gdu8ql78smb4.sisko.replit.dev:3001,https://b3201fc4-f009-4959-85ae-4330c25a4f31-00-1gdu8ql78smb4.sisko.replit.dev:3002,https://b3201fc4-f009-4959-85ae-4330c25a4f31-00-1gdu8ql78smb4.sisko.replit.dev:5000,https://b3201fc4-f009-4959-85ae-4330c25a4f31-00-1gdu8ql78smb4.sisko.replit.dev:8081,https://b3201fc4-f009-4959-85ae-4330c25a4f31-00-1gdu8ql78smb4.sisko.replit.dev:19006,http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:5000,http://localhost:5173,http://localhost:8081,http://localhost:19006"
 
 [userenv.development]
 

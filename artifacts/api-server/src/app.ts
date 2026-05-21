@@ -263,8 +263,8 @@ function validateCORS(): string[] {
             : null;
         return [
           `https://${replitDomain}`,
-          // External port variants mapped in .replit [[ports]] blocks
-          ...[3000, 3001, 3002, 8000].map((p) => `https://${replitDomain}:${p}`),
+          // API server + external port variants mapped in .replit [[ports]] blocks
+          ...[3000, 3001, 3002, 5000, 8000].map((p) => `https://${replitDomain}:${p}`),
           // Expo web dev server ports
           ...[19006, 8081].map((p) => `https://${replitDomain}:${p}`),
           // Expo .expo. subdomain variant used by Expo Go / dev client
@@ -283,7 +283,7 @@ function validateCORS(): string[] {
   // so the server can still start; operators should set ALLOWED_ORIGINS for
   // tighter control.
   const replitPortVariants = replitDomain
-    ? [3000, 3001, 3002, 8000].map((p) => `https://${replitDomain}:${p}`)
+    ? [3000, 3001, 3002, 5000, 8000].map((p) => `https://${replitDomain}:${p}`)
     : [];
   const fallback = [
     "http://localhost:5000",
@@ -752,7 +752,8 @@ export async function createServer() {
 
   // RegExp patterns for dynamic Replit preview subdomains that cannot be
   // enumerated as exact strings at startup time.
-  const ORIGIN_PATTERNS: RegExp[] = [/\.replit\.dev$/, /\.pike\.replit\.dev$/];
+  // Match any *.replit.dev origin, with or without a port number appended.
+  const ORIGIN_PATTERNS: RegExp[] = [/\.replit\.dev(:\d+)?$/];
 
   app.use(
     cors({
