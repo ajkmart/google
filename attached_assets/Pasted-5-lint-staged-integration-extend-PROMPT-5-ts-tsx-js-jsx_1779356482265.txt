@@ -1,0 +1,38 @@
+5. lint-staged integration (extend PROMPT 5):
+  "**/*.{ts,tsx,js,jsx}": ["prettier --write", "eslint --fix"],
+  "**/*.{json,yaml,yml}": ["prettier --write"],
+  "**/*.md": ["prettier --write"]
+Run initial format:
+  pnpm format
+Then commit: "style: apply Prettier formatting across all workspaces"
+Acceptance: `pnpm format:check` exits 0.
+            All .ts/.tsx files use consistent quote style, trailing commas, semicolons.
+            Import order organized automatically on save.
+
+═══ PROMPT 14 — Final: Full Stack Verification Checklist ═══
+Task: Verify all improvements from Prompts 1-13 are working end-to-end.
+─── A. TESTING CHECKS ───
+1. pnpm test (api-server) → all unit tests pass (≥ 80% coverage)
+2. pnpm test:integration → auth integration tests pass vs test DB
+3. pnpm test (admin) → component tests pass
+4. pnpm playwright test → E2E flows complete (login → dashboard → action)
+5. Deliberately failing test → CI catches it (non-zero exit code)
+─── B. DX CHECKS ───
+6. git commit with TS error → pre-commit hook blocks commit
+7. git commit with clean code → hook passes, commit succeeds
+8. git push → pre-push hook runs typecheck:all, 0 errors
+9. lib/db/README.md exists and is accurate
+10. getLogger() in route file → log includes requestId and userId
+─── C. PERFORMANCE CHECKS ───
+11. curl -H "Accept-Encoding: gzip" /api/products → Content-Encoding: gzip
+12. curl /api/health → dbPoolSize, dbIdleCount, dbWaitingCount visible
+13. pnpm analyze (admin) → bundle-stats.html opens in browser
+14. 501st request in 15min from same IP → HTTP 429 with rate limit message
+15. Slow DB query (artificial delay > 500ms) → [db] Slow query logged
+─── D. SECURITY CHECKS ───
+16. curl /api/health → X-Content-Type-Options: nosniff header present
+17. curl /api/health → X-Frame-Options: DENY header present
+18. curl with Origin: http://malicious.com → CORS error (not 200)
+19. POST /api/auth/login body: { identifier: "<script>alert(1)</script>" }
+    → input sanitized to empty string (no XSS stored)
+20. pnpm audit:check → 0 moderate/high vulnerabilities

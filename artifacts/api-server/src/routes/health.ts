@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import { sql, count, eq } from "drizzle-orm";
 import { platformSettingsTable } from "@workspace/db/schema";
 import { adminAuth } from "./admin-shared.js";
@@ -94,10 +94,19 @@ router.get("/", async (_req, res) => {
 
   const vpnDetection = getVpnCircuitBreakerStatus();
 
+  const dbPoolStats = pool
+    ? {
+        dbPoolSize: pool.totalCount,
+        dbIdleCount: pool.idleCount,
+        dbWaitingCount: pool.waitingCount,
+      }
+    : {};
+
   res.status(httpStatus).json({
     status: overallStatus,
     db: db2,
     redis: redis2,
+    ...dbPoolStats,
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
     serverEpoch: SERVER_EPOCH,
