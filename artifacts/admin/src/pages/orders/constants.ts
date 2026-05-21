@@ -41,22 +41,32 @@ export function escapeCSV(val: string): string {
 }
 
 export function exportOrdersCSV(orders: any[]) {
-  const header = "ID,Type,Status,Total,Payment,Customer,Rider,Date";
-  const rows = orders.map((o: any) =>
-    [
-      escapeCSV(o.id),
-      escapeCSV(o.type || ""),
-      escapeCSV(o.status || ""),
+  const header =
+    "orderId,date,customerId,customerName,vendorName,items,total,status,paymentMethod,type,riderName,deliveredAt";
+  const rows = orders.map((o: any) => {
+    const items = Array.isArray(o.items)
+      ? o.items
+          .map((i: any) => `${i.name ?? i.productName ?? ""}×${i.quantity ?? 1}`)
+          .join("; ")
+      : "";
+    return [
+      escapeCSV(o.id ?? ""),
+      escapeCSV(o.createdAt?.slice(0, 10) ?? ""),
+      escapeCSV(o.userId ?? o.customerId ?? ""),
+      escapeCSV(o.userName ?? o.customerName ?? ""),
+      escapeCSV(o.vendorName ?? ""),
+      escapeCSV(items),
       String(o.total ?? ""),
-      escapeCSV(o.paymentMethod || ""),
-      escapeCSV(o.userName || ""),
-      escapeCSV(o.riderName || ""),
-      escapeCSV(o.createdAt?.slice(0, 10) || ""),
-    ].join(",")
-  );
+      escapeCSV(o.status ?? ""),
+      escapeCSV(o.paymentMethod ?? ""),
+      escapeCSV(o.type ?? ""),
+      escapeCSV(o.riderName ?? ""),
+      escapeCSV(o.deliveredAt?.slice(0, 10) ?? ""),
+    ].join(",");
+  });
   const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `orders_${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
 }

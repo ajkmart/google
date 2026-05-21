@@ -78,6 +78,92 @@ router.get("/transactions", requirePermission("finance.transactions.view"), asyn
   });
 });
 
+/* ── Transactions CSV Export (streamed, up to 10 000 rows) ── */
+router.get(
+  "/transactions/export",
+  requirePermission("finance.transactions.view"),
+  async (req, res) => {
+    try {
+      const search = String(req.query["search"] ?? "").trim();
+      const typeFilter = req.query["type"] as string | undefined;
+      const dateFrom = req.query["dateFrom"] as string | undefined;
+      const dateTo = req.query["dateTo"] as string | undefined;
+
+      const where = and(
+        typeFilter ? eq(walletTransactionsTable.type, typeFilter) : undefined,
+        search
+          ? or(
+              ilike(walletTransactionsTable.description, `%${search}%`),
+              ilike(walletTransactionsTable.reference, `%${search}%`)
+            )
+          : undefined,
+        dateFrom ? sql`${walletTransactionsTable.createdAt} >= ${new Date(dateFrom)}` : undefined,
+        dateTo
+          ? sql`${walletTransactionsTable.createdAt} <= ${new Date(dateTo + "T23:59:59")}`
+          : undefined
+      );
+
+      const rows = await db
+        .select({
+          id: walletTransactionsTable.id,
+          userId: walletTransactionsTable.userId,
+          type: walletTransactionsTable.type,
+          amount: walletTransactionsTable.amount,
+          status: walletTransactionsTable.status,
+          reference: walletTransactionsTable.reference,
+          description: walletTransactionsTable.description,
+          createdAt: walletTransactionsTable.createdAt,
+        })
+        .from(walletTransactionsTable)
+        .where(where)
+        .orderBy(desc(walletTransactionsTable.createdAt))
+        .limit(10_000);
+
+      /* Enrich with user name */
+      const userIds = [...new Set(rows.map((r) => r.userId))];
+      const users =
+        userIds.length > 0
+          ? await db
+              .select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone })
+              .from(usersTable)
+              .where(sql`${usersTable.id} = ANY(ARRAY[${sql.raw(userIds.map((id) => `'${id}'`).join(","))}]::text[])`)
+          : [];
+      const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
+
+      const header = "id,date,userId,userName,userPhone,type,amount,status,reference,description";
+      const escape = (v: unknown) => {
+        let s = String(v ?? "");
+        if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+        if (s.includes(",") || s.includes('"') || s.includes("\n")) s = `"${s.replace(/"/g, '""')}"`;
+        return s;
+      };
+      const csvRows = rows.map((t) =>
+        [
+          escape(t.id),
+          escape(t.createdAt.toISOString().slice(0, 10)),
+          escape(t.userId),
+          escape(userMap[t.userId]?.name ?? ""),
+          escape(userMap[t.userId]?.phone ?? ""),
+          escape(t.type),
+          escape(parseFloat(t.amount).toFixed(2)),
+          escape(t.status ?? ""),
+          escape(t.reference ?? ""),
+          escape(t.description ?? ""),
+        ].join(",")
+      );
+
+      const csv = [header, ...csvRows].join("\n");
+      const filename = `transactions_${new Date().toISOString().slice(0, 10)}.csv`;
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.send(csv);
+    } catch (err) {
+      logger.error({ err }, "[transactions/export] failed");
+      res.status(500).send("Export failed");
+    }
+  }
+);
+
 /* ── Transactions Enriched (server-side paginated) ── */
 router.get(
   "/transactions-enriched",

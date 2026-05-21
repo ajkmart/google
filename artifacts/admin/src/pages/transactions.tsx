@@ -1,4 +1,5 @@
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ExportButton } from "@/components/ExportButton";
 import { FilterBar, PageHeader, StatCardSkeleton } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,7 +26,6 @@ import {
   ArrowUpDown,
   CalendarDays,
   DollarSign,
-  Download,
   Receipt,
   RefreshCw,
   TrendingDown,
@@ -34,27 +34,6 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-function exportTxnCSV(txns: any[]) {
-  const header = "ID,User,Phone,Type,Amount,Description,Date";
-  const rows = txns.map((t: any) =>
-    [
-      t.id,
-      t.userName || "",
-      t.userPhone || "",
-      t.type,
-      t.amount,
-      (t.description || "").replace(/,/g, ";"),
-      t.createdAt?.slice(0, 10) || "",
-    ].join(",")
-  );
-  const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
-  const a = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-  a.href = url;
-  a.download = `transactions-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
-}
 
 export default function Transactions() {
   const { language } = useLanguage();
@@ -162,14 +141,34 @@ export default function Transactions() {
           actions={
             <div className="flex items-center gap-2">
               <LastUpdated dataUpdatedAt={lastRefreshed?.getTime() ?? 0} />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => exportTxnCSV(sortedFiltered)}
-                className="h-9 gap-2 rounded-xl"
-              >
-                <Download className="h-4 w-4" /> {T("csvExport")}
-              </Button>
+              <ExportButton
+                filename="transactions"
+                label={T("csvExport")}
+                data={
+                  sortedFiltered.length <= 500
+                    ? sortedFiltered.map((t: any) => ({
+                        id: t.id,
+                        date: t.createdAt?.slice(0, 10) ?? "",
+                        userId: t.userId ?? "",
+                        userName: t.userName ?? "",
+                        type: t.type ?? "",
+                        amount: t.amount ?? "",
+                        status: t.status ?? "",
+                        reference: t.reference ?? "",
+                      }))
+                    : undefined
+                }
+                apiUrl={
+                  sortedFiltered.length > 500
+                    ? `/api/admin/transactions/export?${new URLSearchParams({
+                        ...(typeFilter !== "all" ? { type: typeFilter } : {}),
+                        ...(search ? { search } : {}),
+                        ...(dateFrom ? { dateFrom } : {}),
+                        ...(dateTo ? { dateTo } : {}),
+                      }).toString()}`
+                    : undefined
+                }
+              />
               <Button
                 variant="outline"
                 size="sm"

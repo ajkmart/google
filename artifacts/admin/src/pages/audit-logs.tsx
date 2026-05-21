@@ -1,4 +1,5 @@
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ExportButton } from "@/components/ExportButton";
 import { PageHeader } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -176,6 +177,30 @@ export default function AuditLogsPage() {
                 dataUpdatedAt={dataUpdatedAt}
                 onRefresh={refetch}
                 isRefreshing={isFetching}
+              />
+              <ExportButton
+                filename="audit_logs"
+                label="Export CSV"
+                data={
+                  entries.length > 0
+                    ? entries.map((entry: any) => ({
+                        timestamp: entry.timestamp
+                          ? new Date(entry.timestamp).toISOString()
+                          : "",
+                        adminId: entry.adminId ?? "",
+                        adminName: entry.adminName ?? "",
+                        action: entry.action ?? "",
+                        affectedUser: entry.affectedUserName ?? "",
+                        affectedUserRole: entry.affectedUserRole ?? "",
+                        ipAddress: entry.ip ?? "",
+                        result: entry.result ?? "",
+                        details: typeof entry.details === "object"
+                          ? JSON.stringify(entry.details)
+                          : String(entry.details ?? ""),
+                      }))
+                    : []
+                }
+                disabled={isLoading || entries.length === 0}
               />
               <Button
                 variant="outline"
