@@ -15,31 +15,31 @@ args = ["pnpm", "store", "prune"]
 env = { "CI" = "true" }
 
 [workflows]
-  runButton = "Project"
+runButton = "Project"
 
   [[workflows.workflow]]
-  name = "Project"
-  mode = "sequential"
-  author = "agent"
+name = "Project"
+mode = "parallel"
+author = "agent"
 
-  [[workflows.workflow.tasks]]
-  task = "workflow.run"
-  args = "DB Migrate"
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "DB Migrate"
 
-  [[workflows.workflow.tasks]]
-  task = "workflow.run"
-  args = "All Services"
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "All Services"
 
   [[workflows.workflow]]
-  name = "DB Migrate"
-  author = "agent"
+name = "DB Migrate"
+author = "agent"
 
   [workflows.workflow.metadata]
-  outputType = "console"
+outputType = "console"
 
-  [[workflows.workflow.tasks]]
-  task = "shell.exec"
-  args = "cd lib/db && pnpm push"
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd lib/db && pnpm push-force"
 
   [[workflows.workflow]]
   name = "All Services"
