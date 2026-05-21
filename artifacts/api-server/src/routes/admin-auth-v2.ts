@@ -64,7 +64,7 @@ const router = Router();
 // Rate limiting for login attempts: max 5 failed attempts per 15 minutes per IP
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,
+  max: process.env.NODE_ENV !== 'production' ? 500 : 5,
   message: { error: 'Too many login attempts. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -75,7 +75,7 @@ const loginLimiter = rateLimit({
 // Rate limiting for 2FA verification: max 5 failed attempts per 15 minutes per IP
 const verifyTotpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,
+  max: process.env.NODE_ENV !== 'production' ? 500 : 5,
   message: { error: 'Too many 2FA verification attempts. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,

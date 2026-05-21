@@ -137,6 +137,7 @@ function AppRoutes() {
       <Route path="/security"><ProtectedRoute component={Security} requirePermission="system.settings.view" /></Route>
       <Route path="/auth-methods"><ProtectedRoute component={AuthMethods} requirePermission="system.settings.edit" /></Route>
       <Route path="/auth-control"><ProtectedRoute component={AuthControl} requirePermission="system.settings.edit" /></Route>
+      <Route path="/categories"><ProtectedRoute component={Categories} requirePermission="content.products.view" /></Route>
     </Switch>
   );
 }

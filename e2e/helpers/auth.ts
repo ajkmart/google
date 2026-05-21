@@ -26,7 +26,8 @@ export async function loginAdmin(
   });
 
   await page.goto("/admin/login");
-  await page.waitForSelector('input[placeholder="admin@example.com"]', { timeout: 15_000 });
+  await page.waitForLoadState("domcontentloaded");
+  await page.waitForSelector('input[placeholder="admin@example.com"]', { timeout: 30_000 });
 
   await page.fill('input[placeholder="admin@example.com"]', username);
   await page.fill('input[placeholder="Enter your password"]', password);

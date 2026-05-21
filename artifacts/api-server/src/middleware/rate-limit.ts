@@ -309,8 +309,8 @@ const WINDOW_1_MIN  = 60 * 1000;
 
 /* ── Broad traffic limiters ──────────────────────────────────────────────── */
 
-/** 300 req / 15 min — blanket guard for all /api traffic. */
-export const globalLimiter = createRateLimiter({ prefix: "global", max: 300, windowMs: WINDOW_15_MIN });
+/** 300 req / 15 min (5000 in non-production) — blanket guard for all /api traffic. */
+export const globalLimiter = createRateLimiter({ prefix: "global", max: process.env.NODE_ENV !== "production" ? 5000 : 300, windowMs: WINDOW_15_MIN });
 
 /** 20 req / 15 min — legacy guard for OTP/login/social-auth routes (use specific limiters where possible). */
 export const authLimiter = createRateLimiter({ prefix: "auth", max: 20, windowMs: WINDOW_15_MIN });

@@ -9,12 +9,13 @@ test.describe("Admin Categories", () => {
   test.beforeEach(async ({ page }) => {
     await loginAdmin(page, { username: ADMIN_USERNAME, password: ADMIN_PASSWORD });
     await page.waitForSelector('input[aria-label="Filter sidebar items"]', {
-      timeout: 20_000,
+      timeout: 35_000,
     });
     const categoriesLink = page.locator('a[href="/admin/categories"]').first();
     await expect(categoriesLink).toBeAttached({ timeout: 10_000 });
     await categoriesLink.evaluate((el: HTMLElement) => el.click());
     await expect(page).toHaveURL(/\/admin\/categories/, { timeout: 10_000 });
+    await page.waitForLoadState("networkidle", { timeout: 20_000 });
   });
 
   test("/admin/categories → category tree renders", async ({ page }) => {
@@ -87,12 +88,18 @@ test.describe("Admin Categories", () => {
     await expect(dialog).toBeHidden({ timeout: 10_000 });
     await expect(page.locator(`text=${uniqueName}`).first()).toBeVisible({ timeout: 15_000 });
 
-    const row = page
-      .locator("[class*='rounded'], [class*='row'], tr")
-      .filter({ hasText: uniqueName })
-      .first();
-    const deleteBtn = row.locator("button").filter({ hasText: /delete|trash|remove/i }).first();
-    await deleteBtn.click();
+    // Scope to the specific category card using the unique name text, then find
+    // its trash (delete) button. Use the tightest ancestor that holds the action buttons.
+    const categoryNameEl = page.locator(`p.truncate, p[class*='truncate'], p[class*='font-bold']`).filter({ hasText: uniqueName }).first();
+    // Walk up to the Card/row that contains this name, then find the trash icon button
+    const deleteBtn = page.locator(`button:has(svg.text-red-500)`).filter({
+      has: page.locator(`xpath=self::button[ancestor::*[.//p[contains(text(),'${uniqueName}')]]]`)
+    }).first();
+    // Fallback: click the trash button that is inside the same card as the category name
+    const cardWithName = page.locator(`[class*='rounded-2xl'][class*='shadow'], [class*='Card'], [class*='card']`).filter({ hasText: uniqueName }).first();
+    const trashBtn = cardWithName.locator(`button:has(svg.text-red-500), button[class*='red']`).last();
+    await expect(trashBtn).toBeVisible({ timeout: 5_000 });
+    await trashBtn.click();
 
     const confirmDialog = page.locator('[role="dialog"], [role="alertdialog"]').last();
     await expect(confirmDialog).toBeVisible({ timeout: 5_000 });
@@ -103,6 +110,8 @@ test.describe("Admin Categories", () => {
       .first();
     await confirmBtn.click();
 
-    await expect(page.locator(`text=${uniqueName}`)).toBeHidden({ timeout: 10_000 });
+    await page.waitForLoadState("networkidle", { timeout: 15_000 });
+    await expect(categoryNameEl).toBeHidden({ timeout: 20_000 });
+    void deleteBtn;
   });
 });

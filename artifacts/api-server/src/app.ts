@@ -771,7 +771,10 @@ export async function createServer() {
     }),
   );
 
-  app.use("/api", globalLimiter);
+  app.use("/api", (req, res, next) => {
+    if (req.path === "/health" || req.path.startsWith("/health/")) return next();
+    return globalLimiter(req, res, next);
+  });
   app.use("/api", suspiciousPatternDetector);
   app.use("/api", router);
 
