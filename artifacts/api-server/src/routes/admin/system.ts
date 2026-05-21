@@ -1,46 +1,22 @@
-import { Router, type NextFunction } from "express";
-import { z } from "zod";
-import { sendAdminAlert, sendAdminPasswordResetLinkEmail } from "../../services/email.js";
-import { issueAdminPasswordResetToken } from "../../services/admin-password.service.js";
-import { sendOtpSMS } from "../../services/sms.js";
-import { sendWhatsAppOTP } from "../../services/whatsapp.js";
+import { Router } from "express";
 import { db } from "@workspace/db";
 import {
   usersTable,
-  walletTransactionsTable,
-  notificationsTable,
-  ordersTable, ridesTable, pharmacyOrdersTable, parcelBookingsTable, productsTable, platformSettingsTable, adminAccountsTable, authAuditLogTable, refreshTokensTable, rideRatingsTable, riderPenaltiesTable, reviewsTable,
-  vendorProfilesTable,
-  riderProfilesTable,
-  vendorSchedulesTable,
-  locationHistoryTable,
-  liveLocationsTable,
-  supportMessagesTable,
-  locationLogsTable,
-  integrationTestHistoryTable,
-  adminActionAuditLogTable,
+  platformSettingsTable,
   authEventsTable,
   otpAttemptsTable,
 } from "@workspace/db/schema";
-import { eq, desc, count, sum, and, gte, lte, sql, or, ilike, asc, isNull, isNotNull, avg, ne, lt, type SQL } from "drizzle-orm";
+import { eq, desc, and, gte, sql, type SQL } from "drizzle-orm";
 import {
-  stripUser, generateId, getUserLanguage, t,
-  getPlatformSettings, invalidatePlatformSettingsCache, adminAuth, getAdminSecret,
-  sendUserNotification, logger,
-  ORDER_NOTIF_KEYS, RIDE_NOTIF_KEYS, PHARMACY_NOTIF_KEYS, PARCEL_NOTIF_KEYS,
-  checkAdminLoginLockout, recordAdminLoginFailure, resetAdminLoginAttempts,
-  adminLoginAttempts, ADMIN_MAX_ATTEMPTS, ADMIN_LOCKOUT_TIME,
-  addAuditEntry, addSecurityEvent, getClientIp,
-  signAdminJwt, verifyAdminJwt, invalidateSettingsCache, getCachedSettings,
-  ADMIN_TOKEN_TTL_HRS, verifyTotpToken, verifyAdminSecret,
-  ensureDefaultRideServices, ensureDefaultLocations, formatSvc,
-  type AdminRequest, serializeSosAlert,
+  adminAuth,
+  invalidatePlatformSettingsCache,
+  invalidateSettingsCache,
+  getCachedSettings,
+  addAuditEntry,
+  getClientIp,
+  type AdminRequest,
 } from "../admin-shared.js";
-import { emitSosNew, emitSosAcknowledged, emitSosResolved, type SosAlertPayload } from "../../lib/socketio.js";
-import { hashPassword } from "../../services/password.js";
-import { sendSuccess, sendError, sendErrorWithData, sendNotFound, sendForbidden, sendValidationError } from "../../lib/response.js";
-import { auditLog, securityEvents, blockIP, unblockIP, isIPBlocked, getBlockedIPList, getActiveLockouts, unlockPhone } from "../../middleware/security.js";
-import { validateBody } from "../../middleware/validate.js";
+import { sendSuccess, sendValidationError } from "../../lib/response.js";
 
 const router = Router();
 
