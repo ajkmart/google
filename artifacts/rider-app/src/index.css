@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -47,7 +47,7 @@
   --accent-foreground: 0 0% 100%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
-  --app-font-sans: 'Inter', system-ui, sans-serif;
+  --app-font-sans: "Inter", system-ui, sans-serif;
   --radius: 0.75rem;
   --sat: env(safe-area-inset-top, 0px);
   --sar: env(safe-area-inset-right, 0px);
@@ -55,19 +55,19 @@
   --sal: env(safe-area-inset-left, 0px);
 
   /* Login page brand tokens — dark trading-platform theme */
-  --login-brand: #F0B90B;
-  --login-brand-hover: #D97706;
+  --login-brand: #f0b90b;
+  --login-brand-hover: #d97706;
   --login-brand-shadow: rgba(240, 185, 11, 0.25);
-  --login-brand-glow-sm: rgba(240, 185, 11, 0.30);
+  --login-brand-glow-sm: rgba(240, 185, 11, 0.3);
   --login-brand-glow-md: rgba(240, 185, 11, 0.35);
   --login-brand-glow-blob: rgba(240, 185, 11, 0.07);
-  --login-brand-border: rgba(240, 185, 11, 0.20);
-  --login-hero-from: #0B0E11;
-  --login-hero-via: #0D1017;
-  --login-hero-to: #0F1117;
-  --login-otp-filled-bg: rgba(240,185,11,0.08);
-  --login-otp-filled-border: #F0B90B;
-  --login-otp-filled-text: #F0B90B;
+  --login-brand-border: rgba(240, 185, 11, 0.2);
+  --login-hero-from: #0b0e11;
+  --login-hero-via: #0d1017;
+  --login-hero-to: #0f1117;
+  --login-otp-filled-bg: rgba(240, 185, 11, 0.08);
+  --login-otp-filled-border: #f0b90b;
+  --login-otp-filled-text: #f0b90b;
   --login-btn-radius: 0.75rem;
 }
 
@@ -97,10 +97,17 @@
     background-color: var(--login-brand);
     border-radius: var(--login-btn-radius);
     box-shadow: 0 1px 3px var(--login-brand-shadow);
-    transition: background-color 0.15s ease, opacity 0.15s ease;
+    transition:
+      background-color 0.15s ease,
+      opacity 0.15s ease;
   }
-  .login-btn-primary:hover:not(:disabled) { background-color: var(--login-brand-hover); }
-  .login-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .login-btn-primary:hover:not(:disabled) {
+    background-color: var(--login-brand-hover);
+  }
+  .login-btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
   .login-otp-box-filled {
     border-color: var(--login-otp-filled-border) !important;
     background-color: var(--login-otp-filled-bg) !important;
@@ -109,13 +116,23 @@
 }
 
 @keyframes loginStepIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
-.login-step-enter { animation: loginStepIn 0.22s ease-out; }
+.login-step-enter {
+  animation: loginStepIn 0.22s ease-out;
+}
 
 @layer base {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
@@ -130,7 +147,7 @@
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
     margin: 0;
     padding: 0;
     min-height: 100vh;
@@ -146,19 +163,28 @@
     flex-direction: column;
   }
 
-  button, a, label {
+  button,
+  a,
+  label {
     -webkit-user-select: none;
     user-select: none;
     cursor: pointer;
   }
 
-  input, textarea {
+  input,
+  textarea {
     -webkit-user-select: text;
     user-select: text;
   }
 
-  ::-webkit-scrollbar { display: none; width: 0; }
-  * { scrollbar-width: none; -ms-overflow-style: none; }
+  ::-webkit-scrollbar {
+    display: none;
+    width: 0;
+  }
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
 
   /* Autofill override — light mode */
   input:-webkit-autofill,
@@ -178,13 +204,23 @@
     transition: background-color 5000s ease-in-out 0s;
   }
 
-  button { min-height: 44px; }
+  button {
+    min-height: 44px;
+  }
 
   @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(12px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-  .page-enter { animation: fadeInUp 0.2s ease-out; }
+  .page-enter {
+    animation: fadeInUp 0.2s ease-out;
+  }
 }
 
 .bottom-nav-safe {
@@ -201,12 +237,26 @@
   overscroll-behavior-y: contain;
 }
 
-.card-1 { box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04); }
-.card-2 { box-shadow: 0 4px 6px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04); }
-.card-3 { box-shadow: 0 10px 15px rgba(0,0,0,0.08), 0 4px 6px rgba(0,0,0,0.04); }
+.card-1 {
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.card-2 {
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.06),
+    0 2px 4px rgba(0, 0, 0, 0.04);
+}
+.card-3 {
+  box-shadow:
+    0 10px 15px rgba(0, 0, 0, 0.08),
+    0 4px 6px rgba(0, 0, 0, 0.04);
+}
 
 .android-press {
-  transition: transform 0.1s ease, opacity 0.1s ease;
+  transition:
+    transform 0.1s ease,
+    opacity 0.1s ease;
   -webkit-tap-highlight-color: transparent;
 }
 .android-press:active {
@@ -215,8 +265,12 @@
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 .skeleton {
   background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
@@ -233,7 +287,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -241,22 +297,41 @@
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* Ripple press effect */
-.ripple-container { position: relative; overflow: hidden; }
+.ripple-container {
+  position: relative;
+  overflow: hidden;
+}
 .ripple-effect {
   position: absolute;
   border-radius: 50%;
@@ -266,7 +341,10 @@
   pointer-events: none;
 }
 @keyframes ripple {
-  to { transform: scale(4); opacity: 0; }
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
 }
 
 /* Header gradient safe-area utility */
@@ -275,22 +353,38 @@
 }
 
 /* Card shadow utilities */
-.card-3 { box-shadow: 0 10px 15px rgba(0,0,0,0.08), 0 4px 6px rgba(0,0,0,0.04); }
+.card-3 {
+  box-shadow:
+    0 10px 15px rgba(0, 0, 0, 0.08),
+    0 4px 6px rgba(0, 0, 0, 0.04);
+}
 
 /* Toast animation */
 @keyframes toastIn {
-  from { transform: translateY(-100%) scale(0.95); opacity: 0; }
-  to   { transform: translateY(0) scale(1); opacity: 1; }
+  from {
+    transform: translateY(-100%) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }
-.toast-in { animation: toastIn 0.25s cubic-bezier(0.32, 0.72, 0, 1); }
+.toast-in {
+  animation: toastIn 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+}
 
 /* Input focus ring */
-input:focus-visible, textarea:focus-visible, select:focus-visible {
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
   border-color: #10b981 !important;
 }
 
 /* Font size 16px prevents iOS zoom on focus */
-input, textarea, select {
+input,
+textarea,
+select {
   font-size: 16px;
 }

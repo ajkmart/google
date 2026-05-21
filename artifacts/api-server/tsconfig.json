@@ -8,5 +8,5 @@
     "skipLibCheck": true
   },
   "include": ["src"],
-  "exclude": ["src/routes/admin/_archive"],
+  "exclude": ["src/routes/admin/_archive"]
 }

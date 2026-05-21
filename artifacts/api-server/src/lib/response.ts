@@ -19,7 +19,12 @@ const DEFAULT_UR: Record<number, string> = {
   503: "سروس دستیاب نہیں ہے۔",
 };
 
-export function sendSuccess(res: Response, data?: unknown, message?: string, statusCode?: number): void {
+export function sendSuccess(
+  res: Response,
+  data?: unknown,
+  message?: string,
+  statusCode?: number
+): void {
   const code = statusCode ?? 200;
   const body: ApiResponse = { success: true };
   if (data !== undefined) body.data = data;
@@ -35,14 +40,25 @@ export function sendAccepted<T>(res: Response, data: T, message?: string): void 
   sendSuccess(res, data, message, 202);
 }
 
-export function sendError(res: Response, error: string, statusCode?: number, message?: string): void {
+export function sendError(
+  res: Response,
+  error: string,
+  statusCode?: number,
+  message?: string
+): void {
   const code = statusCode ?? 500;
   const body: ApiResponse = { success: false, error };
   body.message = message || DEFAULT_UR[code] || DEFAULT_UR[500]!;
   res.status(code).json(body);
 }
 
-export function sendErrorWithData<T>(res: Response, error: string, data: T, statusCode?: number, message?: string): void {
+export function sendErrorWithData<T>(
+  res: Response,
+  error: string,
+  data: T,
+  statusCode?: number,
+  message?: string
+): void {
   const code = statusCode ?? 500;
   const body: ApiResponse<T> = { success: false, error, data };
   body.message = message || DEFAULT_UR[code] || DEFAULT_UR[500]!;
@@ -53,7 +69,11 @@ export function sendValidationError(res: Response, error: string, message?: stri
   sendError(res, error, 400, message || "توثیق کی خرابی۔ اپنا ان پٹ چیک کریں۔");
 }
 
-export function sendUnauthorized(res: Response, error = "Authentication required.", message?: string): void {
+export function sendUnauthorized(
+  res: Response,
+  error = "Authentication required.",
+  message?: string
+): void {
   sendError(res, error, 401, message);
 }
 

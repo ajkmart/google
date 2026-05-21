@@ -1,14 +1,14 @@
-import { formatCurrency as _sharedFc } from "@workspace/api-zod";
-import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ShieldAlert, AlertTriangle, CheckCircle, RefreshCw, ArrowLeft, Info } from "lucide-react";
-import { api } from "../lib/api";
-import { usePlatformConfig, formatDateTz } from "../lib/useConfig";
-import { useLanguage } from "../lib/useLanguage";
+import { formatCurrency as _sharedFc } from "@workspace/api-zod";
 import { tDual } from "@workspace/i18n";
+import { AlertTriangle, ArrowLeft, CheckCircle, Info, RefreshCw, ShieldAlert } from "lucide-react";
+import { useCallback } from "react";
+import { Link } from "wouter";
 import { PullToRefresh } from "../components/PullToRefresh";
 import { ErrorState } from "../components/ui/ErrorState";
-import { Link } from "wouter";
+import { api } from "../lib/api";
+import { formatDateTz, usePlatformConfig } from "../lib/useConfig";
+import { useLanguage } from "../lib/useLanguage";
 
 type Penalty = {
   id: string;
@@ -20,28 +20,29 @@ type Penalty = {
 
 function penaltyTypeLabel(type: string): string {
   const map: Record<string, string> = {
-    ignore:   "Ride Ignored",
-    cancel:   "Order Cancelled",
-    late:     "Late Delivery",
-    conduct:  "Conduct Violation",
-    fraud:    "Fraud Attempt",
+    ignore: "Ride Ignored",
+    cancel: "Order Cancelled",
+    late: "Late Delivery",
+    conduct: "Conduct Violation",
+    fraud: "Fraud Attempt",
   };
-  return map[type] ?? type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  return map[type] ?? type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function penaltyColor(type: string): string {
   const map: Record<string, string> = {
-    ignore:  "bg-amber-50 text-amber-700 border-amber-200",
-    cancel:  "bg-orange-50 text-orange-700 border-orange-200",
-    late:    "bg-yellow-50 text-yellow-700 border-yellow-200",
+    ignore: "bg-amber-50 text-amber-700 border-amber-200",
+    cancel: "bg-orange-50 text-orange-700 border-orange-200",
+    late: "bg-yellow-50 text-yellow-700 border-yellow-200",
     conduct: "bg-red-50 text-red-700 border-red-200",
-    fraud:   "bg-red-100 text-red-800 border-red-300",
+    fraud: "bg-red-100 text-red-800 border-red-300",
   };
   return map[type] ?? "bg-gray-50 text-gray-700 border-gray-200";
 }
 
 function penaltyIcon(type: string) {
-  if (type === "conduct" || type === "fraud") return <AlertTriangle size={16} className="shrink-0" />;
+  if (type === "conduct" || type === "fraud")
+    return <AlertTriangle size={16} className="shrink-0" />;
   return <ShieldAlert size={16} className="shrink-0" />;
 }
 
@@ -70,9 +71,9 @@ export default function PenaltyHistory() {
     <PullToRefresh onRefresh={handlePullRefresh} accentColor="#10B981">
       <div className="min-h-screen bg-gray-50 pb-20">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-4 pt-4 pb-3 flex items-center gap-3 sticky top-0 z-10">
+        <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-200 bg-white px-4 pt-4 pb-3">
           <Link href="/profile">
-            <button className="h-9 w-9 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
+            <button className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200">
               <ArrowLeft size={18} />
             </button>
           </Link>
@@ -83,29 +84,33 @@ export default function PenaltyHistory() {
           <button
             onClick={() => refetch()}
             disabled={isFetching}
-            className="h-9 w-9 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors disabled:opacity-50"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 disabled:opacity-50"
           >
             <RefreshCw size={16} className={isFetching ? "animate-spin" : ""} />
           </button>
         </div>
 
-        <div className="px-4 pt-4 space-y-4">
+        <div className="space-y-4 px-4 pt-4">
           {/* Summary card */}
           {!isLoading && !isError && (
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center justify-between shadow-sm">
+            <div className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
               <div>
-                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Total Deducted</p>
-                <p className="text-2xl font-bold text-red-600 mt-0.5">
+                <p className="text-xs font-medium tracking-wide text-gray-500 uppercase">
+                  Total Deducted
+                </p>
+                <p className="mt-0.5 text-2xl font-bold text-red-600">
                   {currency} {_sharedFc(String(totalDeducted), currency)}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">{penalties.length} record{penalties.length !== 1 ? "s" : ""}</p>
+                <p className="mt-1 text-xs text-gray-400">
+                  {penalties.length} record{penalties.length !== 1 ? "s" : ""}
+                </p>
               </div>
               {penalties.length === 0 ? (
-                <div className="h-14 w-14 rounded-2xl bg-green-50 flex items-center justify-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-green-50">
                   <CheckCircle size={28} className="text-green-500" />
                 </div>
               ) : (
-                <div className="h-14 w-14 rounded-2xl bg-red-50 flex items-center justify-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50">
                   <ShieldAlert size={28} className="text-red-400" />
                 </div>
               )}
@@ -113,21 +118,26 @@ export default function PenaltyHistory() {
           )}
 
           {/* Info banner */}
-          <div className="flex items-start gap-2.5 bg-blue-50 border border-blue-100 rounded-xl px-3.5 py-3">
-            <Info size={15} className="text-blue-500 mt-0.5 shrink-0" />
-            <p className="text-xs text-blue-700 leading-relaxed">
-              Penalties are deducted from your wallet for policy violations such as ignoring ride requests, cancelling orders, or conduct issues. Contact support if you believe a penalty was applied in error.
+          <div className="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50 px-3.5 py-3">
+            <Info size={15} className="mt-0.5 shrink-0 text-blue-500" />
+            <p className="text-xs leading-relaxed text-blue-700">
+              Penalties are deducted from your wallet for policy violations such as ignoring ride
+              requests, cancelling orders, or conduct issues. Contact support if you believe a
+              penalty was applied in error.
             </p>
           </div>
 
           {/* Loading */}
           {isLoading && (
             <div className="space-y-3">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-2/5 mb-2" />
-                  <div className="h-3 bg-gray-100 rounded w-3/5 mb-2" />
-                  <div className="h-3 bg-gray-100 rounded w-1/4" />
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="animate-pulse rounded-xl border border-gray-100 bg-white p-4"
+                >
+                  <div className="mb-2 h-4 w-2/5 rounded bg-gray-200" />
+                  <div className="mb-2 h-3 w-3/5 rounded bg-gray-100" />
+                  <div className="h-3 w-1/4 rounded bg-gray-100" />
                 </div>
               ))}
             </div>
@@ -145,33 +155,37 @@ export default function PenaltyHistory() {
           {/* Empty */}
           {!isLoading && !isError && penalties.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="h-20 w-20 rounded-3xl bg-green-50 flex items-center justify-center mb-4">
+              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-3xl bg-green-50">
                 <CheckCircle size={40} className="text-green-400" />
               </div>
               <p className="text-lg font-semibold text-gray-800">No Penalties</p>
-              <p className="text-sm text-gray-500 mt-1 max-w-xs">Great job! You have a clean record with no penalties.</p>
+              <p className="mt-1 max-w-xs text-sm text-gray-500">
+                Great job! You have a clean record with no penalties.
+              </p>
             </div>
           )}
 
           {/* Penalty list */}
           {!isLoading && !isError && penalties.length > 0 && (
             <div className="space-y-2.5">
-              {penalties.map(p => {
+              {penalties.map((p) => {
                 const amt = parseFloat(String(p.amount) || "0");
                 const color = penaltyColor(p.type);
                 return (
                   <div
                     key={p.id}
-                    className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm"
+                    className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold ${color}`}>
+                      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold ${color}`}
+                        >
                           {penaltyIcon(p.type)}
                           {penaltyTypeLabel(p.type)}
                         </span>
                       </div>
-                      <div className="text-right shrink-0">
+                      <div className="shrink-0 text-right">
                         <p className="text-base font-bold text-red-600">
                           − {currency} {_sharedFc(String(amt), currency)}
                         </p>
@@ -179,11 +193,21 @@ export default function PenaltyHistory() {
                     </div>
 
                     {p.reason && (
-                      <p className="text-sm text-gray-600 mt-2 leading-relaxed">{p.reason}</p>
+                      <p className="mt-2 text-sm leading-relaxed text-gray-600">{p.reason}</p>
                     )}
 
-                    <p className="text-xs text-gray-400 mt-2">
-                      {formatDateTz(p.createdAt, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }, tz)}
+                    <p className="mt-2 text-xs text-gray-400">
+                      {formatDateTz(
+                        p.createdAt,
+                        {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        },
+                        tz
+                      )}
                     </p>
                   </div>
                 );

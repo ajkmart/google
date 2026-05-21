@@ -1,4 +1,4 @@
-import { logger } from '../logger.js';
+import { logger } from "../logger.js";
 /**
  * Cursor-based pagination utility.
  *
@@ -34,7 +34,13 @@ export function decodeCursor(cursor: string | undefined | null): string | null {
     const decoded = Buffer.from(cursor, "base64url").toString("utf-8");
     return decoded || null;
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return null;
   }
 }
@@ -68,8 +74,7 @@ export function buildCursorPage<T>({
   const hasMore = data.length > limit;
   const pageData = hasMore ? data.slice(0, limit) : data;
   const lastRow = pageData[pageData.length - 1];
-  const nextCursor =
-    hasMore && lastRow != null ? encodeCursor(getCursorValue(lastRow)) : null;
+  const nextCursor = hasMore && lastRow != null ? encodeCursor(getCursorValue(lastRow)) : null;
 
   return { data: pageData, nextCursor, hasMore };
 }

@@ -19,10 +19,10 @@
  *   - At least one in-stock product in the DB (productId below).
  */
 
-const BASE_URL    = process.argv[2] ?? "http://localhost:4000";
+const BASE_URL = process.argv[2] ?? "http://localhost:4000";
 const AUTH_HEADER = process.argv[3] ?? "";
 
-const PRODUCT_ID  = process.env.STRESS_PRODUCT_ID ?? "test-product-id";
+const PRODUCT_ID = process.env.STRESS_PRODUCT_ID ?? "test-product-id";
 const CONCURRENCY = 50;
 
 if (!AUTH_HEADER) {
@@ -37,7 +37,7 @@ async function createOrder(index) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": AUTH_HEADER,
+        Authorization: AUTH_HEADER,
         "X-Idempotency-Key": `stress-test-${index}-${Date.now()}`,
       },
       body: JSON.stringify({
@@ -76,15 +76,15 @@ async function main() {
 
   const globalStart = Date.now();
   const promises = Array.from({ length: CONCURRENCY }, (_, i) => createOrder(i + 1));
-  const results  = await Promise.all(promises);
-  const elapsed  = Date.now() - globalStart;
+  const results = await Promise.all(promises);
+  const elapsed = Date.now() - globalStart;
 
-  const success    = results.filter(r => r.status === 201);
-  const clientErr  = results.filter(r => r.status >= 400 && r.status < 500);
-  const serverErr  = results.filter(r => r.status >= 500);
-  const networkErr = results.filter(r => r.status === 0);
+  const success = results.filter((r) => r.status === 201);
+  const clientErr = results.filter((r) => r.status >= 400 && r.status < 500);
+  const serverErr = results.filter((r) => r.status >= 500);
+  const networkErr = results.filter((r) => r.status === 0);
 
-  const durations = results.map(r => r.durationMs).sort((a, b) => a - b);
+  const durations = results.map((r) => r.durationMs).sort((a, b) => a - b);
   const p50 = durations[Math.floor(durations.length * 0.5)];
   const p95 = durations[Math.floor(durations.length * 0.95)];
   const p99 = durations[Math.floor(durations.length * 0.99)];
@@ -131,7 +131,7 @@ async function main() {
   process.exit(passed ? 0 : 1);
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error("Stress test failed:", err);
   process.exit(1);
 });

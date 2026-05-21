@@ -1,11 +1,17 @@
-import { logger } from "../lib/logger.js";
-import type { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
-import crypto from "crypto";
 import { db } from "@workspace/db";
-import { usersTable, refreshTokensTable, authAuditLogTable, rateLimitsTable, adminActionAuditLogTable, platformSettingsTable } from "@workspace/db/schema";
-import { eq, and, lt, gt, like, sql, isNull } from "drizzle-orm";
+import {
+  adminActionAuditLogTable,
+  authAuditLogTable,
+  platformSettingsTable,
+  rateLimitsTable,
+  refreshTokensTable,
+} from "@workspace/db/schema";
+import crypto from "crypto";
+import { and, eq, gt, like } from "drizzle-orm";
+import type { NextFunction, Request, Response } from "express";
+import jwt from "jsonwebtoken";
 import { generateId } from "../lib/id.js";
+import { logger } from "../lib/logger.js";
 
 /* ══════════════════════════════════════════════════════════════
    SETTINGS CACHE — platform_settings table with 60-second TTL
@@ -42,7 +48,10 @@ export async function isAdminIpWhitelisted(ip: string): Promise<boolean> {
     const raw = (settings["security_admin_ip_whitelist"] ?? "").trim();
     if (!raw) return true;
     if (ip === "unknown") return false;
-    const entries = raw.split(",").map((s) => s.trim()).filter(Boolean);
+    const entries = raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     const [ipAddr, ipPort] = ip.split(":");
     for (const entry of entries) {
       if (!entry.includes("/")) {
@@ -52,14 +61,18 @@ export async function isAdminIpWhitelisted(ip: string): Promise<boolean> {
       const [cidrIp, prefixRaw] = entry.split("/");
       const prefix = parseInt(prefixRaw, 10);
       if (!Number.isFinite(prefix)) continue;
-      const toNum = (value: string) => value.split(".").reduce((acc, part) => ((acc << 8) + (parseInt(part, 10) & 255)) >>> 0, 0);
-      const mask = prefix === 0 ? 0 : (~((1 << (32 - prefix)) - 1)) >>> 0;
+      const toNum = (value: string) =>
+        value.split(".").reduce((acc, part) => ((acc << 8) + (parseInt(part, 10) & 255)) >>> 0, 0);
+      const mask = prefix === 0 ? 0 : ~((1 << (32 - prefix)) - 1) >>> 0;
       if ((toNum(cidrIp) & mask) === (toNum(ipAddr) & mask)) return true;
       void ipPort;
     }
     return false;
   } catch (err) {
-    logger.warn({ err: err instanceof Error ? err.message : String(err), ip }, "[auth] admin IP whitelist check failed");
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err), ip },
+      "[auth] admin IP whitelist check failed"
+    );
     return false;
   }
 }
@@ -69,7 +82,7 @@ setImmediate(() => {
   getCachedSettings().catch((err: unknown) => {
     logger.warn(
       { err: err instanceof Error ? err.message : String(err) },
-      "[security] startup settings cache warm-up failed",
+      "[security] startup settings cache warm-up failed"
     );
   });
 });
@@ -88,8 +101,8 @@ if (!_jwtSecret || _jwtSecret.length < 32) {
 export const JWT_SECRET: string = _jwtSecret;
 
 /* Access token TTL defaults — overridden at runtime by platform settings jwt_access_ttl_sec / jwt_refresh_ttl_days */
-export const ACCESS_TOKEN_TTL_SEC = 900;      /* 15 minutes */
-export const REFRESH_TOKEN_TTL_DAYS = 7;       /* 7 days */
+export const ACCESS_TOKEN_TTL_SEC = 900; /* 15 minutes */
+export const REFRESH_TOKEN_TTL_DAYS = 7; /* 7 days */
 
 function safeInt(val: string | undefined, fallback: number, min = 1): number {
   const n = parseInt(val ?? String(fallback), 10);
@@ -175,18 +188,31 @@ async function refreshTorExitNodes(): Promise<void> {
     if (!resp.ok) {
       const msg = `TOR list HTTP error ${resp.status}`;
       logger.warn(`[TOR] Failed to refresh exit node list: ${msg}`);
-      addSecurityEvent({ type: "tor_list_refresh_failed", ip: "server", details: msg, severity: "low" });
+      addSecurityEvent({
+        type: "tor_list_refresh_failed",
+        ip: "server",
+        details: msg,
+        severity: "low",
+      });
       return;
     }
     const text = await resp.text();
-    const ips = text.split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("#"));
+    const ips = text
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith("#"));
     torExitNodes = new Set(ips);
     torListFetchedAt = Date.now();
     logger.info(`[TOR] Refreshed exit node list: ${torExitNodes.size} nodes`);
   } catch (err: any) {
     const msg = err?.message ?? "unknown error";
     logger.warn(`[TOR] Failed to fetch exit node list: ${msg}`);
-    addSecurityEvent({ type: "tor_list_refresh_failed", ip: "server", details: `TOR list fetch error: ${msg}`, severity: "low" });
+    addSecurityEvent({
+      type: "tor_list_refresh_failed",
+      ip: "server",
+      details: `TOR list fetch error: ${msg}`,
+      severity: "low",
+    });
   }
 }
 
@@ -195,14 +221,14 @@ setImmediate(() => {
   refreshTorExitNodes().catch((err: unknown) => {
     logger.warn(
       { err: err instanceof Error ? err.message : String(err) },
-      "[security] initial TOR exit-node refresh failed",
+      "[security] initial TOR exit-node refresh failed"
     );
   });
   setInterval(() => {
     refreshTorExitNodes().catch((err: unknown) => {
       logger.warn(
         { err: err instanceof Error ? err.message : String(err) },
-        "[security] scheduled TOR exit-node refresh failed",
+        "[security] scheduled TOR exit-node refresh failed"
       );
     });
   }, TOR_LIST_TTL_MS);
@@ -216,7 +242,7 @@ async function isTorExitNode(ip: string): Promise<boolean> {
     refreshTorExitNodes().catch((err: unknown) => {
       logger.warn(
         { err: err instanceof Error ? err.message : String(err) },
-        "[security] stale TOR exit-node background refresh failed",
+        "[security] stale TOR exit-node background refresh failed"
       );
     });
   }
@@ -232,12 +258,16 @@ let VPN_CACHE_TTL_MS = 10 * 60 * 1000;
 /* Circuit-breaker state for ip-api.com */
 let _vpnCbFailures = 0;
 let _vpnCbOpenedAt = 0;
-const VPN_CB_THRESHOLD = 3;          /* open after 3 consecutive failures */
-const VPN_CB_WINDOW_MS = 60_000;     /* within 60 seconds */
-const VPN_CB_RESET_MS  = 5 * 60_000; /* stay open for 5 minutes */
+const VPN_CB_THRESHOLD = 3; /* open after 3 consecutive failures */
+const VPN_CB_WINDOW_MS = 60_000; /* within 60 seconds */
+const VPN_CB_RESET_MS = 5 * 60_000; /* stay open for 5 minutes */
 
 /** Returns the current VPN-detection circuit-breaker status for observability. */
-export function getVpnCircuitBreakerStatus(): { status: "ok" | "degraded"; failures: number; openedAt: number | null } {
+export function getVpnCircuitBreakerStatus(): {
+  status: "ok" | "degraded";
+  failures: number;
+  openedAt: number | null;
+} {
   const isOpen = _vpnCbOpenedAt > 0 && Date.now() - _vpnCbOpenedAt < VPN_CB_RESET_MS;
   return {
     status: isOpen ? "degraded" : "ok",
@@ -252,7 +282,14 @@ async function isVpnOrProxy(ip: string): Promise<boolean> {
     return cached.isVpn;
   }
 
-  if (ip === "unknown" || ip.startsWith("127.") || ip.startsWith("::1") || ip.startsWith("10.") || ip.startsWith("192.168.") || ip.startsWith("172.")) {
+  if (
+    ip === "unknown" ||
+    ip.startsWith("127.") ||
+    ip.startsWith("::1") ||
+    ip.startsWith("10.") ||
+    ip.startsWith("192.168.") ||
+    ip.startsWith("172.")
+  ) {
     return false;
   }
 
@@ -267,25 +304,40 @@ async function isVpnOrProxy(ip: string): Promise<boolean> {
   }
 
   try {
-    const resp = await fetch(`http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,proxy,hosting`, {
-      signal: AbortSignal.timeout(5_000),
-    });
+    const resp = await fetch(
+      `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,proxy,hosting`,
+      {
+        signal: AbortSignal.timeout(5_000),
+      }
+    );
     if (!resp.ok) {
       _vpnCbFailures++;
       const willOpen = _vpnCbFailures >= VPN_CB_THRESHOLD;
       if (willOpen) _vpnCbOpenedAt = Date.now();
-      logger.warn({
-        provider: "ip-api.com",
+      logger.warn(
+        {
+          provider: "ip-api.com",
+          ip,
+          reason: `HTTP ${resp.status}`,
+          circuitBreakerState: willOpen ? "opened" : "closed",
+          consecutiveFailures: _vpnCbFailures,
+        },
+        "[VPN] provider unavailable — non-2xx response"
+      );
+      addSecurityEvent({
+        type: "vpn_check_failed",
         ip,
-        reason: `HTTP ${resp.status}`,
-        circuitBreakerState: willOpen ? "opened" : "closed",
-        consecutiveFailures: _vpnCbFailures,
-      }, "[VPN] provider unavailable — non-2xx response");
-      addSecurityEvent({ type: "vpn_check_failed", ip, details: `VPN check HTTP error ${resp.status}`, severity: "low" });
+        details: `VPN check HTTP error ${resp.status}`,
+        severity: "low",
+      });
       return false;
     }
-    interface IpApiResponse { status?: string; proxy?: boolean; hosting?: boolean; }
-    const data = await resp.json() as IpApiResponse;
+    interface IpApiResponse {
+      status?: string;
+      proxy?: boolean;
+      hosting?: boolean;
+    }
+    const data = (await resp.json()) as IpApiResponse;
     const isVpn = data.status === "success" && (data.proxy === true || data.hosting === true);
     vpnCache.set(ip, { isVpn, cachedAt: Date.now() });
     /* Successful call — reset failure counter */
@@ -296,14 +348,22 @@ async function isVpnOrProxy(ip: string): Promise<boolean> {
     _vpnCbFailures++;
     const willOpen = _vpnCbFailures >= VPN_CB_THRESHOLD;
     if (willOpen) _vpnCbOpenedAt = Date.now();
-    logger.warn({
-      provider: "ip-api.com",
+    logger.warn(
+      {
+        provider: "ip-api.com",
+        ip,
+        reason: msg,
+        circuitBreakerState: willOpen ? "opened" : "closed",
+        consecutiveFailures: _vpnCbFailures,
+      },
+      "[VPN] provider unavailable — network/timeout error"
+    );
+    addSecurityEvent({
+      type: "vpn_check_failed",
       ip,
-      reason: msg,
-      circuitBreakerState: willOpen ? "opened" : "closed",
-      consecutiveFailures: _vpnCbFailures,
-    }, "[VPN] provider unavailable — network/timeout error");
-    addSecurityEvent({ type: "vpn_check_failed", ip, details: `VPN check error: ${msg}`, severity: "low" });
+      details: `VPN check error: ${msg}`,
+      severity: "low",
+    });
     return false;
   }
 }
@@ -315,7 +375,8 @@ const blockedIPsCache = new Set<string>();
 
 async function loadBlockedIPs() {
   try {
-    const rows = await db.select({ key: rateLimitsTable.key })
+    const rows = await db
+      .select({ key: rateLimitsTable.key })
       .from(rateLimitsTable)
       .where(like(rateLimitsTable.key, "blocked_ip:%"));
     for (const row of rows) blockedIPsCache.add(row.key.replace("blocked_ip:", ""));
@@ -323,17 +384,22 @@ async function loadBlockedIPs() {
     logger.warn({ err: (e as Error).message }, "[security] loadBlockedIPs DB query failed");
   }
 }
-loadBlockedIPs().catch((e: Error) => logger.warn({ err: e.message }, "[security] loadBlockedIPs failed"));
+loadBlockedIPs().catch((e: Error) =>
+  logger.warn({ err: e.message }, "[security] loadBlockedIPs failed")
+);
 
 export async function blockIP(ip: string) {
   blockedIPsCache.add(ip);
   try {
-    await db.insert(rateLimitsTable).values({
-      key: `blocked_ip:${ip}`,
-      attempts: 0,
-      windowStart: new Date(),
-      updatedAt: new Date(),
-    }).onConflictDoNothing();
+    await db
+      .insert(rateLimitsTable)
+      .values({
+        key: `blocked_ip:${ip}`,
+        attempts: 0,
+        windowStart: new Date(),
+        updatedAt: new Date(),
+      })
+      .onConflictDoNothing();
   } catch (e) {
     logger.error({ ip, err: (e as Error).message }, "[security] blockIP DB insert failed");
   }
@@ -344,53 +410,74 @@ export async function unblockIP(ip: string) {
   try {
     await db.delete(rateLimitsTable).where(eq(rateLimitsTable.key, `blocked_ip:${ip}`));
   } catch (err) {
-    logger.warn({ ip, err: err instanceof Error ? err.message : String(err) }, "[security] unblockIP DB delete failed");
+    logger.warn(
+      { ip, err: err instanceof Error ? err.message : String(err) },
+      "[security] unblockIP DB delete failed"
+    );
   }
 }
 
 export async function isIPBlocked(ip: string): Promise<boolean> {
   if (blockedIPsCache.has(ip)) return true;
   try {
-    const [row] = await db.select({ key: rateLimitsTable.key }).from(rateLimitsTable)
-      .where(eq(rateLimitsTable.key, `blocked_ip:${ip}`)).limit(1);
+    const [row] = await db
+      .select({ key: rateLimitsTable.key })
+      .from(rateLimitsTable)
+      .where(eq(rateLimitsTable.key, `blocked_ip:${ip}`))
+      .limit(1);
     if (row) {
       blockedIPsCache.add(ip);
       return true;
     }
   } catch (err) {
-    logger.warn({ ip, err: err instanceof Error ? err.message : String(err) }, "[security] isIPBlocked DB query failed");
+    logger.warn(
+      { ip, err: err instanceof Error ? err.message : String(err) },
+      "[security] isIPBlocked DB query failed"
+    );
   }
   return false;
 }
 
 export async function getBlockedIPList(): Promise<string[]> {
   try {
-    const rows = await db.select({ key: rateLimitsTable.key })
+    const rows = await db
+      .select({ key: rateLimitsTable.key })
       .from(rateLimitsTable)
       .where(like(rateLimitsTable.key, "blocked_ip:%"));
-    const ips = rows.map(r => r.key.replace("blocked_ip:", ""));
+    const ips = rows.map((r) => r.key.replace("blocked_ip:", ""));
     for (const ip of ips) blockedIPsCache.add(ip);
     return ips;
   } catch (err) {
-    logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[security] getBlockedIPList DB query failed, returning cache");
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[security] getBlockedIPList DB query failed, returning cache"
+    );
     return Array.from(blockedIPsCache);
   }
 }
 
-export async function getActiveLockouts(): Promise<Array<{ key: string; attempts: number; lockedUntil: string | null; minutesLeft: number | null }>> {
+export async function getActiveLockouts(): Promise<
+  Array<{ key: string; attempts: number; lockedUntil: string | null; minutesLeft: number | null }>
+> {
   try {
     const now = new Date();
-    const rows = await db.select().from(rateLimitsTable)
-      .where(and(
-        gt(rateLimitsTable.attempts, 0),
-      ));
+    const rows = await db
+      .select()
+      .from(rateLimitsTable)
+      .where(and(gt(rateLimitsTable.attempts, 0)));
     return rows
-      .filter(r => !r.key.startsWith("blocked_ip:") && !r.key.startsWith("check-avail:") && !r.key.startsWith("ip_rate:"))
-      .map(r => {
+      .filter(
+        (r) =>
+          !r.key.startsWith("blocked_ip:") &&
+          !r.key.startsWith("check-avail:") &&
+          !r.key.startsWith("ip_rate:")
+      )
+      .map((r) => {
         const lockedUntilMs = r.lockedUntil?.getTime() ?? null;
-        const minutesLeft = lockedUntilMs && lockedUntilMs > now.getTime()
-          ? Math.ceil((lockedUntilMs - now.getTime()) / 60000)
-          : null;
+        const minutesLeft =
+          lockedUntilMs && lockedUntilMs > now.getTime()
+            ? Math.ceil((lockedUntilMs - now.getTime()) / 60000)
+            : null;
         return {
           key: r.key,
           attempts: r.attempts,
@@ -399,7 +486,13 @@ export async function getActiveLockouts(): Promise<Array<{ key: string; attempts
         };
       });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return [];
   }
 }
@@ -449,20 +542,25 @@ export function addAuditEntry(entry: Omit<AuditEntry, "timestamp">) {
   if (auditLog.length > 2000) auditLog.splice(2000);
 
   // Persist to DB asynchronously — never blocks the request
-  db.insert(adminActionAuditLogTable).values({
-    id:               generateId(),
-    adminId:          entry.adminId ?? null,
-    adminName:        entry.adminName ?? null,
-    ip:               entry.ip,
-    action:           entry.action,
-    result:           entry.result,
-    details:          entry.details ?? null,
-    affectedUserId:   entry.affectedUserId ?? null,
-    affectedUserName: entry.affectedUserName ?? null,
-    affectedUserRole: entry.affectedUserRole ?? null,
-  }).catch((err: unknown) => {
-    logger.warn({ err, action: entry.action }, "[audit] DB persist failed (in-memory copy retained)");
-  });
+  db.insert(adminActionAuditLogTable)
+    .values({
+      id: generateId(),
+      adminId: entry.adminId ?? null,
+      adminName: entry.adminName ?? null,
+      ip: entry.ip,
+      action: entry.action,
+      result: entry.result,
+      details: entry.details ?? null,
+      affectedUserId: entry.affectedUserId ?? null,
+      affectedUserName: entry.affectedUserName ?? null,
+      affectedUserRole: entry.affectedUserRole ?? null,
+    })
+    .catch((err: unknown) => {
+      logger.warn(
+        { err, action: entry.action },
+        "[audit] DB persist failed (in-memory copy retained)"
+      );
+    });
 }
 
 export function addSecurityEvent(event: Omit<SecurityEvent, "timestamp">) {
@@ -470,27 +568,35 @@ export function addSecurityEvent(event: Omit<SecurityEvent, "timestamp">) {
   securityEvents.unshift(entry);
   if (securityEvents.length > 2000) securityEvents.splice(2000);
 
-  import("@workspace/db").then(({ db }) =>
-    import("@workspace/db/schema").then(({ securityEventsTable }) =>
-      import("../lib/id.js").then(({ generateId }) =>
-        db.insert(securityEventsTable).values({
-          id:       generateId(),
-          type:     entry.type,
-          ip:       entry.ip,
-          userId:   entry.userId ?? null,
-          details:  entry.details,
-          severity: entry.severity,
-        }).catch((err: unknown) => {
-          logger.warn({ err }, "[security] DB persist of security event failed (in-memory copy retained)");
-        })
+  import("@workspace/db")
+    .then(({ db }) =>
+      import("@workspace/db/schema").then(({ securityEventsTable }) =>
+        import("../lib/id.js").then(({ generateId }) =>
+          db
+            .insert(securityEventsTable)
+            .values({
+              id: generateId(),
+              type: entry.type,
+              ip: entry.ip,
+              userId: entry.userId ?? null,
+              details: entry.details,
+              severity: entry.severity,
+            })
+            .catch((err: unknown) => {
+              logger.warn(
+                { err },
+                "[security] DB persist of security event failed (in-memory copy retained)"
+              );
+            })
+        )
       )
     )
-  ).catch((err: unknown) => {
-    logger.warn(
-      { err: err instanceof Error ? err.message : String(err), eventType: entry.type },
-      "[security] Dynamic import chain for security event DB persist failed",
-    );
-  });
+    .catch((err: unknown) => {
+      logger.warn(
+        { err: err instanceof Error ? err.message : String(err), eventType: entry.type },
+        "[security] Dynamic import chain for security event DB persist failed"
+      );
+    });
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -508,15 +614,18 @@ export async function writeAuthAuditLog(
 ): Promise<void> {
   try {
     await db.insert(authAuditLogTable).values({
-      id:        generateId(),
-      userId:    opts.userId ?? null,
+      id: generateId(),
+      userId: opts.userId ?? null,
       event,
-      ip:        opts.ip ?? "unknown",
+      ip: opts.ip ?? "unknown",
       userAgent: opts.userAgent ?? null,
-      metadata:  opts.metadata ? JSON.stringify(opts.metadata) : null,
+      metadata: opts.metadata ? JSON.stringify(opts.metadata) : null,
     });
   } catch (err) {
-    logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] Non-fatal — never let audit log writes crash the main flow`);
+    logger.debug(
+      { error: err instanceof Error ? err.message : String(err) },
+      `[fn] Non-fatal — never let audit log writes crash the main flow`
+    );
   }
 }
 
@@ -539,13 +648,12 @@ export function signUserJwt(
   phone: string,
   role: string,
   roles: string,
-  sessionDays: number,
+  sessionDays: number
 ): string {
-  return jwt.sign(
-    { sub: userId, phone, role, roles },
-    JWT_SECRET,
-    { algorithm: "HS256", expiresIn: `${sessionDays}d` },
-  );
+  return jwt.sign({ sub: userId, phone, role, roles }, JWT_SECRET, {
+    algorithm: "HS256",
+    expiresIn: `${sessionDays}d`,
+  });
 }
 
 /**
@@ -563,12 +671,18 @@ export function signUserJwt(
  * @param tokenVersion - Incremented on password change to invalidate old tokens
  * @returns Signed JWT string
  */
-export function signAccessToken(userId: string, phone: string, role: string, roles: string, tokenVersion = 0): string {
+export function signAccessToken(
+  userId: string,
+  phone: string,
+  role: string,
+  roles: string,
+  tokenVersion = 0
+): string {
   const jti = crypto.randomUUID();
   return jwt.sign(
     { sub: userId, phone, role, roles, tokenVersion, type: "access", jti },
     JWT_SECRET,
-    { algorithm: "HS256", expiresIn: getAccessTokenTtlSec() },
+    { algorithm: "HS256", expiresIn: getAccessTokenTtlSec() }
   );
 }
 
@@ -583,7 +697,10 @@ export async function blacklistJti(jti: string, expiresAt: number): Promise<void
     const ttlSec = Math.max(1, Math.ceil((expiresAt * 1000 - Date.now()) / 1000));
     await redisClient.set(`jwt:bl:${jti}`, "1", "EX", ttlSec);
   } catch (err) {
-    logger.warn({ jti, err: err instanceof Error ? err.message : String(err) }, "[auth] blacklistJti Redis error");
+    logger.warn(
+      { jti, err: err instanceof Error ? err.message : String(err) },
+      "[auth] blacklistJti Redis error"
+    );
   }
 }
 
@@ -600,7 +717,10 @@ export async function blacklistSessionHash(tokenHash: string, ttlSec?: number): 
     const expiry = ttlSec ?? getAccessTokenTtlSec();
     await redisClient.set(`session:bl:${tokenHash}`, "1", "EX", Math.max(1, expiry));
   } catch (err) {
-    logger.warn({ tokenHash: tokenHash.slice(0, 8), err: err instanceof Error ? err.message : String(err) }, "[auth] blacklistSessionHash Redis error");
+    logger.warn(
+      { tokenHash: tokenHash.slice(0, 8), err: err instanceof Error ? err.message : String(err) },
+      "[auth] blacklistSessionHash Redis error"
+    );
   }
 }
 
@@ -615,7 +735,10 @@ export async function isSessionHashBlacklisted(tokenHash: string): Promise<boole
     const result = await redisClient.exists(`session:bl:${tokenHash}`);
     return result === 1;
   } catch (err) {
-    logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[auth] isSessionHashBlacklisted Redis error");
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[auth] isSessionHashBlacklisted Redis error"
+    );
     return false;
   }
 }
@@ -631,7 +754,13 @@ export async function isJtiBlacklisted(jti: string): Promise<boolean> {
     const result = await redisClient.exists(`jwt:bl:${jti}`);
     return result === 1;
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return false;
   }
 }
@@ -659,7 +788,7 @@ export async function setUserRevocationTimestamp(userId: string): Promise<void> 
   } catch (err) {
     logger.warn(
       { userId, err: err instanceof Error ? err.message : String(err) },
-      "[auth] setUserRevocationTimestamp Redis error",
+      "[auth] setUserRevocationTimestamp Redis error"
     );
   }
 }
@@ -671,7 +800,10 @@ export async function setUserRevocationTimestamp(userId: string): Promise<void> 
  * blocks legitimate auth; only the tokenVersion DB check provides a
  * Redis-free guarantee for force-logout.
  */
-export async function isTokenIssuedBeforeRevocation(userId: string, iatSec: number): Promise<boolean> {
+export async function isTokenIssuedBeforeRevocation(
+  userId: string,
+  iatSec: number
+): Promise<boolean> {
   try {
     const { redisClient } = await import("../lib/redis.js");
     if (!redisClient) return false;
@@ -679,16 +811,28 @@ export async function isTokenIssuedBeforeRevocation(userId: string, iatSec: numb
     if (!val) return false;
     return iatSec * 1000 < parseInt(val, 10);
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return false;
   }
 }
 
-export function sign2faChallengeToken(userId: string, phone: string, role: string, roles: string, authMethod?: string): string {
+export function sign2faChallengeToken(
+  userId: string,
+  phone: string,
+  role: string,
+  roles: string,
+  authMethod?: string
+): string {
   return jwt.sign(
     { sub: userId, phone, role, roles, type: "2fa_challenge", authMethod: authMethod ?? undefined },
     JWT_SECRET,
-    { algorithm: "HS256", expiresIn: safeInt(settingsCache["jwt_2fa_challenge_sec"], 300, 30) },
+    { algorithm: "HS256", expiresIn: safeInt(settingsCache["jwt_2fa_challenge_sec"], 300, 30) }
   );
 }
 
@@ -707,13 +851,19 @@ export function verify2faChallengeToken(token: string): TwoFaChallengePayload | 
     if (!payload.sub) return null;
     return {
       userId: payload["sub"] as string,
-      phone: payload["phone"] as string ?? "",
-      role: payload["role"] as string ?? "customer",
-      roles: payload["roles"] as string ?? "customer",
+      phone: (payload["phone"] as string) ?? "",
+      role: (payload["role"] as string) ?? "customer",
+      roles: (payload["roles"] as string) ?? "customer",
       authMethod: (payload["authMethod"] as string) || undefined,
     };
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return null;
   }
 }
@@ -742,23 +892,32 @@ export function verifyUserJwt(token: string): JwtUserPayload | null {
     }
 
     return {
-      userId:       payload["sub"] as string,
-      phone:        payload["phone"] as string ?? "",
-      role:         payload["role"]  as string ?? "customer",
-      roles:        payload["roles"] as string ?? "customer",
-      tokenVersion: typeof payload["tokenVersion"] === "number" ? payload["tokenVersion"] : undefined,
-      jti:          typeof payload["jti"] === "string" ? payload["jti"] : undefined,
-      exp:          typeof payload.exp === "number" ? payload.exp : undefined,
-      iat:          typeof payload.iat === "number" ? payload.iat : undefined,
+      userId: payload["sub"] as string,
+      phone: (payload["phone"] as string) ?? "",
+      role: (payload["role"] as string) ?? "customer",
+      roles: (payload["roles"] as string) ?? "customer",
+      tokenVersion:
+        typeof payload["tokenVersion"] === "number" ? payload["tokenVersion"] : undefined,
+      jti: typeof payload["jti"] === "string" ? payload["jti"] : undefined,
+      exp: typeof payload.exp === "number" ? payload.exp : undefined,
+      iat: typeof payload.iat === "number" ? payload.iat : undefined,
     };
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return null;
   }
 }
 
 /* ── Legacy decode: kept for internal callers ── */
-export function decodeUserToken(token: string): { userId: string; phone: string; issuedAt: number } | null {
+export function decodeUserToken(
+  token: string
+): { userId: string; phone: string; issuedAt: number } | null {
   const v = verifyUserJwt(token);
   if (!v) return null;
   const raw = jwt.decode(token) as { iat?: number } | null;
@@ -790,23 +949,28 @@ export function invalidateSettingsCache(): void {
 /* ══════════════════════════════════════════════════════════════
    REFRESH TOKEN HELPERS
    ══════════════════════════════════════════════════════════════ */
-export async function isRefreshTokenValid(tokenHash: string): Promise<typeof refreshTokensTable.$inferSelect | null> {
+export async function isRefreshTokenValid(
+  tokenHash: string
+): Promise<typeof refreshTokensTable.$inferSelect | null> {
   try {
     const [row] = await db
       .select()
       .from(refreshTokensTable)
       .where(
-        and(
-          eq(refreshTokensTable.tokenHash, tokenHash),
-          eq(refreshTokensTable.revoked, false),
-        ),
+        and(eq(refreshTokensTable.tokenHash, tokenHash), eq(refreshTokensTable.revoked, false))
       )
       .limit(1);
     if (!row) return null;
     if (row.expiresAt < new Date()) return null;
     return row;
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return null;
   }
 }
@@ -822,7 +986,10 @@ export async function revokeRefreshToken(tokenHash: string, reason = "REVOKED"):
   }
 }
 
-export async function revokeAllUserRefreshTokens(userId: string, reason = "FORCE_LOGOUT"): Promise<void> {
+export async function revokeAllUserRefreshTokens(
+  userId: string,
+  reason = "FORCE_LOGOUT"
+): Promise<void> {
   try {
     await db
       .update(refreshTokensTable)
@@ -840,7 +1007,7 @@ export async function revokeAllUserRefreshTokens(userId: string, reason = "FORCE
 export async function checkLockout(
   key: string,
   _maxAttempts: number,
-  _lockoutMinutes: number,
+  _lockoutMinutes: number
 ): Promise<{ locked: boolean; minutesLeft: number }> {
   try {
     const [row] = await db
@@ -856,7 +1023,13 @@ export async function checkLockout(
     }
     return { locked: false, minutesLeft: 0 };
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return { locked: false, minutesLeft: 0 };
   }
 }
@@ -864,7 +1037,7 @@ export async function checkLockout(
 export async function recordFailedAttempt(
   key: string,
   maxAttempts: number,
-  lockoutMinutes: number,
+  lockoutMinutes: number
 ): Promise<{ locked: boolean; attempts: number }> {
   try {
     const settings = settingsCache;
@@ -929,7 +1102,7 @@ export async function unlockPhone(phone: string): Promise<void> {
 export async function checkAvailableRateLimit(
   ip: string,
   maxRequests: number,
-  windowMinutes: number,
+  windowMinutes: number
 ): Promise<{ limited: boolean; minutesLeft: number }> {
   try {
     const key = `rl:ip:${ip}`;
@@ -946,7 +1119,10 @@ export async function checkAvailableRateLimit(
       await db
         .insert(rateLimitsTable)
         .values({ key, attempts: 1, lockedUntil: null, windowStart: now, updatedAt: now })
-        .onConflictDoUpdate({ target: rateLimitsTable.key, set: { attempts: 1, windowStart: now, updatedAt: now } });
+        .onConflictDoUpdate({
+          target: rateLimitsTable.key,
+          set: { attempts: 1, windowStart: now, updatedAt: now },
+        });
       return { limited: false, minutesLeft: 0 };
     }
 
@@ -971,7 +1147,13 @@ export async function checkAvailableRateLimit(
     }
     return { limited: false, minutesLeft: 0 };
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return { limited: false, minutesLeft: 0 };
   }
 }
@@ -985,7 +1167,7 @@ export function detectGPSSpoof(
   prevUpdatedAt: string | Date,
   lat: number,
   lon: number,
-  maxSpeedKmh: number,
+  maxSpeedKmh: number
 ): { spoofed: boolean; speedKmh: number } {
   try {
     const R = 6371; // Earth radius in km
@@ -995,7 +1177,8 @@ export function detectGPSSpoof(
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos((prevLat * Math.PI) / 180) *
         Math.cos((lat * Math.PI) / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
     const distanceKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     const prevTs = typeof prevUpdatedAt === "string" ? new Date(prevUpdatedAt) : prevUpdatedAt;
@@ -1006,7 +1189,13 @@ export function detectGPSSpoof(
     const speedKmh = distanceKm / elapsedHours;
     return { spoofed: speedKmh > maxSpeedKmh, speedKmh };
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return { spoofed: false, speedKmh: 0 };
   }
 }
@@ -1033,9 +1222,9 @@ export async function customerAuth(req: Request, res: Response, next: NextFuncti
   }
 
   req.customerId = payload.userId;
-  req.userId     = payload.userId;
-  req.userPhone  = payload.phone;
-  req.userRole   = payload.role;
+  req.userId = payload.userId;
+  req.userPhone = payload.phone;
+  req.userRole = payload.role;
   next();
 }
 
@@ -1056,10 +1245,10 @@ export async function riderAuth(req: Request, res: Response, next: NextFunction)
     return;
   }
 
-  req.riderId   = payload.userId;
-  req.userId    = payload.userId;
+  req.riderId = payload.userId;
+  req.userId = payload.userId;
   req.userPhone = payload.phone;
-  req.userRole  = payload.role;
+  req.userRole = payload.role;
   next();
 }
 
@@ -1080,14 +1269,14 @@ export async function anyUserAuth(req: Request, res: Response, next: NextFunctio
     return;
   }
 
-  req.userId    = payload.userId;
+  req.userId = payload.userId;
   req.userPhone = payload.phone;
-  req.userRole  = payload.role;
+  req.userRole = payload.role;
 
   const role = payload.role?.toLowerCase() ?? "";
   if (role === "customer") req.customerId = payload.userId;
-  if (role === "rider")    req.riderId    = payload.userId;
-  if (role === "vendor")   req.vendorId   = payload.userId;
+  if (role === "rider") req.riderId = payload.userId;
+  if (role === "vendor") req.vendorId = payload.userId;
 
   next();
 }
@@ -1098,7 +1287,10 @@ export async function anyUserAuth(req: Request, res: Response, next: NextFunctio
  * Admin requests (req.adminId present) bypass the check.
  */
 export function idorGuard(req: Request, res: Response, next: NextFunction): void {
-  if (req.adminId) { next(); return; }
+  if (req.adminId) {
+    next();
+    return;
+  }
 
   const callerId = req.userId ?? req.customerId ?? req.riderId;
   if (!callerId) {
@@ -1106,7 +1298,7 @@ export function idorGuard(req: Request, res: Response, next: NextFunction): void
     return;
   }
 
-  const paramId = req.params["userId"] as string ?? req.params["id"] as string;
+  const paramId = (req.params["userId"] as string) ?? (req.params["id"] as string);
   if (paramId && paramId !== callerId) {
     logger.warn({ callerId, paramId }, "[security] IDOR attempt blocked");
     res.status(403).json({ error: "Access denied" });
@@ -1123,15 +1315,22 @@ export function requireFeatureEnabled(featureKey: string, disabledMessage?: stri
   return async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const settings = await getCachedSettings();
-      if (settings[featureKey] === "false" || settings[featureKey] === "0" || settings[featureKey] === "off") {
+      if (
+        settings[featureKey] === "false" ||
+        settings[featureKey] === "0" ||
+        settings[featureKey] === "off"
+      ) {
         res.status(403).json({
           error: disabledMessage ?? `Feature '${featureKey}' is currently disabled.`,
-          code:  "FEATURE_DISABLED",
+          code: "FEATURE_DISABLED",
         });
         return;
       }
     } catch (err) {
-      logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] On error, allow through — don't block requests on settings lookup failure`);
+      logger.debug(
+        { error: err instanceof Error ? err.message : String(err) },
+        `[fn] On error, allow through — don't block requests on settings lookup failure`
+      );
     }
     next();
   };
@@ -1149,7 +1348,7 @@ export function requireFeatureEnabled(featureKey: string, disabledMessage?: stri
  */
 export function requireRole(
   role: "customer" | "rider" | "vendor" | string,
-  options?: { vendorApprovalCheck?: boolean },
+  options?: { vendorApprovalCheck?: boolean }
 ) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const header = req.headers["authorization"] as string | undefined;
@@ -1173,13 +1372,13 @@ export function requireRole(
       return;
     }
 
-    req.userId    = payload.userId;
+    req.userId = payload.userId;
     req.userPhone = payload.phone;
-    req.userRole  = payload.role;
+    req.userRole = payload.role;
 
     if (tokenRole === "customer") req.customerId = payload.userId;
-    if (tokenRole === "rider")    req.riderId    = payload.userId;
-    if (tokenRole === "vendor")   req.vendorId   = payload.userId;
+    if (tokenRole === "rider") req.riderId = payload.userId;
+    if (tokenRole === "vendor") req.vendorId = payload.userId;
 
     if (options?.vendorApprovalCheck && tokenRole === "vendor") {
       try {
@@ -1196,7 +1395,10 @@ export function requireRole(
           return;
         }
       } catch (err) {
-        logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] on DB error, allow through`);
+        logger.debug(
+          { error: err instanceof Error ? err.message : String(err) },
+          `[fn] on DB error, allow through`
+        );
       }
     }
 
@@ -1204,10 +1406,17 @@ export function requireRole(
   };
 }
 
-export async function verifyCaptcha(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function verifyCaptcha(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   /* Captcha is optional — if no secret is configured, pass through */
   const secret = process.env["RECAPTCHA_SECRET_KEY"] ?? process.env["HCAPTCHA_SECRET"];
-  if (!secret) { next(); return; }
+  if (!secret) {
+    next();
+    return;
+  }
 
   /* Check platform setting: captcha_enabled=on makes captcha failures blocking.
      When captcha_enabled=off (default), captcha is advisory — failures are logged
@@ -1222,7 +1431,9 @@ export async function verifyCaptcha(req: Request, res: Response, next: NextFunct
 
   if (!token) {
     if (isBlocking) {
-      res.status(400).json({ success: false, error: "Captcha token required.", code: "CAPTCHA_REQUIRED" });
+      res
+        .status(400)
+        .json({ success: false, error: "Captcha token required.", code: "CAPTCHA_REQUIRED" });
       return;
     }
     /* Advisory mode: no token sent — pass through silently */
@@ -1238,29 +1449,53 @@ export async function verifyCaptcha(req: Request, res: Response, next: NextFunct
       : "https://www.google.com/recaptcha/api/siteverify";
 
     const body = new URLSearchParams({ secret, response: token });
-    const resp = await fetch(verifyUrl, { method: "POST", body, signal: AbortSignal.timeout(5000) });
-    const data = await resp.json() as { success?: boolean; score?: number };
+    const resp = await fetch(verifyUrl, {
+      method: "POST",
+      body,
+      signal: AbortSignal.timeout(5000),
+    });
+    const data = (await resp.json()) as { success?: boolean; score?: number };
 
     if (!data.success) {
       if (isBlocking) {
-        logger.warn({ url: req.url }, "[captcha] Verification failed — blocking request (captcha_enabled=on)");
-        res.status(400).json({ success: false, error: "Captcha verification failed. Please try again.", code: "CAPTCHA_FAILED" });
+        logger.warn(
+          { url: req.url },
+          "[captcha] Verification failed — blocking request (captcha_enabled=on)"
+        );
+        res.status(400).json({
+          success: false,
+          error: "Captcha verification failed. Please try again.",
+          code: "CAPTCHA_FAILED",
+        });
         return;
       }
       /* Advisory mode: verification failed but captcha_enabled is not 'on' — log and allow through */
-      logger.warn({ url: req.url }, "[captcha] Verification failed — allowing through (advisory mode)");
+      logger.warn(
+        { url: req.url },
+        "[captcha] Verification failed — allowing through (advisory mode)"
+      );
     }
   } catch (err) {
     if (isBlocking) {
       /* Strict mode: fail-closed on network/provider error so captcha_enabled=on
          is never silently bypassed during an outage. Return 503 so the client
          can surface a "try again" message rather than a generic auth failure. */
-      logger.warn({ url: req.url, error: err instanceof Error ? err.message : String(err) }, "[captcha] Network error — blocking request (captcha_enabled=on strict mode)");
-      res.status(503).json({ success: false, error: "Captcha verification temporarily unavailable. Please try again.", code: "CAPTCHA_UNAVAILABLE" });
+      logger.warn(
+        { url: req.url, error: err instanceof Error ? err.message : String(err) },
+        "[captcha] Network error — blocking request (captcha_enabled=on strict mode)"
+      );
+      res.status(503).json({
+        success: false,
+        error: "Captcha verification temporarily unavailable. Please try again.",
+        code: "CAPTCHA_UNAVAILABLE",
+      });
       return;
     }
     /* Advisory mode: provider outage — log and allow through to avoid locking users out */
-    logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[captcha] Network error — allowing through (advisory mode)");
+    logger.debug(
+      { error: err instanceof Error ? err.message : String(err) },
+      "[captcha] Network error — allowing through (advisory mode)"
+    );
   }
   next();
 }

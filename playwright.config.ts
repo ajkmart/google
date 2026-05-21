@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME ?? "superadmin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? process.env.ADMIN_SEED_PASSWORD ?? "Admin@123";
 
-export { ADMIN_USERNAME, ADMIN_PASSWORD };
+export { ADMIN_PASSWORD, ADMIN_USERNAME };
 
 const CHROMIUM_PATH =
   process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ??

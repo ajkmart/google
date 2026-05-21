@@ -40,7 +40,7 @@ export function checkPromoStackable(activePromos: PromoCode[]): WalletValidation
 export function validatePromo(
   promo: PromoCode,
   _userId: string,
-  now: Date = new Date(),
+  now: Date = new Date()
 ): WalletValidationResult {
   if (promo.expiresAt) {
     const expiry = new Date(promo.expiresAt);
@@ -62,7 +62,10 @@ export function validatePromo(
   if (typeof promo.maxPerUserUsage === "number" && promo.maxPerUserUsage !== null) {
     const perUser = promo.perUserUsage ?? 0;
     if (perUser >= promo.maxPerUserUsage) {
-      return { valid: false, reason: "You have already used this promo code the maximum number of times" };
+      return {
+        valid: false,
+        reason: "You have already used this promo code the maximum number of times",
+      };
     }
   }
 
@@ -73,7 +76,7 @@ export function checkDailyLimits(
   todayTotal: number,
   todayCount: number,
   amount: number,
-  config: DailyLimitsConfig,
+  config: DailyLimitsConfig
 ): WalletValidationResult {
   if (todayTotal + amount > config.maxDailyWithdrawal) {
     return {

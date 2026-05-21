@@ -1,10 +1,9 @@
-import React from 'react';
-import { SocialButtons } from './SocialButtons';
+import { SocialButtons } from "./SocialButtons";
 
 export interface SocialLoginButtonsProps {
   onGooglePress?: () => void;
   onFacebookPress?: () => void;
-  loadingProvider?: 'google' | 'facebook' | null;
+  loadingProvider?: "google" | "facebook" | null;
   disabled?: boolean;
   className?: string;
   label?: string;
@@ -25,8 +24,8 @@ export function SocialLoginButtons({
       disabled={disabled}
       onGoogle={onGooglePress}
       onFacebook={onFacebookPress}
-      googleLoading={loadingProvider === 'google'}
-      facebookLoading={loadingProvider === 'facebook'}
+      googleLoading={loadingProvider === "google"}
+      facebookLoading={loadingProvider === "facebook"}
     />
   );
 }

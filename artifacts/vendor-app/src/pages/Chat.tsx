@@ -1,17 +1,59 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useAuth } from "../lib/vendor-auth";
-import { apiFetch, api } from "../lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 import { SafeImage } from "../components/ui/SafeImage";
+import { api, apiFetch } from "../lib/api";
 import { getTurnIceServers } from "../lib/turnIceServers";
+import { useAuth } from "../lib/vendor-auth";
 
-interface OtherUser { id: string; name: string | null; ajkId: string | null; roles?: string | null; phone?: string | null; }
-interface Conversation { id: string; otherUser: OtherUser; lastMessage: { content: string } | null; unreadCount: number; lastMessageAt: string | null; }
-interface Message { id: string; content: string; senderId: string; messageType: string; createdAt: string; deliveryStatus: string; voiceNoteUrl?: string; imageUrl?: string; }
-interface CommRequest { id: string; status: string; senderId: string; sender?: { name: string; ajkId: string; roles?: string | null }; }
-interface SearchResult { id: string; name: string; ajkId: string; role: string; isOnline?: boolean; }
-interface IncomingCallData { callId: string; callerId: string; callerName?: string; callerAjkId?: string; }
-interface CallSignal { callId: string; callerId?: string; sdp?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit; }
+interface OtherUser {
+  id: string;
+  name: string | null;
+  ajkId: string | null;
+  roles?: string | null;
+  phone?: string | null;
+}
+interface Conversation {
+  id: string;
+  otherUser: OtherUser;
+  lastMessage: { content: string } | null;
+  unreadCount: number;
+  lastMessageAt: string | null;
+}
+interface Message {
+  id: string;
+  content: string;
+  senderId: string;
+  messageType: string;
+  createdAt: string;
+  deliveryStatus: string;
+  voiceNoteUrl?: string;
+  imageUrl?: string;
+}
+interface CommRequest {
+  id: string;
+  status: string;
+  senderId: string;
+  sender?: { name: string; ajkId: string; roles?: string | null };
+}
+interface SearchResult {
+  id: string;
+  name: string;
+  ajkId: string;
+  role: string;
+  isOnline?: boolean;
+}
+interface IncomingCallData {
+  callId: string;
+  callerId: string;
+  callerName?: string;
+  callerAjkId?: string;
+}
+interface CallSignal {
+  callId: string;
+  callerId?: string;
+  sdp?: RTCSessionDescriptionInit;
+  candidate?: RTCIceCandidateInit;
+}
 
 const STORAGE_KEY = "vendor_quick_replies";
 const MAX_SHORTCUTS = 8;
@@ -21,11 +63,13 @@ function loadLocalShortcuts(): string[] | null {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.every(s => typeof s === "string")) {
+      if (Array.isArray(parsed) && parsed.every((s) => typeof s === "string")) {
         return parsed.slice(0, MAX_SHORTCUTS);
       }
     }
-  } catch (err) { console.warn('[artifacts/vendor-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/vendor-app/src/pages/Chat.tsx]", err);
+  } // eslint-disable-line no-console
   return null;
 }
 
@@ -84,10 +128,20 @@ const DEFAULT_SHORTCUTS = [
 function saveLocalShortcuts(shortcuts: string[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(shortcuts.slice(0, MAX_SHORTCUTS)));
-  } catch (err) { console.warn('[artifacts/vendor-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/vendor-app/src/pages/Chat.tsx]", err);
+  } // eslint-disable-line no-console
 }
 
-function ShortcutsModal({ shortcuts, onSave, onClose }: { shortcuts: string[]; onSave: (s: string[]) => void; onClose: () => void; }) {
+function ShortcutsModal({
+  shortcuts,
+  onSave,
+  onClose,
+}: {
+  shortcuts: string[];
+  onSave: (s: string[]) => void;
+  onClose: () => void;
+}) {
   const [list, setList] = useState<string[]>([...shortcuts]);
   const [newText, setNewText] = useState("");
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -100,13 +154,16 @@ function ShortcutsModal({ shortcuts, onSave, onClose }: { shortcuts: string[]; o
   const addShortcut = () => {
     const trimmed = newText.trim();
     if (!trimmed || list.length >= MAX_SHORTCUTS) return;
-    setList(prev => [...prev, trimmed]);
+    setList((prev) => [...prev, trimmed]);
     setNewText("");
   };
 
   const removeShortcut = (idx: number) => {
-    setList(prev => prev.filter((_, i) => i !== idx));
-    if (editIdx === idx) { setEditIdx(null); setEditText(""); }
+    setList((prev) => prev.filter((_, i) => i !== idx));
+    if (editIdx === idx) {
+      setEditIdx(null);
+      setEditText("");
+    }
   };
 
   const startEdit = (idx: number) => {
@@ -117,16 +174,26 @@ function ShortcutsModal({ shortcuts, onSave, onClose }: { shortcuts: string[]; o
   const saveEdit = () => {
     if (editIdx === null) return;
     const trimmed = editText.trim();
-    if (!trimmed) { setEditIdx(null); return; }
-    setList(prev => prev.map((s, i) => i === editIdx ? trimmed : s));
+    if (!trimmed) {
+      setEditIdx(null);
+      return;
+    }
+    setList((prev) => prev.map((s, i) => (i === editIdx ? trimmed : s)));
     setEditIdx(null);
     setEditText("");
   };
 
   const handleDragStart = (idx: number) => setDragIdx(idx);
-  const handleDragOver = (e: React.DragEvent, idx: number) => { e.preventDefault(); setOverIdx(idx); };
+  const handleDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    setOverIdx(idx);
+  };
   const handleDrop = (idx: number) => {
-    if (dragIdx === null || dragIdx === idx) { setDragIdx(null); setOverIdx(null); return; }
+    if (dragIdx === null || dragIdx === idx) {
+      setDragIdx(null);
+      setOverIdx(null);
+      return;
+    }
     const next = [...list];
     const [moved] = next.splice(dragIdx, 1);
     next.splice(idx, 0, moved);
@@ -135,74 +202,114 @@ function ShortcutsModal({ shortcuts, onSave, onClose }: { shortcuts: string[]; o
     setOverIdx(null);
   };
 
-  const handleSave = () => { onSave(list); onClose(); };
+  const handleSave = () => {
+    onSave(list);
+    onClose();
+  };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b px-5 py-4">
           <div>
             <h2 className="text-lg font-extrabold text-gray-800">Edit Quick Replies</h2>
-            <p className="text-xs text-gray-400 mt-0.5">{list.length}/{MAX_SHORTCUTS} shortcuts · drag to reorder</p>
+            <p className="mt-0.5 text-xs text-gray-400">
+              {list.length}/{MAX_SHORTCUTS} shortcuts · drag to reorder
+            </p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 transition text-lg">✕</button>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-lg text-gray-500 transition hover:bg-gray-200"
+          >
+            ✕
+          </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
+        <div className="flex-1 space-y-2 overflow-y-auto px-5 py-3">
           {list.length === 0 && (
-            <p className="text-center text-gray-400 text-sm py-6">No shortcuts yet. Add one below.</p>
+            <p className="py-6 text-center text-sm text-gray-400">
+              No shortcuts yet. Add one below.
+            </p>
           )}
           {list.map((s, idx) => (
             <div
               key={idx}
               draggable
               onDragStart={() => handleDragStart(idx)}
-              onDragOver={e => handleDragOver(e, idx)}
+              onDragOver={(e) => handleDragOver(e, idx)}
               onDrop={() => handleDrop(idx)}
-              onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
-              className={`flex items-center gap-2 p-2 rounded-xl border transition cursor-grab active:cursor-grabbing
-                ${overIdx === idx && dragIdx !== idx ? "border-blue-400 bg-blue-50" : "border-gray-100 bg-gray-50"}
-                ${dragIdx === idx ? "opacity-40" : "opacity-100"}
-              `}
+              onDragEnd={() => {
+                setDragIdx(null);
+                setOverIdx(null);
+              }}
+              className={`flex cursor-grab items-center gap-2 rounded-xl border p-2 transition active:cursor-grabbing ${overIdx === idx && dragIdx !== idx ? "border-blue-400 bg-blue-50" : "border-gray-100 bg-gray-50"} ${dragIdx === idx ? "opacity-40" : "opacity-100"} `}
             >
-              <span className="text-gray-300 text-lg select-none px-1">⠿</span>
+              <span className="px-1 text-lg text-gray-300 select-none">⠿</span>
               {editIdx === idx ? (
                 <input
                   autoFocus
                   value={editText}
-                  onChange={e => setEditText(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") saveEdit(); if (e.key === "Escape") { setEditIdx(null); setEditText(""); } }}
-                  className="flex-1 text-sm px-2 py-1 rounded-lg border border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none"
+                  onChange={(e) => setEditText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveEdit();
+                    if (e.key === "Escape") {
+                      setEditIdx(null);
+                      setEditText("");
+                    }
+                  }}
+                  className="flex-1 rounded-lg border border-blue-400 px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-200"
                 />
               ) : (
-                <span className="flex-1 text-sm text-gray-700 break-words">{s}</span>
+                <span className="flex-1 text-sm break-words text-gray-700">{s}</span>
               )}
               {editIdx === idx ? (
-                <button onClick={saveEdit} className="text-green-600 font-bold text-sm px-2 py-1 rounded-lg hover:bg-green-50 transition flex-shrink-0">Save</button>
+                <button
+                  onClick={saveEdit}
+                  className="flex-shrink-0 rounded-lg px-2 py-1 text-sm font-bold text-green-600 transition hover:bg-green-50"
+                >
+                  Save
+                </button>
               ) : (
-                <button onClick={() => startEdit(idx)} className="text-blue-500 text-sm px-2 py-1 rounded-lg hover:bg-blue-50 transition flex-shrink-0">Edit</button>
+                <button
+                  onClick={() => startEdit(idx)}
+                  className="flex-shrink-0 rounded-lg px-2 py-1 text-sm text-blue-500 transition hover:bg-blue-50"
+                >
+                  Edit
+                </button>
               )}
-              <button onClick={() => removeShortcut(idx)} className="w-7 h-7 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition flex-shrink-0 text-sm">✕</button>
+              <button
+                onClick={() => removeShortcut(idx)}
+                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-red-50 text-sm text-red-500 transition hover:bg-red-100"
+              >
+                ✕
+              </button>
             </div>
           ))}
         </div>
 
-        <div className="px-5 py-3 border-t space-y-3">
+        <div className="space-y-3 border-t px-5 py-3">
           {list.length < MAX_SHORTCUTS ? (
             <>
               <div className="flex gap-2">
                 <input
                   value={newText}
-                  onChange={e => setNewText(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") addShortcut(); }}
+                  onChange={(e) => setNewText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") addShortcut();
+                  }}
                   placeholder="Add a new quick reply…"
                   maxLength={120}
-                  className="flex-1 h-10 px-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-orange-100 outline-none text-sm"
+                  className="h-10 flex-1 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-orange-100"
                 />
                 <button
                   onClick={addShortcut}
                   disabled={!newText.trim()}
-                  className="h-10 px-4 bg-blue-600 text-white rounded-xl font-bold text-sm disabled:opacity-40 hover:bg-blue-700 transition"
+                  className="h-10 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-40"
                 >
                   Add
                 </button>
@@ -210,47 +317,72 @@ function ShortcutsModal({ shortcuts, onSave, onClose }: { shortcuts: string[]; o
 
               {/* Suggested templates toggle */}
               <button
-                onClick={() => setShowSuggestions(s => !s)}
-                className="w-full flex items-center justify-between text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-3 py-2 rounded-xl hover:bg-blue-100 transition"
+                onClick={() => setShowSuggestions((s) => !s)}
+                className="flex w-full items-center justify-between rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-600 transition hover:bg-blue-100"
               >
                 <span>✨ Pick from suggested templates</span>
                 <span className="text-gray-400">{showSuggestions ? "▲" : "▼"}</span>
               </button>
 
               {showSuggestions && (
-                <div className="rounded-xl border border-gray-100 overflow-hidden">
-                  {SUGGESTED_TEMPLATES.map(group => (
+                <div className="overflow-hidden rounded-xl border border-gray-100">
+                  {SUGGESTED_TEMPLATES.map((group) => (
                     <div key={group.category}>
                       <button
-                        onClick={() => setOpenCategory(c => c === group.category ? null : group.category)}
-                        className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 hover:bg-gray-100 transition text-left"
+                        onClick={() =>
+                          setOpenCategory((c) => (c === group.category ? null : group.category))
+                        }
+                        className="flex w-full items-center justify-between bg-gray-50 px-4 py-2.5 text-left transition hover:bg-gray-100"
                       >
-                        <span className="text-sm font-bold text-gray-700">{group.icon} {group.category}</span>
-                        <span className="text-gray-400 text-xs">{openCategory === group.category ? "▲" : "▼"}</span>
+                        <span className="text-sm font-bold text-gray-700">
+                          {group.icon} {group.category}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {openCategory === group.category ? "▲" : "▼"}
+                        </span>
                       </button>
                       {openCategory === group.category && (
                         <div className="divide-y divide-gray-50">
-                          {group.items.map(item => {
+                          {group.items.map((item) => {
                             const alreadyAdded = list.includes(item);
                             const listFull = list.length >= MAX_SHORTCUTS;
                             return (
-                              <div key={item} className="flex items-center bg-white px-3 py-2 gap-2">
-                                <span className={`flex-1 text-sm ${alreadyAdded ? "text-gray-300" : "text-gray-700"}`}>{item}</span>
+                              <div
+                                key={item}
+                                className="flex items-center gap-2 bg-white px-3 py-2"
+                              >
+                                <span
+                                  className={`flex-1 text-sm ${alreadyAdded ? "text-gray-300" : "text-gray-700"}`}
+                                >
+                                  {item}
+                                </span>
                                 {alreadyAdded ? (
-                                  <span className="text-[10px] text-gray-300 flex-shrink-0 px-1">Added</span>
+                                  <span className="flex-shrink-0 px-1 text-[10px] text-gray-300">
+                                    Added
+                                  </span>
                                 ) : (
                                   <>
                                     <button
-                                      onClick={() => { setNewText(item); setShowSuggestions(false); setOpenCategory(null); }}
-                                      className="flex-shrink-0 h-7 px-2.5 rounded-lg border border-blue-200 text-blue-500 text-[11px] font-semibold hover:bg-blue-50 transition"
+                                      onClick={() => {
+                                        setNewText(item);
+                                        setShowSuggestions(false);
+                                        setOpenCategory(null);
+                                      }}
+                                      className="h-7 flex-shrink-0 rounded-lg border border-blue-200 px-2.5 text-[11px] font-semibold text-blue-500 transition hover:bg-blue-50"
                                     >
                                       Use →
                                     </button>
                                     <button
                                       disabled={listFull}
-                                      onClick={() => { setList(prev => prev.includes(item) || prev.length >= MAX_SHORTCUTS ? prev : [...prev, item]); }}
+                                      onClick={() => {
+                                        setList((prev) =>
+                                          prev.includes(item) || prev.length >= MAX_SHORTCUTS
+                                            ? prev
+                                            : [...prev, item]
+                                        );
+                                      }}
                                       title={listFull ? "List is full" : "Add directly"}
-                                      className="flex-shrink-0 w-7 h-7 rounded-lg bg-blue-600 text-white text-base font-bold flex items-center justify-center hover:bg-blue-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                                      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-blue-600 text-base font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-30"
                                     >
                                       +
                                     </button>
@@ -267,11 +399,23 @@ function ShortcutsModal({ shortcuts, onSave, onClose }: { shortcuts: string[]; o
               )}
             </>
           ) : (
-            <p className="text-xs text-gray-400 text-center">Maximum {MAX_SHORTCUTS} shortcuts reached. Remove one to add more.</p>
+            <p className="text-center text-xs text-gray-400">
+              Maximum {MAX_SHORTCUTS} shortcuts reached. Remove one to add more.
+            </p>
           )}
           <div className="flex gap-2">
-            <button onClick={onClose} className="flex-1 h-11 rounded-xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition">Cancel</button>
-            <button onClick={handleSave} className="flex-1 h-11 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition">Save</button>
+            <button
+              onClick={onClose}
+              className="h-11 flex-1 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 transition hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="h-11 flex-1 rounded-xl bg-blue-600 text-sm font-bold text-white transition hover:bg-blue-700"
+            >
+              Save
+            </button>
           </div>
         </div>
       </div>
@@ -300,9 +444,11 @@ export default function Chat() {
   const [errorToast, setErrorToast] = useState<string | null>(null);
   const [callFallbackPhone, setCallFallbackPhone] = useState<string | null>(null);
   const [conversationsError, setConversationsError] = useState(false);
-  const [requestsError, setRequestsError]           = useState(false);
+  const [requestsError, setRequestsError] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
-  const [quickReplies, setQuickReplies] = useState<string[]>(loadLocalShortcuts() ?? DEFAULT_SHORTCUTS);
+  const [quickReplies, setQuickReplies] = useState<string[]>(
+    loadLocalShortcuts() ?? DEFAULT_SHORTCUTS
+  );
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [recordingVoice, setRecordingVoice] = useState(false);
   const [voiceRecordSecs, setVoiceRecordSecs] = useState(0);
@@ -310,7 +456,10 @@ export default function Chat() {
   const voiceChunksRef = useRef<BlobPart[]>([]);
   const voiceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const showError = (msg: string) => { setErrorToast(msg); setTimeout(() => setErrorToast(null), 4000); };
+  const showError = (msg: string) => {
+    setErrorToast(msg);
+    setTimeout(() => setErrorToast(null), 4000);
+  };
   const scrollRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -320,24 +469,33 @@ export default function Chat() {
   const handleSaveShortcuts = (updated: string[]) => {
     saveLocalShortcuts(updated);
     setQuickReplies(updated);
-    api.updateQuickReplies(updated).catch((err) => { console.warn('[artifacts/vendor-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
+    api.updateQuickReplies(updated).catch((err) => {
+      console.warn("[artifacts/vendor-app/src/pages/Chat.tsx]", err);
+    }); // eslint-disable-line no-console
   };
 
   useEffect(() => {
-    api.getQuickReplies().then(d => {
-      if (Array.isArray(d.quickReplies) && d.quickReplies.length > 0) {
-        const fromServer = (d.quickReplies as unknown[])
-          .filter((s): s is string => typeof s === "string")
-          .slice(0, MAX_SHORTCUTS);
-        setQuickReplies(fromServer);
-        saveLocalShortcuts(fromServer);
-      }
-      // Server returned [] (never synced) or non-array → keep current local/default state unchanged
-    }).catch((err) => { console.warn('[artifacts/vendor-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
+    api
+      .getQuickReplies()
+      .then((d) => {
+        if (Array.isArray(d.quickReplies) && d.quickReplies.length > 0) {
+          const fromServer = (d.quickReplies as unknown[])
+            .filter((s): s is string => typeof s === "string")
+            .slice(0, MAX_SHORTCUTS);
+          setQuickReplies(fromServer);
+          saveLocalShortcuts(fromServer);
+        }
+        // Server returned [] (never synced) or non-array → keep current local/default state unchanged
+      })
+      .catch((err) => {
+        console.warn("[artifacts/vendor-app/src/pages/Chat.tsx]", err);
+      }); // eslint-disable-line no-console
 
-    apiFetch("/communication/me/ajk-id").then(d => setAjkId(d.ajkId)).catch((e: unknown) => {
-      showError(e instanceof Error ? e.message : "Failed to load your AJK ID");
-    });
+    apiFetch("/communication/me/ajk-id")
+      .then((d) => setAjkId(d.ajkId))
+      .catch((e: unknown) => {
+        showError(e instanceof Error ? e.message : "Failed to load your AJK ID");
+      });
     loadConversations();
     loadRequests();
 
@@ -349,16 +507,19 @@ export default function Chat() {
     socketRef.current = socket;
 
     socket.on("comm:message:new", (msg: Message) => {
-      setMessages(prev => [...prev, msg]);
+      setMessages((prev) => [...prev, msg]);
       loadConversations();
     });
     socket.on("comm:typing:start", () => setTyping(true));
     socket.on("comm:typing:stop", () => setTyping(false));
     socket.on("comm:message:read", () => {
-      setMessages(prev => prev.map(m => ({ ...m, deliveryStatus: "read" })));
+      setMessages((prev) => prev.map((m) => ({ ...m, deliveryStatus: "read" })));
     });
     socket.on("comm:request:new", () => loadRequests());
-    socket.on("comm:request:accepted", () => { loadConversations(); loadRequests(); });
+    socket.on("comm:request:accepted", () => {
+      loadConversations();
+      loadRequests();
+    });
     socket.on("comm:request:cancelled", () => loadRequests());
     socket.on("comm:request:rejected", () => loadRequests());
     socket.on("comm:call:incoming", (data: IncomingCallData) => setIncomingCall(data));
@@ -371,17 +532,23 @@ export default function Chat() {
       timerRef.current = setInterval(() => setCallTimer((t) => t + 1), 1000);
     });
     socket.on("comm:message:sent", (data: { id: string }) => {
-      setMessages(prev => prev.map(m => m.id === data.id ? { ...m, deliveryStatus: "sent" } : m));
+      setMessages((prev) =>
+        prev.map((m) => (m.id === data.id ? { ...m, deliveryStatus: "sent" } : m))
+      );
     });
     socket.on("comm:messages:read-all", () => {
-      setMessages(prev => prev.map(m => ({ ...m, deliveryStatus: "read" })));
+      setMessages((prev) => prev.map((m) => ({ ...m, deliveryStatus: "read" })));
     });
     socket.on("comm:call:offer", async (data: CallSignal) => {
       if (!pcRef.current || !data.sdp) return;
       await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
       const answer = await pcRef.current.createAnswer();
       await pcRef.current.setLocalDescription(answer);
-      socket.emit("comm:call:answer", { callId: data.callId, targetUserId: data.callerId, sdp: answer });
+      socket.emit("comm:call:answer", {
+        callId: data.callId,
+        targetUserId: data.callerId,
+        sdp: answer,
+      });
     });
     socket.on("comm:call:answer", async (data: CallSignal) => {
       if (!pcRef.current || !data.sdp) return;
@@ -392,22 +559,32 @@ export default function Chat() {
       await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
     });
 
-    return () => { socket.disconnect(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      socket.disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadConversations = () => apiFetch("/communication/conversations")
-    .then(d => { setConversations(d); setConversationsError(false); })
-    .catch((e: unknown) => {
-      setConversationsError(true);
-      showError(e instanceof Error ? e.message : "Failed to load conversations");
-    });
-  const loadRequests = () => apiFetch("/communication/requests?type=received")
-    .then(d => { setRequests(d); setRequestsError(false); })
-    .catch((e: unknown) => {
-      setRequestsError(true);
-      showError(e instanceof Error ? e.message : "Failed to load chat requests");
-    });
+  const loadConversations = () =>
+    apiFetch("/communication/conversations")
+      .then((d) => {
+        setConversations(d);
+        setConversationsError(false);
+      })
+      .catch((e: unknown) => {
+        setConversationsError(true);
+        showError(e instanceof Error ? e.message : "Failed to load conversations");
+      });
+  const loadRequests = () =>
+    apiFetch("/communication/requests?type=received")
+      .then((d) => {
+        setRequests(d);
+        setRequestsError(false);
+      })
+      .catch((e: unknown) => {
+        setRequestsError(true);
+        showError(e instanceof Error ? e.message : "Failed to load chat requests");
+      });
 
   const selectConversation = async (conv: Conversation) => {
     setSelectedConv(conv);
@@ -426,7 +603,7 @@ export default function Chat() {
         method: "POST",
         body: JSON.stringify({ content: input, messageType: "text" }),
       });
-      setMessages(prev => [...prev, msg]);
+      setMessages((prev) => [...prev, msg]);
       setInput("");
       loadConversations();
       setTimeout(() => scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight), 100);
@@ -441,11 +618,16 @@ export default function Chat() {
     try {
       const result = await apiFetch(`/communication/search/${searchId.toUpperCase()}`);
       setSearchResult(result);
-    } catch (err) { console.warn('[artifacts/vendor-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
+    } catch (err) {
+      console.warn("[artifacts/vendor-app/src/pages/Chat.tsx]", err);
+    } // eslint-disable-line no-console
   };
 
   const sendRequest = async (receiverId: string) => {
-    await apiFetch("/communication/requests", { method: "POST", body: JSON.stringify({ receiverId }) });
+    await apiFetch("/communication/requests", {
+      method: "POST",
+      body: JSON.stringify({ receiverId }),
+    });
     setSearchResult(null);
     setSearchId("");
   };
@@ -467,12 +649,18 @@ export default function Chat() {
       const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/ogg";
       const recorder = new MediaRecorder(stream, { mimeType });
       voiceChunksRef.current = [];
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) voiceChunksRef.current.push(e.data); };
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) voiceChunksRef.current.push(e.data);
+      };
       recorder.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
+        stream.getTracks().forEach((t) => t.stop());
         if (!selectedConv) return;
         const blob = new Blob(voiceChunksRef.current, { type: mimeType });
-        const file = new File([blob], `voice_${Date.now()}.${mimeType === "audio/webm" ? "webm" : "ogg"}`, { type: mimeType });
+        const file = new File(
+          [blob],
+          `voice_${Date.now()}.${mimeType === "audio/webm" ? "webm" : "ogg"}`,
+          { type: mimeType }
+        );
         try {
           const formData = new FormData();
           formData.append("file", file);
@@ -480,22 +668,34 @@ export default function Chat() {
           const voiceUrl: string = result.url || "";
           await apiFetch(`/communication/conversations/${selectedConv.id}/messages`, {
             method: "POST",
-            body: JSON.stringify({ content: voiceUrl, messageType: "voice_note", voiceNoteUrl: voiceUrl }),
+            body: JSON.stringify({
+              content: voiceUrl,
+              messageType: "voice_note",
+              voiceNoteUrl: voiceUrl,
+            }),
           });
           const msgs = await apiFetch(`/communication/conversations/${selectedConv.id}/messages`);
           setMessages(msgs.messages || msgs || []);
         } catch (err) {
-          showError(err instanceof Error ? err.message : "Voice note upload failed. Please try again.");
+          showError(
+            err instanceof Error ? err.message : "Voice note upload failed. Please try again."
+          );
         }
       };
       recorder.start();
       mediaRecorderRef.current = recorder;
       setVoiceRecordSecs(0);
       setRecordingVoice(true);
-      voiceTimerRef.current = setInterval(() => setVoiceRecordSecs(s => s + 1), 1000);
+      voiceTimerRef.current = setInterval(() => setVoiceRecordSecs((s) => s + 1), 1000);
     } catch (err) {
-      const isPermission = err instanceof DOMException && (err.name === "NotAllowedError" || err.name === "PermissionDeniedError");
-      showError(isPermission ? "Microphone access denied. Please allow microphone access." : "Could not start recording.");
+      const isPermission =
+        err instanceof DOMException &&
+        (err.name === "NotAllowedError" || err.name === "PermissionDeniedError");
+      showError(
+        isPermission
+          ? "Microphone access denied. Please allow microphone access."
+          : "Could not start recording."
+      );
     }
   };
 
@@ -521,7 +721,10 @@ export default function Chat() {
   };
 
   const translateMsg = async (text: string, lang: string) => {
-    const result = await apiFetch("/communication/translate", { method: "POST", body: JSON.stringify({ text, targetLang: lang }) });
+    const result = await apiFetch("/communication/translate", {
+      method: "POST",
+      body: JSON.stringify({ text, targetLang: lang }),
+    });
     return result.translated;
   };
 
@@ -534,23 +737,34 @@ export default function Chat() {
 
   const startCall = async (calleeId: string) => {
     try {
-      const data = await apiFetch("/communication/calls/initiate", { method: "POST", body: JSON.stringify({ calleeId, conversationId: selectedConv?.id }) });
+      const data = await apiFetch("/communication/calls/initiate", {
+        method: "POST",
+        body: JSON.stringify({ calleeId, conversationId: selectedConv?.id }),
+      });
       setCallId(data.callId);
       setCallActive(true);
       setCallTimer(0);
-      timerRef.current = setInterval(() => setCallTimer(t => t + 1), 1000);
+      timerRef.current = setInterval(() => setCallTimer((t) => t + 1), 1000);
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true },
+      });
       localStreamRef.current = stream;
 
-      const apiIceServers: RTCIceServer[] = data.iceServers?.length ? data.iceServers : [{ urls: "stun:stun.l.google.com:19302" }];
+      const apiIceServers: RTCIceServer[] = data.iceServers?.length
+        ? data.iceServers
+        : [{ urls: "stun:stun.l.google.com:19302" }];
       const pc = new RTCPeerConnection({ iceServers: [...apiIceServers, ...getTurnIceServers()] });
       pcRef.current = pc;
-      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+      stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 
       pc.onicecandidate = (e) => {
         if (e.candidate) {
-          socketRef.current?.emit("comm:call:ice-candidate", { callId: data.callId, targetUserId: calleeId, candidate: e.candidate });
+          socketRef.current?.emit("comm:call:ice-candidate", {
+            callId: data.callId,
+            targetUserId: calleeId,
+            candidate: e.candidate,
+          });
         }
       };
       pc.ontrack = (e) => {
@@ -561,11 +775,21 @@ export default function Chat() {
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      socketRef.current?.emit("comm:call:offer", { callId: data.callId, targetUserId: calleeId, sdp: offer });
+      socketRef.current?.emit("comm:call:offer", {
+        callId: data.callId,
+        targetUserId: calleeId,
+        sdp: offer,
+      });
     } catch (err) {
       endCall();
-      const isPermission = err instanceof DOMException && (err.name === "NotAllowedError" || err.name === "PermissionDeniedError");
-      showError(isPermission ? "Microphone access denied. Please allow microphone access to make calls." : "Could not start call. Please try again.");
+      const isPermission =
+        err instanceof DOMException &&
+        (err.name === "NotAllowedError" || err.name === "PermissionDeniedError");
+      showError(
+        isPermission
+          ? "Microphone access denied. Please allow microphone access to make calls."
+          : "Could not start call. Please try again."
+      );
       showCallFallback(selectedConv?.otherUser?.phone);
     }
   };
@@ -573,22 +797,34 @@ export default function Chat() {
   const answerCall = async () => {
     if (!incomingCall) return;
     try {
-      const answerData = await apiFetch(`/communication/calls/${incomingCall.callId}/answer`, { method: "POST" });
+      const answerData = await apiFetch(`/communication/calls/${incomingCall.callId}/answer`, {
+        method: "POST",
+      });
       setCallId(incomingCall.callId);
       setCallActive(true);
       setCallTimer(0);
-      timerRef.current = setInterval(() => setCallTimer(t => t + 1), 1000);
+      timerRef.current = setInterval(() => setCallTimer((t) => t + 1), 1000);
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true },
+      });
       localStreamRef.current = stream;
 
-      const iceServers = [...(answerData.iceServers || [{ urls: "stun:stun.l.google.com:19302" }]), ...getTurnIceServers()];
+      const iceServers = [
+        ...(answerData.iceServers || [{ urls: "stun:stun.l.google.com:19302" }]),
+        ...getTurnIceServers(),
+      ];
       const pc = new RTCPeerConnection({ iceServers });
       pcRef.current = pc;
-      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+      stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 
       pc.onicecandidate = (e) => {
-        if (e.candidate) socketRef.current?.emit("comm:call:ice-candidate", { callId: incomingCall.callId, targetUserId: incomingCall.callerId, candidate: e.candidate });
+        if (e.candidate)
+          socketRef.current?.emit("comm:call:ice-candidate", {
+            callId: incomingCall.callId,
+            targetUserId: incomingCall.callerId,
+            candidate: e.candidate,
+          });
       };
       pc.ontrack = (e) => {
         const audio = new Audio();
@@ -599,21 +835,32 @@ export default function Chat() {
       setIncomingCall(null);
     } catch (err) {
       endCall();
-      const isPermission = err instanceof DOMException && (err.name === "NotAllowedError" || err.name === "PermissionDeniedError");
-      showError(isPermission ? "Microphone access denied. Please allow microphone access to answer calls." : "Could not answer call. Please try again.");
+      const isPermission =
+        err instanceof DOMException &&
+        (err.name === "NotAllowedError" || err.name === "PermissionDeniedError");
+      showError(
+        isPermission
+          ? "Microphone access denied. Please allow microphone access to answer calls."
+          : "Could not answer call. Please try again."
+      );
       showCallFallback(selectedConv?.otherUser?.phone);
     }
   };
 
   const endCall = useCallback(() => {
     if (callId) {
-      apiFetch(`/communication/calls/${callId}/end`, { method: "POST", body: JSON.stringify({ duration: callTimer }) }).catch((err) => { console.warn('[artifacts/vendor-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
-      const otherId = selectedConv ? (selectedConv.otherUser?.id) : null;
+      apiFetch(`/communication/calls/${callId}/end`, {
+        method: "POST",
+        body: JSON.stringify({ duration: callTimer }),
+      }).catch((err) => {
+        console.warn("[artifacts/vendor-app/src/pages/Chat.tsx]", err);
+      }); // eslint-disable-line no-console
+      const otherId = selectedConv ? selectedConv.otherUser?.id : null;
       if (otherId) socketRef.current?.emit("comm:call:end", { callId, targetUserId: otherId });
     }
     pcRef.current?.close();
     pcRef.current = null;
-    localStreamRef.current?.getTracks().forEach(t => t.stop());
+    localStreamRef.current?.getTracks().forEach((t) => t.stop());
     localStreamRef.current = null;
     if (timerRef.current) clearInterval(timerRef.current);
     setCallActive(false);
@@ -624,7 +871,9 @@ export default function Chat() {
 
   const toggleMute = () => {
     if (localStreamRef.current) {
-      localStreamRef.current.getAudioTracks().forEach(t => { t.enabled = !t.enabled; });
+      localStreamRef.current.getAudioTracks().forEach((t) => {
+        t.enabled = !t.enabled;
+      });
       setMuted(!muted);
     }
   };
@@ -632,7 +881,7 @@ export default function Chat() {
   const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex h-full flex-col bg-white">
       {showShortcutsModal && (
         <ShortcutsModal
           shortcuts={quickReplies}
@@ -643,36 +892,58 @@ export default function Chat() {
 
       {/* Error Toast */}
       {errorToast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-5 py-3 rounded-xl shadow-lg text-sm font-semibold max-w-xs text-center">
+        <div className="fixed top-4 left-1/2 z-50 max-w-xs -translate-x-1/2 rounded-xl bg-red-600 px-5 py-3 text-center text-sm font-semibold text-white shadow-lg">
           {errorToast}
         </div>
       )}
 
       {/* Phone call fallback banner */}
       {callFallbackPhone && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white px-5 py-3 rounded-xl shadow-lg text-sm max-w-xs text-center flex flex-col gap-2">
+        <div className="fixed top-16 left-1/2 z-50 flex max-w-xs -translate-x-1/2 flex-col gap-2 rounded-xl bg-gray-900 px-5 py-3 text-center text-sm text-white shadow-lg">
           <span className="font-semibold">Call via phone instead?</span>
           <a
             href={`tel:${callFallbackPhone}`}
-            className="inline-flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold px-4 py-2 rounded-lg transition"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-green-500 px-4 py-2 font-bold text-white transition hover:bg-green-600"
             onClick={() => setCallFallbackPhone(null)}
           >
             📞 Call {callFallbackPhone}
           </a>
-          <button onClick={() => setCallFallbackPhone(null)} className="text-xs text-gray-400 hover:text-white transition">Dismiss</button>
+          <button
+            onClick={() => setCallFallbackPhone(null)}
+            className="text-xs text-gray-400 transition hover:text-white"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
       {/* Incoming Call Overlay */}
       {incomingCall && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center">
-          <div className="bg-white rounded-3xl p-8 text-center max-w-sm w-full mx-4">
-            <div className="text-6xl mb-4">📞</div>
-            <h2 className="text-xl font-bold mb-2">Incoming Call</h2>
-            <p className="text-gray-500 mb-6">{incomingCall.callerName} ({incomingCall.callerAjkId})</p>
-            <div className="flex gap-4 justify-center">
-              <button onClick={() => { setIncomingCall(null); apiFetch(`/communication/calls/${incomingCall.callId}/reject`, { method: "POST" }); }} className="w-16 h-16 rounded-full bg-red-500 text-white text-2xl flex items-center justify-center">✕</button>
-              <button onClick={answerCall} className="w-16 h-16 rounded-full bg-green-500 text-white text-2xl flex items-center justify-center">📞</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+          <div className="mx-4 w-full max-w-sm rounded-3xl bg-white p-8 text-center">
+            <div className="mb-4 text-6xl">📞</div>
+            <h2 className="mb-2 text-xl font-bold">Incoming Call</h2>
+            <p className="mb-6 text-gray-500">
+              {incomingCall.callerName} ({incomingCall.callerAjkId})
+            </p>
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={() => {
+                  setIncomingCall(null);
+                  apiFetch(`/communication/calls/${incomingCall.callId}/reject`, {
+                    method: "POST",
+                  });
+                }}
+                className="flex h-16 w-16 items-center justify-center rounded-full bg-red-500 text-2xl text-white"
+              >
+                ✕
+              </button>
+              <button
+                onClick={answerCall}
+                className="flex h-16 w-16 items-center justify-center rounded-full bg-green-500 text-2xl text-white"
+              >
+                📞
+              </button>
             </div>
           </div>
         </div>
@@ -680,31 +951,49 @@ export default function Chat() {
 
       {/* Active Call Bar */}
       {callActive && (
-        <div className="bg-green-600 text-white px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center justify-between bg-green-600 px-4 py-3 text-white">
           <span className="font-bold">🔊 Call Active — {fmt(callTimer)}</span>
           <div className="flex gap-2">
-            <button onClick={toggleMute} className={`px-3 py-1 rounded-lg text-sm font-bold ${muted ? "bg-red-500" : "bg-white/20"}`}>{muted ? "Unmute" : "Mute"}</button>
-            <button onClick={endCall} className="px-3 py-1 rounded-lg text-sm font-bold bg-red-500">End</button>
+            <button
+              onClick={toggleMute}
+              className={`rounded-lg px-3 py-1 text-sm font-bold ${muted ? "bg-red-500" : "bg-white/20"}`}
+            >
+              {muted ? "Unmute" : "Mute"}
+            </button>
+            <button onClick={endCall} className="rounded-lg bg-red-500 px-3 py-1 text-sm font-bold">
+              End
+            </button>
           </div>
         </div>
       )}
 
       {/* Header */}
       <div className="px-4 pt-4 pb-2">
-        <div className="flex items-center justify-between mb-3">
+        <div className="mb-3 flex items-center justify-between">
           <h1 className="text-2xl font-extrabold text-gray-800">💬 Messages</h1>
           {ajkId && (
-            <button onClick={() => navigator.clipboard.writeText(ajkId)} className="text-xs bg-blue-100 text-orange-700 px-3 py-1.5 rounded-full font-bold hover:bg-orange-200 transition">
+            <button
+              onClick={() => navigator.clipboard.writeText(ajkId)}
+              className="rounded-full bg-blue-100 px-3 py-1.5 text-xs font-bold text-orange-700 transition hover:bg-orange-200"
+            >
               {ajkId} 📋
             </button>
           )}
         </div>
 
         {!selectedConv && (
-          <div className="flex gap-1 mb-3">
-            {(["chats", "requests", "search"] as const).map(t => (
-              <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-xl text-sm font-bold transition ${tab === t ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-                {t === "chats" ? "Chats" : t === "requests" ? `Requests${requests.length ? ` (${requests.length})` : ""}` : "Search"}
+          <div className="mb-3 flex gap-1">
+            {(["chats", "requests", "search"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`rounded-xl px-4 py-2 text-sm font-bold transition ${tab === t ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+              >
+                {t === "chats"
+                  ? "Chats"
+                  : t === "requests"
+                    ? `Requests${requests.length ? ` (${requests.length})` : ""}`
+                    : "Search"}
               </button>
             ))}
           </div>
@@ -714,31 +1003,54 @@ export default function Chat() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4" ref={scrollRef}>
         {selectedConv ? (
-          <div className="flex flex-col h-full">
-            <div className="flex items-center gap-3 py-3 border-b mb-3">
-              <button onClick={() => setSelectedConv(null)} className="text-blue-500 font-bold">← Back</button>
+          <div className="flex h-full flex-col">
+            <div className="mb-3 flex items-center gap-3 border-b py-3">
+              <button onClick={() => setSelectedConv(null)} className="font-bold text-blue-500">
+                ← Back
+              </button>
               <div className="flex-1">
                 <p className="font-bold text-gray-800">{selectedConv.otherUser?.name || "User"}</p>
-                <p className="text-xs text-gray-400">{selectedConv.otherUser?.ajkId} · {selectedConv.otherUser?.roles}</p>
+                <p className="text-xs text-gray-400">
+                  {selectedConv.otherUser?.ajkId} · {selectedConv.otherUser?.roles}
+                </p>
               </div>
-              <button onClick={() => startCall(selectedConv.otherUser?.id)} className="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center text-lg">📞</button>
+              <button
+                onClick={() => startCall(selectedConv.otherUser?.id)}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500 text-lg text-white"
+              >
+                📞
+              </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-2 pb-2">
-              {messages.map(msg => (
-                <div key={msg.id} className={`flex ${msg.senderId === user?.id ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${msg.senderId === user?.id ? "bg-blue-600 text-white rounded-br-md" : "bg-gray-100 text-gray-800 rounded-bl-md"}`}>
-                    {msg.messageType === "image" && msg.imageUrl && <SafeImage src={msg.imageUrl} alt="" className="rounded-xl mb-1 max-w-full" />}
+            <div className="flex-1 space-y-2 overflow-y-auto pb-2">
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex ${msg.senderId === user?.id ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${msg.senderId === user?.id ? "rounded-br-md bg-blue-600 text-white" : "rounded-bl-md bg-gray-100 text-gray-800"}`}
+                  >
+                    {msg.messageType === "image" && msg.imageUrl && (
+                      <SafeImage src={msg.imageUrl} alt="" className="mb-1 max-w-full rounded-xl" />
+                    )}
                     {msg.messageType === "voice_note" && msg.voiceNoteUrl && (
                       <audio controls src={msg.voiceNoteUrl} className="max-w-full" />
                     )}
                     <p className="text-sm leading-relaxed">{msg.content}</p>
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className={`text-[10px] ${msg.senderId === user?.id ? "text-orange-200" : "text-gray-400"}`}>
-                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    <div className="mt-1 flex items-center gap-1">
+                      <span
+                        className={`text-[10px] ${msg.senderId === user?.id ? "text-orange-200" : "text-gray-400"}`}
+                      >
+                        {new Date(msg.createdAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </span>
                       {msg.senderId === user?.id && (
-                        <span className={`text-[10px] font-bold ${msg.deliveryStatus === "read" ? "text-blue-200" : "text-orange-300"}`}>
+                        <span
+                          className={`text-[10px] font-bold ${msg.deliveryStatus === "read" ? "text-blue-200" : "text-orange-300"}`}
+                        >
                           {msg.deliveryStatus === "read" ? "✓✓" : "✓"}
                         </span>
                       )}
@@ -751,91 +1063,153 @@ export default function Chat() {
           </div>
         ) : tab === "chats" ? (
           <div className="space-y-2">
-            {conversations.map(conv => (
-              <button key={conv.id} onClick={() => selectConversation(conv)} className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-gray-50 transition text-left">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg">
+            {conversations.map((conv) => (
+              <button
+                key={conv.id}
+                onClick={() => selectConversation(conv)}
+                className="flex w-full items-center gap-3 rounded-2xl p-3 text-left transition hover:bg-gray-50"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-lg font-bold text-white">
                   {(conv.otherUser?.name || "?").charAt(0).toUpperCase()}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center">
-                    <p className="font-bold text-gray-800 truncate">{conv.otherUser?.name || "User"}</p>
-                    {conv.lastMessageAt && <span className="text-[10px] text-gray-400">{new Date(conv.lastMessageAt).toLocaleDateString()}</span>}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between">
+                    <p className="truncate font-bold text-gray-800">
+                      {conv.otherUser?.name || "User"}
+                    </p>
+                    {conv.lastMessageAt && (
+                      <span className="text-[10px] text-gray-400">
+                        {new Date(conv.lastMessageAt).toLocaleDateString()}
+                      </span>
+                    )}
                   </div>
-                  <div className="flex justify-between items-center">
-                    <p className="text-sm text-gray-500 truncate">{conv.lastMessage?.content || "No messages yet"}</p>
-                    {conv.unreadCount > 0 && <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">{conv.unreadCount}</span>}
+                  <div className="flex items-center justify-between">
+                    <p className="truncate text-sm text-gray-500">
+                      {conv.lastMessage?.content || "No messages yet"}
+                    </p>
+                    {conv.unreadCount > 0 && (
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+                        {conv.unreadCount}
+                      </span>
+                    )}
                   </div>
                 </div>
               </button>
             ))}
-            {conversations.length === 0 && (
-              conversationsError ? (
+            {conversations.length === 0 &&
+              (conversationsError ? (
                 <div className="flex flex-col items-center justify-center py-14 text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mb-4">
+                  <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50">
                     <span className="text-3xl">⚠️</span>
                   </div>
-                  <p className="font-bold text-gray-700 text-base">Could not load chats</p>
-                  <p className="text-sm text-gray-400 mt-1">Check your connection and tap to retry</p>
-                  <button onClick={loadConversations} className="mt-5 px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition active:scale-95">
+                  <p className="text-base font-bold text-gray-700">Could not load chats</p>
+                  <p className="mt-1 text-sm text-gray-400">
+                    Check your connection and tap to retry
+                  </p>
+                  <button
+                    onClick={loadConversations}
+                    className="mt-5 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700 active:scale-95"
+                  >
                     Retry
                   </button>
                 </div>
               ) : (
-                <div className="text-center py-12">
-                  <p className="text-5xl mb-4">💬</p>
+                <div className="py-12 text-center">
+                  <p className="mb-4 text-5xl">💬</p>
                   <p className="text-lg font-bold text-gray-600">No conversations yet</p>
-                  <p className="text-sm text-gray-400 mt-1">Search for users by AJK ID to start chatting</p>
+                  <p className="mt-1 text-sm text-gray-400">
+                    Search for users by AJK ID to start chatting
+                  </p>
                 </div>
-              )
-            )}
+              ))}
           </div>
         ) : tab === "requests" ? (
           <div className="space-y-2">
-            {requests.map(req => (
-              <div key={req.id} className="p-4 rounded-2xl bg-gray-50 flex items-center justify-between">
+            {requests.map((req) => (
+              <div
+                key={req.id}
+                className="flex items-center justify-between rounded-2xl bg-gray-50 p-4"
+              >
                 <div>
                   <p className="font-bold text-gray-800">{req.sender?.name || "Unknown"}</p>
-                  <p className="text-xs text-gray-400">{req.sender?.ajkId} · {req.sender?.roles}</p>
+                  <p className="text-xs text-gray-400">
+                    {req.sender?.ajkId} · {req.sender?.roles}
+                  </p>
                 </div>
                 {req.status === "pending" && (
                   <div className="flex gap-2">
-                    <button onClick={() => acceptRequest(req.id)} className="px-4 py-2 rounded-xl bg-green-500 text-white text-sm font-bold">Accept</button>
-                    <button onClick={() => rejectRequest(req.id)} className="px-4 py-2 rounded-xl bg-red-100 text-red-600 text-sm font-bold">Reject</button>
+                    <button
+                      onClick={() => acceptRequest(req.id)}
+                      className="rounded-xl bg-green-500 px-4 py-2 text-sm font-bold text-white"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => rejectRequest(req.id)}
+                      className="rounded-xl bg-red-100 px-4 py-2 text-sm font-bold text-red-600"
+                    >
+                      Reject
+                    </button>
                   </div>
                 )}
               </div>
             ))}
-            {requests.length === 0 && (
-              requestsError ? (
+            {requests.length === 0 &&
+              (requestsError ? (
                 <div className="flex flex-col items-center justify-center py-14 text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mb-4">
+                  <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50">
                     <span className="text-3xl">⚠️</span>
                   </div>
-                  <p className="font-bold text-gray-700 text-base">Could not load requests</p>
-                  <p className="text-sm text-gray-400 mt-1">Check your connection and tap to retry</p>
-                  <button onClick={loadRequests} className="mt-5 px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition active:scale-95">
+                  <p className="text-base font-bold text-gray-700">Could not load requests</p>
+                  <p className="mt-1 text-sm text-gray-400">
+                    Check your connection and tap to retry
+                  </p>
+                  <button
+                    onClick={loadRequests}
+                    className="mt-5 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700 active:scale-95"
+                  >
                     Retry
                   </button>
                 </div>
               ) : (
-                <p className="text-center py-12 text-gray-400">No pending requests</p>
-              )
-            )}
+                <p className="py-12 text-center text-gray-400">No pending requests</p>
+              ))}
           </div>
         ) : (
           <div className="space-y-3">
             <div className="flex gap-2">
-              <input value={searchId} onChange={e => setSearchId(e.target.value)} placeholder="Enter AJK ID (e.g., AJK-ABC123)" className="flex-1 h-12 px-4 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-sm" />
-              <button onClick={searchUser} className="h-12 px-6 bg-blue-600 text-white rounded-xl font-bold text-sm">Search</button>
+              <input
+                value={searchId}
+                onChange={(e) => setSearchId(e.target.value)}
+                placeholder="Enter AJK ID (e.g., AJK-ABC123)"
+                className="h-12 flex-1 rounded-xl border border-gray-200 px-4 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+              />
+              <button
+                onClick={searchUser}
+                className="h-12 rounded-xl bg-blue-600 px-6 text-sm font-bold text-white"
+              >
+                Search
+              </button>
             </div>
             {searchResult && (
-              <div className="p-4 rounded-2xl bg-gray-50 flex items-center justify-between">
+              <div className="flex items-center justify-between rounded-2xl bg-gray-50 p-4">
                 <div>
                   <p className="font-bold text-gray-800">{searchResult.name || "Unknown"}</p>
-                  <p className="text-xs text-gray-400">{searchResult.ajkId} · {searchResult.role}</p>
-                  <span className={`text-xs ${searchResult.isOnline ? "text-green-500" : "text-gray-400"}`}>{searchResult.isOnline ? "Online" : "Offline"}</span>
+                  <p className="text-xs text-gray-400">
+                    {searchResult.ajkId} · {searchResult.role}
+                  </p>
+                  <span
+                    className={`text-xs ${searchResult.isOnline ? "text-green-500" : "text-gray-400"}`}
+                  >
+                    {searchResult.isOnline ? "Online" : "Offline"}
+                  </span>
                 </div>
-                <button onClick={() => sendRequest(searchResult.id)} className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold">Send Request</button>
+                <button
+                  onClick={() => sendRequest(searchResult.id)}
+                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white"
+                >
+                  Send Request
+                </button>
               </div>
             )}
           </div>
@@ -846,38 +1220,55 @@ export default function Chat() {
       {selectedConv && (
         <div className="border-t bg-white">
           {/* Quick reply chips row */}
-          <div className="px-4 pt-3 pb-1 flex items-center gap-2">
-            <div className="flex-1 flex gap-2 overflow-x-auto scrollbar-hide">
-              {quickReplies.map(reply => (
+          <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+            <div className="scrollbar-hide flex flex-1 gap-2 overflow-x-auto">
+              {quickReplies.map((reply) => (
                 <button
                   key={reply}
-                  onClick={() => { setInput(reply); }}
-                  className="flex-shrink-0 h-8 px-3 bg-blue-50 border border-blue-200 text-orange-700 text-xs font-semibold rounded-full hover:bg-blue-100 active:scale-95 transition whitespace-nowrap"
+                  onClick={() => {
+                    setInput(reply);
+                  }}
+                  className="h-8 flex-shrink-0 rounded-full border border-blue-200 bg-blue-50 px-3 text-xs font-semibold whitespace-nowrap text-orange-700 transition hover:bg-blue-100 active:scale-95"
                 >
                   {reply}
                 </button>
               ))}
               {quickReplies.length === 0 && (
-                <span className="text-xs text-gray-400 self-center">No shortcuts yet</span>
+                <span className="self-center text-xs text-gray-400">No shortcuts yet</span>
               )}
             </div>
             <button
               onClick={() => setShowShortcutsModal(true)}
               title="Edit quick reply shortcuts"
-              className="flex-shrink-0 h-8 px-3 bg-gray-100 text-gray-500 text-xs font-semibold rounded-full hover:bg-gray-200 active:scale-95 transition whitespace-nowrap border border-gray-200"
+              className="h-8 flex-shrink-0 rounded-full border border-gray-200 bg-gray-100 px-3 text-xs font-semibold whitespace-nowrap text-gray-500 transition hover:bg-gray-200 active:scale-95"
             >
               ✏️ Edit
             </button>
           </div>
-          <div className="flex gap-2 px-4 pb-4 pt-2">
+          <div className="flex gap-2 px-4 pt-2 pb-4">
             {recordingVoice ? (
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-xl px-3 h-12">
-                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"/>
-                  <span className="text-xs font-bold text-red-600">{Math.floor(voiceRecordSecs/60)}:{String(voiceRecordSecs%60).padStart(2,"0")}</span>
+              <div className="flex flex-shrink-0 items-center gap-2">
+                <div className="flex h-12 items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+                  <span className="text-xs font-bold text-red-600">
+                    {Math.floor(voiceRecordSecs / 60)}:
+                    {String(voiceRecordSecs % 60).padStart(2, "0")}
+                  </span>
                 </div>
-                <button onClick={cancelVoiceRecording} title="Cancel" className="h-12 w-12 rounded-xl bg-gray-100 text-gray-500 flex items-center justify-center text-lg flex-shrink-0">✕</button>
-                <button onClick={stopVoiceRecording} title="Send voice note" className="h-12 w-12 rounded-xl bg-blue-600 text-white flex items-center justify-center text-lg flex-shrink-0">✔</button>
+                <button
+                  onClick={cancelVoiceRecording}
+                  title="Cancel"
+                  className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500"
+                >
+                  ✕
+                </button>
+                <button
+                  onClick={stopVoiceRecording}
+                  title="Send voice note"
+                  className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-blue-600 text-lg text-white"
+                >
+                  ✔
+                </button>
               </div>
             ) : (
               <>
@@ -886,10 +1277,10 @@ export default function Chat() {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingFile}
                   title="Attach image or file"
-                  className="h-12 w-12 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 active:scale-95 transition flex-shrink-0 disabled:opacity-50"
+                  className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:bg-gray-50 active:scale-95 disabled:opacity-50"
                 >
                   {uploadingFile ? (
-                    <span className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"/>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
                   ) : (
                     <span className="text-xl">📎</span>
                   )}
@@ -898,7 +1289,7 @@ export default function Chat() {
                   type="button"
                   onClick={startVoiceRecording}
                   title="Record voice note"
-                  className="h-12 w-12 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 active:scale-95 transition flex-shrink-0"
+                  className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:bg-gray-50 active:scale-95"
                 >
                   <span className="text-xl">🎤</span>
                 </button>
@@ -924,8 +1315,13 @@ export default function Chat() {
                     content: url,
                     messageType: isImage ? "image" : "file",
                   };
-                  await apiFetch("/communication/messages", { method: "POST", body: JSON.stringify(msg) });
-                  const msgs = await apiFetch(`/communication/conversations/${selectedConv.id}/messages`);
+                  await apiFetch("/communication/messages", {
+                    method: "POST",
+                    body: JSON.stringify(msg),
+                  });
+                  const msgs = await apiFetch(
+                    `/communication/conversations/${selectedConv.id}/messages`
+                  );
                   setMessages(msgs.messages || []);
                 } catch (err) {
                   showError(err instanceof Error ? err.message : "Upload failed");
@@ -937,8 +1333,32 @@ export default function Chat() {
             />
             {!recordingVoice && (
               <>
-                <input value={input} onChange={e => { setInput(e.target.value); socketRef.current?.emit("comm:typing:start", { conversationId: selectedConv.id, userId: user?.id }); }} onBlur={() => socketRef.current?.emit("comm:typing:stop", { conversationId: selectedConv.id, userId: user?.id })} placeholder="Type a message..." className="flex-1 h-12 px-4 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-sm" onKeyDown={e => e.key === "Enter" && sendMessage()} />
-                <button onClick={sendMessage} disabled={sending || !input.trim()} className="h-12 px-6 bg-blue-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">Send</button>
+                <input
+                  value={input}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    socketRef.current?.emit("comm:typing:start", {
+                      conversationId: selectedConv.id,
+                      userId: user?.id,
+                    });
+                  }}
+                  onBlur={() =>
+                    socketRef.current?.emit("comm:typing:stop", {
+                      conversationId: selectedConv.id,
+                      userId: user?.id,
+                    })
+                  }
+                  placeholder="Type a message..."
+                  className="h-12 flex-1 rounded-xl border border-gray-200 px-4 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                />
+                <button
+                  onClick={sendMessage}
+                  disabled={sending || !input.trim()}
+                  className="h-12 rounded-xl bg-blue-600 px-6 text-sm font-bold text-white disabled:opacity-50"
+                >
+                  Send
+                </button>
               </>
             )}
           </div>

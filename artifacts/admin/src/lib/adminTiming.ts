@@ -66,7 +66,7 @@ export function getAdminTiming(): AdminTimingConfig {
 }
 
 export function applyAdminTimingOverrides(
-  overrides: Partial<Record<keyof AdminTimingConfig, unknown>> | null | undefined,
+  overrides: Partial<Record<keyof AdminTimingConfig, unknown>> | null | undefined
 ): void {
   _registry.apply(overrides);
 }

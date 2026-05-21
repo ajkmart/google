@@ -6,8 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type RidePaymentMethod =
-  (typeof RidePaymentMethod)[keyof typeof RidePaymentMethod];
+export type RidePaymentMethod = (typeof RidePaymentMethod)[keyof typeof RidePaymentMethod];
 
 export const RidePaymentMethod = {
   cash: "cash",

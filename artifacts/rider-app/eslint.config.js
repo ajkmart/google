@@ -1,6 +1,6 @@
-import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 import { createRequire } from "module";
+import tseslint from "typescript-eslint";
 
 const require = createRequire(import.meta.url);
 const { rules: localRules } = require("../../eslint-rules/no-silent-catch.cjs");
@@ -41,5 +41,5 @@ export default tseslint.config(
     // but excluded so future pass-through helpers aren't blocked by the rule.
     files: ["**/lib/logger.ts"],
     rules: { "no-console": "off" },
-  },
+  }
 );

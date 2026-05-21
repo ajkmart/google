@@ -9,7 +9,7 @@
  *  - The rawToken captured from the mock is used directly in magic-link/verify.
  */
 
-import { vi, describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 // ── Mocks (hoisted) ────────────────────────────────────────────────────────────
 const mockSendMagicLinkEmail = vi.fn();
@@ -47,13 +47,13 @@ vi.mock("../../../services/whatsapp.js", () => ({
 import request from "supertest";
 import { createServer } from "../../../app.js";
 import {
-  generateTestEmail,
-  createTestUser,
-  deleteTestUser,
-  seedPlatformSetting,
-  deletePlatformSetting,
   cleanupMagicLinkTokens,
   cleanupRefreshTokens,
+  createTestUser,
+  deletePlatformSetting,
+  deleteTestUser,
+  generateTestEmail,
+  seedPlatformSetting,
 } from "../helpers/db-helpers.js";
 
 // ── Test Suite ─────────────────────────────────────────────────────────────────

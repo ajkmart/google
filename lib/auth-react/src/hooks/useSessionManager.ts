@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useAuthContext } from '../AuthProvider';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuthContext } from "../AuthProvider";
 
 /* ── Shape types (mirror the backend response exactly) ─────────────────── */
 
@@ -108,28 +108,23 @@ async function apiFetch<T = undefined>(
   init?: RequestInit
 ): Promise<T> {
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     ...(init?.headers as Record<string, string> | undefined),
   };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await fetch(url, { ...init, headers });
   const json = (await res.json()) as ApiResponse<T>;
 
   if (!res.ok || !json.success) {
-    throw new Error(
-      (json as ApiError).error ??
-        `Request failed with status ${res.status}`
-    );
+    throw new Error((json as ApiError).error ?? `Request failed with status ${res.status}`);
   }
   return (json as ApiSuccess<T>).data as T;
 }
 
 /* ── Hook implementation ───────────────────────────────────────────────── */
 
-export function useSessionManager(
-  options: UseSessionManagerOptions = {}
-): UseSessionManagerResult {
+export function useSessionManager(options: UseSessionManagerOptions = {}): UseSessionManagerResult {
   const ctx = useAuthContext();
   const base = options.baseURL ?? ctx.baseURL;
   const autoFetchSessions = options.autoFetchSessions ?? true;
@@ -159,7 +154,7 @@ export function useSessionManager(
       );
       setSessions(data?.sessions ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load sessions');
+      setError(err instanceof Error ? err.message : "Failed to load sessions");
     } finally {
       setLoadingSessions(false);
     }
@@ -176,7 +171,7 @@ export function useSessionManager(
       );
       setHistory(data?.history ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load history');
+      setError(err instanceof Error ? err.message : "Failed to load history");
     } finally {
       setLoadingHistory(false);
     }
@@ -191,16 +186,14 @@ export function useSessionManager(
         await apiFetch(
           `${base}/api/auth/sessions/${encodeURIComponent(sessionId)}`,
           tokenRef.current,
-          { method: 'DELETE' }
+          { method: "DELETE" }
         );
         /* Optimistic remove — replace from server to stay consistent */
         setSessions((prev) => prev.filter((s) => s.id !== sessionId));
         /* Background refresh to sync server state */
         void refreshSessions();
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : 'Failed to revoke session'
-        );
+        setError(err instanceof Error ? err.message : "Failed to revoke session");
       } finally {
         setRevokingId(null);
       }
@@ -210,22 +203,16 @@ export function useSessionManager(
 
   /* ── revokeAllOthers ───────────────────────────────────────────────── */
   const revokeAllOthers = useCallback(async () => {
-    setRevokingId('__others__');
+    setRevokingId("__others__");
     setError(null);
     try {
-      await apiFetch(
-        `${base}/api/auth/sessions/revoke`,
-        tokenRef.current,
-        {
-          method: 'POST',
-          body: JSON.stringify({ revokeAllExceptCurrent: true }),
-        }
-      );
+      await apiFetch(`${base}/api/auth/sessions/revoke`, tokenRef.current, {
+        method: "POST",
+        body: JSON.stringify({ revokeAllExceptCurrent: true }),
+      });
       void refreshSessions();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to revoke other sessions'
-      );
+      setError(err instanceof Error ? err.message : "Failed to revoke other sessions");
     } finally {
       setRevokingId(null);
     }
@@ -233,23 +220,17 @@ export function useSessionManager(
 
   /* ── revokeAll ─────────────────────────────────────────────────────── */
   const revokeAll = useCallback(async () => {
-    setRevokingId('__all__');
+    setRevokingId("__all__");
     setError(null);
     try {
-      await apiFetch(
-        `${base}/api/auth/sessions`,
-        tokenRef.current,
-        { method: 'DELETE' }
-      );
+      await apiFetch(`${base}/api/auth/sessions`, tokenRef.current, { method: "DELETE" });
       setSessions([]);
       setHistory([]);
       /* All sessions gone — clear loading state then log out */
       setRevokingId(null);
       ctx.logout();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to revoke all sessions'
-      );
+      setError(err instanceof Error ? err.message : "Failed to revoke all sessions");
       setRevokingId(null);
     }
   }, [base, ctx]);
@@ -259,15 +240,15 @@ export function useSessionManager(
     if (autoFetchSessions && ctx.isAuthenticated) {
       void refreshSessions();
     }
-  // Run once when authenticated state is confirmed
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Run once when authenticated state is confirmed
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx.isAuthenticated]);
 
   useEffect(() => {
     if (autoFetchHistory && ctx.isAuthenticated) {
       void refreshHistory();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx.isAuthenticated]);
 
   return {

@@ -17,24 +17,24 @@
  *   [ ] Logout clears both access and refresh tokens and redirects to /login
  *   [ ] Wrong-role token (e.g. vendor token used in rider app) is rejected on restore with role mismatch log
  */
-import React, {
+import {
   createContext,
-  useContext,
-  useState,
   useCallback,
+  useContext,
   useEffect,
   useRef,
+  useState,
   type ReactNode,
-} from 'react';
-import type { TokenStorage, StorageType } from './api/tokenStorage';
-import { createTokenStorage } from './api/tokenStorage';
-import { decodeJwt, isTokenExpired } from './utils/jwtUtils';
+} from "react";
+import type { StorageType, TokenStorage } from "./api/tokenStorage";
+import { createTokenStorage } from "./api/tokenStorage";
+import { decodeJwt, isTokenExpired } from "./utils/jwtUtils";
 
 export interface AuthUser {
   id: string;
   phone?: string;
   email?: string;
-  role: 'customer' | 'rider' | 'vendor' | 'admin';
+  role: "customer" | "rider" | "vendor" | "admin";
   approvalStatus?: string;
   rejectionReason?: string | null;
 }
@@ -58,7 +58,7 @@ export const AuthContext = createContext<AuthContextValue | null>(null);
 
 export interface AuthProviderProps {
   children: ReactNode;
-  role?: AuthUser['role'];
+  role?: AuthUser["role"];
   baseURL?: string;
   storageType?: StorageType;
   tokenStorage?: TokenStorage;
@@ -68,10 +68,10 @@ export interface AuthProviderProps {
 export function AuthProvider({
   children,
   role: expectedRole,
-  baseURL = '',
-  storageType = 'web',
+  baseURL = "",
+  storageType = "web",
   tokenStorage: externalStorage,
-  refreshEndpoint = '/api/auth/refresh',
+  refreshEndpoint = "/api/auth/refresh",
 }: AuthProviderProps) {
   const [tokenStorage] = useState<TokenStorage>(
     () => externalStorage ?? createTokenStorage(storageType)
@@ -91,9 +91,7 @@ export function AuthProvider({
         tokenStorage.setAccessToken(accessToken);
         setStorageError(null);
       } catch (err) {
-        setStorageError(
-          err instanceof Error ? err.message : 'Failed to persist token'
-        );
+        setStorageError(err instanceof Error ? err.message : "Failed to persist token");
       }
       setUser(authUser);
       setTwoFactorPending(false);
@@ -136,7 +134,7 @@ export function AuthProvider({
         if (!isTokenExpired(existingToken)) {
           const payload = decodeJwt(existingToken);
           if (payload && payload.sub) {
-            const tokenRole = (payload.role as AuthUser['role']) ?? 'customer';
+            const tokenRole = (payload.role as AuthUser["role"]) ?? "customer";
 
             // Role enforcement gate: when the provider declares an expected role,
             // reject any stored token whose role claim doesn't match. This prevents
@@ -144,7 +142,7 @@ export function AuthProvider({
             // (or vice-versa) after a user switches accounts in another tab.
             // Role claim may be a comma-separated string (e.g. "customer,vendor").
             // Use includes() so multi-role users are not rejected.
-            const tokenRoles = tokenRole.split(',').map((r) => r.trim());
+            const tokenRoles = tokenRole.split(",").map((r) => r.trim());
             if (expectedRole && !tokenRoles.includes(expectedRole)) {
               console.warn(
                 `[AuthProvider] Stored token roles "${tokenRole}" do not include expected role "${expectedRole}". Clearing session.`
@@ -172,31 +170,40 @@ export function AuthProvider({
         // Token expired — attempt a silent refresh
         try {
           const res = await fetch(`${baseURL}${refreshEndpoint}`, {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
           });
 
           if (res.ok) {
             const text = await res.text();
-            let data: { accessToken?: string; user?: AuthUser; data?: { accessToken?: string; user?: AuthUser } } = {};
-            try { data = JSON.parse(text); } catch { /* ignore */ }
+            let data: {
+              accessToken?: string;
+              user?: AuthUser;
+              data?: { accessToken?: string; user?: AuthUser };
+            } = {};
+            try {
+              data = JSON.parse(text);
+            } catch {
+              /* ignore */
+            }
 
-            const newToken =
-              data.accessToken ?? data.data?.accessToken ?? null;
+            const newToken = data.accessToken ?? data.data?.accessToken ?? null;
             const refreshedUser = data.user ?? data.data?.user ?? null;
 
             if (newToken) {
               // Role enforcement gate on the refreshed token too —
               // same logic as the non-expired restore path above.
               const newPayload = decodeJwt(newToken);
-              const newTokenRoleRaw = (newPayload?.role as string) ?? 'customer';
+              const newTokenRoleRaw = (newPayload?.role as string) ?? "customer";
               // Role claim may be comma-separated (e.g. "customer,vendor") — use includes() for multi-role users.
-              const newTokenRoles = newTokenRoleRaw.split(',').map((r) => r.trim());
+              const newTokenRoles = newTokenRoleRaw.split(",").map((r) => r.trim());
               // Resolve primary role: prefer expectedRole if it matches, else first role in token.
-              const newTokenRole = (expectedRole && newTokenRoles.includes(expectedRole)
-                ? expectedRole
-                : (newTokenRoles[0] ?? 'customer')) as AuthUser['role'];
+              const newTokenRole = (
+                expectedRole && newTokenRoles.includes(expectedRole)
+                  ? expectedRole
+                  : (newTokenRoles[0] ?? "customer")
+              ) as AuthUser["role"];
               if (expectedRole && !newTokenRoles.includes(expectedRole)) {
                 console.warn(
                   `[AuthProvider] Refreshed token roles "${newTokenRole}" do not include expected role "${expectedRole}". Clearing session.`
@@ -208,7 +215,7 @@ export function AuthProvider({
                 if (refreshedUser) {
                   // If the server returned a full user object, also validate its role before accepting it.
                   const serverRoleRaw = (refreshedUser.role as string) ?? newTokenRole;
-                  const serverRoles = serverRoleRaw.split(',').map((r) => r.trim());
+                  const serverRoles = serverRoleRaw.split(",").map((r) => r.trim());
                   if (expectedRole && !serverRoles.includes(expectedRole)) {
                     console.warn(
                       `[AuthProvider] Refresh response user roles "${serverRoleRaw}" do not include expected role "${expectedRole}". Clearing session.`
@@ -250,7 +257,7 @@ export function AuthProvider({
     }
 
     void restore();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const value: AuthContextValue = {
@@ -275,7 +282,7 @@ export function AuthProvider({
 export function useAuthContext(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) {
-    throw new Error('useAuthContext must be used inside <AuthProvider>');
+    throw new Error("useAuthContext must be used inside <AuthProvider>");
   }
   return ctx;
 }

@@ -1,8 +1,8 @@
-import type { Request, Response, NextFunction } from "express";
-import { addSecurityEvent, getClientIp } from "./security.js";
+import type { NextFunction, Request, Response } from "express";
+import { logger } from "../lib/logger.js";
 import { getCachedSettings } from "../routes/admin-shared.js";
 import { sendAdminAlert } from "../services/email.js";
-import { logger } from "../lib/logger.js";
+import { addSecurityEvent, getClientIp } from "./security.js";
 
 /* ═══════════════════════════════════════════════════════════════
    suspiciousPatternDetector.ts
@@ -18,11 +18,7 @@ import { logger } from "../lib/logger.js";
    email + Slack alert is fired (rate-limited by the snooze period).
 ═══════════════════════════════════════════════════════════════ */
 
-const SENSITIVE_PREFIXES = [
-  "/api/auth",
-  "/api/users/lookup",
-  "/api/admin",
-];
+const SENSITIVE_PREFIXES = ["/api/auth", "/api/users/lookup", "/api/admin"];
 
 /* ── In-memory fallback (used when Redis is unavailable) ───── */
 interface WindowEntry {
@@ -64,7 +60,10 @@ async function redisIncrCounter(ip: string): Promise<number | null> {
     }
     return count;
   } catch (err) {
-    logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[pattern-detector] Redis INCR failed — using fallback");
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[pattern-detector] Redis INCR failed — using fallback"
+    );
     return null;
   }
 }
@@ -83,20 +82,28 @@ function fallbackIncrCounter(ip: string): number {
   return entry.count;
 }
 
-async function firePatternAlert(ip: string, count: number, threshold: number, settings: Record<string, string>) {
+async function firePatternAlert(
+  ip: string,
+  count: number,
+  threshold: number,
+  settings: Record<string, string>
+) {
   const snoozeMin = Math.max(1, parseInt(settings["health_monitor_snooze_min"] ?? "60", 10));
-  const snoozeMs  = snoozeMin * 60 * 1000;
+  const snoozeMs = snoozeMin * 60 * 1000;
   const now = Date.now();
 
   const lastSent = lastAlertMs.get(ip) ?? 0;
   if (now - lastSent < snoozeMs) return;
   lastAlertMs.set(ip, now);
 
-  const appName    = settings["app_name"] ?? "AJKMart";
-  const adminUrl   = (settings["admin_base_url"] ?? settings["app_base_url"] ?? "").replace(/\/$/, "");
-  const dashLink   = adminUrl ? `${adminUrl}/admin/security` : "";
+  const appName = settings["app_name"] ?? "AJKMart";
+  const adminUrl = (settings["admin_base_url"] ?? settings["app_base_url"] ?? "").replace(
+    /\/$/,
+    ""
+  );
+  const dashLink = adminUrl ? `${adminUrl}/admin/security` : "";
 
-  const subject  = `Suspicious API Pattern Detected — IP ${ip}`;
+  const subject = `Suspicious API Pattern Detected — IP ${ip}`;
   const htmlBody = `
     <h3 style="color:#dc2626;margin:0 0 12px;">🚨 Suspicious API Enumeration Detected</h3>
     <p style="color:#374151;margin:0 0 16px;">
@@ -113,11 +120,15 @@ async function firePatternAlert(ip: string, count: number, threshold: number, se
       <tr><td style="padding:6px 0;color:#6b7280;">Detected at</td>
           <td style="padding:6px 0;">${new Date().toUTCString()}</td></tr>
     </table>
-    ${dashLink ? `<p style="margin:0 0 16px;">
+    ${
+      dashLink
+        ? `<p style="margin:0 0 16px;">
       <a href="${dashLink}" style="background:#1e40af;color:#fff;padding:10px 18px;
          border-radius:6px;text-decoration:none;font-size:14px;font-weight:600;display:inline-block;">
         View Security Dashboard →
-      </a></p>` : ""}
+      </a></p>`
+        : ""
+    }
     <p style="color:#6b7280;font-size:12px;margin:0;">
       This alert will not repeat for ${snoozeMin} minute${snoozeMin === 1 ? "" : "s"} for this IP.
     </p>
@@ -135,70 +146,88 @@ async function firePatternAlert(ip: string, count: number, threshold: number, se
       text: `🚨 ${appName} — Suspicious API Pattern: IP ${ip} sent ${count} requests to sensitive endpoints in 1 min (threshold: ${threshold})`,
     };
     fetch(slackWebhook, {
-      method:  "POST",
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify(payload),
-    }).catch((e: Error) => logger.warn({ err: e.message }, "[pattern-detector] Slack webhook failed"));
+      body: JSON.stringify(payload),
+    }).catch((e: Error) =>
+      logger.warn({ err: e.message }, "[pattern-detector] Slack webhook failed")
+    );
   }
 }
 
 export function suspiciousPatternDetector(req: Request, _res: Response, next: NextFunction): void {
   const urlPath = req.originalUrl.split("?")[0];
-  const isSensitive = SENSITIVE_PREFIXES.some(prefix => urlPath.startsWith(prefix));
-  if (!isSensitive) { next(); return; }
+  const isSensitive = SENSITIVE_PREFIXES.some((prefix) => urlPath.startsWith(prefix));
+  if (!isSensitive) {
+    next();
+    return;
+  }
 
   const ip = getClientIp(req);
 
   /* Increment counter — prefer Redis, fall back to in-memory */
-  redisIncrCounter(ip).then(async (redisCount) => {
-    const count = redisCount !== null ? redisCount : fallbackIncrCounter(ip);
+  redisIncrCounter(ip)
+    .then(async (redisCount) => {
+      const count = redisCount !== null ? redisCount : fallbackIncrCounter(ip);
 
-    const settings = await getCachedSettings();
-    const threshold = Math.max(1, parseInt(settings["security_suspicious_pattern_threshold"] ?? "60", 10));
+      const settings = await getCachedSettings();
+      const threshold = Math.max(
+        1,
+        parseInt(settings["security_suspicious_pattern_threshold"] ?? "60", 10)
+      );
 
-    if (count === threshold + 1) {
-      const details = `IP ${ip} exceeded sensitive endpoint threshold: ${count} req/min (threshold: ${threshold})`;
-      addSecurityEvent({
-        type:     "suspicious_pattern",
-        ip,
-        details,
-        severity: "high",
-      });
-      logger.warn({ ip, count, threshold }, "[pattern-detector] Suspicious pattern detected");
-      firePatternAlert(ip, count, threshold, settings).catch((err: unknown) => {
-        logger.warn(
-          { ip, err: err instanceof Error ? err.message : String(err) },
-          "[pattern-detector] firePatternAlert failed",
-        );
-      });
-    }
-  }).catch((err: unknown) => {
-    logger.warn(
-      { ip, err: err instanceof Error ? err.message : String(err) },
-      "[pattern-detector] Redis counter chain failed — falling back to in-memory counter",
-    );
-    /* Non-fatal: fall back to in-memory counter if the whole async chain fails */
-    const count = fallbackIncrCounter(ip);
-    getCachedSettings().then(settings => {
-      const threshold = Math.max(1, parseInt(settings["security_suspicious_pattern_threshold"] ?? "60", 10));
       if (count === threshold + 1) {
         const details = `IP ${ip} exceeded sensitive endpoint threshold: ${count} req/min (threshold: ${threshold})`;
-        addSecurityEvent({ type: "suspicious_pattern", ip, details, severity: "high" });
-        logger.warn({ ip, count, threshold }, "[pattern-detector] Suspicious pattern detected (fallback)");
-        firePatternAlert(ip, count, threshold, settings).catch((err2: unknown) => {
+        addSecurityEvent({
+          type: "suspicious_pattern",
+          ip,
+          details,
+          severity: "high",
+        });
+        logger.warn({ ip, count, threshold }, "[pattern-detector] Suspicious pattern detected");
+        firePatternAlert(ip, count, threshold, settings).catch((err: unknown) => {
           logger.warn(
-            { ip, err: err2 instanceof Error ? err2.message : String(err2) },
-            "[pattern-detector] firePatternAlert (fallback) failed",
+            { ip, err: err instanceof Error ? err.message : String(err) },
+            "[pattern-detector] firePatternAlert failed"
           );
         });
       }
-    }).catch((err2: unknown) => {
+    })
+    .catch((err: unknown) => {
       logger.warn(
-        { ip, err: err2 instanceof Error ? err2.message : String(err2) },
-        "[pattern-detector] getCachedSettings in fallback path failed",
+        { ip, err: err instanceof Error ? err.message : String(err) },
+        "[pattern-detector] Redis counter chain failed — falling back to in-memory counter"
       );
+      /* Non-fatal: fall back to in-memory counter if the whole async chain fails */
+      const count = fallbackIncrCounter(ip);
+      getCachedSettings()
+        .then((settings) => {
+          const threshold = Math.max(
+            1,
+            parseInt(settings["security_suspicious_pattern_threshold"] ?? "60", 10)
+          );
+          if (count === threshold + 1) {
+            const details = `IP ${ip} exceeded sensitive endpoint threshold: ${count} req/min (threshold: ${threshold})`;
+            addSecurityEvent({ type: "suspicious_pattern", ip, details, severity: "high" });
+            logger.warn(
+              { ip, count, threshold },
+              "[pattern-detector] Suspicious pattern detected (fallback)"
+            );
+            firePatternAlert(ip, count, threshold, settings).catch((err2: unknown) => {
+              logger.warn(
+                { ip, err: err2 instanceof Error ? err2.message : String(err2) },
+                "[pattern-detector] firePatternAlert (fallback) failed"
+              );
+            });
+          }
+        })
+        .catch((err2: unknown) => {
+          logger.warn(
+            { ip, err: err2 instanceof Error ? err2.message : String(err2) },
+            "[pattern-detector] getCachedSettings in fallback path failed"
+          );
+        });
     });
-  });
 
   next();
 }

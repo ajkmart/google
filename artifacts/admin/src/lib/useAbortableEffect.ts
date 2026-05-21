@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 
 export function useAbortableEffect(
   effect: (signal: AbortSignal) => void | (() => void),
-  deps: React.DependencyList,
+  deps: React.DependencyList
 ): void {
   const effectRef = useRef(effect);
   effectRef.current = effect;

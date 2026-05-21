@@ -1,21 +1,33 @@
-import { Router, type IRouter } from "express";
-import { randomUUID } from "crypto";
-import { writeFile, unlink } from "fs/promises";
-import { execFile } from "child_process";
-import { promisify } from "util";
-import path from "path";
-import os from "os";
-import multer from "multer";
-import sharp from "sharp";
-import { sendSuccess, sendCreated, sendError, sendNotFound, sendValidationError } from "../lib/response.js";
-import { customerAuth, riderAuth, requireRole, getCachedSettings, verifyUserJwt } from "../middleware/security.js";
-import { registerUploadLimiter } from "../middleware/rate-limit.js";
 import { db } from "@workspace/db";
 import { pharmacyPrescriptionRefsTable } from "@workspace/db/schema";
+import { execFile } from "child_process";
+import { randomUUID } from "crypto";
+import type { NextFunction, Request, Response } from "express";
+import { Router, type IRouter } from "express";
+import { unlink, writeFile } from "fs/promises";
+import multer from "multer";
+import os from "os";
+import path from "path";
+import sharp from "sharp";
+import { promisify } from "util";
 import { logger } from "../lib/logger.js";
-import { storageUpload, storageUploadPrivate, storageDownloadPrivate } from "../lib/storage.js";
+import {
+  sendCreated,
+  sendError,
+  sendNotFound,
+  sendSuccess,
+  sendValidationError,
+} from "../lib/response.js";
+import { storageDownloadPrivate, storageUpload, storageUploadPrivate } from "../lib/storage.js";
+import { registerUploadLimiter } from "../middleware/rate-limit.js";
+import {
+  customerAuth,
+  getCachedSettings,
+  requireRole,
+  riderAuth,
+  verifyUserJwt,
+} from "../middleware/security.js";
 import { verifyAccessToken } from "../utils/admin-jwt.js";
-import type { Request, Response, NextFunction } from "express";
 
 /* ── Server-side registration upload nonce store ─────────────────────────
    Each call to POST /uploads/register-token issues a UUID nonce stored in
@@ -27,7 +39,10 @@ import type { Request, Response, NextFunction } from "express";
 const REG_TOKEN_TTL_MS = 30 * 60 * 1000; /* 30 minutes */
 const MAX_PENDING_NONCES = 500;
 
-interface PendingNonce { exp: number; consumed: boolean }
+interface PendingNonce {
+  exp: number;
+  consumed: boolean;
+}
 const pendingNonces = new Map<string, PendingNonce>();
 const docNonces = new Map<string, string>(); /* docKey → nonce */
 
@@ -53,7 +68,10 @@ function consumeNonce(nonce: string): boolean {
   if (!nonce) return false;
   const info = pendingNonces.get(nonce);
   if (!info) return false;
-  if (info.exp < Date.now()) { pendingNonces.delete(nonce); return false; }
+  if (info.exp < Date.now()) {
+    pendingNonces.delete(nonce);
+    return false;
+  }
   if (info.consumed) return false;
   info.consumed = true;
   return true;
@@ -132,8 +150,8 @@ const router: IRouter = Router();
 if (process.env.NODE_ENV === "production" && !process.env["STORAGE_BUCKET_URL"]) {
   logger.warn(
     "[uploads] STORAGE_BUCKET_URL is not set — using local disk storage (./uploads/). " +
-    "Files will not survive container restarts and are not shared across instances. " +
-    "Set STORAGE_BUCKET_URL, STORAGE_ACCESS_KEY, and STORAGE_SECRET_KEY for S3-compatible storage.",
+      "Files will not survive container restarts and are not shared across instances. " +
+      "Set STORAGE_BUCKET_URL, STORAGE_ACCESS_KEY, and STORAGE_SECRET_KEY for S3-compatible storage."
   );
 }
 
@@ -156,9 +174,13 @@ function formatToMime(fmt: string): string {
 
 async function getUploadLimits() {
   const s = await getCachedSettings();
-  const maxImageMb = parseInt(s["upload_max_image_mb"] ?? String(DEFAULT_MAX_IMAGE_MB)) || DEFAULT_MAX_IMAGE_MB;
-  const maxVideoMb = parseInt(s["upload_max_video_mb"] ?? String(DEFAULT_MAX_VIDEO_MB)) || DEFAULT_MAX_VIDEO_MB;
-  const maxVideoDuration = parseInt(s["upload_max_video_duration_sec"] ?? String(DEFAULT_MAX_VIDEO_DURATION_SECS)) || DEFAULT_MAX_VIDEO_DURATION_SECS;
+  const maxImageMb =
+    parseInt(s["upload_max_image_mb"] ?? String(DEFAULT_MAX_IMAGE_MB)) || DEFAULT_MAX_IMAGE_MB;
+  const maxVideoMb =
+    parseInt(s["upload_max_video_mb"] ?? String(DEFAULT_MAX_VIDEO_MB)) || DEFAULT_MAX_VIDEO_MB;
+  const maxVideoDuration =
+    parseInt(s["upload_max_video_duration_sec"] ?? String(DEFAULT_MAX_VIDEO_DURATION_SECS)) ||
+    DEFAULT_MAX_VIDEO_DURATION_SECS;
   const imageFormats = s["upload_allowed_image_formats"]
     ? s["upload_allowed_image_formats"].split(",").map(formatToMime).filter(Boolean)
     : DEFAULT_IMAGE_FORMATS;
@@ -178,13 +200,13 @@ async function getUploadLimits() {
    Prevents MIME-type spoofing by checking the actual file header bytes rather
    than trusting the Content-Type header. */
 const MAGIC_BYTES: Record<string, ReadonlyArray<readonly number[]>> = {
-  "image/jpeg": [[0xFF, 0xD8, 0xFF]],
-  "image/jpg":  [[0xFF, 0xD8, 0xFF]],
-  "image/png":  [[0x89, 0x50, 0x4E, 0x47]],
-  "image/webp": [[0x52, 0x49, 0x46, 0x46]], /* RIFF header — WebP specific check below */
-  "video/mp4":  [[0x66, 0x74, 0x79, 0x70]], /* ftyp box at offset 4 */
+  "image/jpeg": [[0xff, 0xd8, 0xff]],
+  "image/jpg": [[0xff, 0xd8, 0xff]],
+  "image/png": [[0x89, 0x50, 0x4e, 0x47]],
+  "image/webp": [[0x52, 0x49, 0x46, 0x46]] /* RIFF header — WebP specific check below */,
+  "video/mp4": [[0x66, 0x74, 0x79, 0x70]] /* ftyp box at offset 4 */,
   "video/quicktime": [[0x66, 0x74, 0x79, 0x70]],
-  "video/webm": [[0x1A, 0x45, 0xDF, 0xA3]],
+  "video/webm": [[0x1a, 0x45, 0xdf, 0xa3]],
 };
 
 function validateFileMagicBytes(buffer: Buffer, mimeType: string): boolean {
@@ -194,13 +216,15 @@ function validateFileMagicBytes(buffer: Buffer, mimeType: string): boolean {
   const normalizedMime = mimeType === "image/jpg" ? "image/jpeg" : mimeType;
 
   for (const sig of signatures) {
-    const offset = (normalizedMime === "video/mp4" || normalizedMime === "video/quicktime") ? 4 : 0;
+    const offset = normalizedMime === "video/mp4" || normalizedMime === "video/quicktime" ? 4 : 0;
     if (buffer.length < offset + sig.length) continue;
     if (sig.every((byte, i) => buffer[offset + i] === byte)) {
       if (normalizedMime === "image/webp") {
         /* WebP must also have 'WEBP' at bytes 8-11 */
         if (buffer.length < 12) return false;
-        return buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50;
+        return (
+          buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50
+        );
       }
       return true;
     }
@@ -229,7 +253,10 @@ async function maybeCompressImage(buffer: Buffer, mimeType: string): Promise<Buf
     const s = await getCachedSettings();
     const compressEnabled = (s["security_compress_images"] ?? "on") === "on";
     if (!compressEnabled) return buffer;
-    const quality = Math.max(1, Math.min(100, parseInt(s["security_img_quality"] ?? "80", 10) || 80));
+    const quality = Math.max(
+      1,
+      Math.min(100, parseInt(s["security_img_quality"] ?? "80", 10) || 80)
+    );
     let pipeline = sharp(buffer);
     if (mimeType === "image/png") {
       pipeline = pipeline.png({ quality, compressionLevel: 6 });
@@ -240,7 +267,13 @@ async function maybeCompressImage(buffer: Buffer, mimeType: string): Promise<Buf
     }
     return await pipeline.toBuffer();
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return buffer;
   }
 }
@@ -255,7 +288,8 @@ async function saveBuffer(buffer: Buffer, prefix: string, mimeType: string): Pro
 
 /* ── Helper: upload a video buffer and return the public URL ── */
 async function saveVideoBuffer(buffer: Buffer, prefix: string, mimeType: string): Promise<string> {
-  const ext = mimeType === "video/quicktime" ? ".mov" : mimeType === "video/webm" ? ".webm" : ".mp4";
+  const ext =
+    mimeType === "video/quicktime" ? ".mov" : mimeType === "video/webm" ? ".webm" : ".mp4";
   const key = `${prefix}_${Date.now()}_${randomUUID().slice(0, 8)}${ext}`;
   return storageUpload(buffer, key, mimeType);
 }
@@ -264,12 +298,17 @@ async function saveVideoBuffer(buffer: Buffer, prefix: string, mimeType: string)
 async function saveAudioBuffer(buffer: Buffer, mimeType: string): Promise<string> {
   const baseType = mimeType.split(";")[0]!.trim();
   const ext =
-    baseType === "audio/mpeg" ? ".mp3"
-    : baseType === "audio/ogg" ? ".ogg"
-    : baseType === "audio/wav" ? ".wav"
-    : baseType === "audio/aac" ? ".aac"
-    : baseType === "audio/mp4" ? ".m4a"
-    : ".webm";
+    baseType === "audio/mpeg"
+      ? ".mp3"
+      : baseType === "audio/ogg"
+        ? ".ogg"
+        : baseType === "audio/wav"
+          ? ".wav"
+          : baseType === "audio/aac"
+            ? ".aac"
+            : baseType === "audio/mp4"
+              ? ".m4a"
+              : ".webm";
   const key = `audio_${Date.now()}_${randomUUID().slice(0, 8)}${ext}`;
   return storageUpload(buffer, key, baseType);
 }
@@ -295,7 +334,10 @@ router.post("/", customerAuth, async (req, res) => {
     const buffer = Buffer.from(base64Data, "base64");
 
     if (buffer.length > limits.maxImageSize) {
-      sendValidationError(res, `File too large. Maximum ${Math.round(limits.maxImageSize / 1024 / 1024)}MB allowed`);
+      sendValidationError(
+        res,
+        `File too large. Maximum ${Math.round(limits.maxImageSize / 1024 / 1024)}MB allowed`
+      );
       return;
     }
 
@@ -326,7 +368,7 @@ router.post(
   "/proof",
   riderAuth,
   (req, res, next) => {
-    upload.single("file")(req as never, res as never,  (err) => {
+    upload.single("file")(req as never, res as never, (err) => {
       if (err instanceof multer.MulterError) {
         if (err.code === "LIMIT_FILE_SIZE") {
           sendValidationError(res, "File too large");
@@ -357,7 +399,10 @@ router.post(
         return;
       }
       if (buffer.length > limits.maxImageSize) {
-        sendValidationError(res, `File too large. Maximum ${Math.round(limits.maxImageSize / (1024*1024))}MB allowed`);
+        sendValidationError(
+          res,
+          `File too large. Maximum ${Math.round(limits.maxImageSize / (1024 * 1024))}MB allowed`
+        );
         return;
       }
 
@@ -377,7 +422,7 @@ router.post(
       const msg = e instanceof Error ? e.message : "Upload failed";
       sendError(res, msg);
     }
-  },
+  }
 );
 
 /* ── POST /uploads/register-token — issue a server-side one-time-use nonce ───
@@ -408,7 +453,7 @@ router.post(
   "/register",
   registerUploadLimiter,
   (req, res, next) => {
-    upload.single("file")(req as never, res as never,  (err) => {
+    upload.single("file")(req as never, res as never, (err) => {
       if (err instanceof multer.MulterError) {
         if (err.code === "LIMIT_FILE_SIZE") {
           sendValidationError(res, "File too large");
@@ -432,7 +477,8 @@ router.post(
     if (!uploadToken || !consumeNonce(uploadToken)) {
       res.status(403).json({
         success: false,
-        error: "A valid registration upload token is required. Call POST /api/uploads/register-token first.",
+        error:
+          "A valid registration upload token is required. Call POST /api/uploads/register-token first.",
         code: "MISSING_UPLOAD_TOKEN",
       });
       return;
@@ -452,7 +498,10 @@ router.post(
         return;
       }
       if (buffer.length > limits.maxImageSize) {
-        sendValidationError(res, `File too large. Maximum ${Math.round(limits.maxImageSize / (1024*1024))}MB allowed`);
+        sendValidationError(
+          res,
+          `File too large. Maximum ${Math.round(limits.maxImageSize / (1024 * 1024))}MB allowed`
+        );
         return;
       }
 
@@ -474,9 +523,10 @@ router.post(
       /* Return an opaque server-relative path AND the download nonce.
          The client must pass the nonce as x-doc-nonce when retrieving the doc.
          Admins can retrieve any doc with an admin JWT (no nonce required). */
-      const baseUrl = process.env["NODE_ENV"] !== "production"
-        ? (process.env["APP_BASE_URL"] ?? `http://localhost:${process.env["PORT"] ?? "5000"}`)
-        : "";
+      const baseUrl =
+        process.env["NODE_ENV"] !== "production"
+          ? (process.env["APP_BASE_URL"] ?? `http://localhost:${process.env["PORT"] ?? "5000"}`)
+          : "";
       const opaqueUrl = `${baseUrl}/api/uploads/reg/${key}`;
 
       sendCreated(res, {
@@ -489,7 +539,7 @@ router.post(
       const msg = e instanceof Error ? e.message : "Upload failed";
       sendError(res, msg);
     }
-  },
+  }
 );
 
 /* ── GET /uploads/reg/:key — owner-or-admin proxy for pre-registration docs ──
@@ -522,7 +572,9 @@ router.get("/reg/:key", async (req, res) => {
     try {
       const adminPayload = verifyAccessToken(rawToken);
       if (adminPayload?.sub) isAdmin = true;
-    } catch (err) { logger.warn({ err }, "[uploads] doc-serve: admin token check failed"); }
+    } catch (err) {
+      logger.warn({ err }, "[uploads] doc-serve: admin token check failed");
+    }
   }
 
   /* Check owner nonce (required for non-admin callers) */
@@ -579,7 +631,10 @@ router.post("/prescription", customerAuth, async (req, res) => {
     const buffer = Buffer.from(base64Data, "base64");
 
     if (buffer.length > limits.maxImageSize) {
-      sendValidationError(res, `File too large. Maximum ${Math.round(limits.maxImageSize / 1024 / 1024)}MB allowed`);
+      sendValidationError(
+        res,
+        `File too large. Maximum ${Math.round(limits.maxImageSize / 1024 / 1024)}MB allowed`
+      );
       return;
     }
 
@@ -600,7 +655,7 @@ router.post("/prescription", customerAuth, async (req, res) => {
         .catch((err: unknown) => {
           logger.warn(
             { err: err instanceof Error ? err.message : String(err), refId, userId },
-            "[uploads] prescription ref insert failed (non-critical)",
+            "[uploads] prescription ref insert failed (non-critical)"
           );
         });
     }
@@ -657,7 +712,10 @@ router.post(
         return;
       }
       if (buffer.length > limits.maxVideoSize) {
-        sendValidationError(res, `Video too large. Maximum ${Math.round(limits.maxVideoSize / (1024*1024))}MB allowed`);
+        sendValidationError(
+          res,
+          `Video too large. Maximum ${Math.round(limits.maxVideoSize / (1024 * 1024))}MB allowed`
+        );
         return;
       }
 
@@ -665,31 +723,50 @@ router.post(
       try {
         await writeFile(tmpPath, buffer);
         const { stdout } = await execFileAsync("ffprobe", [
-          "-v", "error",
-          "-show_entries", "format=duration",
-          "-of", "default=noprint_wrappers=1:nokey=1",
+          "-v",
+          "error",
+          "-show_entries",
+          "format=duration",
+          "-of",
+          "default=noprint_wrappers=1:nokey=1",
           tmpPath,
         ]);
         const duration = parseFloat(stdout.trim());
         if (isNaN(duration)) {
-          sendValidationError(res, "Could not determine video duration. Please upload a valid video file.");
+          sendValidationError(
+            res,
+            "Could not determine video duration. Please upload a valid video file."
+          );
           return;
         }
         if (duration > limits.maxVideoDuration) {
-          sendValidationError(res, `Video must be ${limits.maxVideoDuration} seconds or less. Your video is ${Math.ceil(duration)}s.`);
+          sendValidationError(
+            res,
+            `Video must be ${limits.maxVideoDuration} seconds or less. Your video is ${Math.ceil(duration)}s.`
+          );
           return;
         }
       } catch (err) {
-        logger.warn({ error: err instanceof Error ? err.message : String(err), code: "VIDEO_DURATION_CHECK_FAILED", timestamp: new Date().toISOString() }, "[uploads] ffprobe video duration check failed");
-        sendValidationError(res, "Could not verify video duration. Please try a different file or format.");
+        logger.warn(
+          {
+            error: err instanceof Error ? err.message : String(err),
+            code: "VIDEO_DURATION_CHECK_FAILED",
+            timestamp: new Date().toISOString(),
+          },
+          "[uploads] ffprobe video duration check failed"
+        );
+        sendValidationError(
+          res,
+          "Could not verify video duration. Please try a different file or format."
+        );
         return;
       } finally {
         unlink(tmpPath).catch((err: unknown) => {
-        logger.warn(
-          { err: err instanceof Error ? err.message : String(err), tmpPath },
-          "[uploads] temp video file cleanup failed",
-        );
-      });
+          logger.warn(
+            { err: err instanceof Error ? err.message : String(err), tmpPath },
+            "[uploads] temp video file cleanup failed"
+          );
+        });
       }
 
       const url = await saveVideoBuffer(buffer, "video", mimetype);
@@ -703,7 +780,7 @@ router.post(
       const msg = e instanceof Error ? e.message : "Upload failed";
       sendError(res, msg);
     }
-  },
+  }
 );
 
 /* ── POST /uploads/audio — multipart audio upload (authenticated users) ── */
@@ -712,7 +789,14 @@ const audioUpload = multer({
   limits: { fileSize: 20 * 1024 * 1024 },
 });
 
-const ALLOWED_AUDIO_TYPES = ["audio/webm", "audio/ogg", "audio/mpeg", "audio/mp4", "audio/wav", "audio/aac"];
+const ALLOWED_AUDIO_TYPES = [
+  "audio/webm",
+  "audio/ogg",
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/wav",
+  "audio/aac",
+];
 
 router.post(
   "/audio",
@@ -720,17 +804,26 @@ router.post(
   (req, res, next) => {
     audioUpload.single("file")(req as never, res as never, (err) => {
       if (err instanceof multer.MulterError) {
-        if (err.code === "LIMIT_FILE_SIZE") { sendValidationError(res, "Audio too large. Maximum 20MB allowed"); return; }
+        if (err.code === "LIMIT_FILE_SIZE") {
+          sendValidationError(res, "Audio too large. Maximum 20MB allowed");
+          return;
+        }
         sendValidationError(res, err.message);
         return;
       }
-      if (err) { sendValidationError(res, err instanceof Error ? err.message : "Upload failed"); return; }
+      if (err) {
+        sendValidationError(res, err instanceof Error ? err.message : "Upload failed");
+        return;
+      }
       next();
     });
   },
   async (req, res) => {
     try {
-      if (!req.file) { sendValidationError(res, "No audio file uploaded"); return; }
+      if (!req.file) {
+        sendValidationError(res, "No audio file uploaded");
+        return;
+      }
       const { mimetype, buffer, originalname } = req.file;
       const baseType = mimetype.split(";")[0]!.trim();
       if (!ALLOWED_AUDIO_TYPES.includes(baseType)) {
@@ -742,7 +835,7 @@ router.post(
     } catch (e: unknown) {
       sendError(res, e instanceof Error ? e.message : "Audio upload failed");
     }
-  },
+  }
 );
 
 /* ── POST /uploads/doc — multipart document upload (vendors only) ──
@@ -753,19 +846,28 @@ router.post(
   "/doc",
   requireRole("vendor", { vendorApprovalCheck: false }),
   (req, res, next) => {
-    upload.single("file")(req as never, res as never,  (err) => {
+    upload.single("file")(req as never, res as never, (err) => {
       if (err instanceof multer.MulterError) {
-        if (err.code === "LIMIT_FILE_SIZE") { sendValidationError(res, "File too large. Maximum 5MB allowed"); return; }
+        if (err.code === "LIMIT_FILE_SIZE") {
+          sendValidationError(res, "File too large. Maximum 5MB allowed");
+          return;
+        }
         sendValidationError(res, err.message);
         return;
       }
-      if (err) { sendValidationError(res, err instanceof Error ? err.message : "Upload failed"); return; }
+      if (err) {
+        sendValidationError(res, err instanceof Error ? err.message : "Upload failed");
+        return;
+      }
       next();
     });
   },
   async (req, res) => {
     try {
-      if (!req.file) { sendValidationError(res, "No file uploaded"); return; }
+      if (!req.file) {
+        sendValidationError(res, "No file uploaded");
+        return;
+      }
       const { mimetype, buffer, originalname } = req.file;
       const limits = await getUploadLimits();
       if (!limits.imageFormats.includes(mimetype)) {
@@ -773,7 +875,10 @@ router.post(
         return;
       }
       if (buffer.length > limits.maxImageSize) {
-        sendValidationError(res, `File too large. Maximum ${Math.round(limits.maxImageSize / (1024 * 1024))}MB allowed`);
+        sendValidationError(
+          res,
+          `File too large. Maximum ${Math.round(limits.maxImageSize / (1024 * 1024))}MB allowed`
+        );
         return;
       }
       if (!validateFileMagicBytes(buffer, mimetype)) {
@@ -785,7 +890,7 @@ router.post(
     } catch (e: unknown) {
       sendError(res, e instanceof Error ? e.message : "Document upload failed");
     }
-  },
+  }
 );
 
 export { prescriptionRefMap };

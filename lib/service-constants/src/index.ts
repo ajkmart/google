@@ -6,11 +6,31 @@ export type ServiceKey = "mart" | "food" | "rides" | "pharmacy" | "parcel" | "va
  * Single source of truth — import from here instead of hardcoding in each UI.
  */
 export const PAKISTAN_CITIES: readonly string[] = [
-  "Muzaffarabad", "Mirpur", "Rawalakot", "Kotli", "Bagh", "Bhimber",
-  "Islamabad", "Rawalpindi", "Lahore", "Karachi", "Peshawar", "Quetta",
-  "Faisalabad", "Multan", "Sialkot", "Gujranwala", "Hyderabad",
-  "Abbottabad", "Bahawalpur", "Sargodha", "Sukkur", "Mardan",
-  "Mansehra", "Gilgit", "Skardu",
+  "Muzaffarabad",
+  "Mirpur",
+  "Rawalakot",
+  "Kotli",
+  "Bagh",
+  "Bhimber",
+  "Islamabad",
+  "Rawalpindi",
+  "Lahore",
+  "Karachi",
+  "Peshawar",
+  "Quetta",
+  "Faisalabad",
+  "Multan",
+  "Sialkot",
+  "Gujranwala",
+  "Hyderabad",
+  "Abbottabad",
+  "Bahawalpur",
+  "Sargodha",
+  "Sukkur",
+  "Mardan",
+  "Mansehra",
+  "Gilgit",
+  "Skardu",
 ] as const;
 
 /**
@@ -31,7 +51,15 @@ export function normalizeVehicleType(raw: string | null | undefined): string {
   return v;
 }
 
-export const SERVICE_KEYS: ServiceKey[] = ["mart", "food", "rides", "pharmacy", "parcel", "van", "school"];
+export const SERVICE_KEYS: ServiceKey[] = [
+  "mart",
+  "food",
+  "rides",
+  "pharmacy",
+  "parcel",
+  "van",
+  "school",
+];
 
 export interface ServiceMetadata {
   key: ServiceKey;
@@ -125,32 +153,52 @@ export const ADMIN_SERVICE_LIST = SERVICE_KEYS.map((k) => ({
  * Used by both the API server (emit targets) and the frontend (subscribe room).
  */
 export function getSocketRoom(orderId: string, orderType: string): string {
-  return orderType === "ride" || orderType === "parcel"
-    ? `ride:${orderId}`
-    : `order:${orderId}`;
+  return orderType === "ride" || orderType === "parcel" ? `ride:${orderId}` : `order:${orderId}`;
 }
 
 /* Shared order status enumerations — single source of truth for API validation and frontend display */
 
 export const ORDER_VALID_STATUSES = [
-  "pending", "confirmed", "preparing", "ready", "picked_up",
-  "out_for_delivery", "delivered", "cancelled",
+  "pending",
+  "confirmed",
+  "preparing",
+  "ready",
+  "picked_up",
+  "out_for_delivery",
+  "delivered",
+  "cancelled",
 ] as const;
-export type OrderStatus = typeof ORDER_VALID_STATUSES[number];
+export type OrderStatus = (typeof ORDER_VALID_STATUSES)[number];
 
 export const RIDE_VALID_STATUSES = [
-  "searching", "bargaining", "accepted", "arrived",
-  "in_transit", "ongoing", "completed", "cancelled",
+  "searching",
+  "bargaining",
+  "accepted",
+  "arrived",
+  "in_transit",
+  "ongoing",
+  "completed",
+  "cancelled",
 ] as const;
-export type RideStatus = typeof RIDE_VALID_STATUSES[number];
+export type RideStatus = (typeof RIDE_VALID_STATUSES)[number];
 
 export const PARCEL_VALID_STATUSES = [
-  "pending", "accepted", "in_transit", "completed", "cancelled",
+  "pending",
+  "accepted",
+  "in_transit",
+  "completed",
+  "cancelled",
 ] as const;
-export type ParcelStatus = typeof PARCEL_VALID_STATUSES[number];
+export type ParcelStatus = (typeof PARCEL_VALID_STATUSES)[number];
 
 export const PHARMACY_ORDER_VALID_STATUSES = [
-  "pending", "confirmed", "preparing", "ready", "picked_up",
-  "out_for_delivery", "delivered", "cancelled",
+  "pending",
+  "confirmed",
+  "preparing",
+  "ready",
+  "picked_up",
+  "out_for_delivery",
+  "delivered",
+  "cancelled",
 ] as const;
-export type PharmacyOrderStatus = typeof PHARMACY_ORDER_VALID_STATUSES[number];
+export type PharmacyOrderStatus = (typeof PHARMACY_ORDER_VALID_STATUSES)[number];

@@ -3491,7 +3491,17 @@ components:
             $ref: "#/components/schemas/CartItem"
         status:
           type: string
-          enum: [pending, confirmed, preparing, ready, picked_up, out_for_delivery, delivered, cancelled]
+          enum:
+            [
+              pending,
+              confirmed,
+              preparing,
+              ready,
+              picked_up,
+              out_for_delivery,
+              delivered,
+              cancelled,
+            ]
         total:
           type: string
         deliveryAddress:
@@ -3837,7 +3847,8 @@ components:
           type: string
         updatedAt:
           type: string
-      required: [id, rideId, riderId, riderName, fare, status, totalRides, expiresAt, createdAt, updatedAt]
+      required:
+        [id, rideId, riderId, riderName, fare, status, totalRides, expiresAt, createdAt, updatedAt]
 
     Ride:
       type: object
@@ -3851,7 +3862,8 @@ components:
           enum: [car, bike]
         status:
           type: string
-          enum: [searching, bargaining, accepted, arrived, in_transit, ongoing, completed, cancelled]
+          enum:
+            [searching, bargaining, accepted, arrived, in_transit, ongoing, completed, cancelled]
         pickupAddress:
           type: string
         dropAddress:
@@ -4557,7 +4569,22 @@ components:
           type: string
         createdAt:
           type: string
-      required: [id, userId, senderName, senderPhone, pickupAddress, receiverName, receiverPhone, dropAddress, parcelType, fare, paymentMethod, status, createdAt]
+      required:
+        [
+          id,
+          userId,
+          senderName,
+          senderPhone,
+          pickupAddress,
+          receiverName,
+          receiverPhone,
+          dropAddress,
+          parcelType,
+          fare,
+          paymentMethod,
+          status,
+          createdAt,
+        ]
 
     ParcelBookingsResponse:
       type: object
@@ -4602,7 +4629,17 @@ components:
           type: number
         dropLng:
           type: number
-      required: [senderName, senderPhone, pickupAddress, receiverName, receiverPhone, dropAddress, parcelType, paymentMethod]
+      required:
+        [
+          senderName,
+          senderPhone,
+          pickupAddress,
+          receiverName,
+          receiverPhone,
+          dropAddress,
+          parcelType,
+          paymentMethod,
+        ]
 
     # ── Payment schemas ───────────────────────────────────────────────────────
 
@@ -5177,4 +5214,3 @@ components:
               amount:
                 type: string
       required: [period, totalEarnings, totalRides, totalOrders]
-

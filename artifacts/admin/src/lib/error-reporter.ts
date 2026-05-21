@@ -66,11 +66,11 @@ async function computeHmacSignature(body: string): Promise<string | null> {
       enc.encode(secret.trim()),
       { name: "HMAC", hash: "SHA-256" },
       false,
-      ["sign"],
+      ["sign"]
     );
     const sig = await window.crypto.subtle.sign("HMAC", key, enc.encode(body));
     return Array.from(new Uint8Array(sig))
-      .map(b => b.toString(16).padStart(2, "0"))
+      .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
   } catch {
     return null;
@@ -170,11 +170,17 @@ export function initErrorReporter(): void {
   console.error = (...args: unknown[]) => {
     origConsoleError.apply(console, args);
     if (_intercepting) return;
-    const msg = args.map(a => {
-      if (a instanceof Error) return a.message;
-      if (typeof a === "string") return a;
-      try { return JSON.stringify(a); } catch { return String(a); }
-    }).join(" ");
+    const msg = args
+      .map((a) => {
+        if (a instanceof Error) return a.message;
+        if (typeof a === "string") return a;
+        try {
+          return JSON.stringify(a);
+        } catch {
+          return String(a);
+        }
+      })
+      .join(" ");
 
     if (msg.includes("[ErrorReporter]") || msg.includes("error-reports")) return;
 

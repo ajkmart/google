@@ -1,21 +1,48 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { adminFetch, adminAbsoluteFetch, getAdminAccessToken } from "@/lib/adminFetcher";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PageHeader } from "@/components/shared";
-import { useLiveRiders, usePlatformSettings, useRiderRoute, useCustomerLocations, useRiderTrailsBatch, useFleetVendors } from "@/hooks/use-admin";
-import { MapPin, RefreshCw, Users, Navigation, Route, Clock, Eye, EyeOff, AlertTriangle, MessageSquare, BarChart2, Activity, TrendingUp, X, History, Layers, ChevronLeft, ChevronRight, Store, Search, Bike, Zap } from "lucide-react";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, Circle } from "react-leaflet";
+import UniversalMap, { type MapMarkerData, type MapPolylineData } from "@/components/UniversalMap";
+import {
+  useCustomerLocations,
+  useFleetVendors,
+  useLiveRiders,
+  usePlatformSettings,
+  useRiderRoute,
+  useRiderTrailsBatch,
+} from "@/hooks/use-admin";
+import { adminAbsoluteFetch, adminFetch, getAdminAccessToken } from "@/lib/adminFetcher";
+import { PLATFORM_DEFAULTS } from "@/lib/platformConfig";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import UniversalMap, { type MapMarkerData, type MapPolylineData } from "@/components/UniversalMap";
-import { PLATFORM_DEFAULTS } from "@/lib/platformConfig";
+import {
+  Activity,
+  AlertTriangle,
+  BarChart2,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  EyeOff,
+  History,
+  Layers,
+  MapPin,
+  MessageSquare,
+  Navigation,
+  RefreshCw,
+  Route,
+  Search,
+  Store,
+  TrendingUp,
+  Users,
+  X,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Circle, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { io, type Socket } from "socket.io-client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const DEFAULT_OFFLINE_AFTER_SEC = 5 * 60;
 
@@ -27,9 +54,11 @@ const fd = (isoStr: string) => {
 };
 
 function StatusDot({ status }: { status: "online" | "offline" | "busy" }) {
-  if (status === "online") return <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block animate-pulse" />;
-  if (status === "busy")   return <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block animate-pulse" />;
-  return <span className="w-2.5 h-2.5 rounded-full bg-gray-300 inline-block" />;
+  if (status === "online")
+    return <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-green-500" />;
+  if (status === "busy")
+    return <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />;
+  return <span className="inline-block h-2.5 w-2.5 rounded-full bg-gray-300" />;
 }
 
 type Rider = {
@@ -107,9 +136,9 @@ function isGpsStale(rider: Rider, offlineAfterSec: number): boolean {
 function getVehicleEmoji(vehicleType: string | null): string {
   const v = (vehicleType ?? "").toLowerCase();
   if (v.includes("bike") || v.includes("motorcycle") || v.includes("moto")) return "🏍️";
-  if (v.includes("car") || v.includes("taxi"))  return "🚗";
+  if (v.includes("car") || v.includes("taxi")) return "🚗";
   if (v.includes("rickshaw")) return "🛺";
-  if (v.includes("van") || v.includes("daba"))  return "🚐";
+  if (v.includes("van") || v.includes("daba")) return "🚐";
   if (v.includes("truck") || v.includes("lori")) return "🚛";
   if (v.includes("service") || v.includes("tool") || v.includes("wrench")) return "🔧";
   return "🏍️";
@@ -134,11 +163,18 @@ function getVehicleSvgPath(vehicleType: string | null): string {
   return `<ellipse cx="7" cy="17" rx="3" ry="3" stroke="white" stroke-width="1.5" fill="none"/><ellipse cx="17" cy="17" rx="3" ry="3" stroke="white" stroke-width="1.5" fill="none"/><path d="M7 17L10 10l4 0 2 4-3 3" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round"/>`;
 }
 
-function makeServiceProviderIcon(status: "online" | "offline" | "busy", isSelected: boolean, stale: boolean) {
+function makeServiceProviderIcon(
+  status: "online" | "offline" | "busy",
+  isSelected: boolean,
+  stale: boolean
+) {
   const color = "#7c3aed";
   const size = isSelected ? 44 : 34;
   const innerSize = size - 8;
-  const staleBorder = stale && status !== "offline" ? "3px solid #f59e0b" : `${isSelected ? "3px" : "2px"} solid white`;
+  const staleBorder =
+    stale && status !== "offline"
+      ? "3px solid #f59e0b"
+      : `${isSelected ? "3px" : "2px"} solid white`;
   const svgPath = `<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
   return L.divIcon({
     html: `<div style="width:${size}px;height:${size}px;background:${color};border:${staleBorder};border-radius:${isSelected ? "10px" : "8px"};display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,0.35);cursor:pointer;will-change:transform;transition:background-color 0.3s,border-color 0.3s">
@@ -154,7 +190,15 @@ function wasRecentlyActive(rider: Rider): boolean {
   return rider.ageSeconds < 24 * 60 * 60;
 }
 
-function makeRiderIcon(rider: Rider, status: "online" | "offline" | "busy", isSelected: boolean, stale: boolean, label?: string, dimmed?: boolean, hasActiveTrip?: boolean) {
+function makeRiderIcon(
+  rider: Rider,
+  status: "online" | "offline" | "busy",
+  isSelected: boolean,
+  stale: boolean,
+  label?: string,
+  dimmed?: boolean,
+  hasActiveTrip?: boolean
+) {
   const role = (rider.role ?? "rider").toLowerCase();
   if (role === "service_provider" || role === "provider") {
     return makeServiceProviderIcon(status, isSelected, stale);
@@ -162,7 +206,10 @@ function makeRiderIcon(rider: Rider, status: "online" | "offline" | "busy", isSe
   const color = status === "online" ? "#22c55e" : status === "busy" ? "#ef4444" : "#9ca3af";
   const size = isSelected ? 44 : 34;
   const innerSize = size - 8;
-  const staleBorder = stale && status !== "offline" ? "3px solid #f59e0b" : `${isSelected ? "3px" : "2px"} solid white`;
+  const staleBorder =
+    stale && status !== "offline"
+      ? "3px solid #f59e0b"
+      : `${isSelected ? "3px" : "2px"} solid white`;
   const svgPath = getVehicleSvgPath(rider.vehicleType);
   const opacity = dimmed ? "0.5" : "1";
   const labelHtml = label
@@ -184,7 +231,10 @@ function makeRiderIcon(rider: Rider, status: "online" | "offline" | "busy", isSe
     </div>`,
     className: "",
     iconSize: [size + (hasActiveTrip ? 24 : 0), size + (hasActiveTrip ? 24 : 0) + (label ? 20 : 0)],
-    iconAnchor: [(size + (hasActiveTrip ? 24 : 0)) / 2, (size + (hasActiveTrip ? 24 : 0)) / 2 + (label ? 20 : 0)],
+    iconAnchor: [
+      (size + (hasActiveTrip ? 24 : 0)) / 2,
+      (size + (hasActiveTrip ? 24 : 0)) / 2 + (label ? 20 : 0),
+    ],
   });
 }
 
@@ -251,7 +301,7 @@ interface MapConfig {
     vendor?: { provider: string; token: string; override: string };
   };
   providers?: {
-    osm?:    { enabled: boolean; role: string; lastTested: string | null; testStatus: string };
+    osm?: { enabled: boolean; role: string; lastTested: string | null; testStatus: string };
     mapbox?: { enabled: boolean; role: string; lastTested: string | null; testStatus: string };
     google?: { enabled: boolean; role: string; lastTested: string | null; testStatus: string };
   };
@@ -260,7 +310,8 @@ interface MapConfig {
 function resolveAdminProvider(config: MapConfig | undefined): { provider: string; token: string } {
   if (!config) return { provider: "osm", token: "" };
   const adminOverride = config.appOverrides?.admin;
-  if (adminOverride && adminOverride.provider) return { provider: adminOverride.provider, token: adminOverride.token };
+  if (adminOverride && adminOverride.provider)
+    return { provider: adminOverride.provider, token: adminOverride.token };
   return { provider: config.provider ?? "osm", token: config.token ?? "" };
 }
 
@@ -268,7 +319,7 @@ function DynamicTileLayer({ config }: { config: MapConfig | undefined }) {
   const [useFallback, setUseFallback] = useState(false);
   const errorCount = useRef(0);
   const ERROR_THRESHOLD = 3;
-  const adminProv  = resolveAdminProvider(config);
+  const adminProv = resolveAdminProvider(config);
   const provider = useFallback ? (config?.secondaryProvider ?? "osm") : adminProv.provider;
   const token = useFallback ? (config?.secondaryToken ?? "") : adminProv.token;
 
@@ -286,7 +337,8 @@ function DynamicTileLayer({ config }: { config: MapConfig | undefined }) {
   }, [provider, token]);
 
   const attribution = useMemo(() => {
-    if (provider === "mapbox") return '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+    if (provider === "mapbox")
+      return '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
     if (provider === "google") return "© Google Maps";
     return '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
   }, [provider]);
@@ -328,18 +380,27 @@ function FitBoundsOnLoad({
   const fittedRef = useRef(false);
   const prevHashRef = useRef("");
 
-  const points = useMemo(() => [
-    ...riders.filter(r => r.lat !== 0 || r.lng !== 0).map(r => [r.lat, r.lng] as [number, number]),
-    ...customers.filter(c => c.lat !== 0 || c.lng !== 0).map(c => [c.lat, c.lng] as [number, number]),
-    ...vendors.filter(v => v.lat !== 0 || v.lng !== 0).map(v => [v.lat, v.lng] as [number, number]),
-  ], [riders, customers, vendors]);
+  const points = useMemo(
+    () => [
+      ...riders
+        .filter((r) => r.lat !== 0 || r.lng !== 0)
+        .map((r) => [r.lat, r.lng] as [number, number]),
+      ...customers
+        .filter((c) => c.lat !== 0 || c.lng !== 0)
+        .map((c) => [c.lat, c.lng] as [number, number]),
+      ...vendors
+        .filter((v) => v.lat !== 0 || v.lng !== 0)
+        .map((v) => [v.lat, v.lng] as [number, number]),
+    ],
+    [riders, customers, vendors]
+  );
 
   const pointsHash = useMemo(() => {
     if (points.length === 0) return "";
-    const minLat = Math.min(...points.map(p => p[0]));
-    const maxLat = Math.max(...points.map(p => p[0]));
-    const minLng = Math.min(...points.map(p => p[1]));
-    const maxLng = Math.max(...points.map(p => p[1]));
+    const minLat = Math.min(...points.map((p) => p[0]));
+    const maxLat = Math.max(...points.map((p) => p[0]));
+    const minLng = Math.min(...points.map((p) => p[1]));
+    const maxLng = Math.max(...points.map((p) => p[1]));
     return `${points.length}:${minLat.toFixed(3)}:${maxLat.toFixed(3)}:${minLng.toFixed(3)}:${maxLng.toFixed(3)}`;
   }, [points]);
 
@@ -391,14 +452,14 @@ function AnimatedMarker({
   onClick?: () => void;
 }) {
   const markerRef = useRef<L.Marker | null>(null);
-  const animRef   = useRef<number | null>(null);
-  const prevPos   = useRef<[number, number]>(position);
+  const animRef = useRef<number | null>(null);
+  const prevPos = useRef<[number, number]>(position);
 
   useEffect(() => {
     const marker = markerRef.current;
     if (!marker) return;
     const [fromLat, fromLng] = prevPos.current;
-    const [toLat, toLng]     = position;
+    const [toLat, toLng] = position;
     if (fromLat === toLat && fromLng === toLng) return;
     const DURATION = 1200;
     const start = performance.now();
@@ -415,12 +476,16 @@ function AnimatedMarker({
       }
     };
     animRef.current = requestAnimationFrame(step);
-    return () => { if (animRef.current != null) cancelAnimationFrame(animRef.current); };
+    return () => {
+      if (animRef.current != null) cancelAnimationFrame(animRef.current);
+    };
   }, [position]);
 
   return (
     <Marker
-      ref={(m) => { markerRef.current = m; }}
+      ref={(m) => {
+        markerRef.current = m;
+      }}
       position={position}
       icon={icon}
       eventHandlers={{ click: onClick ? () => onClick() : undefined }}
@@ -502,78 +567,125 @@ function FleetAnalyticsTab({ mapConfig }: { mapConfig?: MapConfig }) {
   });
 
   const heatPoints: Array<{ lat: number; lng: number; weight: number }> = data?.heatmap ?? [];
-  const riderDistances: Array<{ userId: string; name: string; distanceKm: number }> = data?.riderDistances ?? [];
+  const riderDistances: Array<{ userId: string; name: string; distanceKm: number }> =
+    data?.riderDistances ?? [];
   const peakZones: Array<{ lat: number; lng: number; pings: number }> = data?.peakZones ?? [];
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-muted-foreground">From</label>
-          <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="text-sm border rounded-lg px-2 py-1.5" max={toDate} />
+          <label className="text-muted-foreground text-sm font-medium">From</label>
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="rounded-lg border px-2 py-1.5 text-sm"
+            max={toDate}
+          />
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-muted-foreground">To</label>
-          <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="text-sm border rounded-lg px-2 py-1.5" min={fromDate} max={new Date().toISOString().slice(0, 10)} />
+          <label className="text-muted-foreground text-sm font-medium">To</label>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className="rounded-lg border px-2 py-1.5 text-sm"
+            min={fromDate}
+            max={new Date().toISOString().slice(0, 10)}
+          />
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading} className="h-9 rounded-xl gap-2">
-          <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => refetch()}
+          disabled={isLoading}
+          className="h-9 gap-2 rounded-xl"
+        >
+          <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
           Refresh
         </Button>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="p-4 rounded-2xl border-border/50 shadow-sm">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Total GPS Pings</p>
-          <p className="text-3xl font-black text-foreground">{(data?.totalPings ?? 0).toLocaleString()}</p>
-          <p className="text-xs text-muted-foreground mt-1">Rider location updates</p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card className="border-border/50 rounded-2xl p-4 shadow-sm">
+          <p className="text-muted-foreground mb-1 text-xs font-medium tracking-wider uppercase">
+            Total GPS Pings
+          </p>
+          <p className="text-foreground text-3xl font-black">
+            {(data?.totalPings ?? 0).toLocaleString()}
+          </p>
+          <p className="text-muted-foreground mt-1 text-xs">Rider location updates</p>
         </Card>
-        <Card className="p-4 rounded-2xl border-border/50 shadow-sm">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Avg Response Time</p>
-          <p className="text-3xl font-black text-foreground">{data?.avgResponseTimeMin != null ? `${data.avgResponseTimeMin}m` : "—"}</p>
-          <p className="text-xs text-muted-foreground mt-1">Ride request to acceptance</p>
+        <Card className="border-border/50 rounded-2xl p-4 shadow-sm">
+          <p className="text-muted-foreground mb-1 text-xs font-medium tracking-wider uppercase">
+            Avg Response Time
+          </p>
+          <p className="text-foreground text-3xl font-black">
+            {data?.avgResponseTimeMin != null ? `${data.avgResponseTimeMin}m` : "—"}
+          </p>
+          <p className="text-muted-foreground mt-1 text-xs">Ride request to acceptance</p>
         </Card>
-        <Card className="p-4 rounded-2xl border-border/50 shadow-sm">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Active Riders</p>
-          <p className="text-3xl font-black text-foreground">{riderDistances.length}</p>
-          <p className="text-xs text-muted-foreground mt-1">With tracked distance</p>
+        <Card className="border-border/50 rounded-2xl p-4 shadow-sm">
+          <p className="text-muted-foreground mb-1 text-xs font-medium tracking-wider uppercase">
+            Active Riders
+          </p>
+          <p className="text-foreground text-3xl font-black">{riderDistances.length}</p>
+          <p className="text-muted-foreground mt-1 text-xs">With tracked distance</p>
         </Card>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-border/40">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <Card className="border-border/50 overflow-hidden rounded-2xl shadow-sm">
+          <div className="border-border/40 border-b p-4">
             <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-orange-500" />
-              <h3 className="font-bold text-sm">Activity Heatmap</h3>
-              <span className="text-xs text-muted-foreground">({heatPoints.length.toLocaleString()} points)</span>
+              <Activity className="h-4 w-4 text-orange-500" />
+              <h3 className="text-sm font-bold">Activity Heatmap</h3>
+              <span className="text-muted-foreground text-xs">
+                ({heatPoints.length.toLocaleString()} points)
+              </span>
             </div>
           </div>
           <div style={{ height: 350 }}>
             {heatPoints.length > 0 ? (
-              <MapContainer center={heatPoints[0] ? [heatPoints[0].lat, heatPoints[0].lng] : [30.3753, 69.3451]} zoom={11} style={{ width: "100%", height: "100%" }}>
+              <MapContainer
+                center={heatPoints[0] ? [heatPoints[0].lat, heatPoints[0].lng] : [30.3753, 69.3451]}
+                zoom={11}
+                style={{ width: "100%", height: "100%" }}
+              >
                 <DynamicTileLayer config={mapConfig} />
                 {heatPoints.slice(0, 2000).map((pt, i) => (
-                  <Circle key={i} center={[pt.lat, pt.lng]} radius={100} pathOptions={{ color: "transparent", fillColor: "#f97316", fillOpacity: 0.15 }} />
+                  <Circle
+                    key={i}
+                    center={[pt.lat, pt.lng]}
+                    radius={100}
+                    pathOptions={{ color: "transparent", fillColor: "#f97316", fillOpacity: 0.15 }}
+                  />
                 ))}
               </MapContainer>
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                <p className="text-sm text-muted-foreground">{isLoading ? "Loading heatmap..." : "No location data for selected period"}</p>
+              <div className="flex h-full w-full items-center justify-center bg-gray-50">
+                <p className="text-muted-foreground text-sm">
+                  {isLoading ? "Loading heatmap..." : "No location data for selected period"}
+                </p>
               </div>
             )}
           </div>
         </Card>
-        <Card className="rounded-2xl border-border/50 shadow-sm">
-          <div className="p-4 border-b border-border/40">
+        <Card className="border-border/50 rounded-2xl shadow-sm">
+          <div className="border-border/40 border-b p-4">
             <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-blue-500" />
-              <h3 className="font-bold text-sm">Distance Covered</h3>
-              <span className="text-xs text-muted-foreground">(km, top riders)</span>
+              <TrendingUp className="h-4 w-4 text-blue-500" />
+              <h3 className="text-sm font-bold">Distance Covered</h3>
+              <span className="text-muted-foreground text-xs">(km, top riders)</span>
             </div>
           </div>
           {riderDistances.length > 0 ? (
             <div className="p-4">
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={riderDistances.slice(0, 10)} layout="vertical" margin={{ left: 8, right: 20 }}>
+                <BarChart
+                  data={riderDistances.slice(0, 10)}
+                  layout="vertical"
+                  margin={{ left: 8, right: 20 }}
+                >
                   <XAxis type="number" tick={{ fontSize: 11 }} unit=" km" />
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={90} />
                   <Tooltip formatter={(v) => [`${v} km`, "Distance"]} />
@@ -582,32 +694,47 @@ function FleetAnalyticsTab({ mapConfig }: { mapConfig?: MapConfig }) {
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="p-8 text-center text-sm text-muted-foreground">{isLoading ? "Loading..." : "No rider distance data"}</div>
+            <div className="text-muted-foreground p-8 text-center text-sm">
+              {isLoading ? "Loading..." : "No rider distance data"}
+            </div>
           )}
         </Card>
       </div>
       {peakZones.length > 0 && (
-        <Card className="rounded-2xl border-border/50 shadow-sm">
-          <div className="p-4 border-b border-border/40">
+        <Card className="border-border/50 rounded-2xl shadow-sm">
+          <div className="border-border/40 border-b p-4">
             <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-red-500" />
-              <h3 className="font-bold text-sm">Peak Activity Zones</h3>
-              <span className="text-xs text-muted-foreground">(top {peakZones.length} clusters)</span>
+              <Activity className="h-4 w-4 text-red-500" />
+              <h3 className="text-sm font-bold">Peak Activity Zones</h3>
+              <span className="text-muted-foreground text-xs">
+                (top {peakZones.length} clusters)
+              </span>
             </div>
           </div>
-          <div className="divide-y divide-border/40">
+          <div className="divide-border/40 divide-y">
             {peakZones.map((zone, i) => (
               <div key={i} className="flex items-center justify-between px-4 py-2.5">
                 <div className="flex items-center gap-3">
                   <span className="text-lg font-black text-orange-500">#{i + 1}</span>
                   <div>
-                    <p className="text-sm font-medium text-foreground">{zone.lat.toFixed(4)}, {zone.lng.toFixed(4)}</p>
-                    <p className="text-xs text-muted-foreground"><a href={`https://www.openstreetmap.org/?mlat=${zone.lat}&mlon=${zone.lng}&zoom=15`} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">View on map</a></p>
+                    <p className="text-foreground text-sm font-medium">
+                      {zone.lat.toFixed(4)}, {zone.lng.toFixed(4)}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      <a
+                        href={`https://www.openstreetmap.org/?mlat=${zone.lat}&mlon=${zone.lng}&zoom=15`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-blue-500 hover:underline"
+                      >
+                        View on map
+                      </a>
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold text-foreground">{zone.pings.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">pings</p>
+                  <p className="text-foreground text-sm font-bold">{zone.pings.toLocaleString()}</p>
+                  <p className="text-muted-foreground text-xs">pings</p>
                 </div>
               </div>
             ))}
@@ -629,17 +756,29 @@ export default function LiveRidersMap() {
   const [sliderVal, setSliderVal] = useState(100);
   const [wsConnected, setWsConnected] = useState(false);
   const [secAgo, setSecAgo] = useState(0);
-  const [riderOverrides, setRiderOverrides] = useState<Record<string, { lat: number; lng: number; updatedAt: string; action?: string | null }>>({});
-  const [customerOverrides, setCustomerOverrides] = useState<Record<string, { lat: number; lng: number; updatedAt: string }>>({});
-  const [riderStatusOverrides, setRiderStatusOverrides] = useState<Record<string, { isOnline: boolean; updatedAt: string }>>({});
-  const [riderHeartbeats, setRiderHeartbeats] = useState<Record<string, { batteryLevel?: number | null; lastSeen: string }>>({});
-  const [spoofAlerts, setSpoofAlerts] = useState<Array<{ userId: string; reason: string; autoOffline: boolean; sentAt: string }>>([]);
+  const [riderOverrides, setRiderOverrides] = useState<
+    Record<string, { lat: number; lng: number; updatedAt: string; action?: string | null }>
+  >({});
+  const [customerOverrides, setCustomerOverrides] = useState<
+    Record<string, { lat: number; lng: number; updatedAt: string }>
+  >({});
+  const [riderStatusOverrides, setRiderStatusOverrides] = useState<
+    Record<string, { isOnline: boolean; updatedAt: string }>
+  >({});
+  const [riderHeartbeats, setRiderHeartbeats] = useState<
+    Record<string, { batteryLevel?: number | null; lastSeen: string }>
+  >({});
+  const [spoofAlerts, setSpoofAlerts] = useState<
+    Array<{ userId: string; reason: string; autoOffline: boolean; sentAt: string }>
+  >([]);
   const [activeTab, setActiveTab] = useState<"map" | "analytics">("map");
   const [detailTab, setDetailTab] = useState<"info" | "trail" | "chat" | "actions">("info");
   const [vendorDetailTab, setVendorDetailTab] = useState<"info" | "orders">("info");
   const [sosAlerts, setSosAlerts] = useState<SOSAlert[]>([]);
   const [selectedSOS, setSelectedSOS] = useState<SOSAlert | null>(null);
-  const [chatMessages, setChatMessages] = useState<Record<string, Array<{ text: string; ts: string; from: "admin" | "rider" }>>>({});
+  const [chatMessages, setChatMessages] = useState<
+    Record<string, Array<{ text: string; ts: string; from: "admin" | "rider" }>>
+  >({});
   const [chatInput, setChatInput] = useState("");
 
   /* Sidebar state */
@@ -664,11 +803,13 @@ export default function LiveRidersMap() {
 
   /* Per-rider trail toggle */
   const [trailSet, setTrailSet] = useState<Set<string>>(new Set());
-  const toggleTrail = (uid: string) => setTrailSet(prev => {
-    const next = new Set(prev);
-    if (next.has(uid)) next.delete(uid); else next.add(uid);
-    return next;
-  });
+  const toggleTrail = (uid: string) =>
+    setTrailSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(uid)) next.delete(uid);
+      else next.add(uid);
+      return next;
+    });
 
   const [adminPos, setAdminPos] = useState<{ lat: number; lng: number } | null>(null);
   useEffect(() => {
@@ -676,13 +817,17 @@ export default function LiveRidersMap() {
     const wid = navigator.geolocation.watchPosition(
       (pos) => setAdminPos({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
       () => {},
-      { enableHighAccuracy: false, maximumAge: 60_000, timeout: 15_000 },
+      { enableHighAccuracy: false, maximumAge: 60_000, timeout: 15_000 }
     );
     return () => navigator.geolocation.clearWatch(wid);
   }, []);
 
-  const [vehicleTypeOverrides, setVehicleTypeOverrides] = useState<Record<string, string | null>>({});
-  const [currentTripIdOverrides, setCurrentTripIdOverrides] = useState<Record<string, string | null>>({});
+  const [vehicleTypeOverrides, setVehicleTypeOverrides] = useState<Record<string, string | null>>(
+    {}
+  );
+  const [currentTripIdOverrides, setCurrentTripIdOverrides] = useState<
+    Record<string, string | null>
+  >({});
 
   /* Provider picker */
   const [quickProvider, setQuickProvider] = useState<string | null>(null);
@@ -732,74 +877,169 @@ export default function LiveRidersMap() {
     });
     socketRef.current = socket;
 
-    socket.on("connect", () => { setWsConnected(true); socket.emit("join", "admin-fleet"); });
+    socket.on("connect", () => {
+      setWsConnected(true);
+      socket.emit("join", "admin-fleet");
+    });
     socket.on("connect_error", () => setWsConnected(false));
     socket.on("disconnect", () => setWsConnected(false));
 
-    socket.on("rider:location", (payload: { userId: string; latitude: number; longitude: number; action?: string | null; updatedAt: string; vehicleType?: string | null; currentTripId?: string | null }) => {
-      if (typeof payload.userId !== "string" || typeof payload.latitude !== "number" || typeof payload.longitude !== "number") return;
-      if (payload.vehicleType !== undefined) setVehicleTypeOverrides(prev => ({ ...prev, [payload.userId]: payload.vehicleType ?? null }));
-      if (payload.currentTripId !== undefined) setCurrentTripIdOverrides(prev => ({ ...prev, [payload.userId]: payload.currentTripId ?? null }));
-      setRiderOverrides(prev => {
-        const next = { ...prev, [payload.userId]: { lat: payload.latitude, lng: payload.longitude, updatedAt: payload.updatedAt, action: payload.action } };
-        const keys = Object.keys(next);
-        if (keys.length > 500) {
-          const sorted = keys.sort((a, b) => new Date(prev[a]?.updatedAt ?? 0).getTime() - new Date(prev[b]?.updatedAt ?? 0).getTime());
-          for (const k of sorted.slice(0, keys.length - 500)) delete next[k];
-        }
-        return next;
-      });
-      setSecAgo(0);
-    });
+    socket.on(
+      "rider:location",
+      (payload: {
+        userId: string;
+        latitude: number;
+        longitude: number;
+        action?: string | null;
+        updatedAt: string;
+        vehicleType?: string | null;
+        currentTripId?: string | null;
+      }) => {
+        if (
+          typeof payload.userId !== "string" ||
+          typeof payload.latitude !== "number" ||
+          typeof payload.longitude !== "number"
+        )
+          return;
+        if (payload.vehicleType !== undefined)
+          setVehicleTypeOverrides((prev) => ({
+            ...prev,
+            [payload.userId]: payload.vehicleType ?? null,
+          }));
+        if (payload.currentTripId !== undefined)
+          setCurrentTripIdOverrides((prev) => ({
+            ...prev,
+            [payload.userId]: payload.currentTripId ?? null,
+          }));
+        setRiderOverrides((prev) => {
+          const next = {
+            ...prev,
+            [payload.userId]: {
+              lat: payload.latitude,
+              lng: payload.longitude,
+              updatedAt: payload.updatedAt,
+              action: payload.action,
+            },
+          };
+          const keys = Object.keys(next);
+          if (keys.length > 500) {
+            const sorted = keys.sort(
+              (a, b) =>
+                new Date(prev[a]?.updatedAt ?? 0).getTime() -
+                new Date(prev[b]?.updatedAt ?? 0).getTime()
+            );
+            for (const k of sorted.slice(0, keys.length - 500)) delete next[k];
+          }
+          return next;
+        });
+        setSecAgo(0);
+      }
+    );
 
-    socket.on("customer:location", (payload: { userId: string; latitude: number; longitude: number; updatedAt: string }) => {
-      if (typeof payload.userId !== "string" || typeof payload.latitude !== "number" || typeof payload.longitude !== "number") return;
-      setCustomerOverrides(prev => {
-        const next = { ...prev, [payload.userId]: { lat: payload.latitude, lng: payload.longitude, updatedAt: payload.updatedAt } };
-        const keys = Object.keys(next);
-        if (keys.length > 500) {
-          const sorted = keys.sort((a, b) => new Date(prev[a]?.updatedAt ?? 0).getTime() - new Date(prev[b]?.updatedAt ?? 0).getTime());
-          for (const k of sorted.slice(0, keys.length - 500)) delete next[k];
-        }
-        return next;
-      });
-    });
+    socket.on(
+      "customer:location",
+      (payload: { userId: string; latitude: number; longitude: number; updatedAt: string }) => {
+        if (
+          typeof payload.userId !== "string" ||
+          typeof payload.latitude !== "number" ||
+          typeof payload.longitude !== "number"
+        )
+          return;
+        setCustomerOverrides((prev) => {
+          const next = {
+            ...prev,
+            [payload.userId]: {
+              lat: payload.latitude,
+              lng: payload.longitude,
+              updatedAt: payload.updatedAt,
+            },
+          };
+          const keys = Object.keys(next);
+          if (keys.length > 500) {
+            const sorted = keys.sort(
+              (a, b) =>
+                new Date(prev[a]?.updatedAt ?? 0).getTime() -
+                new Date(prev[b]?.updatedAt ?? 0).getTime()
+            );
+            for (const k of sorted.slice(0, keys.length - 500)) delete next[k];
+          }
+          return next;
+        });
+      }
+    );
 
     socket.on("rider:sos", (payload: SOSAlert) => {
       if (typeof payload.userId !== "string") return;
-      setSosAlerts(prev => [payload, ...prev.filter(a => a.userId !== payload.userId)]);
+      setSosAlerts((prev) => [payload, ...prev.filter((a) => a.userId !== payload.userId)]);
     });
 
-    socket.on("rider:chat", (payload: { userId: string; message: string; sentAt: string; from: "rider" }) => {
-      if (typeof payload.userId !== "string" || typeof payload.message !== "string") return;
-      setChatMessages(prev => ({ ...prev, [payload.userId]: [...(prev[payload.userId] ?? []), { text: payload.message, ts: payload.sentAt, from: "rider" as const }] }));
+    socket.on(
+      "rider:chat",
+      (payload: { userId: string; message: string; sentAt: string; from: "rider" }) => {
+        if (typeof payload.userId !== "string" || typeof payload.message !== "string") return;
+        setChatMessages((prev) => ({
+          ...prev,
+          [payload.userId]: [
+            ...(prev[payload.userId] ?? []),
+            { text: payload.message, ts: payload.sentAt, from: "rider" as const },
+          ],
+        }));
+      }
+    );
+
+    socket.on(
+      "rider:status",
+      (payload: { userId: string; isOnline: boolean; updatedAt: string }) => {
+        if (typeof payload.userId !== "string") return;
+        setRiderStatusOverrides((prev) => ({
+          ...prev,
+          [payload.userId]: { isOnline: payload.isOnline, updatedAt: payload.updatedAt },
+        }));
+      }
+    );
+
+    socket.on(
+      "rider:heartbeat",
+      (payload: { userId: string; batteryLevel?: number | null; sentAt: string }) => {
+        if (typeof payload.userId !== "string") return;
+        setRiderHeartbeats((prev) => ({
+          ...prev,
+          [payload.userId]: { batteryLevel: payload.batteryLevel, lastSeen: payload.sentAt },
+        }));
+      }
+    );
+
+    socket.on(
+      "rider:spoof-alert",
+      (payload: { userId: string; reason: string; autoOffline: boolean; sentAt: string }) => {
+        if (typeof payload.userId !== "string") return;
+        setSpoofAlerts((prev) => [payload, ...prev].slice(0, 20));
+        if (payload.autoOffline)
+          setRiderStatusOverrides((prev) => ({
+            ...prev,
+            [payload.userId]: { isOnline: false, updatedAt: payload.sentAt },
+          }));
+      }
+    );
+
+    socket.on("order:new", () => {
+      qc.invalidateQueries({ queryKey: ["admin-orders"] });
+      qc.invalidateQueries({ queryKey: ["admin-orders-enriched"] });
+    });
+    socket.on("order:update", () => {
+      qc.invalidateQueries({ queryKey: ["admin-orders"] });
+      qc.invalidateQueries({ queryKey: ["admin-orders-enriched"] });
     });
 
-    socket.on("rider:status", (payload: { userId: string; isOnline: boolean; updatedAt: string }) => {
-      if (typeof payload.userId !== "string") return;
-      setRiderStatusOverrides(prev => ({ ...prev, [payload.userId]: { isOnline: payload.isOnline, updatedAt: payload.updatedAt } }));
-    });
-
-    socket.on("rider:heartbeat", (payload: { userId: string; batteryLevel?: number | null; sentAt: string }) => {
-      if (typeof payload.userId !== "string") return;
-      setRiderHeartbeats(prev => ({ ...prev, [payload.userId]: { batteryLevel: payload.batteryLevel, lastSeen: payload.sentAt } }));
-    });
-
-    socket.on("rider:spoof-alert", (payload: { userId: string; reason: string; autoOffline: boolean; sentAt: string }) => {
-      if (typeof payload.userId !== "string") return;
-      setSpoofAlerts(prev => [payload, ...prev].slice(0, 20));
-      if (payload.autoOffline) setRiderStatusOverrides(prev => ({ ...prev, [payload.userId]: { isOnline: false, updatedAt: payload.sentAt } }));
-    });
-
-    socket.on("order:new", () => { qc.invalidateQueries({ queryKey: ["admin-orders"] }); qc.invalidateQueries({ queryKey: ["admin-orders-enriched"] }); });
-    socket.on("order:update", () => { qc.invalidateQueries({ queryKey: ["admin-orders"] }); qc.invalidateQueries({ queryKey: ["admin-orders-enriched"] }); });
-
-    return () => { socket.disconnect(); socketRef.current = null; };
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
   }, [qc]);
 
   useEffect(() => {
     setSecAgo(0);
-    const t = setInterval(() => setSecAgo(s => s + 1), 1000);
+    const t = setInterval(() => setSecAgo((s) => s + 1), 1000);
     return () => clearInterval(t);
   }, [dataUpdatedAt]);
 
@@ -807,17 +1047,27 @@ export default function LiveRidersMap() {
   if (settingsData?.settings) {
     for (const s of settingsData.settings) settings[s.key] = s.value;
   }
-  const defaultLat = parseFloat(settings["map_default_lat"] || settings["platform_default_lat"] || String(PLATFORM_DEFAULTS.defaultLat));
-  const defaultLng = parseFloat(settings["map_default_lng"] || settings["platform_default_lng"] || String(PLATFORM_DEFAULTS.defaultLng));
+  const defaultLat = parseFloat(
+    settings["map_default_lat"] ||
+      settings["platform_default_lat"] ||
+      String(PLATFORM_DEFAULTS.defaultLat)
+  );
+  const defaultLng = parseFloat(
+    settings["map_default_lng"] ||
+      settings["platform_default_lng"] ||
+      String(PLATFORM_DEFAULTS.defaultLng)
+  );
 
   const baseRiders: Rider[] = data?.riders || [];
   const offlineAfterSec: number = data?.staleTimeoutSec ?? DEFAULT_OFFLINE_AFTER_SEC;
 
-  const mergedBaseRiders: Rider[] = baseRiders.map(r => {
+  const mergedBaseRiders: Rider[] = baseRiders.map((r) => {
     const ov = riderOverrides[r.userId];
     const statusOv = riderStatusOverrides[r.userId];
     const hb = riderHeartbeats[r.userId];
-    const base = ov ? { ...r, lat: ov.lat, lng: ov.lng, updatedAt: ov.updatedAt, action: ov.action ?? r.action } : r;
+    const base = ov
+      ? { ...r, lat: ov.lat, lng: ov.lng, updatedAt: ov.updatedAt, action: ov.action ?? r.action }
+      : r;
     const latestTs = ov ? ov.updatedAt : r.updatedAt;
     const ageSeconds = Math.floor((Date.now() - new Date(latestTs).getTime()) / 1000);
     return {
@@ -828,12 +1078,18 @@ export default function LiveRidersMap() {
       batteryLevel: hb?.batteryLevel ?? null,
       lastSeen: hb?.lastSeen ?? r.updatedAt,
       lastActive: r.lastActive ?? null,
-      vehicleType: vehicleTypeOverrides[r.userId] !== undefined ? vehicleTypeOverrides[r.userId] : r.vehicleType,
-      currentTripId: currentTripIdOverrides[r.userId] !== undefined ? currentTripIdOverrides[r.userId] : r.currentTripId,
+      vehicleType:
+        vehicleTypeOverrides[r.userId] !== undefined
+          ? vehicleTypeOverrides[r.userId]
+          : r.vehicleType,
+      currentTripId:
+        currentTripIdOverrides[r.userId] !== undefined
+          ? currentTripIdOverrides[r.userId]
+          : r.currentTripId,
     };
   });
 
-  const mergedBaseRiderIds = new Set(mergedBaseRiders.map(r => r.userId));
+  const mergedBaseRiderIds = new Set(mergedBaseRiders.map((r) => r.userId));
   const wsOnlyRiders: Rider[] = Object.entries(riderOverrides)
     .filter(([uid]) => !mergedBaseRiderIds.has(uid))
     .map(([uid, ov]) => {
@@ -841,19 +1097,29 @@ export default function LiveRidersMap() {
       const hb = riderHeartbeats[uid];
       const ageSeconds = Math.floor((Date.now() - new Date(ov.updatedAt).getTime()) / 1000);
       return {
-        userId: uid, name: "Rider", phone: null,
+        userId: uid,
+        name: "Rider",
+        phone: null,
         isOnline: statusOv ? statusOv.isOnline : ageSeconds < offlineAfterSec,
         vehicleType: vehicleTypeOverrides[uid] ?? null,
         currentTripId: currentTripIdOverrides[uid] ?? null,
-        lat: ov.lat, lng: ov.lng, updatedAt: ov.updatedAt,
-        ageSeconds, isFresh: ageSeconds < offlineAfterSec, action: ov.action ?? null,
-        batteryLevel: hb?.batteryLevel ?? null, lastSeen: hb?.lastSeen ?? ov.updatedAt,
+        lat: ov.lat,
+        lng: ov.lng,
+        updatedAt: ov.updatedAt,
+        ageSeconds,
+        isFresh: ageSeconds < offlineAfterSec,
+        action: ov.action ?? null,
+        batteryLevel: hb?.batteryLevel ?? null,
+        lastSeen: hb?.lastSeen ?? ov.updatedAt,
       };
     });
 
-  const riders: Rider[] = useMemo(() => [...mergedBaseRiders, ...wsOnlyRiders], [mergedBaseRiders, wsOnlyRiders]);
+  const riders: Rider[] = useMemo(
+    () => [...mergedBaseRiders, ...wsOnlyRiders],
+    [mergedBaseRiders, wsOnlyRiders]
+  );
 
-  const filteredRiders = riders.filter(rider => {
+  const filteredRiders = riders.filter((rider) => {
     const status = getRiderStatus(rider);
     if (statusFilter !== "all" && status !== statusFilter) return false;
     if (vehicleFilter !== "all") {
@@ -870,35 +1136,57 @@ export default function LiveRidersMap() {
     return true;
   });
 
-  type RawCustomer = { userId: string; name?: string; lat?: number; latitude?: number; lng?: number; longitude?: number; updatedAt: string };
-  const baseCustomers: CustomerLoc[] = ((customerData?.customers ?? []) as RawCustomer[]).map(c => ({
-    userId: c.userId, name: c.name,
-    lat: c.lat ?? c.latitude ?? 0,
-    lng: c.lng ?? c.longitude ?? 0,
-    updatedAt: c.updatedAt,
-  }));
+  type RawCustomer = {
+    userId: string;
+    name?: string;
+    lat?: number;
+    latitude?: number;
+    lng?: number;
+    longitude?: number;
+    updatedAt: string;
+  };
+  const baseCustomers: CustomerLoc[] = ((customerData?.customers ?? []) as RawCustomer[]).map(
+    (c) => ({
+      userId: c.userId,
+      name: c.name,
+      lat: c.lat ?? c.latitude ?? 0,
+      lng: c.lng ?? c.longitude ?? 0,
+      updatedAt: c.updatedAt,
+    })
+  );
 
-  const mergedCustomers: CustomerLoc[] = baseCustomers.map(c => {
+  const mergedCustomers: CustomerLoc[] = baseCustomers.map((c) => {
     const ov = customerOverrides[c.userId];
     if (!ov) return c;
     return { ...c, lat: ov.lat, lng: ov.lng, updatedAt: ov.updatedAt };
   });
   const customers: CustomerLoc[] = useMemo(() => {
-    const mergedCustomerIds = new Set(mergedCustomers.map(c => c.userId));
+    const mergedCustomerIds = new Set(mergedCustomers.map((c) => c.userId));
     return [
       ...mergedCustomers,
-      ...Object.entries(customerOverrides).filter(([uid]) => !mergedCustomerIds.has(uid)).map(([uid, ov]) => ({ userId: uid, lat: ov.lat, lng: ov.lng, updatedAt: ov.updatedAt })),
+      ...Object.entries(customerOverrides)
+        .filter(([uid]) => !mergedCustomerIds.has(uid))
+        .map(([uid, ov]) => ({ userId: uid, lat: ov.lat, lng: ov.lng, updatedAt: ov.updatedAt })),
     ];
   }, [mergedCustomers, customerOverrides]);
 
   const vendors: VendorLoc[] = useMemo(() => vendorData?.vendors ?? [], [vendorData?.vendors]);
 
-  const onlineCount = riders.filter(r => getRiderStatus(r) === "online").length;
-  const busyCount   = riders.filter(r => getRiderStatus(r) === "busy").length;
+  const onlineCount = riders.filter((r) => getRiderStatus(r) === "online").length;
+  const busyCount = riders.filter((r) => getRiderStatus(r) === "busy").length;
 
-  const selectedRider = selectedEntity?.type === "rider" ? riders.find(r => r.userId === selectedEntity.id) ?? null : null;
-  const selectedCustomer = selectedEntity?.type === "customer" ? customers.find(c => c.userId === selectedEntity.id) ?? null : null;
-  const selectedVendor = selectedEntity?.type === "vendor" ? vendors.find(v => v.id === selectedEntity.id) ?? null : null;
+  const selectedRider =
+    selectedEntity?.type === "rider"
+      ? (riders.find((r) => r.userId === selectedEntity.id) ?? null)
+      : null;
+  const selectedCustomer =
+    selectedEntity?.type === "customer"
+      ? (customers.find((c) => c.userId === selectedEntity.id) ?? null)
+      : null;
+  const selectedVendor =
+    selectedEntity?.type === "vendor"
+      ? (vendors.find((v) => v.id === selectedEntity.id) ?? null)
+      : null;
 
   const prevEntityIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -923,11 +1211,14 @@ export default function LiveRidersMap() {
     return m;
   }, [riders]);
 
-  const riderDisplayName = useCallback((rider: Rider): string => {
-    if (rider.name) return rider.name;
-    const n = riderNumberMap.get(rider.userId);
-    return n != null ? `Rider #${n}` : `Rider #?`;
-  }, [riderNumberMap]);
+  const riderDisplayName = useCallback(
+    (rider: Rider): string => {
+      if (rider.name) return rider.name;
+      const n = riderNumberMap.get(rider.userId);
+      return n != null ? `Rider #${n}` : `Rider #?`;
+    },
+    [riderNumberMap]
+  );
 
   const riderIconMap = (() => {
     const result = new Map<string, ReturnType<typeof makeRiderIcon>>();
@@ -937,9 +1228,13 @@ export default function LiveRidersMap() {
       const isSelected = selectedEntity?.type === "rider" && selectedEntity.id === rider.userId;
       const dimmed = status === "offline" && wasRecentlyActive(rider);
       const labelText = showLabels
-        ? (rider.name ? rider.name.split(" ")[0].slice(0, 10) : (riderNumberMap.get(rider.userId) != null ? `#${riderNumberMap.get(rider.userId)}` : undefined))
+        ? rider.name
+          ? rider.name.split(" ")[0].slice(0, 10)
+          : riderNumberMap.get(rider.userId) != null
+            ? `#${riderNumberMap.get(rider.userId)}`
+            : undefined
         : undefined;
-      const hasActiveTrip = !!(rider.currentTripId);
+      const hasActiveTrip = !!rider.currentTripId;
       const cacheKey = `${rider.userId}:${status}:${isSelected ? "1" : "0"}:${stale ? "s" : "f"}:${dimmed ? "d" : "n"}:${labelText ?? ""}:${hasActiveTrip ? "t" : "f"}`;
       let icon = riderIconCacheRef.current.get(cacheKey);
       if (!icon) {
@@ -981,7 +1276,7 @@ export default function LiveRidersMap() {
     return result;
   })();
 
-  const polylinePositions: [number, number][] = visibleRoute.map(p => [p.latitude, p.longitude]);
+  const polylinePositions: [number, number][] = visibleRoute.map((p) => [p.latitude, p.longitude]);
   const loginPoint = routePoints[0] ?? null;
   const replayPoint = visibleRoute[visibleRoute.length - 1] ?? null;
 
@@ -994,7 +1289,11 @@ export default function LiveRidersMap() {
         const color = status === "busy" ? "#ef4444" : status === "online" ? "#22c55e" : "#9ca3af";
         const emoji = getVehicleEmoji(rider.vehicleType);
         ms.push({
-          id: rider.userId, lat: rider.lat, lng: rider.lng, label: rider.name, dimmed: status === "offline",
+          id: rider.userId,
+          lat: rider.lat,
+          lng: rider.lng,
+          label: rider.name,
+          dimmed: status === "offline",
           iconHtml: `<div style="width:28px;height:28px;background:${color};border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;font-size:13px">${emoji}</div>`,
           iconSize: 28,
           onClick: () => setSelectedEntity({ type: "rider", id: rider.userId }),
@@ -1004,7 +1303,10 @@ export default function LiveRidersMap() {
     if (showCustomers) {
       for (const c of customers) {
         ms.push({
-          id: `cust-${c.userId}`, lat: c.lat, lng: c.lng, label: c.name ?? "Customer",
+          id: `cust-${c.userId}`,
+          lat: c.lat,
+          lng: c.lng,
+          label: c.name ?? "Customer",
           iconHtml: `<div style="width:22px;height:22px;background:#3b82f6;border:2px solid white;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;font-size:11px">👤</div>`,
           iconSize: 22,
           onClick: () => setSelectedEntity({ type: "customer", id: c.userId }),
@@ -1014,7 +1316,10 @@ export default function LiveRidersMap() {
     if (showVendors) {
       for (const v of vendors) {
         ms.push({
-          id: `vnd-${v.id}`, lat: v.lat, lng: v.lng, label: v.name,
+          id: `vnd-${v.id}`,
+          lat: v.lat,
+          lng: v.lng,
+          label: v.name,
           iconHtml: `<div style="width:28px;height:28px;background:${v.storeIsOpen ? "#f97316" : "#9ca3af"};border:2px solid white;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:13px">🏪</div>`,
           iconSize: 28,
           onClick: () => setSelectedEntity({ type: "vendor", id: v.id }),
@@ -1025,29 +1330,72 @@ export default function LiveRidersMap() {
       for (const sos of sosAlerts) {
         if (sos.latitude == null || sos.longitude == null) continue;
         ms.push({
-          id: `sos-${sos.userId}`, lat: sos.latitude, lng: sos.longitude, label: `SOS: ${sos.name}`,
+          id: `sos-${sos.userId}`,
+          lat: sos.latitude,
+          lng: sos.longitude,
+          label: `SOS: ${sos.name}`,
           iconHtml: `<div style="width:28px;height:28px;background:#ef4444;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:13px">🆘</div>`,
           iconSize: 28,
         });
       }
     }
     if (selectedId && loginPoint) {
-      ms.push({ id: "login-pin", lat: loginPoint.latitude, lng: loginPoint.longitude, label: "Login", iconHtml: `<div style="width:22px;height:22px;background:#6366f1;border:2px solid white;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;font-size:11px">📍</div>`, iconSize: 22 });
+      ms.push({
+        id: "login-pin",
+        lat: loginPoint.latitude,
+        lng: loginPoint.longitude,
+        label: "Login",
+        iconHtml: `<div style="width:22px;height:22px;background:#6366f1;border:2px solid white;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;font-size:11px">📍</div>`,
+        iconSize: 22,
+      });
     }
     if (selectedId && replayPoint && sliderVal < 100) {
-      ms.push({ id: "replay-pin", lat: replayPoint.latitude, lng: replayPoint.longitude, iconHtml: `<div style="width:18px;height:18px;background:#6366f1;border:2px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`, iconSize: 18 });
+      ms.push({
+        id: "replay-pin",
+        lat: replayPoint.latitude,
+        lng: replayPoint.longitude,
+        iconHtml: `<div style="width:18px;height:18px;background:#6366f1;border:2px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
+        iconSize: 18,
+      });
     }
     return ms;
-  }, [effectiveProvider, filteredRiders, customers, vendors, showRiders, showCustomers, showVendors, showSOS, sosAlerts, selectedId, loginPoint, replayPoint, sliderVal]);
+  }, [
+    effectiveProvider,
+    filteredRiders,
+    customers,
+    vendors,
+    showRiders,
+    showCustomers,
+    showVendors,
+    showSOS,
+    sosAlerts,
+    selectedId,
+    loginPoint,
+    replayPoint,
+    sliderVal,
+  ]);
 
   const nativePolylines = useMemo<MapPolylineData[]>(() => {
     if (effectiveProvider !== "mapbox" && effectiveProvider !== "google") return [];
     const pls: MapPolylineData[] = [];
     if (selectedId && polylinePositions.length > 1) {
-      pls.push({ id: "route", positions: polylinePositions, color: "#6366f1", weight: 3, opacity: 0.75 });
+      pls.push({
+        id: "route",
+        positions: polylinePositions,
+        color: "#6366f1",
+        weight: 3,
+        opacity: 0.75,
+      });
     }
     for (const trail of riderTrails) {
-      pls.push({ id: `trail-${trail.riderId}`, positions: trail.points, color: "#6366f1", weight: 2.5, opacity: 0.7, dashArray: "6,4" });
+      pls.push({
+        id: `trail-${trail.riderId}`,
+        positions: trail.points,
+        color: "#6366f1",
+        weight: 2.5,
+        opacity: 0.7,
+        dashArray: "6,4",
+      });
     }
     return pls;
   }, [effectiveProvider, selectedId, polylinePositions, riderTrails]);
@@ -1055,12 +1403,18 @@ export default function LiveRidersMap() {
   const sendChatMessage = (riderId: string) => {
     if (!chatInput.trim() || !socketRef.current) return;
     socketRef.current.emit("admin:chat", { riderId, message: chatInput.trim() });
-    setChatMessages(prev => ({ ...prev, [riderId]: [...(prev[riderId] ?? []), { text: chatInput.trim(), ts: new Date().toISOString(), from: "admin" }] }));
+    setChatMessages((prev) => ({
+      ...prev,
+      [riderId]: [
+        ...(prev[riderId] ?? []),
+        { text: chatInput.trim(), ts: new Date().toISOString(), from: "admin" },
+      ],
+    }));
     setChatInput("");
   };
 
   const dismissSOS = (userId: string) => {
-    setSosAlerts(prev => prev.filter(a => a.userId !== userId));
+    setSosAlerts((prev) => prev.filter((a) => a.userId !== userId));
     if (selectedSOS?.userId === userId) setSelectedSOS(null);
   };
 
@@ -1076,12 +1430,18 @@ export default function LiveRidersMap() {
           iconBgClass="bg-green-100"
           iconColorClass="text-green-600"
           actions={
-            <div className="flex rounded-xl border border-border overflow-hidden">
-              <button onClick={() => setActiveTab("map")} className="px-3 py-1.5 text-sm font-semibold flex items-center gap-1.5 bg-white text-muted-foreground hover:bg-gray-50">
-                <MapPin className="w-3.5 h-3.5" /> Map
+            <div className="border-border flex overflow-hidden rounded-xl border">
+              <button
+                onClick={() => setActiveTab("map")}
+                className="text-muted-foreground flex items-center gap-1.5 bg-white px-3 py-1.5 text-sm font-semibold hover:bg-gray-50"
+              >
+                <MapPin className="h-3.5 w-3.5" /> Map
               </button>
-              <button onClick={() => setActiveTab("analytics")} className="px-3 py-1.5 text-sm font-semibold flex items-center gap-1.5 bg-blue-600 text-white">
-                <BarChart2 className="w-3.5 h-3.5" /> Analytics
+              <button
+                onClick={() => setActiveTab("analytics")}
+                className="flex items-center gap-1.5 bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white"
+              >
+                <BarChart2 className="h-3.5 w-3.5" /> Analytics
               </button>
             </div>
           }
@@ -1092,857 +1452,1282 @@ export default function LiveRidersMap() {
   }
 
   return (
-    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Live Riders Map page crashed. Please reload.</div>}>
-    <div className="flex flex-col" style={{ height: "calc(100vh - 80px)", minHeight: 600 }}>
-      {/* GPS Spoof Alert Banner */}
-      {spoofAlerts.length > 0 && (
-        <div className="bg-orange-600 text-white rounded-xl p-3 flex items-start gap-3 shadow-lg mb-2 flex-shrink-0">
-          <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-sm">⚠ GPS Spoof Detected ({spoofAlerts.length})</p>
-            <div className="mt-1.5 space-y-1">
-              {spoofAlerts.slice(0, 3).map((alert, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs bg-orange-700/50 rounded-xl px-3 py-1.5">
-                  <span className="flex-1">{alert.userId.slice(0, 8)}… — {alert.reason}</span>
-                  {alert.autoOffline && <span className="bg-orange-800 rounded px-1.5 py-0.5 text-[9px] font-bold">AUTO-OFFLINE</span>}
-                  <button onClick={() => setSpoofAlerts(prev => prev.filter((_, j) => j !== i))}><X className="w-3 h-3" /></button>
-                </div>
-              ))}
-            </div>
-          </div>
-          <button onClick={() => setSpoofAlerts([])}><X className="w-4 h-4" /></button>
+    <ErrorBoundary
+      fallback={
+        <div className="p-8 text-center text-sm text-red-500">
+          Live Riders Map page crashed. Please reload.
         </div>
-      )}
-
-      {/* SOS Banner */}
-      {sosAlerts.length > 0 && (
-        <div className="bg-red-600 text-white rounded-xl p-3 flex items-start gap-3 shadow-lg mb-2 flex-shrink-0 animate-pulse">
-          <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <p className="font-bold">🆘 SOS Alert{sosAlerts.length > 1 ? `s (${sosAlerts.length})` : ""}</p>
-            <div className="mt-1.5 space-y-1">
-              {sosAlerts.map(sos => (
-                <div key={sos.userId} className="flex items-center gap-2 bg-red-700/50 rounded-xl px-3 py-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm">{sos.name}{sos.phone ? ` · ${sos.phone}` : ""}</p>
-                    <p className="text-xs text-red-200">{fd(sos.sentAt)}</p>
-                  </div>
-                  <button onClick={() => setSelectedSOS(sos)} className="text-xs font-bold bg-white text-red-600 px-3 py-1 rounded-lg flex items-center gap-1">
-                    <MessageSquare className="w-3 h-3" /> Reply
-                  </button>
-                  <button onClick={() => dismissSOS(sos.userId)} className="text-xs bg-red-800/50 px-2 py-1 rounded-lg"><X className="w-4 h-4" /></button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Page header */}
-      <PageHeader
-        icon={Navigation}
-        title="Live Fleet Map"
-        subtitle={`${riders.length} riders · ${vendors.length} vendors · ${onlineCount} online · ${busyCount} busy`}
-        iconBgClass="bg-green-100"
-        iconColorClass="text-green-600"
-        actions={
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className={`w-2 h-2 rounded-full ${wsConnected ? "bg-green-500 animate-pulse" : "bg-amber-400"}`} />
-              {wsConnected ? "Live" : `${secAgo}s ago`}
-            </div>
-            <div className="flex rounded-xl border border-border overflow-hidden">
-              <button onClick={() => setActiveTab("map")} className="px-3 py-1.5 text-sm font-semibold flex items-center gap-1.5 bg-green-600 text-white">
-                <MapPin className="w-3.5 h-3.5" /> Map
-              </button>
-              <button onClick={() => setActiveTab("analytics")} className="px-3 py-1.5 text-sm font-semibold flex items-center gap-1.5 bg-white text-muted-foreground hover:bg-gray-50">
-                <BarChart2 className="w-3.5 h-3.5" /> Analytics
-              </button>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading} className="h-8 rounded-xl gap-1.5">
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-          </div>
-        }
-      />
-
-      {/* Main 3-column layout: sidebar | map | detail panel */}
-      <div className="flex flex-1 min-h-0 gap-0 rounded-2xl overflow-hidden border border-border/50 shadow-sm">
-
-        {/* LEFT SIDEBAR */}
-        <div
-          className="flex flex-col border-r border-border/50 bg-white transition-all duration-300"
-          style={{ width: sidebarCollapsed ? 0 : 280, minWidth: sidebarCollapsed ? 0 : 280, overflow: "hidden" }}
-        >
-          {/* Sidebar header + stat cards */}
-          <div className="px-3 pt-3 pb-2 border-b border-border/40 flex-shrink-0">
-            {/* Stat cards row */}
-            <div className="grid grid-cols-2 gap-1.5 mb-2.5">
-              <div className="bg-gray-50 rounded-xl p-2 text-center border border-border/30">
-                <p className="text-base font-bold text-foreground leading-none">{riders.length}</p>
-                <p className="text-[9px] text-muted-foreground mt-0.5">Tracked</p>
-              </div>
-              <div className="bg-green-50 rounded-xl p-2 text-center border border-green-100">
-                <p className="text-base font-bold text-green-700 leading-none">{onlineCount}</p>
-                <p className="text-[9px] text-green-600 mt-0.5">Online</p>
-              </div>
-              <div className="bg-red-50 rounded-xl p-2 text-center border border-red-100">
-                <p className="text-base font-bold text-red-600 leading-none">{busyCount}</p>
-                <p className="text-[9px] text-red-500 mt-0.5">Busy</p>
-              </div>
-              <div className="bg-orange-50 rounded-xl p-2 text-center border border-orange-100">
-                <p className="text-base font-bold text-orange-600 leading-none">{vendors.length}</p>
-                <p className="text-[9px] text-orange-500 mt-0.5">Vendors</p>
-              </div>
-            </div>
-            <div className="relative mb-2">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                value={sidebarSearch}
-                onChange={e => setSidebarSearch(e.target.value)}
-                placeholder="Search rider or phone..."
-                className="w-full text-xs border border-border/60 rounded-lg pl-7 pr-3 py-1.5 outline-none focus:ring-2 focus:ring-green-400 bg-white"
-              />
-            </div>
-            {/* Status filter */}
-            <div className="flex gap-1 flex-wrap mb-1.5">
-              {(["all", "online", "busy", "offline"] as const).map(f => (
-                <button
-                  key={f}
-                  onClick={() => setStatusFilter(f)}
-                  className={`px-2 py-0.5 text-[10px] font-bold rounded-full border transition-colors ${
-                    statusFilter === f
-                      ? f === "online" ? "bg-green-600 text-white border-green-600"
-                        : f === "busy" ? "bg-red-600 text-white border-red-600"
-                        : f === "offline" ? "bg-gray-500 text-white border-gray-500"
-                        : "bg-foreground text-background border-foreground"
-                      : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted"
-                  }`}
-                >
-                  {f.charAt(0).toUpperCase() + f.slice(1)}
-                </button>
-              ))}
-            </div>
-            {/* Vehicle filter */}
-            <div className="flex gap-1 flex-wrap mb-1.5">
-              {(["all", "motorcycle", "car", "rickshaw", "van"] as const).map(v => (
-                <button
-                  key={v}
-                  onClick={() => setVehicleFilter(v)}
-                  className={`px-2 py-0.5 text-[10px] font-bold rounded-full border transition-colors ${
-                    vehicleFilter === v
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted"
-                  }`}
-                >
-                  {v === "all" ? "All" : `${getVehicleIcon(v)}`}
-                </button>
-              ))}
-              <button
-                onClick={() => setActiveRideFilter(p => !p)}
-                className={`px-2 py-0.5 text-[10px] font-bold rounded-full border transition-colors ${activeRideFilter ? "bg-purple-600 text-white border-purple-600" : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted"}`}
-              >
-                🚗 Active
-              </button>
-            </div>
-            {/* Zone filter */}
-            {(() => {
-              const cities = ["all", ...Array.from(new Set(riders.map(r => r.city).filter(Boolean) as string[])).sort()];
-              if (cities.length <= 1) return null;
-              return (
-                <div className="flex gap-1 flex-wrap">
-                  {cities.map(c => (
+      }
+    >
+      <div className="flex flex-col" style={{ height: "calc(100vh - 80px)", minHeight: 600 }}>
+        {/* GPS Spoof Alert Banner */}
+        {spoofAlerts.length > 0 && (
+          <div className="mb-2 flex flex-shrink-0 items-start gap-3 rounded-xl bg-orange-600 p-3 text-white shadow-lg">
+            <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold">⚠ GPS Spoof Detected ({spoofAlerts.length})</p>
+              <div className="mt-1.5 space-y-1">
+                {spoofAlerts.slice(0, 3).map((alert, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 rounded-xl bg-orange-700/50 px-3 py-1.5 text-xs"
+                  >
+                    <span className="flex-1">
+                      {alert.userId.slice(0, 8)}… — {alert.reason}
+                    </span>
+                    {alert.autoOffline && (
+                      <span className="rounded bg-orange-800 px-1.5 py-0.5 text-[9px] font-bold">
+                        AUTO-OFFLINE
+                      </span>
+                    )}
                     <button
-                      key={c}
-                      onClick={() => setZoneFilter(c)}
-                      className={`px-2 py-0.5 text-[10px] font-bold rounded-full border transition-colors ${zoneFilter === c ? "bg-teal-600 text-white border-teal-600" : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted"}`}
+                      onClick={() => setSpoofAlerts((prev) => prev.filter((_, j) => j !== i))}
                     >
-                      {c === "all" ? "All" : c}
+                      <X className="h-3 w-3" />
                     </button>
-                  ))}
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* Rider list */}
-          <div className="flex-1 overflow-y-auto">
-            {isLoading && riders.length === 0 ? (
-              <div className="p-6 text-center text-muted-foreground text-sm">Loading riders...</div>
-            ) : riders.length === 0 ? (
-              <div className="p-6 text-center">
-                <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No riders tracked</p>
+                  </div>
+                ))}
               </div>
-            ) : (
-              <div className="divide-y divide-border/30">
-                {filteredRiders
-                  .slice()
-                  .sort((a, b) => {
-                    const sa = getRiderStatus(a), sb = getRiderStatus(b);
-                    if (sa !== sb) { const order = { online: 0, busy: 1, offline: 2 }; return (order[sa] ?? 3) - (order[sb] ?? 3); }
-                    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-                  })
-                  .map(rider => {
-                    const status = getRiderStatus(rider);
-                    const stale = isGpsStale(rider, offlineAfterSec);
-                    const battPct = rider.batteryLevel != null ? Math.round(rider.batteryLevel * 100) : null;
-                    const battColor = battPct != null ? (battPct > 50 ? "#22c55e" : battPct > 20 ? "#f59e0b" : "#ef4444") : null;
-                    const hasTrail = trailSet.has(rider.userId);
-                    const isSelected = selectedEntity?.type === "rider" && selectedEntity.id === rider.userId;
-                    return (
-                      <div
-                        key={rider.userId}
-                        role="button"
-                        onClick={() => setSelectedEntity(isSelected ? null : { type: "rider", id: rider.userId })}
-                        className={`w-full flex items-center gap-2 px-3 py-2.5 hover:bg-muted/30 transition-colors cursor-pointer ${isSelected ? "bg-green-50 border-l-2 border-green-500" : ""}`}
-                      >
-                        <StatusDot status={status} />
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-xs text-foreground truncate">{riderDisplayName(rider)}</p>
-                          <p className="text-[10px] text-muted-foreground truncate">{getVehicleIcon(rider.vehicleType)} {rider.phone || "—"}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {status === "offline" && rider.lastActive ? `Last active: ${fd(rider.lastActive)}` : `Seen: ${fd(rider.lastSeen ?? rider.updatedAt)}`}
-                          </p>
-                          {stale && status !== "offline" && <p className="text-[10px] text-amber-500">⚠ GPS stale</p>}
-                          <button
-                            onClick={e => { e.stopPropagation(); toggleTrail(rider.userId); }}
-                            className={`mt-0.5 px-1.5 py-0.5 text-[9px] font-bold rounded-full border transition-colors flex items-center gap-1 ${hasTrail ? "bg-indigo-600 text-white border-indigo-600" : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted"}`}
-                          >
-                            <History className="w-2.5 h-2.5" />
-                            {hasTrail ? "Trail On" : "Trail"}
-                          </button>
-                        </div>
-                        <div className="flex-shrink-0 space-y-1">
-                          <Badge className={`text-[9px] font-bold ${status === "busy" ? "bg-red-100 text-red-700" : status === "online" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                            {status === "busy" ? "Busy" : status === "online" ? "Online" : "Off"}
-                          </Badge>
-                          {battPct != null && (
-                            <div className="flex items-center gap-0.5">
-                              <div className="w-8 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                <div style={{ width: `${battPct}%`, background: battColor ?? "#22c55e" }} className="h-full rounded-full" />
-                              </div>
-                              <span className="text-[8px] font-bold" style={{ color: battColor ?? "#22c55e" }}>{battPct}%</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+            </div>
+            <button onClick={() => setSpoofAlerts([])}>
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
-                {/* Vendor list section */}
-                {showVendors && vendors.length > 0 && (
-                  <>
-                    <div className="px-3 py-1.5 bg-orange-50 border-t border-b border-orange-100">
-                      <p className="text-[10px] font-bold text-orange-600 uppercase tracking-wider flex items-center gap-1">
-                        <Store className="w-3 h-3" /> Vendors ({vendors.length})
+        {/* SOS Banner */}
+        {sosAlerts.length > 0 && (
+          <div className="mb-2 flex flex-shrink-0 animate-pulse items-start gap-3 rounded-xl bg-red-600 p-3 text-white shadow-lg">
+            <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="font-bold">
+                🆘 SOS Alert{sosAlerts.length > 1 ? `s (${sosAlerts.length})` : ""}
+              </p>
+              <div className="mt-1.5 space-y-1">
+                {sosAlerts.map((sos) => (
+                  <div
+                    key={sos.userId}
+                    className="flex items-center gap-2 rounded-xl bg-red-700/50 px-3 py-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold">
+                        {sos.name}
+                        {sos.phone ? ` · ${sos.phone}` : ""}
                       </p>
+                      <p className="text-xs text-red-200">{fd(sos.sentAt)}</p>
                     </div>
-                    {vendors.map(v => {
-                      const isSelected = selectedEntity?.type === "vendor" && selectedEntity.id === v.id;
+                    <button
+                      onClick={() => setSelectedSOS(sos)}
+                      className="flex items-center gap-1 rounded-lg bg-white px-3 py-1 text-xs font-bold text-red-600"
+                    >
+                      <MessageSquare className="h-3 w-3" /> Reply
+                    </button>
+                    <button
+                      onClick={() => dismissSOS(sos.userId)}
+                      className="rounded-lg bg-red-800/50 px-2 py-1 text-xs"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Page header */}
+        <PageHeader
+          icon={Navigation}
+          title="Live Fleet Map"
+          subtitle={`${riders.length} riders · ${vendors.length} vendors · ${onlineCount} online · ${busyCount} busy`}
+          iconBgClass="bg-green-100"
+          iconColorClass="text-green-600"
+          actions={
+            <div className="flex items-center gap-2">
+              <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                <span
+                  className={`h-2 w-2 rounded-full ${wsConnected ? "animate-pulse bg-green-500" : "bg-amber-400"}`}
+                />
+                {wsConnected ? "Live" : `${secAgo}s ago`}
+              </div>
+              <div className="border-border flex overflow-hidden rounded-xl border">
+                <button
+                  onClick={() => setActiveTab("map")}
+                  className="flex items-center gap-1.5 bg-green-600 px-3 py-1.5 text-sm font-semibold text-white"
+                >
+                  <MapPin className="h-3.5 w-3.5" /> Map
+                </button>
+                <button
+                  onClick={() => setActiveTab("analytics")}
+                  className="text-muted-foreground flex items-center gap-1.5 bg-white px-3 py-1.5 text-sm font-semibold hover:bg-gray-50"
+                >
+                  <BarChart2 className="h-3.5 w-3.5" /> Analytics
+                </button>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                disabled={isLoading}
+                className="h-8 gap-1.5 rounded-xl"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
+            </div>
+          }
+        />
+
+        {/* Main 3-column layout: sidebar | map | detail panel */}
+        <div className="border-border/50 flex min-h-0 flex-1 gap-0 overflow-hidden rounded-2xl border shadow-sm">
+          {/* LEFT SIDEBAR */}
+          <div
+            className="border-border/50 flex flex-col border-r bg-white transition-all duration-300"
+            style={{
+              width: sidebarCollapsed ? 0 : 280,
+              minWidth: sidebarCollapsed ? 0 : 280,
+              overflow: "hidden",
+            }}
+          >
+            {/* Sidebar header + stat cards */}
+            <div className="border-border/40 flex-shrink-0 border-b px-3 pt-3 pb-2">
+              {/* Stat cards row */}
+              <div className="mb-2.5 grid grid-cols-2 gap-1.5">
+                <div className="border-border/30 rounded-xl border bg-gray-50 p-2 text-center">
+                  <p className="text-foreground text-base leading-none font-bold">
+                    {riders.length}
+                  </p>
+                  <p className="text-muted-foreground mt-0.5 text-[9px]">Tracked</p>
+                </div>
+                <div className="rounded-xl border border-green-100 bg-green-50 p-2 text-center">
+                  <p className="text-base leading-none font-bold text-green-700">{onlineCount}</p>
+                  <p className="mt-0.5 text-[9px] text-green-600">Online</p>
+                </div>
+                <div className="rounded-xl border border-red-100 bg-red-50 p-2 text-center">
+                  <p className="text-base leading-none font-bold text-red-600">{busyCount}</p>
+                  <p className="mt-0.5 text-[9px] text-red-500">Busy</p>
+                </div>
+                <div className="rounded-xl border border-orange-100 bg-orange-50 p-2 text-center">
+                  <p className="text-base leading-none font-bold text-orange-600">
+                    {vendors.length}
+                  </p>
+                  <p className="mt-0.5 text-[9px] text-orange-500">Vendors</p>
+                </div>
+              </div>
+              <div className="relative mb-2">
+                <Search className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={sidebarSearch}
+                  onChange={(e) => setSidebarSearch(e.target.value)}
+                  placeholder="Search rider or phone..."
+                  className="border-border/60 w-full rounded-lg border bg-white py-1.5 pr-3 pl-7 text-xs outline-none focus:ring-2 focus:ring-green-400"
+                />
+              </div>
+              {/* Status filter */}
+              <div className="mb-1.5 flex flex-wrap gap-1">
+                {(["all", "online", "busy", "offline"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setStatusFilter(f)}
+                    className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition-colors ${
+                      statusFilter === f
+                        ? f === "online"
+                          ? "border-green-600 bg-green-600 text-white"
+                          : f === "busy"
+                            ? "border-red-600 bg-red-600 text-white"
+                            : f === "offline"
+                              ? "border-gray-500 bg-gray-500 text-white"
+                              : "bg-foreground text-background border-foreground"
+                        : "text-muted-foreground border-border/50 hover:bg-muted bg-transparent"
+                    }`}
+                  >
+                    {f.charAt(0).toUpperCase() + f.slice(1)}
+                  </button>
+                ))}
+              </div>
+              {/* Vehicle filter */}
+              <div className="mb-1.5 flex flex-wrap gap-1">
+                {(["all", "motorcycle", "car", "rickshaw", "van"] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setVehicleFilter(v)}
+                    className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition-colors ${
+                      vehicleFilter === v
+                        ? "border-blue-600 bg-blue-600 text-white"
+                        : "text-muted-foreground border-border/50 hover:bg-muted bg-transparent"
+                    }`}
+                  >
+                    {v === "all" ? "All" : `${getVehicleIcon(v)}`}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setActiveRideFilter((p) => !p)}
+                  className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition-colors ${activeRideFilter ? "border-purple-600 bg-purple-600 text-white" : "text-muted-foreground border-border/50 hover:bg-muted bg-transparent"}`}
+                >
+                  🚗 Active
+                </button>
+              </div>
+              {/* Zone filter */}
+              {(() => {
+                const cities = [
+                  "all",
+                  ...Array.from(
+                    new Set(riders.map((r) => r.city).filter(Boolean) as string[])
+                  ).sort(),
+                ];
+                if (cities.length <= 1) return null;
+                return (
+                  <div className="flex flex-wrap gap-1">
+                    {cities.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setZoneFilter(c)}
+                        className={`rounded-full border px-2 py-0.5 text-[10px] font-bold transition-colors ${zoneFilter === c ? "border-teal-600 bg-teal-600 text-white" : "text-muted-foreground border-border/50 hover:bg-muted bg-transparent"}`}
+                      >
+                        {c === "all" ? "All" : c}
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Rider list */}
+            <div className="flex-1 overflow-y-auto">
+              {isLoading && riders.length === 0 ? (
+                <div className="text-muted-foreground p-6 text-center text-sm">
+                  Loading riders...
+                </div>
+              ) : riders.length === 0 ? (
+                <div className="p-6 text-center">
+                  <Users className="mx-auto mb-2 h-8 w-8 text-gray-300" />
+                  <p className="text-muted-foreground text-sm">No riders tracked</p>
+                </div>
+              ) : (
+                <div className="divide-border/30 divide-y">
+                  {filteredRiders
+                    .slice()
+                    .sort((a, b) => {
+                      const sa = getRiderStatus(a),
+                        sb = getRiderStatus(b);
+                      if (sa !== sb) {
+                        const order = { online: 0, busy: 1, offline: 2 };
+                        return (order[sa] ?? 3) - (order[sb] ?? 3);
+                      }
+                      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+                    })
+                    .map((rider) => {
+                      const status = getRiderStatus(rider);
+                      const stale = isGpsStale(rider, offlineAfterSec);
+                      const battPct =
+                        rider.batteryLevel != null ? Math.round(rider.batteryLevel * 100) : null;
+                      const battColor =
+                        battPct != null
+                          ? battPct > 50
+                            ? "#22c55e"
+                            : battPct > 20
+                              ? "#f59e0b"
+                              : "#ef4444"
+                          : null;
+                      const hasTrail = trailSet.has(rider.userId);
+                      const isSelected =
+                        selectedEntity?.type === "rider" && selectedEntity.id === rider.userId;
                       return (
                         <div
-                          key={v.id}
+                          key={rider.userId}
                           role="button"
-                          onClick={() => setSelectedEntity(isSelected ? null : { type: "vendor", id: v.id })}
-                          className={`w-full flex items-center gap-2 px-3 py-2 hover:bg-muted/30 transition-colors cursor-pointer ${isSelected ? "bg-orange-50 border-l-2 border-orange-500" : ""}`}
+                          onClick={() =>
+                            setSelectedEntity(
+                              isSelected ? null : { type: "rider", id: rider.userId }
+                            )
+                          }
+                          className={`hover:bg-muted/30 flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 transition-colors ${isSelected ? "border-l-2 border-green-500 bg-green-50" : ""}`}
                         >
-                          <span className="text-base">🏪</span>
+                          <StatusDot status={status} />
                           <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-xs text-foreground truncate">{v.name}</p>
-                            <p className="text-[10px] text-muted-foreground truncate">{v.city ?? v.storeAddress ?? "—"}</p>
-                            {v.activeOrders > 0 && <p className="text-[10px] text-orange-600 font-bold">{v.activeOrders} active orders</p>}
+                            <p className="text-foreground truncate text-xs font-semibold">
+                              {riderDisplayName(rider)}
+                            </p>
+                            <p className="text-muted-foreground truncate text-[10px]">
+                              {getVehicleIcon(rider.vehicleType)} {rider.phone || "—"}
+                            </p>
+                            <p className="text-muted-foreground text-[10px]">
+                              {status === "offline" && rider.lastActive
+                                ? `Last active: ${fd(rider.lastActive)}`
+                                : `Seen: ${fd(rider.lastSeen ?? rider.updatedAt)}`}
+                            </p>
+                            {stale && status !== "offline" && (
+                              <p className="text-[10px] text-amber-500">⚠ GPS stale</p>
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleTrail(rider.userId);
+                              }}
+                              className={`mt-0.5 flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-bold transition-colors ${hasTrail ? "border-indigo-600 bg-indigo-600 text-white" : "text-muted-foreground border-border/50 hover:bg-muted bg-transparent"}`}
+                            >
+                              <History className="h-2.5 w-2.5" />
+                              {hasTrail ? "Trail On" : "Trail"}
+                            </button>
                           </div>
-                          <Badge className={`text-[9px] font-bold ${v.storeIsOpen ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-500"}`}>
-                            {v.storeIsOpen ? "Open" : "Closed"}
-                          </Badge>
+                          <div className="flex-shrink-0 space-y-1">
+                            <Badge
+                              className={`text-[9px] font-bold ${status === "busy" ? "bg-red-100 text-red-700" : status === "online" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
+                            >
+                              {status === "busy" ? "Busy" : status === "online" ? "Online" : "Off"}
+                            </Badge>
+                            {battPct != null && (
+                              <div className="flex items-center gap-0.5">
+                                <div className="h-1.5 w-8 overflow-hidden rounded-full bg-gray-200">
+                                  <div
+                                    style={{
+                                      width: `${battPct}%`,
+                                      background: battColor ?? "#22c55e",
+                                    }}
+                                    className="h-full rounded-full"
+                                  />
+                                </div>
+                                <span
+                                  className="text-[8px] font-bold"
+                                  style={{ color: battColor ?? "#22c55e" }}
+                                >
+                                  {battPct}%
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* Sidebar collapse toggle */}
-        <button
-          onClick={() => setSidebarCollapsed(v => !v)}
-          className="flex-shrink-0 w-5 bg-white border-r border-border/50 flex items-center justify-center hover:bg-gray-50 transition-colors z-10"
-          title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {sidebarCollapsed ? <ChevronRight className="w-3 h-3 text-muted-foreground" /> : <ChevronLeft className="w-3 h-3 text-muted-foreground" />}
-        </button>
-
-        {/* CENTER MAP */}
-        <div className="flex-1 relative min-w-0">
-          {/* Layer toggle bar — absolute overlay on map */}
-          <div className="absolute top-3 left-3 z-[1000] flex flex-col gap-1.5">
-            {/* Layer toggles */}
-            <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-border/40 p-2 flex flex-col gap-1">
-              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-1 mb-0.5">Layers</p>
-              {[
-                { key: "riders",    label: "Riders",    color: "bg-green-500",  icon: "🏍️", state: showRiders,    set: setShowRiders    },
-                { key: "customers", label: "Customers", color: "bg-blue-500",   icon: "👤", state: showCustomers,  set: setShowCustomers  },
-                { key: "vendors",   label: "Vendors",   color: "bg-orange-500", icon: "🏪", state: showVendors,    set: setShowVendors    },
-                { key: "sos",       label: "SOS",       color: "bg-red-500",    icon: "🆘", state: showSOS,        set: setShowSOS        },
-              ].map(layer => (
-                <button
-                  key={layer.key}
-                  onClick={() => layer.set(v => !v)}
-                  className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-semibold transition-colors ${layer.state ? "bg-gray-100 text-foreground" : "bg-transparent text-muted-foreground opacity-50"}`}
-                >
-                  <span className={`w-2 h-2 rounded-full ${layer.state ? layer.color : "bg-gray-300"}`} />
-                  {layer.icon} {layer.label}
-                </button>
-              ))}
-              <div className="border-t border-border/30 pt-1 mt-0.5">
-                <button
-                  onClick={() => setShowLabels(v => !v)}
-                  className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-semibold transition-colors w-full ${showLabels ? "bg-gray-100 text-foreground" : "text-muted-foreground opacity-50"}`}
-                >
-                  {showLabels ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                  Labels
-                </button>
-              </div>
-            </div>
-
-            {/* Provider picker */}
-            <div className="relative">
-              <button
-                onClick={() => setShowProviderPicker(v => !v)}
-                className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-border/40 px-2.5 py-1.5 text-[11px] font-bold flex items-center gap-1.5 hover:bg-gray-50"
-              >
-                <Layers className="w-3 h-3" />
-                {effectiveProvider.toUpperCase()}
-              </button>
-              {showProviderPicker && (
-                <div className="absolute top-full left-0 mt-1 bg-white border border-border/40 rounded-xl shadow-lg z-50 min-w-40 overflow-hidden">
-                  {[{ value: "osm", label: "🗺 OpenStreetMap" }, { value: "mapbox", label: "🗺 Mapbox" }, { value: "google", label: "🌍 Google Maps" }].map(p => (
-                    <button
-                      key={p.value}
-                      onClick={() => { setQuickProvider(p.value === adminMapProv.provider ? null : p.value); setShowProviderPicker(false); }}
-                      className={`block w-full px-3 py-2 text-left text-xs hover:bg-gray-50 ${effectiveProvider === p.value ? "font-bold text-green-700 bg-green-50" : "text-gray-700"}`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
+                  {/* Vendor list section */}
+                  {showVendors && vendors.length > 0 && (
+                    <>
+                      <div className="border-t border-b border-orange-100 bg-orange-50 px-3 py-1.5">
+                        <p className="flex items-center gap-1 text-[10px] font-bold tracking-wider text-orange-600 uppercase">
+                          <Store className="h-3 w-3" /> Vendors ({vendors.length})
+                        </p>
+                      </div>
+                      {vendors.map((v) => {
+                        const isSelected =
+                          selectedEntity?.type === "vendor" && selectedEntity.id === v.id;
+                        return (
+                          <div
+                            key={v.id}
+                            role="button"
+                            onClick={() =>
+                              setSelectedEntity(isSelected ? null : { type: "vendor", id: v.id })
+                            }
+                            className={`hover:bg-muted/30 flex w-full cursor-pointer items-center gap-2 px-3 py-2 transition-colors ${isSelected ? "border-l-2 border-orange-500 bg-orange-50" : ""}`}
+                          >
+                            <span className="text-base">🏪</span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-foreground truncate text-xs font-semibold">
+                                {v.name}
+                              </p>
+                              <p className="text-muted-foreground truncate text-[10px]">
+                                {v.city ?? v.storeAddress ?? "—"}
+                              </p>
+                              {v.activeOrders > 0 && (
+                                <p className="text-[10px] font-bold text-orange-600">
+                                  {v.activeOrders} active orders
+                                </p>
+                              )}
+                            </div>
+                            <Badge
+                              className={`text-[9px] font-bold ${v.storeIsOpen ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-500"}`}
+                            >
+                              {v.storeIsOpen ? "Open" : "Closed"}
+                            </Badge>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
                 </div>
               )}
             </div>
           </div>
 
-          {/* Map */}
-          {isLoading && riders.length === 0 ? (
-            <div className="w-full h-full flex items-center justify-center bg-gray-50">
-              <div className="text-center">
-                <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Loading map...</p>
+          {/* Sidebar collapse toggle */}
+          <button
+            onClick={() => setSidebarCollapsed((v) => !v)}
+            className="border-border/50 z-10 flex w-5 flex-shrink-0 items-center justify-center border-r bg-white transition-colors hover:bg-gray-50"
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {sidebarCollapsed ? (
+              <ChevronRight className="text-muted-foreground h-3 w-3" />
+            ) : (
+              <ChevronLeft className="text-muted-foreground h-3 w-3" />
+            )}
+          </button>
+
+          {/* CENTER MAP */}
+          <div className="relative min-w-0 flex-1">
+            {/* Layer toggle bar — absolute overlay on map */}
+            <div className="absolute top-3 left-3 z-[1000] flex flex-col gap-1.5">
+              {/* Layer toggles */}
+              <div className="border-border/40 flex flex-col gap-1 rounded-xl border bg-white/95 p-2 shadow-lg backdrop-blur-sm">
+                <p className="text-muted-foreground mb-0.5 px-1 text-[9px] font-bold tracking-wider uppercase">
+                  Layers
+                </p>
+                {[
+                  {
+                    key: "riders",
+                    label: "Riders",
+                    color: "bg-green-500",
+                    icon: "🏍️",
+                    state: showRiders,
+                    set: setShowRiders,
+                  },
+                  {
+                    key: "customers",
+                    label: "Customers",
+                    color: "bg-blue-500",
+                    icon: "👤",
+                    state: showCustomers,
+                    set: setShowCustomers,
+                  },
+                  {
+                    key: "vendors",
+                    label: "Vendors",
+                    color: "bg-orange-500",
+                    icon: "🏪",
+                    state: showVendors,
+                    set: setShowVendors,
+                  },
+                  {
+                    key: "sos",
+                    label: "SOS",
+                    color: "bg-red-500",
+                    icon: "🆘",
+                    state: showSOS,
+                    set: setShowSOS,
+                  },
+                ].map((layer) => (
+                  <button
+                    key={layer.key}
+                    onClick={() => layer.set((v) => !v)}
+                    className={`flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors ${layer.state ? "text-foreground bg-gray-100" : "text-muted-foreground bg-transparent opacity-50"}`}
+                  >
+                    <span
+                      className={`h-2 w-2 rounded-full ${layer.state ? layer.color : "bg-gray-300"}`}
+                    />
+                    {layer.icon} {layer.label}
+                  </button>
+                ))}
+                <div className="border-border/30 mt-0.5 border-t pt-1">
+                  <button
+                    onClick={() => setShowLabels((v) => !v)}
+                    className={`flex w-full items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors ${showLabels ? "text-foreground bg-gray-100" : "text-muted-foreground opacity-50"}`}
+                  >
+                    {showLabels ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                    Labels
+                  </button>
+                </div>
+              </div>
+
+              {/* Provider picker */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowProviderPicker((v) => !v)}
+                  className="border-border/40 flex items-center gap-1.5 rounded-xl border bg-white/95 px-2.5 py-1.5 text-[11px] font-bold shadow-lg backdrop-blur-sm hover:bg-gray-50"
+                >
+                  <Layers className="h-3 w-3" />
+                  {effectiveProvider.toUpperCase()}
+                </button>
+                {showProviderPicker && (
+                  <div className="border-border/40 absolute top-full left-0 z-50 mt-1 min-w-40 overflow-hidden rounded-xl border bg-white shadow-lg">
+                    {[
+                      { value: "osm", label: "🗺 OpenStreetMap" },
+                      { value: "mapbox", label: "🗺 Mapbox" },
+                      { value: "google", label: "🌍 Google Maps" },
+                    ].map((p) => (
+                      <button
+                        key={p.value}
+                        onClick={() => {
+                          setQuickProvider(p.value === adminMapProv.provider ? null : p.value);
+                          setShowProviderPicker(false);
+                        }}
+                        className={`block w-full px-3 py-2 text-left text-xs hover:bg-gray-50 ${effectiveProvider === p.value ? "bg-green-50 font-bold text-green-700" : "text-gray-700"}`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
-          ) : (
-            <LiveMapRenderer
-              mapConfig={mapConfigData}
-              adminProvider={effectiveProvider}
-              adminToken={effectiveToken}
-              defaultLat={defaultLat}
-              defaultLng={defaultLng}
-              nativeMarkers={nativeMarkers}
-              nativePolylines={nativePolylines}
-              style={{ width: "100%", height: "100%" }}
-              leafletChildren={
-                <>
-                  <FitBoundsOnLoad
-                    riders={riders}
-                    customers={customers}
-                    vendors={vendors}
-                    defaultLat={defaultLat}
-                    defaultLng={defaultLng}
-                  />
 
-                  {filteredRiders.filter(r => trailSet.has(r.userId)).map(r => (
-                    <RiderTrailOverlay key={`trail-${r.userId}`} userId={r.userId} />
-                  ))}
+            {/* Map */}
+            {isLoading && riders.length === 0 ? (
+              <div className="flex h-full w-full items-center justify-center bg-gray-50">
+                <div className="text-center">
+                  <div className="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-4 border-green-500 border-t-transparent" />
+                  <p className="text-muted-foreground text-sm">Loading map...</p>
+                </div>
+              </div>
+            ) : (
+              <LiveMapRenderer
+                mapConfig={mapConfigData}
+                adminProvider={effectiveProvider}
+                adminToken={effectiveToken}
+                defaultLat={defaultLat}
+                defaultLng={defaultLng}
+                nativeMarkers={nativeMarkers}
+                nativePolylines={nativePolylines}
+                style={{ width: "100%", height: "100%" }}
+                leafletChildren={
+                  <>
+                    <FitBoundsOnLoad
+                      riders={riders}
+                      customers={customers}
+                      vendors={vendors}
+                      defaultLat={defaultLat}
+                      defaultLng={defaultLng}
+                    />
 
-                  {showRiders && filteredRiders.map(rider => {
-                    const status = getRiderStatus(rider);
-                    const stale = isGpsStale(rider, offlineAfterSec);
-                    return (
-                      <AnimatedMarker
-                        key={rider.userId}
-                        position={[rider.lat, rider.lng]}
-                        icon={riderIconMap.get(rider.userId)!}
-                        onClick={() => setSelectedEntity(prev => prev?.type === "rider" && prev.id === rider.userId ? null : { type: "rider", id: rider.userId })}
+                    {filteredRiders
+                      .filter((r) => trailSet.has(r.userId))
+                      .map((r) => (
+                        <RiderTrailOverlay key={`trail-${r.userId}`} userId={r.userId} />
+                      ))}
+
+                    {showRiders &&
+                      filteredRiders.map((rider) => {
+                        const status = getRiderStatus(rider);
+                        const stale = isGpsStale(rider, offlineAfterSec);
+                        return (
+                          <AnimatedMarker
+                            key={rider.userId}
+                            position={[rider.lat, rider.lng]}
+                            icon={riderIconMap.get(rider.userId)!}
+                            onClick={() =>
+                              setSelectedEntity((prev) =>
+                                prev?.type === "rider" && prev.id === rider.userId
+                                  ? null
+                                  : { type: "rider", id: rider.userId }
+                              )
+                            }
+                          >
+                            <Popup maxWidth={160} autoPanPadding={[40, 40]}>
+                              <div style={{ fontFamily: "sans-serif" }}>
+                                <p style={{ fontWeight: 700, margin: "0 0 3px", fontSize: 13 }}>
+                                  {riderDisplayName(rider)}
+                                </p>
+                                <span
+                                  style={{
+                                    display: "inline-block",
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    color:
+                                      status === "online"
+                                        ? "#22c55e"
+                                        : status === "busy"
+                                          ? "#ef4444"
+                                          : "#9ca3af",
+                                    background:
+                                      status === "online"
+                                        ? "#f0fdf4"
+                                        : status === "busy"
+                                          ? "#fef2f2"
+                                          : "#f9fafb",
+                                    border: `1px solid ${status === "online" ? "#bbf7d0" : status === "busy" ? "#fecaca" : "#e5e7eb"}`,
+                                    borderRadius: 4,
+                                    padding: "1px 6px",
+                                  }}
+                                >
+                                  {status === "online"
+                                    ? "Online"
+                                    : status === "busy"
+                                      ? "On Trip"
+                                      : "Offline"}
+                                </span>
+                              </div>
+                            </Popup>
+                          </AnimatedMarker>
+                        );
+                      })}
+
+                    {showCustomers &&
+                      customers.map((c) => (
+                        <Marker
+                          key={c.userId}
+                          position={[c.lat, c.lng]}
+                          icon={customerIconMap.get(c.userId)!}
+                          eventHandlers={{
+                            click: () =>
+                              setSelectedEntity((prev) =>
+                                prev?.type === "customer" && prev.id === c.userId
+                                  ? null
+                                  : { type: "customer", id: c.userId }
+                              ),
+                          }}
+                        >
+                          <Popup maxWidth={140} autoPanPadding={[40, 40]}>
+                            <div style={{ fontFamily: "sans-serif" }}>
+                              <p style={{ fontWeight: 700, margin: "0 0 3px", fontSize: 13 }}>
+                                {c.name || "Customer"}
+                              </p>
+                              <span
+                                style={{
+                                  display: "inline-block",
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  color: "#3b82f6",
+                                  background: "#eff6ff",
+                                  border: "1px solid #bfdbfe",
+                                  borderRadius: 4,
+                                  padding: "1px 6px",
+                                }}
+                              >
+                                Active
+                              </span>
+                            </div>
+                          </Popup>
+                        </Marker>
+                      ))}
+
+                    {showVendors &&
+                      vendors.map((v) => (
+                        <Marker
+                          key={v.id}
+                          position={[v.lat, v.lng]}
+                          icon={vendorIconMap.get(v.id)!}
+                          eventHandlers={{
+                            click: () =>
+                              setSelectedEntity((prev) =>
+                                prev?.type === "vendor" && prev.id === v.id
+                                  ? null
+                                  : { type: "vendor", id: v.id }
+                              ),
+                          }}
+                        >
+                          <Popup maxWidth={160} autoPanPadding={[40, 40]}>
+                            <div style={{ fontFamily: "sans-serif" }}>
+                              <p style={{ fontWeight: 700, margin: "0 0 3px", fontSize: 13 }}>
+                                {v.name}
+                              </p>
+                              <span
+                                style={{
+                                  display: "inline-block",
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  color: v.storeIsOpen ? "#f97316" : "#9ca3af",
+                                  background: v.storeIsOpen ? "#fff7ed" : "#f9fafb",
+                                  border: `1px solid ${v.storeIsOpen ? "#fed7aa" : "#e5e7eb"}`,
+                                  borderRadius: 4,
+                                  padding: "1px 6px",
+                                }}
+                              >
+                                {v.storeIsOpen ? "Open" : "Closed"}
+                              </span>
+                            </div>
+                          </Popup>
+                        </Marker>
+                      ))}
+
+                    {adminPos && (
+                      <Marker
+                        position={[adminPos.lat, adminPos.lng]}
+                        icon={L.divIcon({
+                          className: "",
+                          iconSize: [22, 22],
+                          iconAnchor: [11, 11],
+                          html: `<div style="width:22px;height:22px;position:relative"><div style="position:absolute;inset:0;background:rgba(59,130,246,0.25);border-radius:50%;animation:adminPulse 2s ease-out infinite"></div><div style="width:14px;height:14px;background:#3b82f6;border:3px solid white;border-radius:50%;position:absolute;top:4px;left:4px;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div></div><style>@keyframes adminPulse{0%{transform:scale(1);opacity:1}100%{transform:scale(2.5);opacity:0}}</style>`,
+                        })}
                       >
-                        <Popup maxWidth={160} autoPanPadding={[40, 40]}>
-                          <div style={{ fontFamily: "sans-serif" }}>
-                            <p style={{ fontWeight: 700, margin: "0 0 3px", fontSize: 13 }}>{riderDisplayName(rider)}</p>
-                            <span style={{ display: "inline-block", fontSize: 11, fontWeight: 600, color: status === "online" ? "#22c55e" : status === "busy" ? "#ef4444" : "#9ca3af", background: status === "online" ? "#f0fdf4" : status === "busy" ? "#fef2f2" : "#f9fafb", border: `1px solid ${status === "online" ? "#bbf7d0" : status === "busy" ? "#fecaca" : "#e5e7eb"}`, borderRadius: 4, padding: "1px 6px" }}>
-                              {status === "online" ? "Online" : status === "busy" ? "On Trip" : "Offline"}
-                            </span>
+                        <Popup maxWidth={140} autoPanPadding={[40, 40]}>
+                          <div style={{ fontFamily: "sans-serif", textAlign: "center" }}>
+                            <p style={{ fontWeight: 700, margin: 0, fontSize: 13 }}>
+                              📍 You Are Here
+                            </p>
+                            <p style={{ fontSize: 11, color: "#3b82f6", margin: "2px 0 0" }}>
+                              Admin location
+                            </p>
                           </div>
                         </Popup>
-                      </AnimatedMarker>
-                    );
-                  })}
+                      </Marker>
+                    )}
 
-                  {showCustomers && customers.map(c => (
-                    <Marker
-                      key={c.userId}
-                      position={[c.lat, c.lng]}
-                      icon={customerIconMap.get(c.userId)!}
-                      eventHandlers={{ click: () => setSelectedEntity(prev => prev?.type === "customer" && prev.id === c.userId ? null : { type: "customer", id: c.userId }) }}
-                    >
-                      <Popup maxWidth={140} autoPanPadding={[40, 40]}>
-                        <div style={{ fontFamily: "sans-serif" }}>
-                          <p style={{ fontWeight: 700, margin: "0 0 3px", fontSize: 13 }}>{c.name || "Customer"}</p>
-                          <span style={{ display: "inline-block", fontSize: 11, fontWeight: 600, color: "#3b82f6", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 4, padding: "1px 6px" }}>Active</span>
+                    {showSOS &&
+                      sosAlerts
+                        .filter((sos) => sos.latitude != null && sos.longitude != null)
+                        .map((sos) => (
+                          <Marker
+                            key={`sos-${sos.userId}`}
+                            position={[sos.latitude!, sos.longitude!]}
+                            icon={makeSOSIcon()}
+                          >
+                            <Popup maxWidth={200} autoPanPadding={[40, 40]}>
+                              <div style={{ fontFamily: "sans-serif" }}>
+                                <p style={{ fontWeight: 700, color: "#ef4444", margin: "0 0 4px" }}>
+                                  🆘 SOS — {sos.name}
+                                </p>
+                                {sos.phone && (
+                                  <p style={{ fontSize: 12, margin: 0 }}>{sos.phone}</p>
+                                )}
+                                <p style={{ fontSize: 11, color: "#9ca3af", margin: "4px 0 0" }}>
+                                  {fd(sos.sentAt)}
+                                </p>
+                              </div>
+                            </Popup>
+                          </Marker>
+                        ))}
+
+                    {selectedRider && polylinePositions.length > 1 && (
+                      <Polyline
+                        positions={polylinePositions}
+                        color="#6366f1"
+                        weight={3}
+                        opacity={0.75}
+                      />
+                    )}
+
+                    {selectedRider && loginPoint && (
+                      <Marker
+                        position={[loginPoint.latitude, loginPoint.longitude]}
+                        icon={makeLoginIcon()}
+                      >
+                        <Popup autoPanPadding={[40, 40]}>
+                          <div style={{ fontFamily: "sans-serif" }}>
+                            <p style={{ fontWeight: 700, margin: "0 0 2px" }}>Login Location</p>
+                            <p style={{ fontSize: 11, color: "#6366f1", margin: 0 }}>
+                              {new Date(loginPoint.createdAt).toLocaleTimeString()}
+                            </p>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    )}
+
+                    {selectedRider && replayPoint && sliderVal < 100 && (
+                      <Marker
+                        position={[replayPoint.latitude, replayPoint.longitude]}
+                        icon={L.divIcon({
+                          html: `<div style="width:18px;height:18px;background:#6366f1;border:2px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
+                          className: "",
+                          iconSize: [18, 18],
+                          iconAnchor: [9, 9],
+                        })}
+                      >
+                        <Popup autoPanPadding={[40, 40]}>
+                          <p style={{ fontFamily: "sans-serif", fontSize: 11 }}>
+                            {new Date(replayPoint.createdAt).toLocaleTimeString()}
+                          </p>
+                        </Popup>
+                      </Marker>
+                    )}
+                  </>
+                }
+              />
+            )}
+          </div>
+
+          {/* RIGHT DETAIL PANEL */}
+          <div
+            className="border-border/50 flex flex-col overflow-hidden border-l bg-white transition-all duration-300"
+            style={{ width: detailPanelOpen ? 340 : 0, minWidth: detailPanelOpen ? 340 : 0 }}
+          >
+            {detailPanelOpen && (
+              <>
+                {/* Panel header */}
+                <div className="border-border/40 flex flex-shrink-0 items-center justify-between border-b bg-gray-50/60 px-4 py-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    {selectedRider && (
+                      <span className="text-lg">{getVehicleEmoji(selectedRider.vehicleType)}</span>
+                    )}
+                    {selectedCustomer && <span className="text-lg">👤</span>}
+                    {selectedVendor && <span className="text-lg">🏪</span>}
+                    <div className="min-w-0">
+                      <p className="text-foreground truncate text-sm font-bold">
+                        {selectedRider
+                          ? riderDisplayName(selectedRider)
+                          : selectedCustomer
+                            ? (selectedCustomer.name ?? "Customer")
+                            : (selectedVendor?.name ?? "Vendor")}
+                      </p>
+                      <p className="text-muted-foreground text-[10px]">
+                        {selectedRider
+                          ? (selectedRider.vehicleType ?? "Rider")
+                          : selectedCustomer
+                            ? "Customer"
+                            : (selectedVendor?.storeCategory ?? "Vendor")}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSelectedEntity(null)}
+                    className="text-muted-foreground hover:text-foreground flex-shrink-0 rounded-lg p-1 hover:bg-gray-100"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Panel body */}
+                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+                  {/* ── RIDER DETAIL ── */}
+                  {selectedRider &&
+                    (() => {
+                      const status = getRiderStatus(selectedRider);
+                      const stale = isGpsStale(selectedRider, offlineAfterSec);
+                      const battPct =
+                        selectedRider.batteryLevel != null
+                          ? Math.round(selectedRider.batteryLevel * 100)
+                          : null;
+                      const battColor =
+                        battPct != null
+                          ? battPct > 50
+                            ? "#22c55e"
+                            : battPct > 20
+                              ? "#f59e0b"
+                              : "#ef4444"
+                          : null;
+                      const msgs = chatMessages[selectedRider.userId] ?? [];
+                      return (
+                        <div className="flex min-h-0 flex-1 flex-col">
+                          {/* Status bar */}
+                          <div className="border-border/30 flex flex-shrink-0 items-center gap-2 border-b px-4 pt-3 pb-2">
+                            <StatusDot status={status} />
+                            <span
+                              className={`text-xs font-bold ${status === "online" ? "text-green-600" : status === "busy" ? "text-red-600" : "text-gray-500"}`}
+                            >
+                              {status === "online"
+                                ? "Online / Available"
+                                : status === "busy"
+                                  ? "Busy / On Trip"
+                                  : "Offline"}
+                            </span>
+                            {stale && status !== "offline" && (
+                              <Badge className="bg-amber-100 text-[9px] text-amber-700">
+                                Stale GPS
+                              </Badge>
+                            )}
+                          </div>
+
+                          {/* Tabs */}
+                          <div className="border-border/30 flex flex-shrink-0 border-b bg-gray-50/60">
+                            {(["info", "trail", "chat", "actions"] as const).map((t) => (
+                              <button
+                                key={t}
+                                onClick={() => setDetailTab(t)}
+                                className={`flex-1 border-b-2 py-2 text-[10px] font-bold tracking-wider uppercase transition-colors ${detailTab === t ? "border-foreground text-foreground bg-white" : "text-muted-foreground hover:text-foreground border-transparent"}`}
+                              >
+                                {t === "info"
+                                  ? "Info"
+                                  : t === "trail"
+                                    ? "Trail"
+                                    : t === "chat"
+                                      ? `Chat${msgs.length > 0 ? ` (${msgs.length})` : ""}`
+                                      : "Actions"}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Tab content */}
+                          <div className="flex-1 overflow-y-auto p-4">
+                            {detailTab === "info" && (
+                              <div className="space-y-2">
+                                {selectedRider.phone && (
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-muted-foreground">Phone</span>
+                                    <a
+                                      href={`tel:${selectedRider.phone}`}
+                                      className="font-semibold text-blue-600 hover:underline"
+                                    >
+                                      {selectedRider.phone}
+                                    </a>
+                                  </div>
+                                )}
+                                {selectedRider.vehicleType && (
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-muted-foreground">Vehicle</span>
+                                    <span className="font-semibold">
+                                      {getVehicleEmoji(selectedRider.vehicleType)}{" "}
+                                      {selectedRider.vehicleType}
+                                    </span>
+                                  </div>
+                                )}
+                                {selectedRider.city && (
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-muted-foreground">City</span>
+                                    <span className="font-semibold">{selectedRider.city}</span>
+                                  </div>
+                                )}
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="text-muted-foreground">Last seen</span>
+                                  <span className="font-semibold">
+                                    {fd(selectedRider.lastSeen ?? selectedRider.updatedAt)}
+                                  </span>
+                                </div>
+                                {selectedRider.currentTripId && (
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-muted-foreground">Trip ID</span>
+                                    <span className="font-mono text-[10px] font-bold text-red-600">
+                                      {selectedRider.currentTripId.slice(0, 14)}…
+                                    </span>
+                                  </div>
+                                )}
+                                {selectedRider.role && selectedRider.role !== "rider" && (
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-muted-foreground">Role</span>
+                                    <span className="font-semibold text-purple-700 capitalize">
+                                      {selectedRider.role.replace(/_/g, " ")}
+                                    </span>
+                                  </div>
+                                )}
+                                {battPct != null && (
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-muted-foreground">Battery</span>
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="h-2 w-16 overflow-hidden rounded-full bg-gray-200">
+                                        <div
+                                          style={{
+                                            width: `${battPct}%`,
+                                            background: battColor ?? "#22c55e",
+                                          }}
+                                          className="h-full rounded-full"
+                                        />
+                                      </div>
+                                      <span
+                                        className="font-bold"
+                                        style={{ color: battColor ?? "#22c55e" }}
+                                      >
+                                        {battPct}%
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="text-muted-foreground">Coords</span>
+                                  <span className="font-mono text-[10px]">
+                                    {selectedRider.lat.toFixed(5)}, {selectedRider.lng.toFixed(5)}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            {detailTab === "trail" && (
+                              <div className="space-y-3">
+                                <button
+                                  onClick={() => toggleTrail(selectedRider.userId)}
+                                  className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${trailSet.has(selectedRider.userId) ? "border-indigo-600 bg-indigo-600 text-white" : "text-foreground border-border bg-white hover:bg-gray-50"}`}
+                                >
+                                  <History className="h-3.5 w-3.5" />
+                                  {trailSet.has(selectedRider.userId)
+                                    ? "Hide GPS Trail"
+                                    : "Show GPS Trail"}
+                                </button>
+                                <div className="flex items-center gap-2">
+                                  <label className="text-muted-foreground text-[10px]">Date</label>
+                                  <input
+                                    type="date"
+                                    value={routeDate}
+                                    onChange={(e) => {
+                                      setRouteDate(e.target.value);
+                                      setSliderVal(100);
+                                    }}
+                                    className="flex-1 rounded-lg border px-2 py-1 text-xs"
+                                    max={new Date().toISOString().slice(0, 10)}
+                                  />
+                                </div>
+                                {routePoints.length > 1 ? (
+                                  <div>
+                                    <div className="text-muted-foreground mb-1.5 flex items-center justify-between text-[10px]">
+                                      <span className="flex items-center gap-1">
+                                        <Route className="h-3 w-3" /> {routePoints.length} pts
+                                      </span>
+                                      <span>
+                                        {replayPoint
+                                          ? new Date(replayPoint.createdAt).toLocaleTimeString()
+                                          : "--"}
+                                      </span>
+                                    </div>
+                                    <Slider
+                                      value={[sliderVal]}
+                                      onValueChange={([v]) => setSliderVal(v ?? 100)}
+                                      min={0}
+                                      max={100}
+                                      step={1}
+                                      className="w-full"
+                                    />
+                                    <p className="text-muted-foreground mt-1.5 text-center text-[10px]">
+                                      Drag to replay route history
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <p className="text-muted-foreground py-4 text-center text-xs">
+                                    No route data for selected date
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
+                            {detailTab === "chat" && (
+                              <div className="flex flex-col gap-2">
+                                <div className="max-h-[220px] min-h-[80px] space-y-1.5 overflow-y-auto rounded-xl bg-gray-50 p-2">
+                                  {msgs.length === 0 ? (
+                                    <p className="py-4 text-center text-[10px] text-gray-400">
+                                      No messages yet
+                                    </p>
+                                  ) : (
+                                    msgs.map((m, i) => (
+                                      <div
+                                        key={i}
+                                        className={`flex ${m.from === "admin" ? "justify-end" : "justify-start"}`}
+                                      >
+                                        <div
+                                          className={`max-w-[80%] rounded-xl px-2.5 py-1.5 text-[11px] ${m.from === "admin" ? "bg-blue-600 text-white" : "border border-gray-200 bg-white text-gray-800"}`}
+                                        >
+                                          {m.text}
+                                        </div>
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                                <div className="flex gap-1.5">
+                                  <input
+                                    type="text"
+                                    value={chatInput}
+                                    onChange={(e) => setChatInput(e.target.value)}
+                                    onKeyDown={(e) =>
+                                      e.key === "Enter" && sendChatMessage(selectedRider.userId)
+                                    }
+                                    placeholder="Message rider..."
+                                    className="flex-1 rounded-xl border px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-400"
+                                  />
+                                  <button
+                                    onClick={() => sendChatMessage(selectedRider.userId)}
+                                    className="rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700"
+                                  >
+                                    <MessageSquare className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {detailTab === "actions" && (
+                              <div className="space-y-2">
+                                <a
+                                  href={`/admin/riders?id=${selectedRider.userId}`}
+                                  className="text-foreground block w-full rounded-xl bg-gray-100 px-3 py-2.5 text-center text-xs font-bold transition-colors hover:bg-gray-200"
+                                >
+                                  View Rider Profile →
+                                </a>
+                                <button
+                                  onClick={() => {
+                                    setSelectedEntity(null);
+                                  }}
+                                  className="block w-full rounded-xl bg-red-50 px-3 py-2.5 text-center text-xs font-bold text-red-600 transition-colors hover:bg-red-100"
+                                >
+                                  Deselect Rider
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </Popup>
-                    </Marker>
-                  ))}
+                      );
+                    })()}
 
-                  {showVendors && vendors.map(v => (
-                    <Marker
-                      key={v.id}
-                      position={[v.lat, v.lng]}
-                      icon={vendorIconMap.get(v.id)!}
-                      eventHandlers={{ click: () => setSelectedEntity(prev => prev?.type === "vendor" && prev.id === v.id ? null : { type: "vendor", id: v.id }) }}
-                    >
-                      <Popup maxWidth={160} autoPanPadding={[40, 40]}>
-                        <div style={{ fontFamily: "sans-serif" }}>
-                          <p style={{ fontWeight: 700, margin: "0 0 3px", fontSize: 13 }}>{v.name}</p>
-                          <span style={{ display: "inline-block", fontSize: 11, fontWeight: 600, color: v.storeIsOpen ? "#f97316" : "#9ca3af", background: v.storeIsOpen ? "#fff7ed" : "#f9fafb", border: `1px solid ${v.storeIsOpen ? "#fed7aa" : "#e5e7eb"}`, borderRadius: 4, padding: "1px 6px" }}>
-                            {v.storeIsOpen ? "Open" : "Closed"}
+                  {/* ── CUSTOMER DETAIL ── */}
+                  {selectedCustomer && (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-blue-500" />
+                        <span className="text-sm font-bold text-blue-600">Active Customer</span>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Last Update</span>
+                          <span className="font-semibold">{fd(selectedCustomer.updatedAt)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Coords</span>
+                          <span className="font-mono text-[10px]">
+                            {selectedCustomer.lat.toFixed(5)}, {selectedCustomer.lng.toFixed(5)}
                           </span>
                         </div>
-                      </Popup>
-                    </Marker>
-                  ))}
-
-                  {adminPos && (
-                    <Marker
-                      position={[adminPos.lat, adminPos.lng]}
-                      icon={L.divIcon({
-                        className: "",
-                        iconSize: [22, 22],
-                        iconAnchor: [11, 11],
-                        html: `<div style="width:22px;height:22px;position:relative"><div style="position:absolute;inset:0;background:rgba(59,130,246,0.25);border-radius:50%;animation:adminPulse 2s ease-out infinite"></div><div style="width:14px;height:14px;background:#3b82f6;border:3px solid white;border-radius:50%;position:absolute;top:4px;left:4px;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div></div><style>@keyframes adminPulse{0%{transform:scale(1);opacity:1}100%{transform:scale(2.5);opacity:0}}</style>`,
-                      })}
-                    >
-                      <Popup maxWidth={140} autoPanPadding={[40, 40]}>
-                        <div style={{ fontFamily: "sans-serif", textAlign: "center" }}>
-                          <p style={{ fontWeight: 700, margin: 0, fontSize: 13 }}>📍 You Are Here</p>
-                          <p style={{ fontSize: 11, color: "#3b82f6", margin: "2px 0 0" }}>Admin location</p>
-                        </div>
-                      </Popup>
-                    </Marker>
+                      </div>
+                    </>
                   )}
 
-                  {showSOS && sosAlerts.filter(sos => sos.latitude != null && sos.longitude != null).map(sos => (
-                    <Marker key={`sos-${sos.userId}`} position={[sos.latitude!, sos.longitude!]} icon={makeSOSIcon()}>
-                      <Popup maxWidth={200} autoPanPadding={[40, 40]}>
-                        <div style={{ fontFamily: "sans-serif" }}>
-                          <p style={{ fontWeight: 700, color: "#ef4444", margin: "0 0 4px" }}>🆘 SOS — {sos.name}</p>
-                          {sos.phone && <p style={{ fontSize: 12, margin: 0 }}>{sos.phone}</p>}
-                          <p style={{ fontSize: 11, color: "#9ca3af", margin: "4px 0 0" }}>{fd(sos.sentAt)}</p>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  ))}
-
-                  {selectedRider && polylinePositions.length > 1 && (
-                    <Polyline positions={polylinePositions} color="#6366f1" weight={3} opacity={0.75} />
-                  )}
-
-                  {selectedRider && loginPoint && (
-                    <Marker position={[loginPoint.latitude, loginPoint.longitude]} icon={makeLoginIcon()}>
-                      <Popup autoPanPadding={[40, 40]}>
-                        <div style={{ fontFamily: "sans-serif" }}>
-                          <p style={{ fontWeight: 700, margin: "0 0 2px" }}>Login Location</p>
-                          <p style={{ fontSize: 11, color: "#6366f1", margin: 0 }}>{new Date(loginPoint.createdAt).toLocaleTimeString()}</p>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  )}
-
-                  {selectedRider && replayPoint && sliderVal < 100 && (
-                    <Marker
-                      position={[replayPoint.latitude, replayPoint.longitude]}
-                      icon={L.divIcon({ html: `<div style="width:18px;height:18px;background:#6366f1;border:2px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`, className: "", iconSize: [18, 18], iconAnchor: [9, 9] })}
-                    >
-                      <Popup autoPanPadding={[40, 40]}>
-                        <p style={{ fontFamily: "sans-serif", fontSize: 11 }}>{new Date(replayPoint.createdAt).toLocaleTimeString()}</p>
-                      </Popup>
-                    </Marker>
-                  )}
-                </>
-              }
-            />
-          )}
-        </div>
-
-        {/* RIGHT DETAIL PANEL */}
-        <div
-          className="flex flex-col border-l border-border/50 bg-white transition-all duration-300 overflow-hidden"
-          style={{ width: detailPanelOpen ? 340 : 0, minWidth: detailPanelOpen ? 340 : 0 }}
-        >
-          {detailPanelOpen && (
-            <>
-              {/* Panel header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 bg-gray-50/60 flex-shrink-0">
-                <div className="flex items-center gap-2 min-w-0">
-                  {selectedRider && <span className="text-lg">{getVehicleEmoji(selectedRider.vehicleType)}</span>}
-                  {selectedCustomer && <span className="text-lg">👤</span>}
-                  {selectedVendor && <span className="text-lg">🏪</span>}
-                  <div className="min-w-0">
-                    <p className="font-bold text-sm text-foreground truncate">
-                      {selectedRider ? riderDisplayName(selectedRider) : selectedCustomer ? (selectedCustomer.name ?? "Customer") : selectedVendor?.name ?? "Vendor"}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {selectedRider ? (selectedRider.vehicleType ?? "Rider") : selectedCustomer ? "Customer" : selectedVendor?.storeCategory ?? "Vendor"}
-                    </p>
-                  </div>
-                </div>
-                <button onClick={() => setSelectedEntity(null)} className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-gray-100 flex-shrink-0">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Panel body */}
-              <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
-
-                {/* ── RIDER DETAIL ── */}
-                {selectedRider && (() => {
-                  const status = getRiderStatus(selectedRider);
-                  const stale = isGpsStale(selectedRider, offlineAfterSec);
-                  const battPct = selectedRider.batteryLevel != null ? Math.round(selectedRider.batteryLevel * 100) : null;
-                  const battColor = battPct != null ? (battPct > 50 ? "#22c55e" : battPct > 20 ? "#f59e0b" : "#ef4444") : null;
-                  const msgs = chatMessages[selectedRider.userId] ?? [];
-                  return (
-                    <div className="flex flex-col flex-1 min-h-0">
+                  {/* ── VENDOR DETAIL ── */}
+                  {selectedVendor && (
+                    <div className="flex min-h-0 flex-1 flex-col">
                       {/* Status bar */}
-                      <div className="flex items-center gap-2 px-4 pt-3 pb-2 border-b border-border/30 flex-shrink-0">
-                        <StatusDot status={status} />
-                        <span className={`text-xs font-bold ${status === "online" ? "text-green-600" : status === "busy" ? "text-red-600" : "text-gray-500"}`}>
-                          {status === "online" ? "Online / Available" : status === "busy" ? "Busy / On Trip" : "Offline"}
+                      <div className="border-border/30 flex flex-shrink-0 items-center gap-2 border-b px-4 pt-3 pb-2">
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full ${selectedVendor.storeIsOpen ? "bg-orange-500" : "bg-gray-400"}`}
+                        />
+                        <span
+                          className={`text-xs font-bold ${selectedVendor.storeIsOpen ? "text-orange-600" : "text-gray-500"}`}
+                        >
+                          {selectedVendor.storeIsOpen ? "Store Open" : "Store Closed"}
                         </span>
-                        {stale && status !== "offline" && <Badge className="bg-amber-100 text-amber-700 text-[9px]">Stale GPS</Badge>}
+                        {selectedVendor.activeOrders > 0 && (
+                          <Badge className="ml-auto bg-orange-100 text-[9px] text-orange-700">
+                            {selectedVendor.activeOrders} active
+                          </Badge>
+                        )}
                       </div>
 
                       {/* Tabs */}
-                      <div className="flex border-b border-border/30 flex-shrink-0 bg-gray-50/60">
-                        {(["info", "trail", "chat", "actions"] as const).map(t => (
+                      <div className="border-border/30 flex flex-shrink-0 border-b bg-gray-50/60">
+                        {(["info", "orders"] as const).map((t) => (
                           <button
                             key={t}
-                            onClick={() => setDetailTab(t)}
-                            className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors border-b-2 ${detailTab === t ? "border-foreground text-foreground bg-white" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                            onClick={() => setVendorDetailTab(t)}
+                            className={`flex-1 border-b-2 py-2 text-[10px] font-bold tracking-wider uppercase transition-colors ${vendorDetailTab === t ? "border-foreground text-foreground bg-white" : "text-muted-foreground hover:text-foreground border-transparent"}`}
                           >
-                            {t === "info" ? "Info" : t === "trail" ? "Trail" : t === "chat" ? `Chat${msgs.length > 0 ? ` (${msgs.length})` : ""}` : "Actions"}
+                            {t === "info"
+                              ? "Info"
+                              : `Orders${selectedVendor.activeOrders > 0 ? ` (${selectedVendor.activeOrders})` : ""}`}
                           </button>
                         ))}
                       </div>
 
                       {/* Tab content */}
                       <div className="flex-1 overflow-y-auto p-4">
-                        {detailTab === "info" && (
+                        {vendorDetailTab === "info" && (
                           <div className="space-y-2">
-                            {selectedRider.phone && (
+                            {selectedVendor.storeCategory && (
                               <div className="flex items-center justify-between text-xs">
-                                <span className="text-muted-foreground">Phone</span>
-                                <a href={`tel:${selectedRider.phone}`} className="font-semibold text-blue-600 hover:underline">{selectedRider.phone}</a>
+                                <span className="text-muted-foreground">Category</span>
+                                <span className="font-semibold capitalize">
+                                  {selectedVendor.storeCategory}
+                                </span>
                               </div>
                             )}
-                            {selectedRider.vehicleType && (
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="text-muted-foreground">Vehicle</span>
-                                <span className="font-semibold">{getVehicleEmoji(selectedRider.vehicleType)} {selectedRider.vehicleType}</span>
-                              </div>
-                            )}
-                            {selectedRider.city && (
+                            {selectedVendor.city && (
                               <div className="flex items-center justify-between text-xs">
                                 <span className="text-muted-foreground">City</span>
-                                <span className="font-semibold">{selectedRider.city}</span>
+                                <span className="font-semibold">{selectedVendor.city}</span>
                               </div>
                             )}
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-muted-foreground">Last seen</span>
-                              <span className="font-semibold">{fd(selectedRider.lastSeen ?? selectedRider.updatedAt)}</span>
-                            </div>
-                            {selectedRider.currentTripId && (
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="text-muted-foreground">Trip ID</span>
-                                <span className="font-mono text-[10px] text-red-600 font-bold">{selectedRider.currentTripId.slice(0, 14)}…</span>
-                              </div>
-                            )}
-                            {selectedRider.role && selectedRider.role !== "rider" && (
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="text-muted-foreground">Role</span>
-                                <span className="font-semibold text-purple-700 capitalize">{selectedRider.role.replace(/_/g, " ")}</span>
-                              </div>
-                            )}
-                            {battPct != null && (
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="text-muted-foreground">Battery</span>
-                                <div className="flex items-center gap-1.5">
-                                  <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                    <div style={{ width: `${battPct}%`, background: battColor ?? "#22c55e" }} className="h-full rounded-full" />
-                                  </div>
-                                  <span className="font-bold" style={{ color: battColor ?? "#22c55e" }}>{battPct}%</span>
-                                </div>
+                            {selectedVendor.storeAddress && (
+                              <div className="flex flex-col gap-0.5 text-xs">
+                                <span className="text-muted-foreground">Address</span>
+                                <span className="font-semibold">{selectedVendor.storeAddress}</span>
                               </div>
                             )}
                             <div className="flex items-center justify-between text-xs">
                               <span className="text-muted-foreground">Coords</span>
-                              <span className="font-mono text-[10px]">{selectedRider.lat.toFixed(5)}, {selectedRider.lng.toFixed(5)}</span>
+                              <span className="font-mono text-[10px]">
+                                {selectedVendor.lat.toFixed(5)}, {selectedVendor.lng.toFixed(5)}
+                              </span>
+                            </div>
+                            <div className="pt-2">
+                              <a
+                                href={`/admin/vendors?id=${selectedVendor.id}`}
+                                className="text-foreground block w-full rounded-xl bg-gray-100 px-3 py-2.5 text-center text-xs font-bold transition-colors hover:bg-gray-200"
+                              >
+                                View Vendor Profile →
+                              </a>
                             </div>
                           </div>
                         )}
 
-                        {detailTab === "trail" && (
-                          <div className="space-y-3">
-                            <button
-                              onClick={() => toggleTrail(selectedRider.userId)}
-                              className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${trailSet.has(selectedRider.userId) ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-foreground border-border hover:bg-gray-50"}`}
-                            >
-                              <History className="w-3.5 h-3.5" />
-                              {trailSet.has(selectedRider.userId) ? "Hide GPS Trail" : "Show GPS Trail"}
-                            </button>
-                            <div className="flex items-center gap-2">
-                              <label className="text-[10px] text-muted-foreground">Date</label>
-                              <input
-                                type="date"
-                                value={routeDate}
-                                onChange={e => { setRouteDate(e.target.value); setSliderVal(100); }}
-                                className="text-xs border rounded-lg px-2 py-1 flex-1"
-                                max={new Date().toISOString().slice(0, 10)}
-                              />
-                            </div>
-                            {routePoints.length > 1 ? (
-                              <div>
-                                <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1.5">
-                                  <span className="flex items-center gap-1"><Route className="w-3 h-3" /> {routePoints.length} pts</span>
-                                  <span>{replayPoint ? new Date(replayPoint.createdAt).toLocaleTimeString() : "--"}</span>
+                        {vendorDetailTab === "orders" && (
+                          <div className="space-y-2">
+                            {selectedVendor.activeOrders > 0 ? (
+                              <>
+                                <div className="rounded-xl border border-orange-100 bg-orange-50 p-3 text-center">
+                                  <p className="text-2xl font-black text-orange-600">
+                                    {selectedVendor.activeOrders}
+                                  </p>
+                                  <p className="text-xs text-orange-500">Active Orders</p>
+                                  <p className="text-muted-foreground mt-1 text-[10px]">
+                                    Pending / Preparing / Out for delivery
+                                  </p>
                                 </div>
-                                <Slider
-                                  value={[sliderVal]}
-                                  onValueChange={([v]) => setSliderVal(v ?? 100)}
-                                  min={0}
-                                  max={100}
-                                  step={1}
-                                  className="w-full"
-                                />
-                                <p className="text-[10px] text-muted-foreground mt-1.5 text-center">Drag to replay route history</p>
-                              </div>
+                                <a
+                                  href={`/admin/orders?vendorId=${selectedVendor.id}`}
+                                  className="block w-full rounded-xl bg-orange-600 px-3 py-2.5 text-center text-xs font-bold text-white transition-colors hover:bg-orange-700"
+                                >
+                                  View All Orders →
+                                </a>
+                              </>
                             ) : (
-                              <p className="text-xs text-muted-foreground text-center py-4">No route data for selected date</p>
+                              <div className="py-8 text-center">
+                                <p className="text-muted-foreground text-sm">No active orders</p>
+                                <p className="text-muted-foreground mt-1 text-[10px]">
+                                  Orders will appear here when placed
+                                </p>
+                              </div>
                             )}
                           </div>
                         )}
-
-                        {detailTab === "chat" && (
-                          <div className="flex flex-col gap-2">
-                            <div className="bg-gray-50 rounded-xl p-2 min-h-[80px] max-h-[220px] overflow-y-auto space-y-1.5">
-                              {msgs.length === 0 ? (
-                                <p className="text-[10px] text-gray-400 text-center py-4">No messages yet</p>
-                              ) : (
-                                msgs.map((m, i) => (
-                                  <div key={i} className={`flex ${m.from === "admin" ? "justify-end" : "justify-start"}`}>
-                                    <div className={`text-[11px] px-2.5 py-1.5 rounded-xl max-w-[80%] ${m.from === "admin" ? "bg-blue-600 text-white" : "bg-white border border-gray-200 text-gray-800"}`}>
-                                      {m.text}
-                                    </div>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                            <div className="flex gap-1.5">
-                              <input
-                                type="text"
-                                value={chatInput}
-                                onChange={e => setChatInput(e.target.value)}
-                                onKeyDown={e => e.key === "Enter" && sendChatMessage(selectedRider.userId)}
-                                placeholder="Message rider..."
-                                className="flex-1 text-xs border rounded-xl px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-400"
-                              />
-                              <button onClick={() => sendChatMessage(selectedRider.userId)} className="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-blue-700">
-                                <MessageSquare className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {detailTab === "actions" && (
-                          <div className="space-y-2">
-                            <a
-                              href={`/admin/riders?id=${selectedRider.userId}`}
-                              className="block w-full text-center px-3 py-2.5 text-xs font-bold bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors text-foreground"
-                            >
-                              View Rider Profile →
-                            </a>
-                            <button
-                              onClick={() => { setSelectedEntity(null); }}
-                              className="block w-full text-center px-3 py-2.5 text-xs font-bold bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors"
-                            >
-                              Deselect Rider
-                            </button>
-                          </div>
-                        )}
                       </div>
                     </div>
-                  );
-                })()}
-
-                {/* ── CUSTOMER DETAIL ── */}
-                {selectedCustomer && (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
-                      <span className="text-sm font-bold text-blue-600">Active Customer</span>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">Last Update</span>
-                        <span className="font-semibold">{fd(selectedCustomer.updatedAt)}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">Coords</span>
-                        <span className="font-mono text-[10px]">{selectedCustomer.lat.toFixed(5)}, {selectedCustomer.lng.toFixed(5)}</span>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* ── VENDOR DETAIL ── */}
-                {selectedVendor && (
-                  <div className="flex flex-col flex-1 min-h-0">
-                    {/* Status bar */}
-                    <div className="flex items-center gap-2 px-4 pt-3 pb-2 border-b border-border/30 flex-shrink-0">
-                      <span className={`w-2.5 h-2.5 rounded-full ${selectedVendor.storeIsOpen ? "bg-orange-500" : "bg-gray-400"}`} />
-                      <span className={`text-xs font-bold ${selectedVendor.storeIsOpen ? "text-orange-600" : "text-gray-500"}`}>
-                        {selectedVendor.storeIsOpen ? "Store Open" : "Store Closed"}
-                      </span>
-                      {selectedVendor.activeOrders > 0 && (
-                        <Badge className="bg-orange-100 text-orange-700 text-[9px] ml-auto">{selectedVendor.activeOrders} active</Badge>
-                      )}
-                    </div>
-
-                    {/* Tabs */}
-                    <div className="flex border-b border-border/30 flex-shrink-0 bg-gray-50/60">
-                      {(["info", "orders"] as const).map(t => (
-                        <button
-                          key={t}
-                          onClick={() => setVendorDetailTab(t)}
-                          className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors border-b-2 ${vendorDetailTab === t ? "border-foreground text-foreground bg-white" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-                        >
-                          {t === "info" ? "Info" : `Orders${selectedVendor.activeOrders > 0 ? ` (${selectedVendor.activeOrders})` : ""}`}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Tab content */}
-                    <div className="flex-1 overflow-y-auto p-4">
-                      {vendorDetailTab === "info" && (
-                        <div className="space-y-2">
-                          {selectedVendor.storeCategory && (
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-muted-foreground">Category</span>
-                              <span className="font-semibold capitalize">{selectedVendor.storeCategory}</span>
-                            </div>
-                          )}
-                          {selectedVendor.city && (
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-muted-foreground">City</span>
-                              <span className="font-semibold">{selectedVendor.city}</span>
-                            </div>
-                          )}
-                          {selectedVendor.storeAddress && (
-                            <div className="flex flex-col gap-0.5 text-xs">
-                              <span className="text-muted-foreground">Address</span>
-                              <span className="font-semibold">{selectedVendor.storeAddress}</span>
-                            </div>
-                          )}
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">Coords</span>
-                            <span className="font-mono text-[10px]">{selectedVendor.lat.toFixed(5)}, {selectedVendor.lng.toFixed(5)}</span>
-                          </div>
-                          <div className="pt-2">
-                            <a
-                              href={`/admin/vendors?id=${selectedVendor.id}`}
-                              className="block w-full text-center px-3 py-2.5 text-xs font-bold bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors text-foreground"
-                            >
-                              View Vendor Profile →
-                            </a>
-                          </div>
-                        </div>
-                      )}
-
-                      {vendorDetailTab === "orders" && (
-                        <div className="space-y-2">
-                          {selectedVendor.activeOrders > 0 ? (
-                            <>
-                              <div className="bg-orange-50 rounded-xl p-3 text-center border border-orange-100">
-                                <p className="text-2xl font-black text-orange-600">{selectedVendor.activeOrders}</p>
-                                <p className="text-xs text-orange-500">Active Orders</p>
-                                <p className="text-[10px] text-muted-foreground mt-1">Pending / Preparing / Out for delivery</p>
-                              </div>
-                              <a
-                                href={`/admin/orders?vendorId=${selectedVendor.id}`}
-                                className="block w-full text-center px-3 py-2.5 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-xl transition-colors"
-                              >
-                                View All Orders →
-                              </a>
-                            </>
-                          ) : (
-                            <div className="text-center py-8">
-                              <p className="text-sm text-muted-foreground">No active orders</p>
-                              <p className="text-[10px] text-muted-foreground mt-1">Orders will appear here when placed</p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* SOS Chat Modal */}
-      {selectedSOS && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl p-5" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="font-bold text-red-600 flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> SOS — {selectedSOS.name}</p>
-                {selectedSOS.phone && <p className="text-xs text-gray-500">{selectedSOS.phone}</p>}
-                <p className="text-xs text-gray-400">{fd(selectedSOS.sentAt)}</p>
-              </div>
-              <button onClick={() => setSelectedSOS(null)} className="text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="bg-gray-50 rounded-xl p-3 min-h-[80px] max-h-40 overflow-y-auto space-y-2 mb-3">
-              {(chatMessages[selectedSOS.userId] ?? []).length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-4">No messages yet.</p>
-              ) : (
-                (chatMessages[selectedSOS.userId] ?? []).map((m, i) => (
-                  <div key={i} className={`flex ${m.from === "admin" ? "justify-end" : "justify-start"}`}>
-                    <div className={`text-xs px-3 py-1.5 rounded-xl max-w-[80%] ${m.from === "admin" ? "bg-blue-600 text-white" : "bg-white border border-gray-200 text-gray-800"}`}>{m.text}</div>
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="flex gap-2">
-              <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChatMessage(selectedSOS.userId)} placeholder="Type a reply..." className="flex-1 text-sm border rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400" />
-              <button onClick={() => sendChatMessage(selectedSOS.userId)} className="bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-blue-700">Send</button>
-            </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
-      )}
-    </div>
+
+        {/* SOS Chat Modal */}
+        {selectedSOS && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center">
+            <div
+              className="w-full max-w-md rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="flex items-center gap-2 font-bold text-red-600">
+                    <AlertTriangle className="h-4 w-4" /> SOS — {selectedSOS.name}
+                  </p>
+                  {selectedSOS.phone && (
+                    <p className="text-xs text-gray-500">{selectedSOS.phone}</p>
+                  )}
+                  <p className="text-xs text-gray-400">{fd(selectedSOS.sentAt)}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedSOS(null)}
+                  className="text-gray-400 hover:text-gray-700"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="mb-3 max-h-40 min-h-[80px] space-y-2 overflow-y-auto rounded-xl bg-gray-50 p-3">
+                {(chatMessages[selectedSOS.userId] ?? []).length === 0 ? (
+                  <p className="py-4 text-center text-xs text-gray-400">No messages yet.</p>
+                ) : (
+                  (chatMessages[selectedSOS.userId] ?? []).map((m, i) => (
+                    <div
+                      key={i}
+                      className={`flex ${m.from === "admin" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[80%] rounded-xl px-3 py-1.5 text-xs ${m.from === "admin" ? "bg-blue-600 text-white" : "border border-gray-200 bg-white text-gray-800"}`}
+                      >
+                        {m.text}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && sendChatMessage(selectedSOS.userId)}
+                  placeholder="Type a reply..."
+                  className="flex-1 rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400"
+                />
+                <button
+                  onClick={() => sendChatMessage(selectedSOS.userId)}
+                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </ErrorBoundary>
   );
 }

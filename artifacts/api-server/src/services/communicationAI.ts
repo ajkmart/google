@@ -6,7 +6,9 @@ function getGeminiApiKey(): string | null {
   if (geminiApiKey) return geminiApiKey;
   const key = process.env.GEMINI_API_KEY;
   if (!key || key === "dummy_key_123") {
-    logger.warn("[communicationAI] GEMINI_API_KEY not set or invalid. AI features using local templates.");
+    logger.warn(
+      "[communicationAI] GEMINI_API_KEY not set or invalid. AI features using local templates."
+    );
     return null;
   }
   geminiApiKey = key;
@@ -57,7 +59,8 @@ async function callGemini(prompt: string): Promise<string> {
     throw new Error("No Gemini API key");
   }
 
-  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent";
+  const url =
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent";
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -82,7 +85,9 @@ async function callGemini(prompt: string): Promise<string> {
     throw new Error(`Gemini API error (${response.status}): ${errorText}`);
   }
 
-  const data = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+  const data = (await response.json()) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) {
     throw new Error("No response text from Gemini");
@@ -100,7 +105,10 @@ export async function generateAIContent(prompt: string, context?: unknown) {
       meta: { model: "gemini-2.0-flash-lite" },
     };
   } catch (error: unknown) {
-    logger.warn({ err: (error as Error).message }, "[communicationAI] Gemini API error — falling back to template");
+    logger.warn(
+      { err: (error as Error).message },
+      "[communicationAI] Gemini API error — falling back to template"
+    );
     const content = generateLocalResponse(prompt, context);
     return {
       success: true,
@@ -121,10 +129,15 @@ export async function analyzeSentiment(text: string): Promise<"positive" | "nega
     }
     return "neutral";
   } catch (err) {
-    logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[communicationAI] AI sentiment analysis failed — using keyword fallback");
+    logger.debug(
+      { error: err instanceof Error ? err.message : String(err) },
+      "[communicationAI] AI sentiment analysis failed — using keyword fallback"
+    );
     const lower = text.toLowerCase();
-    if (lower.includes("bad") || lower.includes("terrible") || lower.includes("poor")) return "negative";
-    if (lower.includes("good") || lower.includes("great") || lower.includes("excellent")) return "positive";
+    if (lower.includes("bad") || lower.includes("terrible") || lower.includes("poor"))
+      return "negative";
+    if (lower.includes("good") || lower.includes("great") || lower.includes("excellent"))
+      return "positive";
     return "neutral";
   }
 }
@@ -139,12 +152,20 @@ export async function generateRoleTemplate(role: string, prompt: string): Promis
   return `Template for ${role}: ${prompt.substring(0, 50)}...`;
 }
 
-export async function translateMessage(text: string, targetLang: string, _userId?: string): Promise<string> {
+export async function translateMessage(
+  text: string,
+  targetLang: string,
+  _userId?: string
+): Promise<string> {
   logger.info({ targetLang }, "[communicationAI] translateMessage called");
   return `${text} [translated to ${targetLang} - mock]`;
 }
 
-export async function composeMessage(context: unknown, type: string, _userId?: string): Promise<string> {
+export async function composeMessage(
+  context: unknown,
+  type: string,
+  _userId?: string
+): Promise<string> {
   logger.info({ type }, "[communicationAI] composeMessage called");
   return `Composed message for ${type}: ${JSON.stringify(context).substring(0, 100)}`;
 }

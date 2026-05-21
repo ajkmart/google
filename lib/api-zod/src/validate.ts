@@ -1,5 +1,5 @@
-import { type ZodType, type ZodIssue, type ZodError } from "zod";
 import { createLogger } from "@workspace/logger";
+import { type ZodError, type ZodIssue, type ZodType } from "zod";
 const log = createLogger("[api-zod]");
 
 /**
@@ -16,7 +16,7 @@ export class ApiValidationError extends Error {
   constructor(context: string, issues: ZodIssue[], received: unknown) {
     const summary = issues
       .slice(0, 3)
-      .map(i => `${i.path.length ? i.path.join(".") : "<root>"}: ${i.message}`)
+      .map((i) => `${i.path.length ? i.path.join(".") : "<root>"}: ${i.message}`)
       .join("; ");
     const extra = issues.length > 3 ? ` (+${issues.length - 3} more)` : "";
     super(`[ApiValidation] ${context} — ${summary}${extra}`);
@@ -64,7 +64,7 @@ export function validateApiResponse<T>(
   schema: ZodType<T>,
   data: unknown,
   context: string,
-  options?: ValidationOptions,
+  options?: ValidationOptions
 ): T {
   const result = schema.safeParse(data);
   if (result.success) return result.data;
@@ -92,7 +92,7 @@ export function validateApiResponse<T>(
  */
 export function safeValidateApiResponse<T>(
   schema: ZodType<T>,
-  data: unknown,
+  data: unknown
 ): { success: true; data: T } | { success: false; error: ZodError; received: unknown } {
   const result = schema.safeParse(data);
   if (result.success) return { success: true, data: result.data };
@@ -118,15 +118,13 @@ export interface SchemaEntry {
  */
 export function createSchemaRegistry(
   entries: SchemaEntry[],
-  options?: ValidationOptions,
+  options?: ValidationOptions
 ): (path: string, data: unknown) => void {
   return function validateRegisteredResponse(path: string, data: unknown): void {
     const cleanPath = path.split("?")[0];
     for (const { pattern, schema } of entries) {
       const matched =
-        typeof pattern === "string"
-          ? cleanPath.includes(pattern)
-          : pattern.test(cleanPath);
+        typeof pattern === "string" ? cleanPath.includes(pattern) : pattern.test(cleanPath);
       if (matched) {
         validateApiResponse(schema, data, cleanPath, options);
         return;

@@ -13,7 +13,7 @@
  *   // On 429: triggerRateLimit(retryAfterSeconds);
  *   // In JSX: disabled={isRateLimited} — "Try again in {secondsLeft}s"
  */
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface RateLimitCountdown {
   isRateLimited: boolean;
@@ -38,9 +38,12 @@ export function useRateLimitCountdown(): RateLimitCountdown {
     if (intervalRef.current) clearInterval(intervalRef.current);
     setSecondsLeft(seconds);
     intervalRef.current = setInterval(() => {
-      setSecondsLeft(prev => {
+      setSecondsLeft((prev) => {
         if (prev <= 1) {
-          if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
           return 0;
         }
         return prev - 1;
@@ -48,7 +51,12 @@ export function useRateLimitCountdown(): RateLimitCountdown {
     }, 1000);
   }, []);
 
-  useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
+  useEffect(
+    () => () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    },
+    []
+  );
 
   return {
     isRateLimited: secondsLeft > 0,

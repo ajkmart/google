@@ -22,7 +22,7 @@ if (baseUrl && apiKey) {
   ].filter(Boolean);
   log.info(
     `Gemini integration not active (missing: ${missing.join(", ")}). ` +
-    `AI features will be unavailable until configured in the Replit Integrations panel.`
+      `AI features will be unavailable until configured in the Replit Integrations panel.`
   );
 }
 
@@ -34,7 +34,7 @@ export function getAI(): GoogleGenAI {
     ].filter(Boolean);
     throw new Error(
       `Gemini AI is not configured. Missing: ${missing.join(", ")}. ` +
-      `Provision the Gemini integration in the Replit Integrations panel.`
+        `Provision the Gemini integration in the Replit Integrations panel.`
     );
   }
   return _ai;

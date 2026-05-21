@@ -1,5 +1,5 @@
-import { Link } from "wouter";
 import { ChevronRight } from "lucide-react";
+import { Link } from "wouter";
 
 interface ActiveOrder {
   id: string;
@@ -31,18 +31,18 @@ export function ActiveTaskBanner({ activeData, variant }: ActiveTaskBannerProps)
     return (
       <Link
         href="/active"
-        className="block bg-gradient-to-r from-green-500 to-emerald-600 rounded-3xl px-4 py-3.5 shadow-lg shadow-green-200 active:scale-[0.98] transition-transform animate-[slideUp_0.3s_ease-out]"
+        className="block animate-[slideUp_0.3s_ease-out] rounded-3xl bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-3.5 shadow-lg shadow-green-200 transition-transform active:scale-[0.98]"
         aria-label="Go to active task"
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center flex-shrink-0">
-            <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
+            <div className="h-3 w-3 animate-pulse rounded-full bg-white" />
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-extrabold text-white tracking-tight">{title}</p>
-            <p className="text-xs text-white/70 mt-0.5 truncate">{subtitle}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-extrabold tracking-tight text-white">{title}</p>
+            <p className="mt-0.5 truncate text-xs text-white/70">{subtitle}</p>
           </div>
-          <div className="bg-white/20 backdrop-blur-sm text-white font-extrabold text-xs px-3 py-2 rounded-xl flex-shrink-0 flex items-center gap-1">
+          <div className="flex flex-shrink-0 items-center gap-1 rounded-xl bg-white/20 px-3 py-2 text-xs font-extrabold text-white backdrop-blur-sm">
             Track <ChevronRight size={12} />
           </div>
         </div>
@@ -53,18 +53,18 @@ export function ActiveTaskBanner({ activeData, variant }: ActiveTaskBannerProps)
   return (
     <Link
       href="/active"
-      className="block bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-400 rounded-3xl px-4 py-3.5 shadow-sm active:scale-[0.98] transition-transform animate-[slideUp_0.3s_ease-out]"
+      className="block animate-[slideUp_0.3s_ease-out] rounded-3xl border-2 border-amber-400 bg-gradient-to-r from-amber-50 to-yellow-50 px-4 py-3.5 shadow-sm transition-transform active:scale-[0.98]"
       aria-label="Go to active task"
     >
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-amber-100 rounded-2xl flex items-center justify-center flex-shrink-0">
-          <div className="w-3 h-3 bg-amber-500 rounded-full animate-pulse" />
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-amber-100">
+          <div className="h-3 w-3 animate-pulse rounded-full bg-amber-500" />
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-extrabold text-amber-800 tracking-tight">{title}</p>
-          <p className="text-xs text-amber-600 mt-0.5 truncate">{subtitle}</p>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-extrabold tracking-tight text-amber-800">{title}</p>
+          <p className="mt-0.5 truncate text-xs text-amber-600">{subtitle}</p>
         </div>
-        <div className="bg-amber-200/60 text-amber-700 font-extrabold text-xs px-3 py-2 rounded-xl flex-shrink-0 flex items-center gap-1">
+        <div className="flex flex-shrink-0 items-center gap-1 rounded-xl bg-amber-200/60 px-3 py-2 text-xs font-extrabold text-amber-700">
           Go <ChevronRight size={12} />
         </div>
       </div>

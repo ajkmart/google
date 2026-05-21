@@ -1,12 +1,12 @@
-import { Router, type IRouter } from "express";
-import { z } from "zod";
 import { db } from "@workspace/db";
 import { userSettingsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
-import { generateId } from "../lib/id.js";
-import { customerAuth } from "../middleware/security.js";
+import { Router, type IRouter } from "express";
+import { z } from "zod";
 import { getPlatformDefaultLanguage } from "../lib/getUserLanguage.js";
-import { sendSuccess, sendError, sendValidationError } from "../lib/response.js";
+import { generateId } from "../lib/id.js";
+import { sendError, sendSuccess, sendValidationError } from "../lib/response.js";
+import { customerAuth } from "../middleware/security.js";
 
 const router: IRouter = Router();
 
@@ -23,28 +23,35 @@ const DEFAULT_SETTINGS_BASE = {
   darkMode: false,
 };
 
-const settingsUpdateSchema = z.object({
-  notifOrders:    z.boolean().optional(),
-  notifWallet:    z.boolean().optional(),
-  notifDeals:     z.boolean().optional(),
-  notifRides:     z.boolean().optional(),
-  locationSharing: z.boolean().optional(),
-  biometric:      z.boolean().optional(),
-  twoFactor:      z.boolean().optional(),
-  darkMode:       z.boolean().optional(),
-  language: z.enum(["en", "ur", "roman"]).optional(),
-}).strip();
+const settingsUpdateSchema = z
+  .object({
+    notifOrders: z.boolean().optional(),
+    notifWallet: z.boolean().optional(),
+    notifDeals: z.boolean().optional(),
+    notifRides: z.boolean().optional(),
+    locationSharing: z.boolean().optional(),
+    biometric: z.boolean().optional(),
+    twoFactor: z.boolean().optional(),
+    darkMode: z.boolean().optional(),
+    language: z.enum(["en", "ur", "roman"]).optional(),
+  })
+  .strip();
 
 router.get("/", async (req, res) => {
   try {
     const userId = req.customerId!;
     const platformLang = await getPlatformDefaultLanguage();
 
-    await db.insert(userSettingsTable)
+    await db
+      .insert(userSettingsTable)
       .values({ id: generateId(), userId, ...DEFAULT_SETTINGS_BASE, language: platformLang })
       .onConflictDoNothing();
 
-    const [settings] = await db.select().from(userSettingsTable).where(eq(userSettingsTable.userId, userId)).limit(1);
+    const [settings] = await db
+      .select()
+      .from(userSettingsTable)
+      .where(eq(userSettingsTable.userId, userId))
+      .limit(1);
     sendSuccess(res, { ...settings!, updatedAt: settings!.updatedAt.toISOString() });
   } catch (err) {
     sendError(res, "Internal server error", 500);
@@ -57,7 +64,7 @@ router.put("/", async (req, res) => {
 
     const parsed = settingsUpdateSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
-      const msg = parsed.error.errors.map(e => e.message).join("; ");
+      const msg = parsed.error.errors.map((e) => e.message).join("; ");
       sendValidationError(res, msg);
       return;
     }
@@ -65,7 +72,8 @@ router.put("/", async (req, res) => {
     const updates = parsed.data;
     const platformLang = await getPlatformDefaultLanguage();
 
-    await db.insert(userSettingsTable)
+    await db
+      .insert(userSettingsTable)
       .values({
         id: generateId(),
         userId,
@@ -78,7 +86,11 @@ router.put("/", async (req, res) => {
         set: { ...updates, updatedAt: new Date() },
       });
 
-    const [settings] = await db.select().from(userSettingsTable).where(eq(userSettingsTable.userId, userId)).limit(1);
+    const [settings] = await db
+      .select()
+      .from(userSettingsTable)
+      .where(eq(userSettingsTable.userId, userId))
+      .limit(1);
     sendSuccess(res, { ...settings!, updatedAt: settings!.updatedAt.toISOString() });
   } catch (err) {
     sendError(res, "Internal server error", 500);

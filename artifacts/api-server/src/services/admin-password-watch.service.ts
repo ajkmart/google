@@ -31,17 +31,17 @@
  *   The watchdog is best-effort: any failure is logged and swallowed —
  *   it must never block API boot.
  */
-import crypto from "crypto";
 import { db } from "@workspace/db";
 import {
   adminAccountsTable,
   adminPasswordHashSnapshotsTable,
   type AdminAccount,
 } from "@workspace/db/schema";
+import crypto from "crypto";
 import { eq } from "drizzle-orm";
+import { logger } from "../lib/logger.js";
 import { logAdminAudit } from "../middleware/admin-audit.js";
 import { sendAdminPasswordOutOfBandResetEmail } from "./email.js";
-import { logger } from "../lib/logger.js";
 
 /** sha256 of the bcrypt secret — keeps the snapshot table cheap to scan
  *  and one extra hop away from the actual hash. */
@@ -88,7 +88,7 @@ export async function recordAdminPasswordSnapshot(input: {
   } catch (err) {
     logger.error(
       { adminId: input.adminId, err },
-      "[admin-password-watch] failed to record snapshot",
+      "[admin-password-watch] failed to record snapshot"
     );
   }
 }
@@ -111,7 +111,7 @@ export interface OutOfBandResetDetection {
 async function notifyOutOfBandAdminPasswordReset(
   admin: AdminAccount,
   previousChangedAt: Date | null,
-  detectedAt: Date,
+  detectedAt: Date
 ): Promise<OutOfBandResetDetection> {
   const result: OutOfBandResetDetection = {
     adminId: admin.id,
@@ -123,28 +123,22 @@ async function notifyOutOfBandAdminPasswordReset(
 
   if (admin.email) {
     try {
-      const sendResult = await sendAdminPasswordOutOfBandResetEmail(
-        admin.email,
-        {
-          recipientName: admin.name,
-          detectedAt,
-          previousChangedAt,
-        },
-      );
+      const sendResult = await sendAdminPasswordOutOfBandResetEmail(admin.email, {
+        recipientName: admin.name,
+        detectedAt,
+        previousChangedAt,
+      });
       result.emailed = sendResult.sent;
       if (!sendResult.sent) result.emailReason = sendResult.reason;
     } catch (err) {
-      logger.error(
-        { adminId: admin.id, err },
-        "[admin-password-watch] email throw",
-      );
+      logger.error({ adminId: admin.id, err }, "[admin-password-watch] email throw");
       result.emailReason = (err as Error).message;
     }
   } else {
     result.emailReason = "Admin has no email address on file";
     logger.warn(
       { adminId: admin.id },
-      "[admin-password-watch] cannot notify admin — no email address",
+      "[admin-password-watch] cannot notify admin — no email address"
     );
   }
 
@@ -152,18 +146,12 @@ async function notifyOutOfBandAdminPasswordReset(
     adminId: admin.id,
     ip: "system",
     result: result.emailed ? "success" : "failure",
-    reason: result.emailed
-      ? undefined
-      : result.emailReason ?? "Notification email not delivered",
+    reason: result.emailed ? undefined : (result.emailReason ?? "Notification email not delivered"),
     metadata: {
       source: "direct_database_write",
       detectedAt: detectedAt.toISOString(),
-      previousChangedAt: previousChangedAt
-        ? previousChangedAt.toISOString()
-        : null,
-      currentChangedAt: admin.passwordChangedAt
-        ? admin.passwordChangedAt.toISOString()
-        : null,
+      previousChangedAt: previousChangedAt ? previousChangedAt.toISOString() : null,
+      currentChangedAt: admin.passwordChangedAt ? admin.passwordChangedAt.toISOString() : null,
       notificationEmail: admin.email ?? null,
       emailDelivered: result.emailed,
     },
@@ -198,10 +186,7 @@ export async function detectAndNotifyOutOfBandPasswordResets(): Promise<Watchdog
   try {
     admins = await db.select().from(adminAccountsTable);
   } catch (err) {
-    logger.error(
-      { err },
-      "[admin-password-watch] failed to load admin_accounts — skipping run",
-    );
+    logger.error({ err }, "[admin-password-watch] failed to load admin_accounts — skipping run");
     return summary;
   }
 
@@ -247,7 +232,7 @@ export async function detectAndNotifyOutOfBandPasswordResets(): Promise<Watchdog
       const detection = await notifyOutOfBandAdminPasswordReset(
         admin,
         snapshot.passwordChangedAt ?? null,
-        now,
+        now
       );
       summary.outOfBand.push(detection);
 
@@ -262,22 +247,19 @@ export async function detectAndNotifyOutOfBandPasswordResets(): Promise<Watchdog
         })
         .where(eq(adminPasswordHashSnapshotsTable.adminId, admin.id));
     } catch (err) {
-      logger.error(
-        { adminId: admin.id, err },
-        "[admin-password-watch] check failed for admin",
-      );
+      logger.error({ adminId: admin.id, err }, "[admin-password-watch] check failed for admin");
     }
   }
 
   if (summary.outOfBand.length > 0) {
     logger.warn(
       { count: summary.outOfBand.length },
-      "[admin-password-watch] detected out-of-band password reset(s) — affected admins notified",
+      "[admin-password-watch] detected out-of-band password reset(s) — affected admins notified"
     );
   } else {
     logger.info(
       { scanned: summary.scanned, verified: summary.verified, newSnapshots: summary.newSnapshots },
-      "[admin-password-watch] watchdog run complete",
+      "[admin-password-watch] watchdog run complete"
     );
   }
 

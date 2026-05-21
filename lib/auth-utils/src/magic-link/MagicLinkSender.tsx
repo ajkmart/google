@@ -57,9 +57,7 @@ export function MagicLinkSender({
         startCountdown();
       } catch (err) {
         setStatus("error");
-        setErrorMsg(
-          err instanceof Error ? err.message : "Failed to send magic link"
-        );
+        setErrorMsg(err instanceof Error ? err.message : "Failed to send magic link");
       }
     },
     [email, onSend, startCountdown]
@@ -75,9 +73,7 @@ export function MagicLinkSender({
       startCountdown();
     } catch (err) {
       setStatus("error");
-      setErrorMsg(
-        err instanceof Error ? err.message : "Failed to send magic link"
-      );
+      setErrorMsg(err instanceof Error ? err.message : "Failed to send magic link");
     }
   }, [countdown, email, onSend, startCountdown]);
 
@@ -129,15 +125,9 @@ export function MagicLinkSender({
             cursor: countdown > 0 ? "not-allowed" : "pointer",
           }}
         >
-          {countdown > 0
-            ? `Resend in ${countdown}s`
-            : "Resend link"}
+          {countdown > 0 ? `Resend in ${countdown}s` : "Resend link"}
         </button>
-        {errorMsg && (
-          <p style={{ fontSize: 13, color: "#EF4444", marginTop: 12 }}>
-            {errorMsg}
-          </p>
-        )}
+        {errorMsg && <p style={{ fontSize: 13, color: "#EF4444", marginTop: 12 }}>{errorMsg}</p>}
       </div>
     );
   }
@@ -188,9 +178,7 @@ export function MagicLinkSender({
             }}
           />
           {status === "error" && errorMsg && (
-            <p style={{ fontSize: 13, color: "#EF4444", marginTop: 6 }}>
-              {errorMsg}
-            </p>
+            <p style={{ fontSize: 13, color: "#EF4444", marginTop: 6 }}>{errorMsg}</p>
           )}
         </div>
 

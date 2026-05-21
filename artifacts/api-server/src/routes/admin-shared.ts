@@ -1,9 +1,21 @@
+import { adminActionAuditLogTable, db, notificationsTable } from "@workspace/db";
+import {
+  t as i18nT,
+  type TranslationKey as I18nTranslationKey,
+  type Language,
+} from "@workspace/i18n";
+import { randomBytes } from "crypto";
+import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { Request, Response, NextFunction } from "express";
+import { generateId as _generateId } from "../lib/id.js";
 import { logger as pinoLogger } from "../lib/logger.js";
+import { redisClient } from "../lib/redis.js";
+import {
+  getCachedSettings as _getCachedSettings,
+  invalidateSettingsCache as _invalidateSettingsCache,
+  addSecurityEvent as _realAddSecurityEvent,
+} from "../middleware/security.js";
 import { verifyAccessToken } from "../utils/admin-jwt.js";
-import { t as i18nT, type TranslationKey as I18nTranslationKey, type Language } from "@workspace/i18n";
-import { getCachedSettings as _getCachedSettings, invalidateSettingsCache as _invalidateSettingsCache, addSecurityEvent as _realAddSecurityEvent } from "../middleware/security.js";
 
 /**
  * Resolve a JWT secret from an environment variable.
@@ -22,22 +34,12 @@ function resolveAdminSecret(envVar: string): string {
     }
     pinoLogger.warn(
       `[admin-shared] WARNING: ${envVar} not set or too short. ` +
-      `Using unsafe dev fallback — set a strong secret before deploying.`,
+        `Using unsafe dev fallback — set a strong secret before deploying.`
     );
     return (val ?? "") + "dev_fallback_pad_to_32_chars_min!!";
   }
   return val;
 }
-import { randomBytes } from "crypto";
-import { eq } from "drizzle-orm";
-import { redisClient } from "../lib/redis.js";
-import {
-  db,
-  adminAccountsTable,
-  adminActionAuditLogTable,
-  notificationsTable,
-} from "@workspace/db";
-import { generateId as _generateId } from "../lib/id.js";
 
 /* ── Re-exports ──────────────────────────────────────────────────────────── */
 export { generateId } from "../lib/id.js";
@@ -59,91 +61,241 @@ export interface NotifKeyEntry {
 }
 
 export const ORDER_NOTIF_KEYS: Record<string, NotifKeyEntry> = {
-  confirmed:        { titleKey: "notifOrderConfirmed",        bodyKey: "notifOrderConfirmedBody",        icon: "checkmark-circle" },
-  preparing:        { titleKey: "notifOrderPreparing",        bodyKey: "notifOrderPreparingBody",        icon: "restaurant-outline" },
-  out_for_delivery: { titleKey: "notifOrderOutForDelivery",   bodyKey: "notifOrderOutForDeliveryBody",   icon: "bicycle-outline" },
-  delivered:        { titleKey: "notifOrderDelivered",        bodyKey: "notifOrderDeliveredBody",        icon: "checkmark-done-circle" },
-  cancelled:        { titleKey: "notifOrderCancelled",        bodyKey: "notifOrderCancelledBody",        icon: "close-circle" },
+  confirmed: {
+    titleKey: "notifOrderConfirmed",
+    bodyKey: "notifOrderConfirmedBody",
+    icon: "checkmark-circle",
+  },
+  preparing: {
+    titleKey: "notifOrderPreparing",
+    bodyKey: "notifOrderPreparingBody",
+    icon: "restaurant-outline",
+  },
+  out_for_delivery: {
+    titleKey: "notifOrderOutForDelivery",
+    bodyKey: "notifOrderOutForDeliveryBody",
+    icon: "bicycle-outline",
+  },
+  delivered: {
+    titleKey: "notifOrderDelivered",
+    bodyKey: "notifOrderDeliveredBody",
+    icon: "checkmark-done-circle",
+  },
+  cancelled: {
+    titleKey: "notifOrderCancelled",
+    bodyKey: "notifOrderCancelledBody",
+    icon: "close-circle",
+  },
 };
 
 export const RIDE_NOTIF_KEYS: Record<string, NotifKeyEntry> = {
-  accepted:         { titleKey: "notifRideAccepted",          bodyKey: "notifRideAcceptedBody",          icon: "car-outline" },
-  arrived:          { titleKey: "notifRideArrived",           bodyKey: "notifRideArrivedBody",           icon: "location-outline" },
-  in_transit:       { titleKey: "notifRideInTransit",         bodyKey: "notifRideInTransitBody",         icon: "navigate-outline" },
-  completed:        { titleKey: "notifRideCompleted",         bodyKey: "notifRideCompletedBody",         icon: "star-outline" },
-  cancelled:        { titleKey: "notifRideCancelled",         bodyKey: "notifRideCancelledBody",         icon: "close-circle" },
+  accepted: {
+    titleKey: "notifRideAccepted",
+    bodyKey: "notifRideAcceptedBody",
+    icon: "car-outline",
+  },
+  arrived: {
+    titleKey: "notifRideArrived",
+    bodyKey: "notifRideArrivedBody",
+    icon: "location-outline",
+  },
+  in_transit: {
+    titleKey: "notifRideInTransit",
+    bodyKey: "notifRideInTransitBody",
+    icon: "navigate-outline",
+  },
+  completed: {
+    titleKey: "notifRideCompleted",
+    bodyKey: "notifRideCompletedBody",
+    icon: "star-outline",
+  },
+  cancelled: {
+    titleKey: "notifRideCancelled",
+    bodyKey: "notifRideCancelledBody",
+    icon: "close-circle",
+  },
 };
 
 export const PHARMACY_NOTIF_KEYS: Record<string, NotifKeyEntry> = {
-  confirmed:        { titleKey: "notifPharmacyOrderConfirmed",  bodyKey: "notifPharmacyOrderConfirmedBody",  icon: "checkmark-circle" },
-  ready:            { titleKey: "notifPharmacyOrderReady",      bodyKey: "notifPharmacyOrderReadyBody",      icon: "bag-check-outline" },
-  out_for_delivery: { titleKey: "notifPharmacyOrderOutForDelivery", bodyKey: "notifPharmacyOrderOutForDeliveryBody", icon: "bicycle-outline" },
-  delivered:        { titleKey: "notifPharmacyOrderDelivered",  bodyKey: "notifPharmacyOrderDeliveredBody",  icon: "checkmark-done-circle" },
-  cancelled:        { titleKey: "notifPharmacyOrderCancelled",  bodyKey: "notifPharmacyOrderCancelledBody",  icon: "close-circle" },
+  confirmed: {
+    titleKey: "notifPharmacyOrderConfirmed",
+    bodyKey: "notifPharmacyOrderConfirmedBody",
+    icon: "checkmark-circle",
+  },
+  ready: {
+    titleKey: "notifPharmacyOrderReady",
+    bodyKey: "notifPharmacyOrderReadyBody",
+    icon: "bag-check-outline",
+  },
+  out_for_delivery: {
+    titleKey: "notifPharmacyOrderOutForDelivery",
+    bodyKey: "notifPharmacyOrderOutForDeliveryBody",
+    icon: "bicycle-outline",
+  },
+  delivered: {
+    titleKey: "notifPharmacyOrderDelivered",
+    bodyKey: "notifPharmacyOrderDeliveredBody",
+    icon: "checkmark-done-circle",
+  },
+  cancelled: {
+    titleKey: "notifPharmacyOrderCancelled",
+    bodyKey: "notifPharmacyOrderCancelledBody",
+    icon: "close-circle",
+  },
 };
 
 export const PARCEL_NOTIF_KEYS: Record<string, NotifKeyEntry> = {
-  confirmed:        { titleKey: "notifParcelConfirmed",        bodyKey: "notifParcelConfirmedBody",        icon: "checkmark-circle" },
-  picked_up:        { titleKey: "notifParcelPickedUp",         bodyKey: "notifParcelPickedUpBody",         icon: "cube-outline" },
-  in_transit:       { titleKey: "notifParcelInTransit",        bodyKey: "notifParcelInTransitBody",        icon: "navigate-outline" },
-  delivered:        { titleKey: "notifParcelDelivered",        bodyKey: "notifParcelDeliveredBody",        icon: "checkmark-done-circle" },
-  cancelled:        { titleKey: "notifParcelCancelled",        bodyKey: "notifParcelCancelledBody",        icon: "close-circle" },
+  confirmed: {
+    titleKey: "notifParcelConfirmed",
+    bodyKey: "notifParcelConfirmedBody",
+    icon: "checkmark-circle",
+  },
+  picked_up: {
+    titleKey: "notifParcelPickedUp",
+    bodyKey: "notifParcelPickedUpBody",
+    icon: "cube-outline",
+  },
+  in_transit: {
+    titleKey: "notifParcelInTransit",
+    bodyKey: "notifParcelInTransitBody",
+    icon: "navigate-outline",
+  },
+  delivered: {
+    titleKey: "notifParcelDelivered",
+    bodyKey: "notifParcelDeliveredBody",
+    icon: "checkmark-done-circle",
+  },
+  cancelled: {
+    titleKey: "notifParcelCancelled",
+    bodyKey: "notifParcelCancelledBody",
+    icon: "close-circle",
+  },
 };
 
 /* ── DEFAULT PLATFORM SETTINGS ─────────────────────────────────────────── */
 
-export const DEFAULT_PLATFORM_SETTINGS: Array<{ key: string; value: string; label: string; category: string }> = [
-  { key: "feature_mart", value: "on",  category: "features", label: "feature_mart" },
-  { key: "feature_food", value: "on",  category: "features", label: "feature_food" },
-  { key: "feature_rides", value: "on",  category: "features", label: "feature_rides" },
-  { key: "feature_pharmacy", value: "on",  category: "features", label: "feature_pharmacy" },
-  { key: "feature_parcel", value: "on",  category: "features", label: "feature_parcel" },
-  { key: "feature_van", value: "on",  category: "features", label: "feature_van" },
-  { key: "feature_wallet", value: "on",  category: "features", label: "feature_wallet" },
-  { key: "feature_referral", value: "on",  category: "features", label: "feature_referral" },
-  { key: "feature_new_users", value: "on",  category: "features", label: "feature_new_users" },
-  { key: "auth_mode", value: "OTP",  category: "auth", label: "auth_mode" },
-  { key: "auth_otp_enabled", value: "on",   category: "auth", label: "auth_otp_enabled" },
-  { key: "auth_email_enabled", value: "on",   category: "auth", label: "auth_email_enabled" },
-  { key: "auth_google_enabled", value: "on",   category: "auth", label: "auth_google_enabled" },
-  { key: "auth_facebook_enabled", value: "off",  category: "auth", label: "auth_facebook_enabled" },
-  { key: "auth_phone_otp_enabled", value: "on",   category: "auth", label: "auth_phone_otp_enabled" },
-  { key: "auth_email_otp_enabled", value: "on",   category: "auth", label: "auth_email_otp_enabled" },
-  { key: "auth_username_password_enabled", value: "off",  category: "auth", label: "auth_username_password_enabled" },
-  { key: "auth_magic_link_enabled", value: "off",  category: "auth", label: "auth_magic_link_enabled" },
-  { key: "auth_magic_link_ttl_min", value: "30",   category: "auth", label: "auth_magic_link_ttl_min" },
-  { key: "firebase_enabled", value: "off",  category: "integrations", label: "firebase_enabled" },
-  { key: "security_lockout_enabled", value: "on",   category: "security", label: "security_lockout_enabled" },
-  { key: "security_login_max_attempts", value: "5",    category: "security", label: "security_login_max_attempts" },
-  { key: "security_lockout_minutes", value: "30",   category: "security", label: "security_lockout_minutes" },
-  { key: "security_otp_max_per_phone", value: "5",    category: "security", label: "security_otp_max_per_phone" },
-  { key: "security_otp_max_per_ip", value: "20",   category: "security", label: "security_otp_max_per_ip" },
-  { key: "security_otp_window_min", value: "60",   category: "security", label: "security_otp_window_min" },
-  { key: "security_suspicious_pattern_threshold", value: "60", category: "security", label: "security_suspicious_pattern_threshold" },
-  { key: "jwt_access_ttl_sec", value: "900",  category: "security", label: "jwt_access_ttl_sec" },
-  { key: "jwt_refresh_ttl_days", value: "7",    category: "security", label: "jwt_refresh_ttl_days" },
+export const DEFAULT_PLATFORM_SETTINGS: Array<{
+  key: string;
+  value: string;
+  label: string;
+  category: string;
+}> = [
+  { key: "feature_mart", value: "on", category: "features", label: "feature_mart" },
+  { key: "feature_food", value: "on", category: "features", label: "feature_food" },
+  { key: "feature_rides", value: "on", category: "features", label: "feature_rides" },
+  { key: "feature_pharmacy", value: "on", category: "features", label: "feature_pharmacy" },
+  { key: "feature_parcel", value: "on", category: "features", label: "feature_parcel" },
+  { key: "feature_van", value: "on", category: "features", label: "feature_van" },
+  { key: "feature_wallet", value: "on", category: "features", label: "feature_wallet" },
+  { key: "feature_referral", value: "on", category: "features", label: "feature_referral" },
+  { key: "feature_new_users", value: "on", category: "features", label: "feature_new_users" },
+  { key: "auth_mode", value: "OTP", category: "auth", label: "auth_mode" },
+  { key: "auth_otp_enabled", value: "on", category: "auth", label: "auth_otp_enabled" },
+  { key: "auth_email_enabled", value: "on", category: "auth", label: "auth_email_enabled" },
+  { key: "auth_google_enabled", value: "on", category: "auth", label: "auth_google_enabled" },
+  { key: "auth_facebook_enabled", value: "off", category: "auth", label: "auth_facebook_enabled" },
+  { key: "auth_phone_otp_enabled", value: "on", category: "auth", label: "auth_phone_otp_enabled" },
+  { key: "auth_email_otp_enabled", value: "on", category: "auth", label: "auth_email_otp_enabled" },
+  {
+    key: "auth_username_password_enabled",
+    value: "off",
+    category: "auth",
+    label: "auth_username_password_enabled",
+  },
+  {
+    key: "auth_magic_link_enabled",
+    value: "off",
+    category: "auth",
+    label: "auth_magic_link_enabled",
+  },
+  {
+    key: "auth_magic_link_ttl_min",
+    value: "30",
+    category: "auth",
+    label: "auth_magic_link_ttl_min",
+  },
+  { key: "firebase_enabled", value: "off", category: "integrations", label: "firebase_enabled" },
+  {
+    key: "security_lockout_enabled",
+    value: "on",
+    category: "security",
+    label: "security_lockout_enabled",
+  },
+  {
+    key: "security_login_max_attempts",
+    value: "5",
+    category: "security",
+    label: "security_login_max_attempts",
+  },
+  {
+    key: "security_lockout_minutes",
+    value: "30",
+    category: "security",
+    label: "security_lockout_minutes",
+  },
+  {
+    key: "security_otp_max_per_phone",
+    value: "5",
+    category: "security",
+    label: "security_otp_max_per_phone",
+  },
+  {
+    key: "security_otp_max_per_ip",
+    value: "20",
+    category: "security",
+    label: "security_otp_max_per_ip",
+  },
+  {
+    key: "security_otp_window_min",
+    value: "60",
+    category: "security",
+    label: "security_otp_window_min",
+  },
+  {
+    key: "security_suspicious_pattern_threshold",
+    value: "60",
+    category: "security",
+    label: "security_suspicious_pattern_threshold",
+  },
+  { key: "jwt_access_ttl_sec", value: "900", category: "security", label: "jwt_access_ttl_sec" },
+  { key: "jwt_refresh_ttl_days", value: "7", category: "security", label: "jwt_refresh_ttl_days" },
   { key: "platform_mode", value: "demo", category: "general", label: "platform_mode" },
-  { key: "currency", value: "PKR",  category: "general", label: "currency" },
-  { key: "currency_symbol", value: "Rs.",  category: "general", label: "currency_symbol" },
-  { key: "default_language", value: "en",   category: "general", label: "default_language" },
-  { key: "health_monitor_enabled", value: "off",  category: "health", label: "health_monitor_enabled" },
-  { key: "loyalty_enabled", value: "off",  category: "features", label: "loyalty_enabled" },
-  { key: "loyalty_points_per_rupee", value: "1",    category: "loyalty", label: "loyalty_points_per_rupee" },
-  { key: "loyalty_redemption_rate", value: "0.01", category: "loyalty", label: "loyalty_redemption_rate" },
-  { key: "wallet_min_topup", value: "100",  category: "wallet", label: "wallet_min_topup" },
+  { key: "currency", value: "PKR", category: "general", label: "currency" },
+  { key: "currency_symbol", value: "Rs.", category: "general", label: "currency_symbol" },
+  { key: "default_language", value: "en", category: "general", label: "default_language" },
+  {
+    key: "health_monitor_enabled",
+    value: "off",
+    category: "health",
+    label: "health_monitor_enabled",
+  },
+  { key: "loyalty_enabled", value: "off", category: "features", label: "loyalty_enabled" },
+  {
+    key: "loyalty_points_per_rupee",
+    value: "1",
+    category: "loyalty",
+    label: "loyalty_points_per_rupee",
+  },
+  {
+    key: "loyalty_redemption_rate",
+    value: "0.01",
+    category: "loyalty",
+    label: "loyalty_redemption_rate",
+  },
+  { key: "wallet_min_topup", value: "100", category: "wallet", label: "wallet_min_topup" },
   { key: "wallet_max_topup", value: "25000", category: "wallet", label: "wallet_max_topup" },
   { key: "wallet_max_balance", value: "50000", category: "wallet", label: "wallet_max_balance" },
-  { key: "wallet_min_send", value: "10",   category: "wallet", label: "wallet_min_send" },
+  { key: "wallet_min_send", value: "10", category: "wallet", label: "wallet_min_send" },
   { key: "wallet_max_send", value: "25000", category: "wallet", label: "wallet_max_send" },
-  { key: "wallet_min_withdraw", value: "100",  category: "wallet", label: "wallet_min_withdraw" },
+  { key: "wallet_min_withdraw", value: "100", category: "wallet", label: "wallet_min_withdraw" },
   { key: "wallet_max_withdraw", value: "25000", category: "wallet", label: "wallet_max_withdraw" },
 ];
 
 /* ── DEFAULT RIDE SERVICES ─────────────────────────────────────────────── */
 
 export const DEFAULT_RIDE_SERVICES = [
-  { id: "bike",     name: "Bike",     icon: "bicycle-outline",   baseFare: "30", perKm: "10" },
-  { id: "car",      name: "Car",      icon: "car-outline",       baseFare: "80", perKm: "20" },
+  { id: "bike", name: "Bike", icon: "bicycle-outline", baseFare: "30", perKm: "10" },
+  { id: "car", name: "Car", icon: "car-outline", baseFare: "80", perKm: "20" },
   { id: "rickshaw", name: "Rickshaw", icon: "car-sport-outline", baseFare: "50", perKm: "12" },
 ];
 
@@ -152,7 +304,9 @@ export const DEFAULT_RIDE_SERVICES = [
 /** In-memory fallback used when Redis is unavailable (lost on restart). */
 const _memAttempts = new Map<string, { count: number; lastAttempt: number }>();
 
-function _memKey(ip: string) { return `admin:lockout:${ip}`; }
+function _memKey(ip: string) {
+  return `admin:lockout:${ip}`;
+}
 const LOCKOUT_TTL_SEC = ADMIN_LOCKOUT_TIME * 60;
 
 /**
@@ -167,7 +321,10 @@ export async function checkAdminLoginLockout(ip: string): Promise<boolean> {
       const count = parseInt(raw, 10);
       return count >= ADMIN_MAX_ATTEMPTS;
     } catch (err) {
-      pinoLogger.warn({ ip, err }, "[admin-shared] Redis lockout check failed — using memory fallback");
+      pinoLogger.warn(
+        { ip, err },
+        "[admin-shared] Redis lockout check failed — using memory fallback"
+      );
     }
   }
   /* in-memory fallback */
@@ -196,7 +353,10 @@ export async function recordAdminLoginFailure(ip: string): Promise<void> {
       }
       return;
     } catch (err) {
-      pinoLogger.warn({ ip, err }, "[admin-shared] Redis lockout record failed — using memory fallback");
+      pinoLogger.warn(
+        { ip, err },
+        "[admin-shared] Redis lockout record failed — using memory fallback"
+      );
     }
   }
   /* in-memory fallback */
@@ -242,8 +402,13 @@ const _ADMIN_REFRESH_SECRET = (() => {
     const msg = !v
       ? `[admin-shared] FATAL: ${key} is not set. A minimum 32-character secret is required.`
       : `[admin-shared] FATAL: ${key} is too short (${v.length} chars, need ≥32).`;
-    if (process.env.NODE_ENV === "production") { pinoLogger.fatal(msg); process.exit(1); }
-    pinoLogger.warn(`[admin-shared] WARNING: ${key} not set or too short. Using unsafe dev fallback.`);
+    if (process.env.NODE_ENV === "production") {
+      pinoLogger.fatal(msg);
+      process.exit(1);
+    }
+    pinoLogger.warn(
+      `[admin-shared] WARNING: ${key} not set or too short. Using unsafe dev fallback.`
+    );
     return (v ?? "") + "dev_fallback_pad_to_32_chars_min!!";
   }
   return v;
@@ -259,17 +424,19 @@ export function signAdminJwt(
   role: string,
   name: string,
   expiresInHrs: number = ADMIN_TOKEN_TTL_HRS,
-  permissions: string[] = [],
+  permissions: string[] = []
 ): string {
   return jwt.sign(
     { sub: adminId ?? "", role, name, perms: permissions, pv: 0 },
     _ADMIN_ACCESS_TOKEN_SECRET,
-    { expiresIn: `${expiresInHrs}h`, issuer: _ADMIN_JWT_ISSUER, algorithm: "HS256" },
+    { expiresIn: `${expiresInHrs}h`, issuer: _ADMIN_JWT_ISSUER, algorithm: "HS256" }
   );
 }
 
 export function signAdminRefreshToken(adminId: string | null, role: string): string {
-  return jwt.sign({ adminId, role }, _ADMIN_REFRESH_SECRET, { expiresIn: `${ADMIN_REFRESH_TTL_DAYS}d` });
+  return jwt.sign({ adminId, role }, _ADMIN_REFRESH_SECRET, {
+    expiresIn: `${ADMIN_REFRESH_TTL_DAYS}d`,
+  });
 }
 
 /**
@@ -280,13 +447,19 @@ export function verifyAdminJwt(token: string): AdminPayload | null {
   try {
     const payload = verifyAccessToken(token);
     return {
-      adminId:     payload.sub ?? null,
-      role:        payload.role ?? "admin",
-      name:        payload.name ?? "Admin",
+      adminId: payload.sub ?? null,
+      role: payload.role ?? "admin",
+      name: payload.name ?? "Admin",
       permissions: payload.perms ?? [],
     };
   } catch (err) {
-    pinoLogger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[admin-shared] unhandled error');
+    pinoLogger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[admin-shared] unhandled error"
+    );
     return null;
   }
 }
@@ -308,7 +481,13 @@ export async function getAdminSecret(): Promise<string | null> {
     const settings = await _getCachedSettings();
     return settings["admin_master_secret"] || envSecret || null;
   } catch (err) {
-    pinoLogger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[admin-shared] unhandled error');
+    pinoLogger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[admin-shared] unhandled error"
+    );
     return envSecret || null;
   }
 }
@@ -333,14 +512,14 @@ export const adminAuth = (req: AdminRequest, res: Response, next: NextFunction):
   try {
     // v2: verify with ADMIN_ACCESS_TOKEN_SECRET, map sub→adminId, perms→permissions
     const payload = verifyAccessToken(token);
-    req.adminId          = payload.sub ?? undefined;
-    req.adminRole        = payload.role ?? "admin";
-    req.adminName        = payload.name ?? "Admin";
+    req.adminId = payload.sub ?? undefined;
+    req.adminRole = payload.role ?? "admin";
+    req.adminName = payload.name ?? "Admin";
     req.adminPermissions = payload.perms ?? [];
-    req.adminPayload     = {
-      adminId:     payload.sub ?? null,
-      role:        payload.role ?? "admin",
-      name:        payload.name ?? "Admin",
+    req.adminPayload = {
+      adminId: payload.sub ?? null,
+      role: payload.role ?? "admin",
+      name: payload.name ?? "Admin",
       permissions: payload.perms ?? [],
     };
     req.adminIp = getClientIp(req);
@@ -366,14 +545,14 @@ export async function addAuditEntry(params: {
 }): Promise<void> {
   try {
     await db.insert(adminActionAuditLogTable).values({
-      id:               _generateId(),
-      adminId:          params.adminId ?? null,
-      adminName:        params.adminName ?? null,
-      ip:               params.ip,
-      action:           params.action,
-      result:           params.result,
-      details:          params.details ?? null,
-      affectedUserId:   params.affectedUserId ?? null,
+      id: _generateId(),
+      adminId: params.adminId ?? null,
+      adminName: params.adminName ?? null,
+      ip: params.ip,
+      action: params.action,
+      result: params.result,
+      details: params.details ?? null,
+      affectedUserId: params.affectedUserId ?? null,
       affectedUserName: params.affectedUserName ?? null,
       affectedUserRole: params.affectedUserRole ?? null,
     });
@@ -400,7 +579,11 @@ export async function getPlatformSettings(): Promise<Record<string, string>> {
 export function getClientIp(req: Request): string {
   const forwarded = req.headers["x-forwarded-for"];
   if (forwarded) {
-    return (Array.isArray(forwarded) ? forwarded[0] : forwarded.split(",")[0])?.trim() || req.ip || "unknown";
+    return (
+      (Array.isArray(forwarded) ? forwarded[0] : forwarded.split(",")[0])?.trim() ||
+      req.ip ||
+      "unknown"
+    );
   }
   return req.ip || "unknown";
 }
@@ -427,7 +610,13 @@ export async function verifyTotpToken(token: string, secret: string): Promise<bo
     const { verifyTotpToken: totpVerify } = await import("../services/totp.js");
     return totpVerify(token, secret);
   } catch (err) {
-    pinoLogger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[admin-shared] unhandled error');
+    pinoLogger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[admin-shared] unhandled error"
+    );
     return false;
   }
 }
@@ -471,7 +660,13 @@ export function t(key: TranslationKey, lang: string): string {
   try {
     return i18nT(key as I18nTranslationKey, (lang || "en") as Language);
   } catch (err) {
-    pinoLogger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[admin-shared] unhandled error');
+    pinoLogger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[admin-shared] unhandled error"
+    );
     return key;
   }
 }
@@ -481,11 +676,11 @@ export async function sendUserNotification(
   title: string,
   body: string,
   type: string = "system",
-  icon: string = "notifications-outline",
+  icon: string = "notifications-outline"
 ): Promise<void> {
   try {
     await db.insert(notificationsTable).values({
-      id:    _generateId(),
+      id: _generateId(),
       userId,
       title,
       body,
@@ -505,12 +700,11 @@ export async function sendUserNotification(
 
 /* ── RIDE SERVICES / LOCATIONS SEEDING ─────────────────────────────────── */
 
-export {
-  ensureDefaultRideServices,
-  ensureDefaultLocations,
-} from "../lib/seedDefaults.js";
+export { ensureDefaultLocations, ensureDefaultRideServices } from "../lib/seedDefaults.js";
 
-export function formatSvc(svc: unknown): unknown { return svc; }
+export function formatSvc(svc: unknown): unknown {
+  return svc;
+}
 
 /* ── MIGRATION STUBS ────────────────────────────────────────────────────── */
 
@@ -533,7 +727,13 @@ export async function revokeAllUserSessions(userId: string): Promise<void> {
     const { revokeAllUserRefreshTokens } = await import("../middleware/security.js");
     await revokeAllUserRefreshTokens(userId);
   } catch (err) {
-    pinoLogger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[admin-shared] unhandled error');
+    pinoLogger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[admin-shared] unhandled error"
+    );
     pinoLogger.warn({ userId }, "[admin-shared] revokeAllUserSessions failed");
   }
 }
@@ -546,5 +746,5 @@ export function serializeSosAlert(alert: unknown): unknown {
 
 /* ── AUDIT LOG PROXY ─────────────────────────────────────────────────────── */
 
-export type { AuditEntry } from "../middleware/security.js";
 export { auditLog } from "../middleware/security.js";
+export type { AuditEntry } from "../middleware/security.js";

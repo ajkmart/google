@@ -1,26 +1,26 @@
 import {
   createSchemaRegistry,
-  type ValidationOptions,
-  type SchemaEntry,
-  GetProfileResponse,
-  GetOrdersResponse,
+  GetCategoriesResponse,
   GetOrderResponse,
-  GetProductsResponse,
+  GetOrdersResponse,
   GetProductResponse,
+  GetProductsResponse,
+  GetProfileResponse,
   GetRideResponse,
   GetWalletResponse,
-  GetCategoriesResponse,
+  type SchemaEntry,
+  type ValidationOptions,
 } from "@workspace/api-zod";
 
 const ENTRIES: SchemaEntry[] = [
-  { pattern: /\/users\/[^/?]+$/,    schema: GetProfileResponse },
-  { pattern: /\/orders\/[^/?]+$/,   schema: GetOrderResponse },
-  { pattern: /\/orders/,            schema: GetOrdersResponse },
+  { pattern: /\/users\/[^/?]+$/, schema: GetProfileResponse },
+  { pattern: /\/orders\/[^/?]+$/, schema: GetOrderResponse },
+  { pattern: /\/orders/, schema: GetOrdersResponse },
   { pattern: /\/products\/[^/?]+$/, schema: GetProductResponse },
-  { pattern: /\/products/,          schema: GetProductsResponse },
-  { pattern: /\/rides\/[^/?]+$/,    schema: GetRideResponse },
-  { pattern: /\/wallet/,            schema: GetWalletResponse },
-  { pattern: /\/categories/,        schema: GetCategoriesResponse },
+  { pattern: /\/products/, schema: GetProductsResponse },
+  { pattern: /\/rides\/[^/?]+$/, schema: GetRideResponse },
+  { pattern: /\/wallet/, schema: GetWalletResponse },
+  { pattern: /\/categories/, schema: GetCategoriesResponse },
 ];
 
 /**
@@ -35,7 +35,7 @@ const ENTRIES: SchemaEntry[] = [
  *   production  — `log.warn` only; raw data is returned so the UI still works
  */
 export function createAdminValidator(
-  onFailure?: ValidationOptions["onFailure"],
+  onFailure?: ValidationOptions["onFailure"]
 ): (path: string, data: unknown) => void {
   return createSchemaRegistry(ENTRIES, { onFailure });
 }

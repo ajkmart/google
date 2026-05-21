@@ -21,7 +21,7 @@ export function fireAndForget(
   promise: Promise<unknown>,
   label: string,
   log: AppLogger,
-  meta?: Record<string, unknown>,
+  meta?: Record<string, unknown>
 ): void {
   promise.catch((err: unknown) => {
     const message = `[fireAndForget] ${label} failed`;
@@ -35,7 +35,7 @@ export function fireAndForget(
         timestamp: new Date().toISOString(),
         ...meta,
       },
-      message,
+      message
     );
   });
 }

@@ -9,7 +9,7 @@
  *   pnpm test
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { executeLogoutSequence, type LogoutApi } from "../lib/logoutSequence";
 
 describe("logout sequence ordering", () => {
@@ -18,11 +18,17 @@ describe("logout sequence ordering", () => {
 
     const mockApi: LogoutApi = {
       getRefreshToken: () => "test-refresh-token",
-      clearTokens: () => { callOrder.push("clearTokens"); },
-      logout: vi.fn(async () => { callOrder.push("serverLogout"); }),
+      clearTokens: () => {
+        callOrder.push("clearTokens");
+      },
+      logout: vi.fn(async () => {
+        callOrder.push("serverLogout");
+      }),
     };
 
-    executeLogoutSequence(mockApi, () => { callOrder.push("clearState"); });
+    executeLogoutSequence(mockApi, () => {
+      callOrder.push("clearState");
+    });
 
     await new Promise<void>((resolve) => setTimeout(resolve, 50));
 
@@ -39,7 +45,9 @@ describe("logout sequence ordering", () => {
 
     const mockApi: LogoutApi = {
       getRefreshToken: () => "expiring-token",
-      clearTokens: () => { callOrder.push("clearTokens"); },
+      clearTokens: () => {
+        callOrder.push("clearTokens");
+      },
       logout: vi.fn(async () => {
         callOrder.push("serverLogout");
         throw new Error("network failure");
@@ -50,9 +58,7 @@ describe("logout sequence ordering", () => {
 
     await new Promise<void>((resolve) => setTimeout(resolve, 50));
 
-    expect(callOrder.indexOf("clearTokens")).toBeLessThan(
-      callOrder.indexOf("serverLogout"),
-    );
+    expect(callOrder.indexOf("clearTokens")).toBeLessThan(callOrder.indexOf("serverLogout"));
   });
 
   it("still clears tokens when there is no refresh token", () => {
@@ -60,7 +66,9 @@ describe("logout sequence ordering", () => {
 
     const mockApi: LogoutApi = {
       getRefreshToken: () => "",
-      clearTokens: () => { cleared.push(true); },
+      clearTokens: () => {
+        cleared.push(true);
+      },
       logout: vi.fn(),
     };
 
@@ -75,11 +83,17 @@ describe("logout sequence ordering", () => {
 
     const mockApi: LogoutApi = {
       getRefreshToken: () => "tok",
-      clearTokens: () => { callOrder.push("clearTokens"); },
-      logout: vi.fn(async () => { callOrder.push("serverLogout"); }),
+      clearTokens: () => {
+        callOrder.push("clearTokens");
+      },
+      logout: vi.fn(async () => {
+        callOrder.push("serverLogout");
+      }),
     };
 
-    executeLogoutSequence(mockApi, () => { callOrder.push("clearState"); });
+    executeLogoutSequence(mockApi, () => {
+      callOrder.push("clearState");
+    });
 
     const clearIdx = callOrder.indexOf("clearTokens");
     const stateIdx = callOrder.indexOf("clearState");

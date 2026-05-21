@@ -1,7 +1,7 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
-import { writeFile, mkdir, readFile } from "fs/promises";
-import { Readable } from "stream";
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
+import { Readable } from "stream";
 import { logger } from "./logger.js";
 
 const STORAGE_BUCKET_URL = process.env["STORAGE_BUCKET_URL"];
@@ -57,13 +57,16 @@ if (STORAGE_BUCKET_URL) {
     const endpoint = STORAGE_ENDPOINT ?? derivedEndpoint;
 
     const missingVars: string[] = [];
-    if (!resolvedBucketName) missingVars.push("STORAGE_BUCKET_NAME (cannot auto-detect from URL — use path-style or virtual-host URL)");
+    if (!resolvedBucketName)
+      missingVars.push(
+        "STORAGE_BUCKET_NAME (cannot auto-detect from URL — use path-style or virtual-host URL)"
+      );
     if (!STORAGE_ACCESS_KEY) missingVars.push("STORAGE_ACCESS_KEY");
     if (!STORAGE_SECRET_KEY) missingVars.push("STORAGE_SECRET_KEY");
 
     if (missingVars.length > 0) {
       initError = new Error(
-        `[storage] STORAGE_BUCKET_URL is set but the following S3 configuration is missing: ${missingVars.join(", ")}`,
+        `[storage] STORAGE_BUCKET_URL is set but the following S3 configuration is missing: ${missingVars.join(", ")}`
       );
     } else {
       s3Client = new S3Client({
@@ -75,7 +78,9 @@ if (STORAGE_BUCKET_URL) {
         },
         forcePathStyle: true,
       });
-      logger.info(`[storage] S3-compatible storage enabled. Bucket: ${resolvedBucketName}, Endpoint: ${endpoint}`);
+      logger.info(
+        `[storage] S3-compatible storage enabled. Bucket: ${resolvedBucketName}, Endpoint: ${endpoint}`
+      );
     }
   } catch (err) {
     initError = err instanceof Error ? err : new Error(String(err));
@@ -88,8 +93,8 @@ if (STORAGE_BUCKET_URL) {
     logger.warn(
       { err: initError },
       "[storage] S3 config incomplete — falling back to local disk storage. " +
-      "Files will not survive container restarts and are not shared across instances. " +
-      "Fix STORAGE_BUCKET_URL / STORAGE_ACCESS_KEY / STORAGE_SECRET_KEY to enable object storage.",
+        "Files will not survive container restarts and are not shared across instances. " +
+        "Fix STORAGE_BUCKET_URL / STORAGE_ACCESS_KEY / STORAGE_SECRET_KEY to enable object storage."
     );
     resolvedBucketName = null;
     s3Client = null;
@@ -124,11 +129,13 @@ export function isS3Enabled(): boolean {
  * Used to serve pre-registration documents through the authenticated proxy
  * instead of exposing direct S3/public URLs.
  */
-export async function storageDownload(key: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+export async function storageDownload(
+  key: string
+): Promise<{ buffer: Buffer; contentType: string } | null> {
   if (s3Client && resolvedBucketName) {
     try {
       const response = await s3Client.send(
-        new GetObjectCommand({ Bucket: resolvedBucketName, Key: key }),
+        new GetObjectCommand({ Bucket: resolvedBucketName, Key: key })
       );
       if (!response.Body) return null;
       const stream = response.Body as Readable;
@@ -141,7 +148,10 @@ export async function storageDownload(key: string): Promise<{ buffer: Buffer; co
         contentType: response.ContentType ?? "application/octet-stream",
       };
     } catch (err) {
-      logger.warn({ key, err: err instanceof Error ? err.message : String(err) }, "[storage] storageDownload S3 fetch failed");
+      logger.warn(
+        { key, err: err instanceof Error ? err.message : String(err) },
+        "[storage] storageDownload S3 fetch failed"
+      );
       return null;
     }
   }
@@ -155,10 +165,13 @@ export async function storageDownload(key: string): Promise<{ buffer: Buffer; co
     const buffer = await readFile(filePath);
     const ext = path.extname(key).toLowerCase();
     const contentType =
-      ext === ".jpg" || ext === ".jpeg" ? "image/jpeg"
-      : ext === ".png" ? "image/png"
-      : ext === ".webp" ? "image/webp"
-      : "application/octet-stream";
+      ext === ".jpg" || ext === ".jpeg"
+        ? "image/jpeg"
+        : ext === ".png"
+          ? "image/png"
+          : ext === ".webp"
+            ? "image/webp"
+            : "application/octet-stream";
     return { buffer, contentType };
   } catch {
     return null;
@@ -168,7 +181,7 @@ export async function storageDownload(key: string): Promise<{ buffer: Buffer; co
 export async function storageUpload(
   buffer: Buffer,
   key: string,
-  contentType: string,
+  contentType: string
 ): Promise<string> {
   if (s3Client && resolvedBucketName && resolvedPublicBase) {
     await s3Client.send(
@@ -177,7 +190,7 @@ export async function storageUpload(
         Key: key,
         Body: buffer,
         ContentType: contentType,
-      }),
+      })
     );
     return `${resolvedPublicBase}/${key}`;
   }
@@ -188,8 +201,8 @@ export async function storageUpload(
   if (IS_PROD) {
     logger.error(
       "[storage] storageUpload: S3 not configured in production — " +
-      "falling back to local disk. Files will not persist across deploys. " +
-      "Set STORAGE_BUCKET_URL, STORAGE_ACCESS_KEY, and STORAGE_SECRET_KEY.",
+        "falling back to local disk. Files will not persist across deploys. " +
+        "Set STORAGE_BUCKET_URL, STORAGE_ACCESS_KEY, and STORAGE_SECRET_KEY."
     );
   }
 
@@ -225,7 +238,9 @@ let privateResolvedBucketName: string | null = null;
 
 if (STORAGE_PRIVATE_BUCKET_URL) {
   try {
-    const { bucket: derivedBucket, endpoint: derivedEndpoint } = parseBucketUrl(STORAGE_PRIVATE_BUCKET_URL);
+    const { bucket: derivedBucket, endpoint: derivedEndpoint } = parseBucketUrl(
+      STORAGE_PRIVATE_BUCKET_URL
+    );
     privateResolvedBucketName = STORAGE_PRIVATE_BUCKET_NAME ?? derivedBucket;
     const endpoint = derivedEndpoint;
     if (privateResolvedBucketName && STORAGE_PRIVATE_ACCESS_KEY && STORAGE_PRIVATE_SECRET_KEY) {
@@ -240,13 +255,17 @@ if (STORAGE_PRIVATE_BUCKET_URL) {
       });
       logger.info(`[storage] Private S3 bucket configured. Bucket: ${privateResolvedBucketName}`);
     } else {
-      logger.warn("[storage] STORAGE_PRIVATE_BUCKET_URL set but credentials/bucket name incomplete — private uploads will use local disk.");
+      logger.warn(
+        "[storage] STORAGE_PRIVATE_BUCKET_URL set but credentials/bucket name incomplete — private uploads will use local disk."
+      );
     }
   } catch (err) {
     logger.warn({ err }, "[storage] Failed to init private S3 client.");
   }
 } else if (!IS_PROD) {
-  logger.info("[storage] STORAGE_PRIVATE_BUCKET_URL not set — private uploads go to local disk (development only).");
+  logger.info(
+    "[storage] STORAGE_PRIVATE_BUCKET_URL not set — private uploads go to local disk (development only)."
+  );
 }
 
 /**
@@ -262,7 +281,7 @@ if (STORAGE_PRIVATE_BUCKET_URL) {
 export async function storageUploadPrivate(
   buffer: Buffer,
   key: string,
-  contentType: string,
+  contentType: string
 ): Promise<void> {
   if (privateS3Client && privateResolvedBucketName) {
     await privateS3Client.send(
@@ -274,7 +293,7 @@ export async function storageUploadPrivate(
         /* No ACL field — the bucket itself must deny public access at the
            bucket policy/block-public-access level. We rely on bucket-level
            access control, not object-level ACLs, for broad provider compat. */
-      }),
+      })
     );
     return;
   }
@@ -282,8 +301,8 @@ export async function storageUploadPrivate(
   if (IS_PROD) {
     throw new Error(
       "[storage] storageUploadPrivate: STORAGE_PRIVATE_BUCKET_URL is required in production. " +
-      "Configure a private (non-public) S3 bucket and set STORAGE_PRIVATE_BUCKET_URL, " +
-      "STORAGE_PRIVATE_ACCESS_KEY, and STORAGE_PRIVATE_SECRET_KEY.",
+        "Configure a private (non-public) S3 bucket and set STORAGE_PRIVATE_BUCKET_URL, " +
+        "STORAGE_PRIVATE_ACCESS_KEY, and STORAGE_PRIVATE_SECRET_KEY."
     );
   }
 
@@ -296,11 +315,13 @@ export async function storageUploadPrivate(
  * Download an object from private storage.
  * Mirrors storageDownload() but uses the private S3 client.
  */
-export async function storageDownloadPrivate(key: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+export async function storageDownloadPrivate(
+  key: string
+): Promise<{ buffer: Buffer; contentType: string } | null> {
   if (privateS3Client && privateResolvedBucketName) {
     try {
       const response = await privateS3Client.send(
-        new GetObjectCommand({ Bucket: privateResolvedBucketName, Key: key }),
+        new GetObjectCommand({ Bucket: privateResolvedBucketName, Key: key })
       );
       if (!response.Body) return null;
       const stream = response.Body as Readable;
@@ -313,13 +334,18 @@ export async function storageDownloadPrivate(key: string): Promise<{ buffer: Buf
         contentType: response.ContentType ?? "application/octet-stream",
       };
     } catch (err) {
-      logger.warn({ key, err: err instanceof Error ? err.message : String(err) }, "[storage] storageDownloadPrivate S3 fetch failed");
+      logger.warn(
+        { key, err: err instanceof Error ? err.message : String(err) },
+        "[storage] storageDownloadPrivate S3 fetch failed"
+      );
       return null;
     }
   }
 
   if (IS_PROD) {
-    throw new Error("[storage] storageDownloadPrivate called in production without a private S3 client.");
+    throw new Error(
+      "[storage] storageDownloadPrivate called in production without a private S3 client."
+    );
   }
 
   /* Dev: read from local disk */
@@ -328,10 +354,13 @@ export async function storageDownloadPrivate(key: string): Promise<{ buffer: Buf
     const buffer = await readFile(filePath);
     const ext = path.extname(key).toLowerCase();
     const contentType =
-      ext === ".jpg" || ext === ".jpeg" ? "image/jpeg"
-      : ext === ".png" ? "image/png"
-      : ext === ".webp" ? "image/webp"
-      : "application/octet-stream";
+      ext === ".jpg" || ext === ".jpeg"
+        ? "image/jpeg"
+        : ext === ".png"
+          ? "image/png"
+          : ext === ".webp"
+            ? "image/webp"
+            : "application/octet-stream";
     return { buffer, contentType };
   } catch {
     return null;

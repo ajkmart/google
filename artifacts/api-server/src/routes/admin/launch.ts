@@ -1,10 +1,26 @@
-import { logger } from "../../lib/logger.js";
-import { Router } from "express";
 import { db } from "@workspace/db";
-import { platformSettingsTable, vendorPlansTable, adminRolePresetsTable, demoBackupsTable, vendorProfilesTable, ordersTable, productsTable } from "@workspace/db/schema";
-import { eq, asc, desc, count, isNull } from "drizzle-orm";
-import { sendSuccess, sendError, sendNotFound, sendValidationError } from "../../lib/response.js";
-import { addAuditEntry, getClientIp, invalidatePlatformSettingsCache, invalidateSettingsCache, DEFAULT_PLATFORM_SETTINGS, generateId, type AdminRequest } from "../admin-shared.js";
+import {
+  adminRolePresetsTable,
+  demoBackupsTable,
+  ordersTable,
+  platformSettingsTable,
+  productsTable,
+  vendorPlansTable,
+  vendorProfilesTable,
+} from "@workspace/db/schema";
+import { asc, count, desc, eq, isNull } from "drizzle-orm";
+import { Router } from "express";
+import { logger } from "../../lib/logger.js";
+import { sendError, sendNotFound, sendSuccess, sendValidationError } from "../../lib/response.js";
+import {
+  addAuditEntry,
+  DEFAULT_PLATFORM_SETTINGS,
+  generateId,
+  getClientIp,
+  invalidatePlatformSettingsCache,
+  invalidateSettingsCache,
+  type AdminRequest,
+} from "../admin-shared.js";
 
 const router = Router();
 
@@ -148,28 +164,31 @@ router.get("/settings", async (_req, res) => {
   for (const row of rows) current[row.key] = row.value;
 
   const aiOverrides: Record<string, string> = { ...AI_RECOMMENDED_DEFAULTS, ...AI_RECOMMENDED };
-  const allKeys = new Set(DEFAULT_PLATFORM_SETTINGS.map(d => d.key));
+  const allKeys = new Set(DEFAULT_PLATFORM_SETTINGS.map((d) => d.key));
   for (const k of Object.keys(aiOverrides)) allKeys.add(k);
 
   const diffs: DiffEntry[] = [];
   for (const key of allKeys) {
-    const platformDefault = DEFAULT_PLATFORM_SETTINGS.find(d => d.key === key)?.value ?? "";
+    const platformDefault = DEFAULT_PLATFORM_SETTINGS.find((d) => d.key === key)?.value ?? "";
     const recommended = aiOverrides[key] ?? platformDefault;
     const curr = current[key] ?? null;
     const differsFromAI = curr !== null && curr !== recommended;
-    const row = rows.find(r => r.key === key);
+    const row = rows.find((r) => r.key === key);
     diffs.push({
       key,
       current: curr,
       recommended,
       differsFromAI,
-      category: row?.category ?? DEFAULT_PLATFORM_SETTINGS.find(d => d.key === key)?.category ?? "general",
+      category:
+        row?.category ??
+        DEFAULT_PLATFORM_SETTINGS.find((d) => d.key === key)?.category ??
+        "general",
     });
   }
 
   const mode = current["platform_mode"] ?? "demo";
   sendSuccess(res, {
-    settings: rows.map(r => ({ ...r, updatedAt: r.updatedAt.toISOString() })),
+    settings: rows.map((r) => ({ ...r, updatedAt: r.updatedAt.toISOString() })),
     aiRecommended: AI_RECOMMENDED,
     aiDefaults: AI_RECOMMENDED_DEFAULTS,
     diffs,
@@ -194,7 +213,7 @@ router.get("/demo-snapshots", async (_req, res) => {
     .orderBy(desc(demoBackupsTable.createdAt))
     .limit(20);
   sendSuccess(res, {
-    snapshots: snapshots.map(s => ({ ...s, createdAt: s.createdAt.toISOString() })),
+    snapshots: snapshots.map((s) => ({ ...s, createdAt: s.createdAt.toISOString() })),
   });
 });
 
@@ -281,9 +300,19 @@ router.patch("/feature/:key", async (req, res) => {
 router.get("/vendor-plans", async (_req, res) => {
   const plans = await db.select().from(vendorPlansTable).orderBy(asc(vendorPlansTable.sortOrder));
   sendSuccess(res, {
-    plans: plans.map(p => ({
+    plans: plans.map((p) => ({
       ...p,
-      features: (() => { try { return JSON.parse(p.featuresJson) as string[]; } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback"); return [] as string[]; } })(),
+      features: (() => {
+        try {
+          return JSON.parse(p.featuresJson) as string[];
+        } catch (err) {
+          logger.debug(
+            { error: err instanceof Error ? err.message : String(err) },
+            "[fn] error with fallback"
+          );
+          return [] as string[];
+        }
+      })(),
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),
     })),
@@ -295,7 +324,18 @@ router.get("/vendor-plans", async (_req, res) => {
 ───────────────────────────────────────────────────────────── */
 router.post("/vendor-plans", async (req, res) => {
   const body = req.body as VendorPlanBody;
-  const { name, slug, description, features, commissionRate, monthlyFee, maxProducts, maxOrders, isDefault, sortOrder } = body;
+  const {
+    name,
+    slug,
+    description,
+    features,
+    commissionRate,
+    monthlyFee,
+    maxProducts,
+    maxOrders,
+    isDefault,
+    sortOrder,
+  } = body;
   if (!name || !slug) {
     sendValidationError(res, "name and slug are required");
     return;
@@ -305,22 +345,25 @@ router.post("/vendor-plans", async (req, res) => {
   if (willBeDefault) {
     await db.update(vendorPlansTable).set({ isDefault: false, updatedAt: new Date() });
   }
-  const [plan] = await db.insert(vendorPlansTable).values({
-    id,
-    name,
-    slug,
-    description: description ?? "",
-    featuresJson: JSON.stringify(features ?? []),
-    commissionRate: Number(commissionRate) || 15,
-    monthlyFee: Number(monthlyFee) || 0,
-    maxProducts: Number(maxProducts) || 50,
-    maxOrders: Number(maxOrders) || 500,
-    isDefault: willBeDefault,
-    isActive: true,
-    sortOrder: Number(sortOrder) || 0,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }).returning();
+  const [plan] = await db
+    .insert(vendorPlansTable)
+    .values({
+      id,
+      name,
+      slug,
+      description: description ?? "",
+      featuresJson: JSON.stringify(features ?? []),
+      commissionRate: Number(commissionRate) || 15,
+      monthlyFee: Number(monthlyFee) || 0,
+      maxProducts: Number(maxProducts) || 50,
+      maxOrders: Number(maxOrders) || 500,
+      isDefault: willBeDefault,
+      isActive: true,
+      sortOrder: Number(sortOrder) || 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .returning();
   addAuditEntry({
     action: "vendor_plan_create",
     ip: getClientIp(req),
@@ -337,7 +380,19 @@ router.post("/vendor-plans", async (req, res) => {
 router.put("/vendor-plans/:id", async (req, res) => {
   const { id } = req.params as Record<string, string>;
   const body = req.body as VendorPlanBody;
-  const { name, slug, description, features, commissionRate, monthlyFee, maxProducts, maxOrders, isDefault, isActive, sortOrder } = body;
+  const {
+    name,
+    slug,
+    description,
+    features,
+    commissionRate,
+    monthlyFee,
+    maxProducts,
+    maxOrders,
+    isDefault,
+    isActive,
+    sortOrder,
+  } = body;
   if (isDefault === true) {
     await db.update(vendorPlansTable).set({ isDefault: false, updatedAt: new Date() });
   }
@@ -378,7 +433,11 @@ router.put("/vendor-plans/:id", async (req, res) => {
 ───────────────────────────────────────────────────────────── */
 router.post("/vendor-plans/:id/set-default", async (req, res) => {
   const { id } = req.params as Record<string, string>;
-  const [exists] = await db.select({ id: vendorPlansTable.id }).from(vendorPlansTable).where(eq(vendorPlansTable.id, id!)).limit(1);
+  const [exists] = await db
+    .select({ id: vendorPlansTable.id })
+    .from(vendorPlansTable)
+    .where(eq(vendorPlansTable.id, id!))
+    .limit(1);
   if (!exists) {
     sendNotFound(res, "Plan not found");
     return;
@@ -408,7 +467,10 @@ router.post("/vendor-plans/:id/set-default", async (req, res) => {
 ───────────────────────────────────────────────────────────── */
 router.delete("/vendor-plans/:id", async (req, res) => {
   const { id } = req.params as Record<string, string>;
-  const [deleted] = await db.delete(vendorPlansTable).where(eq(vendorPlansTable.id, id!)).returning();
+  const [deleted] = await db
+    .delete(vendorPlansTable)
+    .where(eq(vendorPlansTable.id, id!))
+    .returning();
   if (!deleted) {
     sendNotFound(res, "Plan not found");
     return;
@@ -429,9 +491,12 @@ router.delete("/vendor-plans/:id", async (req, res) => {
 ───────────────────────────────────────────────────────────── */
 router.get("/role-presets", async (_req, res) => {
   try {
-    const presets = await db.select().from(adminRolePresetsTable).orderBy(asc(adminRolePresetsTable.name));
+    const presets = await db
+      .select()
+      .from(adminRolePresetsTable)
+      .orderBy(asc(adminRolePresetsTable.name));
     sendSuccess(res, {
-      presets: presets.map(p => ({
+      presets: presets.map((p) => ({
         ...p,
         permissions: JSON.parse(p.permissionsJson || "[]"),
       })),
@@ -453,15 +518,18 @@ router.post("/role-presets", async (req, res) => {
       return;
     }
     const id = generateId();
-    const [preset] = await db.insert(adminRolePresetsTable).values({
-      id,
-      name: body.name,
-      slug: body.slug,
-      description: body.description ?? "",
-      permissionsJson: JSON.stringify(body.permissions ?? []),
-      role: body.role ?? "manager",
-      isBuiltIn: false,
-    }).returning();
+    const [preset] = await db
+      .insert(adminRolePresetsTable)
+      .values({
+        id,
+        name: body.name,
+        slug: body.slug,
+        description: body.description ?? "",
+        permissionsJson: JSON.stringify(body.permissions ?? []),
+        role: body.role ?? "manager",
+        isBuiltIn: false,
+      })
+      .returning();
     addAuditEntry({
       action: "role_preset_create",
       ip: getClientIp(req),
@@ -471,7 +539,10 @@ router.post("/role-presets", async (req, res) => {
     });
     sendSuccess(res, { ...preset, permissions: body.permissions ?? [] }, undefined, 201);
   } catch (e: unknown) {
-    if ((e as { code?: string })?.code === "23505") { sendError(res, "A preset with that slug already exists", 409); return; }
+    if ((e as { code?: string })?.code === "23505") {
+      sendError(res, "A preset with that slug already exists", 409);
+      return;
+    }
     sendError(res, "Failed to create role preset", 500);
   }
 });
@@ -484,16 +555,30 @@ router.put("/role-presets/:id", async (req, res) => {
   try {
     const { id } = req.params as Record<string, string>;
     const body = req.body as RolePresetBody;
-    const [existing] = await db.select().from(adminRolePresetsTable).where(eq(adminRolePresetsTable.id, id!)).limit(1);
-    if (!existing) { sendNotFound(res, "Role preset not found"); return; }
-    if (existing.isBuiltIn) { sendError(res, "Built-in presets cannot be modified", 403); return; }
+    const [existing] = await db
+      .select()
+      .from(adminRolePresetsTable)
+      .where(eq(adminRolePresetsTable.id, id!))
+      .limit(1);
+    if (!existing) {
+      sendNotFound(res, "Role preset not found");
+      return;
+    }
+    if (existing.isBuiltIn) {
+      sendError(res, "Built-in presets cannot be modified", 403);
+      return;
+    }
     const updates: Partial<typeof adminRolePresetsTable.$inferInsert> = {};
-    if (body.name        !== undefined) updates.name           = body.name;
-    if (body.slug        !== undefined) updates.slug           = body.slug;
-    if (body.description !== undefined) updates.description    = body.description;
+    if (body.name !== undefined) updates.name = body.name;
+    if (body.slug !== undefined) updates.slug = body.slug;
+    if (body.description !== undefined) updates.description = body.description;
     if (body.permissions !== undefined) updates.permissionsJson = JSON.stringify(body.permissions);
-    if (body.role        !== undefined) updates.role           = body.role;
-    const [updated] = await db.update(adminRolePresetsTable).set(updates).where(eq(adminRolePresetsTable.id, id!)).returning();
+    if (body.role !== undefined) updates.role = body.role;
+    const [updated] = await db
+      .update(adminRolePresetsTable)
+      .set(updates)
+      .where(eq(adminRolePresetsTable.id, id!))
+      .returning();
     addAuditEntry({
       action: "role_preset_update",
       ip: getClientIp(req),
@@ -514,9 +599,19 @@ router.put("/role-presets/:id", async (req, res) => {
 router.delete("/role-presets/:id", async (req, res) => {
   try {
     const { id } = req.params as Record<string, string>;
-    const [existing] = await db.select().from(adminRolePresetsTable).where(eq(adminRolePresetsTable.id, id!)).limit(1);
-    if (!existing) { sendNotFound(res, "Role preset not found"); return; }
-    if (existing.isBuiltIn) { sendError(res, "Built-in presets cannot be deleted", 403); return; }
+    const [existing] = await db
+      .select()
+      .from(adminRolePresetsTable)
+      .where(eq(adminRolePresetsTable.id, id!))
+      .limit(1);
+    if (!existing) {
+      sendNotFound(res, "Role preset not found");
+      return;
+    }
+    if (existing.isBuiltIn) {
+      sendError(res, "Built-in presets cannot be deleted", 403);
+      return;
+    }
     await db.delete(adminRolePresetsTable).where(eq(adminRolePresetsTable.id, id!));
     addAuditEntry({
       action: "role_preset_delete",
@@ -571,19 +666,22 @@ router.post("/mode", async (req, res) => {
        idempotently so switching back to demo can restore them from the backup. */
     const allSettings = await db.select().from(platformSettingsTable);
     const [vendorCount] = await db.select({ c: count() }).from(vendorProfilesTable);
-    const [orderCount]  = await db.select({ c: count() }).from(ordersTable).where(isNull(ordersTable.deletedAt));
+    const [orderCount] = await db
+      .select({ c: count() })
+      .from(ordersTable)
+      .where(isNull(ordersTable.deletedAt));
     const [productCount] = await db.select({ c: count() }).from(productsTable);
     const { getDemoSnapshot } = await import("../../lib/demo-snapshot.js");
     const demoSnap = await getDemoSnapshot();
     const tablesJson = JSON.stringify({
       platform_settings: allSettings,
-      demo_vendors:  demoSnap.vendors,
-      demo_orders:   demoSnap.orders,
-      demo_riders:   demoSnap.riders,
+      demo_vendors: demoSnap.vendors,
+      demo_orders: demoSnap.orders,
+      demo_riders: demoSnap.riders,
       demo_products: demoSnap.products,
       entity_counts: {
-        vendors:  vendorCount?.c  ?? 0,
-        orders:   orderCount?.c   ?? 0,
+        vendors: vendorCount?.c ?? 0,
+        orders: orderCount?.c ?? 0,
         products: productCount?.c ?? 0,
       },
       snapshot_time: new Date().toISOString(),
@@ -595,7 +693,12 @@ router.post("/mode", async (req, res) => {
         id: backupId,
         label: `Demo snapshot before going live (${new Date().toISOString()})`,
         tablesJson,
-        rowsTotal: allSettings.length + demoSnap.vendors.length + demoSnap.orders.length + demoSnap.riders.length + demoSnap.products.length,
+        rowsTotal:
+          allSettings.length +
+          demoSnap.vendors.length +
+          demoSnap.orders.length +
+          demoSnap.riders.length +
+          demoSnap.products.length,
         sizeKb: Math.ceil(Buffer.byteLength(tablesJson, "utf8") / 1024),
         createdAt: new Date(),
       })
@@ -611,7 +714,12 @@ router.post("/mode", async (req, res) => {
     if (latest) {
       try {
         const snapshotData = JSON.parse(latest.tablesJson) as {
-          platform_settings?: Array<{ key: string; value: string; label: string; category: string }>;
+          platform_settings?: Array<{
+            key: string;
+            value: string;
+            label: string;
+            category: string;
+          }>;
           demo_vendors?: unknown[];
           demo_orders?: unknown[];
           demo_riders?: unknown[];
@@ -623,23 +731,44 @@ router.post("/mode", async (req, res) => {
           if (row.key === "platform_mode") continue;
           await db
             .insert(platformSettingsTable)
-            .values({ key: row.key, value: row.value, label: row.label, category: row.category, updatedAt: new Date() })
-            .onConflictDoUpdate({ target: platformSettingsTable.key, set: { value: row.value, updatedAt: new Date() } });
+            .values({
+              key: row.key,
+              value: row.value,
+              label: row.label,
+              category: row.category,
+              updatedAt: new Date(),
+            })
+            .onConflictDoUpdate({
+              target: platformSettingsTable.key,
+              set: { value: row.value, updatedAt: new Date() },
+            });
         }
         /* Demo entity arrays (vendors/orders/riders/products) are embedded in the backup
            and surfaced via GET /api/admin/launch/demo-data — no DB write needed for them
            since they are static seeded payloads served from memory. */
         restoredFromBackup = true;
       } catch (err) {
-        logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] malformed backup — proceed without restore`);
+        logger.debug(
+          { error: err instanceof Error ? err.message : String(err) },
+          `[fn] malformed backup — proceed without restore`
+        );
       }
     }
   }
 
   await db
     .insert(platformSettingsTable)
-    .values({ key: "platform_mode", value: mode, label: "Platform Mode", category: "system", updatedAt: new Date() })
-    .onConflictDoUpdate({ target: platformSettingsTable.key, set: { value: mode, updatedAt: new Date() } });
+    .values({
+      key: "platform_mode",
+      value: mode,
+      label: "Platform Mode",
+      category: "system",
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: platformSettingsTable.key,
+      set: { value: mode, updatedAt: new Date() },
+    });
 
   invalidateSettingsCache();
   invalidatePlatformSettingsCache();
@@ -655,16 +784,18 @@ router.post("/mode", async (req, res) => {
   sendSuccess(res, {
     mode,
     restoredFromBackup,
-    message: mode === "live"
-      ? "Platform is now in Live mode — current settings backed up as demo snapshot"
-      : restoredFromBackup
-        ? "Platform is now in Demo mode — settings restored from demo snapshot"
-        : "Platform is now in Demo mode",
+    message:
+      mode === "live"
+        ? "Platform is now in Live mode — current settings backed up as demo snapshot"
+        : restoredFromBackup
+          ? "Platform is now in Demo mode — settings restored from demo snapshot"
+          : "Platform is now in Demo mode",
   });
 });
 
 router.get("/demo-data", async (_req, res) => {
-  const rows = await db.select({ key: platformSettingsTable.key, value: platformSettingsTable.value })
+  const rows = await db
+    .select({ key: platformSettingsTable.key, value: platformSettingsTable.value })
     .from(platformSettingsTable)
     .where(eq(platformSettingsTable.key, "platform_mode"));
   const mode = rows[0]?.value === "live" ? "live" : "demo";

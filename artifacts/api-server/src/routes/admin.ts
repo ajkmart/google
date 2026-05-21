@@ -1,45 +1,71 @@
-import { Router, type IRouter, type Request, type Response } from "express";
-import { adminAuth } from "./admin-shared.js";
-import { csrfProtection } from "../middleware/admin-auth.js";
 import { db } from "@workspace/db";
-import { usersTable, ordersTable, walletTransactionsTable, productsTable } from "@workspace/db/schema";
-import { count, and, eq, sql } from "drizzle-orm";
+import {
+  ordersTable,
+  productsTable,
+  usersTable,
+  walletTransactionsTable,
+} from "@workspace/db/schema";
+import { and, count, eq, sql } from "drizzle-orm";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { logger } from "../lib/logger.js";
-import usersRoutes from "./admin/system/users.js";
-import rbacRoutes from "./admin/system/rbac.js";
-import ordersRoutes from "./admin/orders.js";
-import ridesRoutes from "./admin/fleet/rides.js";
-import financeRoutes from "./admin/finance/wallets.js";
-import contentRoutes from "./admin/content.js";
-import serviceZonesRoutes from "./admin/fleet/zones.js";
-import deliveryAccessRoutes from "./admin/delivery-access.js";
-import conditionsRoutes from "./admin/conditions.js";
-import popupsRoutes from "./admin/popups.js";
-import supportChatAdminRoutes from "./admin/support-chat.js";
-import faqAdminRoutes from "./admin/faq.js";
-import communicationAdminRoutes from "./admin/communication.js";
-import loyaltyAdminRoutes from "./admin/loyalty.js";
-import chatMonitorRoutes from "./admin/chat-monitor.js";
-import wishlistAnalyticsRoutes from "./admin/wishlist-analytics.js";
-import searchAnalyticsRoutes from "./admin/search-analytics.js";
-import qrCodesRoutes from "./admin/qr-codes.js";
-import weatherConfigRoutes from "./admin/weather-config.js";
-import userAddressesRoutes from "./admin/user-addresses.js";
-import experimentsRoutes from "./admin/experiments.js";
-import whatsappDeliveryRoutes from "./admin/whatsapp-delivery.js";
-import businessRulesRoutes from "./admin/business-rules.js";
-import webhookRegistrationsRoutes from "./admin/webhook-registrations.js";
-import deepLinksRoutes from "./admin/deep-links.js";
-import releaseNotesRoutes from "./admin/release-notes.js";
-import launchRoutes, { ensureLaunchData } from "./admin/launch.js";
-import otpRoutes from "./admin/otp.js";
-import smsGatewaysRoutes from "./admin/sms-gateways.js";
-import whitelistRoutes from "./admin/whitelist.js";
-import inventorySettingsRoutes from "./admin/inventory-settings.js";
-import securityRoutes from "./admin/security.js";
-import broadcastsRoutes from "./admin/broadcasts.js";
+import { csrfProtection } from "../middleware/admin-auth.js";
+import { adminAuth } from "./admin-shared.js";
 import authControlRoutes from "./admin/auth-control.js";
-export { DEFAULT_PLATFORM_SETTINGS, ensureAuthMethodColumn, ensureRideBidsMigration, ensureOrdersGpsColumns, ensurePromotionsTables, ensureSupportMessagesTable, ensureFaqsTable, ensureCommunicationTables, ensureVendorLocationColumns, ensureVanServiceUpgrade, ensureWalletP2PColumns, ensureComplianceTables, getPlatformSettings, getCachedSettings, getAdminSecret, adminAuth, DEFAULT_RIDE_SERVICES, ensureDefaultRideServices, ensureDefaultLocations, type AdminRequest } from "./admin-shared.js";
+import broadcastsRoutes from "./admin/broadcasts.js";
+import businessRulesRoutes from "./admin/business-rules.js";
+import chatMonitorRoutes from "./admin/chat-monitor.js";
+import communicationAdminRoutes from "./admin/communication.js";
+import conditionsRoutes from "./admin/conditions.js";
+import contentRoutes from "./admin/content.js";
+import deepLinksRoutes from "./admin/deep-links.js";
+import deliveryAccessRoutes from "./admin/delivery-access.js";
+import experimentsRoutes from "./admin/experiments.js";
+import faqAdminRoutes from "./admin/faq.js";
+import financeRoutes from "./admin/finance/wallets.js";
+import ridesRoutes from "./admin/fleet/rides.js";
+import serviceZonesRoutes from "./admin/fleet/zones.js";
+import inventorySettingsRoutes from "./admin/inventory-settings.js";
+import launchRoutes, { ensureLaunchData } from "./admin/launch.js";
+import loyaltyAdminRoutes from "./admin/loyalty.js";
+import ordersRoutes from "./admin/orders.js";
+import otpRoutes from "./admin/otp.js";
+import popupsRoutes from "./admin/popups.js";
+import qrCodesRoutes from "./admin/qr-codes.js";
+import releaseNotesRoutes from "./admin/release-notes.js";
+import searchAnalyticsRoutes from "./admin/search-analytics.js";
+import securityRoutes from "./admin/security.js";
+import smsGatewaysRoutes from "./admin/sms-gateways.js";
+import supportChatAdminRoutes from "./admin/support-chat.js";
+import rbacRoutes from "./admin/system/rbac.js";
+import usersRoutes from "./admin/system/users.js";
+import userAddressesRoutes from "./admin/user-addresses.js";
+import weatherConfigRoutes from "./admin/weather-config.js";
+import webhookRegistrationsRoutes from "./admin/webhook-registrations.js";
+import whatsappDeliveryRoutes from "./admin/whatsapp-delivery.js";
+import whitelistRoutes from "./admin/whitelist.js";
+import wishlistAnalyticsRoutes from "./admin/wishlist-analytics.js";
+export {
+  adminAuth,
+  DEFAULT_PLATFORM_SETTINGS,
+  DEFAULT_RIDE_SERVICES,
+  ensureAuthMethodColumn,
+  ensureCommunicationTables,
+  ensureComplianceTables,
+  ensureDefaultLocations,
+  ensureDefaultRideServices,
+  ensureFaqsTable,
+  ensureOrdersGpsColumns,
+  ensurePromotionsTables,
+  ensureRideBidsMigration,
+  ensureSupportMessagesTable,
+  ensureVanServiceUpgrade,
+  ensureVendorLocationColumns,
+  ensureWalletP2PColumns,
+  getAdminSecret,
+  getCachedSettings,
+  getPlatformSettings,
+  type AdminRequest,
+} from "./admin-shared.js";
 export { ensureLaunchData };
 const router: IRouter = Router();
 router.use(adminAuth);
@@ -80,17 +106,54 @@ router.use(broadcastsRoutes);
 router.use(authControlRoutes);
 router.get("/pending-counts", async (_req: Request, res: Response) => {
   try {
-    const [[pendingRiders], [pendingOrders], [pendingWithdrawals], [pendingDeposits], [pendingProducts]] = await Promise.all([
-      db.select({ count: count() }).from(usersTable).where(and(eq(usersTable.approvalStatus, "pending"), sql`roles LIKE '%rider%'`)),
+    const [
+      [pendingRiders],
+      [pendingOrders],
+      [pendingWithdrawals],
+      [pendingDeposits],
+      [pendingProducts],
+    ] = await Promise.all([
+      db
+        .select({ count: count() })
+        .from(usersTable)
+        .where(and(eq(usersTable.approvalStatus, "pending"), sql`roles LIKE '%rider%'`)),
       db.select({ count: count() }).from(ordersTable).where(eq(ordersTable.status, "pending")),
-      db.select({ count: count() }).from(walletTransactionsTable).where(and(eq(walletTransactionsTable.type, "withdrawal"), eq(walletTransactionsTable.reference, "pending"))),
-      db.select({ count: count() }).from(walletTransactionsTable).where(and(sql`type IN ('topup', 'deposit')`, eq(walletTransactionsTable.reference, "pending"))),
-      db.select({ count: count() }).from(productsTable).where(and(eq(productsTable.approvalStatus, "pending"), sql`deleted_at IS NULL`)),
+      db
+        .select({ count: count() })
+        .from(walletTransactionsTable)
+        .where(
+          and(
+            eq(walletTransactionsTable.type, "withdrawal"),
+            eq(walletTransactionsTable.reference, "pending")
+          )
+        ),
+      db
+        .select({ count: count() })
+        .from(walletTransactionsTable)
+        .where(
+          and(sql`type IN ('topup', 'deposit')`, eq(walletTransactionsTable.reference, "pending"))
+        ),
+      db
+        .select({ count: count() })
+        .from(productsTable)
+        .where(and(eq(productsTable.approvalStatus, "pending"), sql`deleted_at IS NULL`)),
     ]);
-    res.json({ pendingRiders: Number(pendingRiders?.count ?? 0), pendingOrders: Number(pendingOrders?.count ?? 0), pendingWithdrawals: Number(pendingWithdrawals?.count ?? 0), pendingDeposits: Number(pendingDeposits?.count ?? 0), pendingProducts: Number(pendingProducts?.count ?? 0) });
+    res.json({
+      pendingRiders: Number(pendingRiders?.count ?? 0),
+      pendingOrders: Number(pendingOrders?.count ?? 0),
+      pendingWithdrawals: Number(pendingWithdrawals?.count ?? 0),
+      pendingDeposits: Number(pendingDeposits?.count ?? 0),
+      pendingProducts: Number(pendingProducts?.count ?? 0),
+    });
   } catch (err) {
     logger.warn({ err }, "[pending-counts] query failed");
-    res.json({ pendingRiders: 0, pendingOrders: 0, pendingWithdrawals: 0, pendingDeposits: 0, pendingProducts: 0 });
+    res.json({
+      pendingRiders: 0,
+      pendingOrders: 0,
+      pendingWithdrawals: 0,
+      pendingDeposits: 0,
+      pendingProducts: 0,
+    });
   }
 });
 export default router;

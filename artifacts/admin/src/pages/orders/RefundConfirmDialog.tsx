@@ -1,6 +1,6 @@
-import { AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/format";
+import { AlertTriangle } from "lucide-react";
 
 interface RefundConfirmDialogProps {
   order: any;
@@ -13,21 +13,37 @@ interface RefundConfirmDialogProps {
   onBack: () => void;
 }
 
-export function RefundConfirmDialog({ order, refundAmount, setRefundAmount, refundReason, setRefundReason, isPending, onRefund, onBack }: RefundConfirmDialogProps) {
+export function RefundConfirmDialog({
+  order,
+  refundAmount,
+  setRefundAmount,
+  refundReason,
+  setRefundReason,
+  isPending,
+  onRefund,
+  onBack,
+}: RefundConfirmDialogProps) {
   return (
-    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3" role="alertdialog" aria-label="Refund order confirmation">
+    <div
+      className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4"
+      role="alertdialog"
+      aria-label="Refund order confirmation"
+    >
       <div className="flex items-center gap-2">
-        <AlertTriangle className="w-4 h-4 text-blue-600 shrink-0" aria-hidden="true" />
+        <AlertTriangle className="h-4 w-4 shrink-0 text-blue-600" aria-hidden="true" />
         <p className="text-sm font-bold text-blue-700">Issue Wallet Refund</p>
       </div>
       <p className="text-xs text-blue-600">
         Max refundable: {formatCurrency(Math.round(order.total))}.
       </p>
-      <div className="flex gap-1.5 mb-1" role="group" aria-label="Quick refund amounts">
-        {[25, 50, 75, 100].map(pct => (
-          <button key={pct} type="button"
-            onClick={() => setRefundAmount(Math.round(order.total * pct / 100).toString())}
-            className="flex-1 h-8 text-xs font-bold bg-white border border-blue-200 text-blue-600 rounded-lg hover:bg-blue-100 min-h-[36px]">
+      <div className="mb-1 flex gap-1.5" role="group" aria-label="Quick refund amounts">
+        {[25, 50, 75, 100].map((pct) => (
+          <button
+            key={pct}
+            type="button"
+            onClick={() => setRefundAmount(Math.round((order.total * pct) / 100).toString())}
+            className="h-8 min-h-[36px] flex-1 rounded-lg border border-blue-200 bg-white text-xs font-bold text-blue-600 hover:bg-blue-100"
+          >
             {pct === 100 ? "Full" : `${pct}%`}
           </button>
         ))}
@@ -39,7 +55,7 @@ export function RefundConfirmDialog({ order, refundAmount, setRefundAmount, refu
           max={order.total}
           placeholder={`Amount (required, max ${Math.round(order.total)})`}
           value={refundAmount}
-          onChange={e => setRefundAmount(e.target.value)}
+          onChange={(e) => setRefundAmount(e.target.value)}
           className="h-9 rounded-xl text-sm"
           aria-label="Refund amount"
           required
@@ -47,20 +63,33 @@ export function RefundConfirmDialog({ order, refundAmount, setRefundAmount, refu
         <Input
           placeholder="Reason (optional)"
           value={refundReason}
-          onChange={e => setRefundReason(e.target.value)}
+          onChange={(e) => setRefundReason(e.target.value)}
           className="h-9 rounded-xl text-sm"
           aria-label="Refund reason"
         />
       </div>
       <div className="flex gap-2">
-        <button onClick={onBack}
-          className="flex-1 h-9 bg-white border border-blue-200 text-blue-600 text-sm font-bold rounded-xl min-h-[36px]">
+        <button
+          onClick={onBack}
+          className="h-9 min-h-[36px] flex-1 rounded-xl border border-blue-200 bg-white text-sm font-bold text-blue-600"
+        >
           Back
         </button>
-        <button onClick={onRefund}
-          disabled={isPending || !refundAmount || parseFloat(refundAmount) <= 0 || parseFloat(refundAmount) > order.total}
-          className="flex-1 h-9 bg-blue-600 text-white text-sm font-bold rounded-xl disabled:opacity-60 min-h-[36px]">
-          {parseFloat(refundAmount) > order.total ? "Exceeds max" : isPending ? "Processing..." : "Issue Refund"}
+        <button
+          onClick={onRefund}
+          disabled={
+            isPending ||
+            !refundAmount ||
+            parseFloat(refundAmount) <= 0 ||
+            parseFloat(refundAmount) > order.total
+          }
+          className="h-9 min-h-[36px] flex-1 rounded-xl bg-blue-600 text-sm font-bold text-white disabled:opacity-60"
+        >
+          {parseFloat(refundAmount) > order.total
+            ? "Exceeds max"
+            : isPending
+              ? "Processing..."
+              : "Issue Refund"}
         </button>
       </div>
     </div>

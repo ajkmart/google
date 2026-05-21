@@ -1,22 +1,18 @@
+import { db } from "@workspace/db";
+import { consentLogTable, termsVersionsTable, usersTable } from "@workspace/db/schema";
+import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import { z } from "zod";
-import { db } from "@workspace/db";
+import { logger } from "../lib/logger.js";
+import { sendCreated, sendError, sendSuccess } from "../lib/response.js";
+import { validateBody } from "../middleware/validate.js";
+import { AuditService } from "../services/admin-audit.service.js";
 import {
-  consentLogTable,
-  termsVersionsTable,
-  usersTable,
-} from "@workspace/db/schema";
-import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
-import {
+  getClientIp,
   invalidatePlatformSettingsCache,
   invalidateSettingsCache,
-  getClientIp,
   type AdminRequest,
 } from "./admin-shared.js";
-import { AuditService } from "../services/admin-audit.service.js";
-import { sendSuccess, sendError, sendCreated } from "../lib/response.js";
-import { validateBody } from "../middleware/validate.js";
-import { logger } from '../lib/logger.js';
 
 /**
  * /legal/* — admin surface for the GDPR / consent pipeline.
@@ -75,10 +71,7 @@ router.get("/terms-versions", async (_req, res) => {
     const rows = await db
       .select()
       .from(termsVersionsTable)
-      .orderBy(
-        asc(termsVersionsTable.policy),
-        desc(termsVersionsTable.effectiveAt),
-      );
+      .orderBy(asc(termsVersionsTable.policy), desc(termsVersionsTable.effectiveAt));
 
     /* Mark the latest-effective row per policy as `isCurrent`. */
     const seen = new Set<string>();
@@ -123,7 +116,7 @@ async function resetAcceptedTermsVersion(): Promise<{
 }> {
   try {
     await db.execute(
-      sql`UPDATE users SET accepted_terms_version = NULL WHERE accepted_terms_version IS NOT NULL`,
+      sql`UPDATE users SET accepted_terms_version = NULL WHERE accepted_terms_version IS NOT NULL`
     );
     return { ok: true };
   } catch (err) {
@@ -136,10 +129,7 @@ async function resetAcceptedTermsVersion(): Promise<{
   }
 }
 
-async function isLatestForPolicy(
-  policy: string,
-  version: string,
-): Promise<boolean> {
+async function isLatestForPolicy(policy: string, version: string): Promise<boolean> {
   const [latest] = await db
     .select({ version: termsVersionsTable.version })
     .from(termsVersionsTable)
@@ -149,123 +139,117 @@ async function isLatestForPolicy(
   return !!latest && latest.version === version;
 }
 
-router.post(
-  "/terms-versions",
-  validateBody(termsVersionSchema),
-  async (req, res) => {
-    try {
-      const body = req.body as z.infer<typeof termsVersionSchema>;
-      const effectiveAt = body.effectiveAt
-        ? new Date(body.effectiveAt)
-        : new Date();
+router.post("/terms-versions", validateBody(termsVersionSchema), async (req, res) => {
+  try {
+    const body = req.body as z.infer<typeof termsVersionSchema>;
+    const effectiveAt = body.effectiveAt ? new Date(body.effectiveAt) : new Date();
 
-      try {
-        /* Race-safe idempotency: try to insert; on PK conflict (`policy`,
+    try {
+      /* Race-safe idempotency: try to insert; on PK conflict (`policy`,
        `version` already exists) `onConflictDoNothing` returns no rows
        and we re-fetch the existing row. This avoids the read-then-write
        race that lets two concurrent publishes both pass the existence
        check and then fight over the unique constraint. */
-        const insertedRows = await db
-          .insert(termsVersionsTable)
-          .values({
-            policy: body.policy,
-            version: body.version,
-            effectiveAt,
-            bodyMarkdown: body.bodyMarkdown ?? null,
-            changelog: body.changelog ?? null,
-          })
-          .onConflictDoNothing({
-            target: [termsVersionsTable.policy, termsVersionsTable.version],
-          })
-          .returning();
+      const insertedRows = await db
+        .insert(termsVersionsTable)
+        .values({
+          policy: body.policy,
+          version: body.version,
+          effectiveAt,
+          bodyMarkdown: body.bodyMarkdown ?? null,
+          changelog: body.changelog ?? null,
+        })
+        .onConflictDoNothing({
+          target: [termsVersionsTable.policy, termsVersionsTable.version],
+        })
+        .returning();
 
-        const wasInserted = insertedRows.length > 0;
-        const inserted = insertedRows[0];
+      const wasInserted = insertedRows.length > 0;
+      const inserted = insertedRows[0];
 
-        let row;
-        if (wasInserted && inserted) {
-          row = inserted;
-        } else {
-          const [existing] = await db
-            .select()
-            .from(termsVersionsTable)
-            .where(
-              and(
-                eq(termsVersionsTable.policy, body.policy),
-                eq(termsVersionsTable.version, body.version),
-              ),
+      let row;
+      if (wasInserted && inserted) {
+        row = inserted;
+      } else {
+        const [existing] = await db
+          .select()
+          .from(termsVersionsTable)
+          .where(
+            and(
+              eq(termsVersionsTable.policy, body.policy),
+              eq(termsVersionsTable.version, body.version)
             )
-            .limit(1);
-          if (!existing) {
-            sendError(
-              res,
-              "Insert reported no row but existing lookup also empty",
-            );
-            return;
-          }
-          row = existing;
+          )
+          .limit(1);
+        if (!existing) {
+          sendError(res, "Insert reported no row but existing lookup also empty");
+          return;
         }
+        row = existing;
+      }
 
-        /* `isCurrent` is computed against the live state of the table, so
+      /* `isCurrent` is computed against the live state of the table, so
        publishing an older `effectiveAt` returns `isCurrent: false` and
        a re-POST of an older version still reports its true status. */
-        const isCurrent = await isLatestForPolicy(body.policy, body.version);
+      const isCurrent = await isLatestForPolicy(body.policy, body.version);
 
-        /* Bumping the latest "terms" version forces a re-acceptance flow on
+      /* Bumping the latest "terms" version forces a re-acceptance flow on
        next launch by NULLing every user's accepted_terms_version. We
        only do this on a fresh insert that is now the latest — re-POST
        of an existing row is a no-op. */
-        if (wasInserted && isCurrent && body.policy === "terms") {
-          const result = await resetAcceptedTermsVersion();
-          if (result.ok) {
-            AuditService.log({
-              action: "terms_version_published",
-              ip: getClientIp(req),
-              adminId: (req as AdminRequest).adminId,
-              details: `Published ${body.policy} v${body.version} (effectiveAt=${effectiveAt.toISOString()})${result.reason ? ` [reset_skipped:${result.reason}]` : ""}`,
-              result: "success",
-            });
-          }
-        } else if (wasInserted && isCurrent) {
+      if (wasInserted && isCurrent && body.policy === "terms") {
+        const result = await resetAcceptedTermsVersion();
+        if (result.ok) {
           AuditService.log({
             action: "terms_version_published",
             ip: getClientIp(req),
             adminId: (req as AdminRequest).adminId,
-            details: `Published ${body.policy} v${body.version} (effectiveAt=${effectiveAt.toISOString()})`,
+            details: `Published ${body.policy} v${body.version} (effectiveAt=${effectiveAt.toISOString()})${result.reason ? ` [reset_skipped:${result.reason}]` : ""}`,
             result: "success",
           });
         }
+      } else if (wasInserted && isCurrent) {
+        AuditService.log({
+          action: "terms_version_published",
+          ip: getClientIp(req),
+          adminId: (req as AdminRequest).adminId,
+          details: `Published ${body.policy} v${body.version} (effectiveAt=${effectiveAt.toISOString()})`,
+          result: "success",
+        });
+      }
 
-        invalidateSettingsCache();
-        invalidatePlatformSettingsCache();
+      invalidateSettingsCache();
+      invalidatePlatformSettingsCache();
 
-        const payload = {
-          policy: row.policy,
-          version: row.version,
-          effectiveAt: row.effectiveAt.toISOString(),
-          bodyMarkdown: row.bodyMarkdown ?? undefined,
-          changelog: row.changelog ?? undefined,
-          isCurrent,
-          ...(wasInserted ? {} : { idempotent: true }),
-        };
+      const payload = {
+        policy: row.policy,
+        version: row.version,
+        effectiveAt: row.effectiveAt.toISOString(),
+        bodyMarkdown: row.bodyMarkdown ?? undefined,
+        changelog: row.changelog ?? undefined,
+        isCurrent,
+        ...(wasInserted ? {} : { idempotent: true }),
+      };
 
-        if (wasInserted) {
-          sendCreated(res, payload);
-        } else {
-          sendSuccess(res, payload);
-        }
-      } catch (err) {
-        sendError(
-          res,
-          (err as Error).message ?? "Failed to create terms version",
-        );
+      if (wasInserted) {
+        sendCreated(res, payload);
+      } else {
+        sendSuccess(res, payload);
       }
     } catch (err) {
-      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-      res.status(500).json({ success: false, error: "Internal server error" });
+      sendError(res, (err as Error).message ?? "Failed to create terms version");
     }
-  },
-);
+  } catch (err) {
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
 
 /* ── GET /legal/consent-log ──────────────────────────────────────── */
 const consentQuerySchema = z.object({
@@ -282,10 +266,8 @@ router.get("/consent-log", async (req, res) => {
     if (!parsed.success) {
       sendError(
         res,
-        parsed.error.errors
-          .map((e) => `${e.path.join(".")}: ${e.message}`)
-          .join("; "),
-        400,
+        parsed.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join("; "),
+        400
       );
       return;
     }
@@ -308,17 +290,13 @@ router.get("/consent-log", async (req, res) => {
       filters.push(
         aliases.length === 1
           ? eq(consentLogTable.consentType, aliases[0]!)
-          : inArray(consentLogTable.consentType, aliases),
+          : inArray(consentLogTable.consentType, aliases)
       );
     }
     if (version) filters.push(eq(consentLogTable.consentVersion, version));
     if (userId) filters.push(eq(consentLogTable.userId, userId));
     const where =
-      filters.length === 1
-        ? filters[0]
-        : filters.length > 1
-          ? and(...filters)
-          : undefined;
+      filters.length === 1 ? filters[0] : filters.length > 1 ? and(...filters) : undefined;
 
     try {
       const totalRows = where
@@ -326,9 +304,7 @@ router.get("/consent-log", async (req, res) => {
             .select({ c: sql<number>`count(*)::int` })
             .from(consentLogTable)
             .where(where)
-        : await db
-            .select({ c: sql<number>`count(*)::int` })
-            .from(consentLogTable);
+        : await db.select({ c: sql<number>`count(*)::int` }).from(consentLogTable);
       const total = Number(totalRows[0]?.c ?? 0);
 
       const baseQuery = db
@@ -362,7 +338,13 @@ router.get("/consent-log", async (req, res) => {
       sendError(res, (err as Error).message ?? "Failed to load consent log");
     }
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

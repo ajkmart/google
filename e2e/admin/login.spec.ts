@@ -1,15 +1,16 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { loginAdmin } from "../helpers/auth";
 
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME ?? "superadmin";
-const ADMIN_PASSWORD =
-  process.env.ADMIN_PASSWORD ?? process.env.ADMIN_SEED_PASSWORD ?? "Admin@123";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? process.env.ADMIN_SEED_PASSWORD ?? "Admin@123";
 
 test.describe("Admin Login", () => {
   test("load /admin/login → login screen renders", async ({ page }) => {
     await page.goto("/admin/login");
 
-    await expect(page.locator('input[placeholder="admin@example.com"]')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('input[placeholder="admin@example.com"]')).toBeVisible({
+      timeout: 15_000,
+    });
     await expect(page.locator('input[placeholder="Enter your password"]')).toBeVisible();
     await expect(page.locator('button:has-text("Sign In")')).toBeVisible();
     await expect(page.locator("text=AJKMart Admin")).toBeVisible();
@@ -19,9 +20,11 @@ test.describe("Admin Login", () => {
     await loginAdmin(page, { username: ADMIN_USERNAME, password: ADMIN_PASSWORD });
 
     await expect(page).toHaveURL(/\/admin/, { timeout: 15_000 });
-    const sidebarIndicator = page.locator(
-      'input[aria-label="Filter sidebar items"], [data-sidebar-active], [data-component-name="nav"]',
-    ).first();
+    const sidebarIndicator = page
+      .locator(
+        'input[aria-label="Filter sidebar items"], [data-sidebar-active], [data-component-name="nav"]'
+      )
+      .first();
     await expect(sidebarIndicator).toBeAttached({ timeout: 10_000 });
   });
 
@@ -40,7 +43,10 @@ test.describe("Admin Login", () => {
     await expect(page).toHaveURL(/\/admin/, { timeout: 15_000 });
 
     await expect(
-      page.locator("a, button").filter({ hasText: /Dashboard|Operations|Users|Orders|Riders|Vendors/i }).first(),
+      page
+        .locator("a, button")
+        .filter({ hasText: /Dashboard|Operations|Users|Orders|Riders|Vendors/i })
+        .first()
     ).toBeVisible({ timeout: 10_000 });
   });
 

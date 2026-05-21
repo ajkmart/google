@@ -1,11 +1,5 @@
-import React, { useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import React, { useEffect, useRef } from "react";
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 export interface OtpInputProps {
   value?: string;
@@ -19,7 +13,7 @@ export interface OtpInputProps {
   label?: string;
   hasError?: boolean;
   error?: string | null;
-  channel?: 'sms' | 'whatsapp' | 'email';
+  channel?: "sms" | "whatsapp" | "email";
   isLoading?: boolean;
   autoSubmit?: boolean;
   className?: string;
@@ -39,7 +33,7 @@ export function OtpInput({
   hasError = false,
   error,
 }: OtpInputProps) {
-  const [internalValue, setInternalValue] = React.useState('');
+  const [internalValue, setInternalValue] = React.useState("");
   const value = valueProp !== undefined ? valueProp : internalValue;
   const effectiveCooldown = resendCooldown ?? resendCooldownSeconds ?? 60;
   const hasErr = hasError || !!error;
@@ -76,19 +70,19 @@ export function OtpInput({
 
   function handleResend() {
     if (cooldown > 0 || !onResend) return;
-    setInternalValue('');
-    onChangeText?.('');
+    setInternalValue("");
+    onChangeText?.("");
     void onResend();
     startCooldown();
   }
 
   function handleChangeText(raw: string) {
-    const cleaned = raw.replace(/\D/g, '').slice(0, length);
+    const cleaned = raw.replace(/\D/g, "").slice(0, length);
     setInternalValue(cleaned);
     onChangeText?.(cleaned);
   }
 
-  const digits = value.split('');
+  const digits = value.split("");
 
   return (
     <TouchableOpacity
@@ -125,9 +119,7 @@ export function OtpInput({
                 hasErr && styles.boxError,
               ]}
             >
-              {isFilled ? (
-                <Text style={styles.digit}>{digits[i]}</Text>
-              ) : null}
+              {isFilled ? <Text style={styles.digit}>{digits[i]}</Text> : null}
             </View>
           );
         })}
@@ -139,10 +131,8 @@ export function OtpInput({
           style={styles.resendBtn}
           accessibilityRole="button"
         >
-          <Text
-            style={[styles.resendText, cooldown > 0 && styles.resendDisabled]}
-          >
-            {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
+          <Text style={[styles.resendText, cooldown > 0 && styles.resendDisabled]}>
+            {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
           </Text>
         </TouchableOpacity>
       ) : null}
@@ -152,16 +142,16 @@ export function OtpInput({
 
 const styles = StyleSheet.create({
   container: { marginBottom: 16 },
-  hidden: { position: 'absolute', opacity: 0, height: 1, width: 1 },
+  hidden: { position: "absolute", opacity: 0, height: 1, width: 1 },
   label: {
     fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
+    color: "#6b7280",
+    textAlign: "center",
     marginBottom: 12,
   },
   boxes: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     gap: 10,
     marginBottom: 8,
   },
@@ -170,16 +160,16 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#d1d5db',
-    backgroundColor: '#f9fafb',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: "#d1d5db",
+    backgroundColor: "#f9fafb",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  boxActive: { borderColor: '#f59e0b', backgroundColor: '#fffbeb' },
-  boxFilled: { borderColor: '#10b981', backgroundColor: '#fff' },
-  boxError: { borderColor: '#ef4444', backgroundColor: '#fef2f2' },
-  digit: { fontSize: 20, fontWeight: '600', color: '#111827' },
-  resendBtn: { alignItems: 'center', marginTop: 8 },
-  resendText: { fontSize: 13, fontWeight: '600', color: '#f59e0b' },
-  resendDisabled: { color: '#9ca3af' },
+  boxActive: { borderColor: "#f59e0b", backgroundColor: "#fffbeb" },
+  boxFilled: { borderColor: "#10b981", backgroundColor: "#fff" },
+  boxError: { borderColor: "#ef4444", backgroundColor: "#fef2f2" },
+  digit: { fontSize: 20, fontWeight: "600", color: "#111827" },
+  resendBtn: { alignItems: "center", marginTop: 8 },
+  resendText: { fontSize: 13, fontWeight: "600", color: "#f59e0b" },
+  resendDisabled: { color: "#9ca3af" },
 });

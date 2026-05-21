@@ -1,10 +1,10 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
-import * as schema from "@workspace/db/schema";
 import { buildPgPoolConfig } from "@workspace/db/connection-url";
-import { logger } from "./logger.js";
+import * as schema from "@workspace/db/schema";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { createRequire } from "node:module";
+import { Pool } from "pg";
+import { logger } from "./logger.js";
 
 const _require = createRequire(import.meta.url);
 
@@ -18,8 +18,8 @@ let pool: Pool | undefined;
 if (isDevMock) {
   logger.warn(
     "\x1b[33m[DEV MODE]\x1b[0m Running without vault — using local SQLite mock database.\n" +
-    "          Run `pnpm --filter @workspace/scripts run decrypt-env` to unlock the full vault.\n" +
-    "          Limited features available without a real PostgreSQL database.\n"
+      "          Run `pnpm --filter @workspace/scripts run decrypt-env` to unlock the full vault.\n" +
+      "          Limited features available without a real PostgreSQL database.\n"
   );
 
   let sqliteDb: NodePgDatabase<typeof schema>;
@@ -33,8 +33,8 @@ if (isDevMock) {
     logger.fatal(
       { err: e },
       "[DEV MODE] better-sqlite3 failed to load. " +
-      "Run `pnpm approve-builds` to allow native build scripts, then `pnpm install`. " +
-      "Or unlock the vault with `pnpm --filter @workspace/scripts run decrypt-env` and set DATABASE_URL."
+        "Run `pnpm approve-builds` to allow native build scripts, then `pnpm install`. " +
+        "Or unlock the vault with `pnpm --filter @workspace/scripts run decrypt-env` and set DATABASE_URL."
     );
     process.exit(1);
   }
@@ -56,16 +56,22 @@ if (isDevMock) {
   });
   db = drizzle(pool, { schema });
 
-  const telemetryInterval = setInterval(() => {
-    if (pool) {
-      logger.info({
-        totalConnections: pool.totalCount,
-        idleConnections: pool.idleCount,
-        waitingRequests: pool.waitingCount,
-        timestamp: new Date().toISOString(),
-      }, "[db:pool] pool metrics");
-    }
-  }, 5 * 60 * 1000);
+  const telemetryInterval = setInterval(
+    () => {
+      if (pool) {
+        logger.info(
+          {
+            totalConnections: pool.totalCount,
+            idleConnections: pool.idleCount,
+            waitingRequests: pool.waitingCount,
+            timestamp: new Date().toISOString(),
+          },
+          "[db:pool] pool metrics"
+        );
+      }
+    },
+    5 * 60 * 1000
+  );
   telemetryInterval.unref();
 
   let shutdownPromise: Promise<void> | null = null;
@@ -84,8 +90,12 @@ if (isDevMock) {
     return shutdownPromise;
   };
 
-  process.on("SIGTERM", () => { shutdownPool("SIGTERM"); });
-  process.on("SIGINT",  () => { shutdownPool("SIGINT"); });
+  process.on("SIGTERM", () => {
+    shutdownPool("SIGTERM");
+  });
+  process.on("SIGINT", () => {
+    shutdownPool("SIGINT");
+  });
 }
 
 export { db, pool };

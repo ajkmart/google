@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback, useEffect, type ReactNode } from "react";
-import { RefreshCw } from "lucide-react";
 import { getAdminTiming } from "@/lib/adminTiming";
 import { createLogger } from "@/lib/logger";
+import { RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 const log = createLogger("[PullToRefresh]");
 
 interface PullToRefreshProps {
@@ -29,7 +29,13 @@ function isAtTop(): boolean {
   return window.scrollY <= 0 && document.documentElement.scrollTop <= 0;
 }
 
-export function PullToRefresh({ onRefresh, children, accentColor = "#1A56DB", className = "", onRefreshError }: PullToRefreshProps) {
+export function PullToRefresh({
+  onRefresh,
+  children,
+  accentColor = "#1A56DB",
+  className = "",
+  onRefreshError,
+}: PullToRefreshProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [pullY, setPullY] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -48,7 +54,7 @@ export function PullToRefresh({ onRefresh, children, accentColor = "#1A56DB", cl
   useEffect(() => {
     const id = setInterval(
       () => setAgoText(formatAgo(lastUpdated)),
-      getAdminTiming().pullToRefreshIntervalMs,
+      getAdminTiming().pullToRefreshIntervalMs
     );
     return () => clearInterval(id);
   }, [lastUpdated]);
@@ -64,7 +70,11 @@ export function PullToRefresh({ onRefresh, children, accentColor = "#1A56DB", cl
     } catch (err) {
       setLastRefreshFailed(true);
       if (onRefreshError) {
-        try { onRefreshError(err); } catch (cbErr) { log.warn("onRefreshError callback threw:", cbErr); }
+        try {
+          onRefreshError(err);
+        } catch (cbErr) {
+          log.warn("onRefreshError callback threw:", cbErr);
+        }
       } else {
         log.warn("onRefresh failed:", err);
       }
@@ -74,43 +84,49 @@ export function PullToRefresh({ onRefresh, children, accentColor = "#1A56DB", cl
     }
   }, [onRefresh, onRefreshError]);
 
-  const onTouchStart = useCallback((e: React.TouchEvent) => {
-    if (refreshing) return;
-    if (isAtTop()) {
-      startY.current = e.touches[0].clientY;
-      startX.current = e.touches[0].clientX;
-      pulling.current = true;
-      intentLocked.current = false;
-      isVertical.current = false;
-    }
-  }, [refreshing]);
-
-  const onTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!pulling.current || refreshing) return;
-    const currentY = e.touches[0].clientY;
-    const currentX = e.touches[0].clientX;
-    const dy = currentY - startY.current;
-    const dx = currentX - startX.current;
-
-    if (!intentLocked.current && (Math.abs(dy) > 10 || Math.abs(dx) > 10)) {
-      intentLocked.current = true;
-      isVertical.current = Math.abs(dy) > Math.abs(dx);
-      if (!isVertical.current || dy < 0) {
-        pulling.current = false;
-        return;
+  const onTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (refreshing) return;
+      if (isAtTop()) {
+        startY.current = e.touches[0].clientY;
+        startX.current = e.touches[0].clientX;
+        pulling.current = true;
+        intentLocked.current = false;
+        isVertical.current = false;
       }
-    }
+    },
+    [refreshing]
+  );
 
-    if (!isVertical.current) return;
+  const onTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!pulling.current || refreshing) return;
+      const currentY = e.touches[0].clientY;
+      const currentX = e.touches[0].clientX;
+      const dy = currentY - startY.current;
+      const dx = currentX - startX.current;
 
-    const clampedDy = Math.max(0, dy);
-    const dampened = Math.min(clampedDy * 0.5, 120);
+      if (!intentLocked.current && (Math.abs(dy) > 10 || Math.abs(dx) > 10)) {
+        intentLocked.current = true;
+        isVertical.current = Math.abs(dy) > Math.abs(dx);
+        if (!isVertical.current || dy < 0) {
+          pulling.current = false;
+          return;
+        }
+      }
 
-    if (dampened > 0) {
-      e.preventDefault();
-    }
-    setPullY(dampened);
-  }, [refreshing]);
+      if (!isVertical.current) return;
+
+      const clampedDy = Math.max(0, dy);
+      const dampened = Math.min(clampedDy * 0.5, 120);
+
+      if (dampened > 0) {
+        e.preventDefault();
+      }
+      setPullY(dampened);
+    },
+    [refreshing]
+  );
 
   const onTouchEnd = useCallback(() => {
     if (!pulling.current) return;
@@ -134,7 +150,7 @@ export function PullToRefresh({ onRefresh, children, accentColor = "#1A56DB", cl
       onTouchEnd={onTouchEnd}
     >
       <div
-        className="flex flex-col items-center justify-end transition-all duration-200 overflow-hidden"
+        className="flex flex-col items-center justify-end overflow-hidden transition-all duration-200"
         style={{
           height: showIndicator ? Math.max(pullY, refreshing ? 56 : 0) : 0,
           opacity: showIndicator ? 1 : 0,
@@ -144,9 +160,7 @@ export function PullToRefresh({ onRefresh, children, accentColor = "#1A56DB", cl
           <div
             className="transition-transform duration-200"
             style={{
-              transform: refreshing
-                ? "rotate(0deg)"
-                : `rotate(${progress * 360}deg)`,
+              transform: refreshing ? "rotate(0deg)" : `rotate(${progress * 360}deg)`,
             }}
           >
             <RefreshCw
@@ -163,7 +177,9 @@ export function PullToRefresh({ onRefresh, children, accentColor = "#1A56DB", cl
 
       {lastUpdated && agoText && !refreshing && (
         <div className="flex items-center justify-center py-1">
-          <span className={`text-[10px] font-medium ${lastRefreshFailed ? "text-amber-500" : "text-gray-300"}`}>
+          <span
+            className={`text-[10px] font-medium ${lastRefreshFailed ? "text-amber-500" : "text-gray-300"}`}
+          >
             {lastRefreshFailed ? `Stale — last updated ${agoText}` : `Updated ${agoText}`}
           </span>
         </div>

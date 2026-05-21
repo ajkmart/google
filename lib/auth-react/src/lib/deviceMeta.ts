@@ -38,9 +38,10 @@ export async function captureDeviceMeta(includeLocation = false): Promise<Device
     screenHeight: window.screen.height,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     language: navigator.language,
-    platform: (navigator as unknown as { userAgentData?: { platform?: string } }).userAgentData?.platform
-      ?? navigator.platform
-      ?? "unknown",
+    platform:
+      (navigator as unknown as { userAgentData?: { platform?: string } }).userAgentData?.platform ??
+      navigator.platform ??
+      "unknown",
   };
 
   if (includeLocation && "geolocation" in navigator) {

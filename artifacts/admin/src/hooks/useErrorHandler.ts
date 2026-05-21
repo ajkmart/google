@@ -1,5 +1,5 @@
-import { parseApiError } from "@/lib/errorParser";
 import { useToast } from "@/hooks/use-toast";
+import { parseApiError } from "@/lib/errorParser";
 
 interface UseErrorHandlerOptions {
   onError?: (err: unknown) => void;

@@ -1,9 +1,9 @@
+import { buildPgPoolConfig } from "@workspace/db/connection-url";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 import { Pool } from "pg";
-import { buildPgPoolConfig } from "@workspace/db/connection-url";
+import { fileURLToPath } from "url";
 import { logger } from "../lib/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -47,7 +47,13 @@ function readJournal(drizzleDir: string): JournalEntry[] {
     const parsed = JSON.parse(fs.readFileSync(journalPath, "utf8"));
     return parsed.entries ?? [];
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return [];
   }
 }
@@ -140,13 +146,14 @@ export async function checkMigrationGuard(): Promise<MigrationGuardReport> {
       const pgErr = err as { code?: string; message?: string };
       const isSchemaNotExist =
         pgErr?.code === "3F000" ||
-        (typeof pgErr?.message === "string" && pgErr.message.includes('schema "drizzle" does not exist'));
+        (typeof pgErr?.message === "string" &&
+          pgErr.message.includes('schema "drizzle" does not exist'));
       if (isSchemaNotExist) {
         drizzleSchemaFresh = true;
         logger.info(
           "[migration-guard] drizzle.__drizzle_migrations schema not found — " +
-          "migrations may have been applied via the custom runner only. " +
-          "Run `pnpm --filter @workspace/db run migrate` to populate drizzle-kit tracking table."
+            "migrations may have been applied via the custom runner only. " +
+            "Run `pnpm --filter @workspace/db run migrate` to populate drizzle-kit tracking table."
         );
       } else {
         logger.warn({ err }, "[migration-guard] Could not read drizzle.__drizzle_migrations");
@@ -164,7 +171,10 @@ export async function checkMigrationGuard(): Promise<MigrationGuardReport> {
       customRunnerFiles = new Set(allCustomRunnerFiles);
     } catch (err) {
       // Table may not exist in early boot — not a problem
-      logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[migrationGuard] _drizzle_migrations table not found — early boot, skipping");
+      logger.debug(
+        { error: err instanceof Error ? err.message : String(err) },
+        "[migrationGuard] _drizzle_migrations table not found — early boot, skipping"
+      );
     }
 
     // ── Check each journal entry against both trackers ────────────────────
@@ -189,13 +199,9 @@ export async function checkMigrationGuard(): Promise<MigrationGuardReport> {
     }
 
     // ── Orphaned: in custom runner but not in journal ─────────────────────
-    const orphanedInCustomRunner = allCustomRunnerFiles.filter(
-      (f) => !journalFilenames.has(f)
-    );
+    const orphanedInCustomRunner = allCustomRunnerFiles.filter((f) => !journalFilenames.has(f));
 
-    const ok =
-      drizzleKitMissing.length === 0 &&
-      customRunnerMissing.length === 0;
+    const ok = drizzleKitMissing.length === 0 && customRunnerMissing.length === 0;
 
     const report: MigrationGuardReport = {
       ok,
@@ -211,14 +217,14 @@ export async function checkMigrationGuard(): Promise<MigrationGuardReport> {
         logger.warn(
           { missing: drizzleKitMissing },
           `[migration-guard] ${drizzleKitMissing.length} journal migration(s) missing from drizzle.__drizzle_migrations — ` +
-          "run `pnpm --filter @workspace/db run migrate` to sync"
+            "run `pnpm --filter @workspace/db run migrate` to sync"
         );
       }
       if (customRunnerMissing.length > 0) {
         logger.warn(
           { missing: customRunnerMissing },
           `[migration-guard] ${customRunnerMissing.length} journal migration(s) missing from _drizzle_migrations — ` +
-          "they will be applied on next startup by the custom runner"
+            "they will be applied on next startup by the custom runner"
         );
       }
     } else {

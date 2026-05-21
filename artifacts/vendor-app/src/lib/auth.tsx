@@ -1,25 +1,40 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import { api } from "./api";
 import { createLogger } from "@/lib/logger";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { api } from "./api";
 const log = createLogger("[vendor-auth]");
 
-export interface StoreHours { [day: string]: { open: string; close: string; closed?: boolean } }
+export interface StoreHours {
+  [day: string]: { open: string; close: string; closed?: boolean };
+}
 
 export interface AuthUser {
-  id: string; phone: string; name?: string; email?: string; avatar?: string;
+  id: string;
+  phone: string;
+  name?: string;
+  email?: string;
+  avatar?: string;
   walletBalance: number;
-  storeName?: string; storeCategory?: string;
-  storeBanner?: string; storeDescription?: string;
+  storeName?: string;
+  storeCategory?: string;
+  storeBanner?: string;
+  storeDescription?: string;
   storeHours?: StoreHours | null;
   storeAnnouncement?: string;
   storeMinOrder?: number;
   storeDeliveryTime?: string;
   storeIsOpen: boolean;
-  lastLoginAt?: string; createdAt?: string;
+  lastLoginAt?: string;
+  createdAt?: string;
   stats: { todayOrders: number; todayRevenue: number; totalOrders: number; totalRevenue: number };
-  cnic?: string; city?: string; address?: string; businessType?: string;
-  bankName?: string; bankAccount?: string; bankAccountTitle?: string;
-  isVerified?: boolean; status?: string;
+  cnic?: string;
+  city?: string;
+  address?: string;
+  businessType?: string;
+  bankName?: string;
+  bankAccount?: string;
+  bankAccountTitle?: string;
+  isVerified?: boolean;
+  status?: string;
 }
 
 interface AuthCtx {
@@ -35,7 +50,7 @@ const Ctx = createContext<AuthCtx>({} as AuthCtx);
 export const useAuth = () => useContext(Ctx);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser]   = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -44,21 +59,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const t = localStorage.getItem("ajkmart_vendor_token") || localStorage.getItem("vendor_token");
     if (t) {
       setToken(t);
-      api.getMe().then(u => {
-        setUser(u);
-        if (!localStorage.getItem("ajkmart_vendor_token")) {
-          localStorage.setItem("ajkmart_vendor_token", t);
-          localStorage.removeItem("vendor_token");
-        }
-      }).catch((e: Error & { pendingApproval?: boolean }) => {
-        api.clearTokens();
-        setToken(null);
-        setUser(null);
-      }).finally(() => setLoading(false));
-    } else { setLoading(false); }
+      api
+        .getMe()
+        .then((u) => {
+          setUser(u);
+          if (!localStorage.getItem("ajkmart_vendor_token")) {
+            localStorage.setItem("ajkmart_vendor_token", t);
+            localStorage.removeItem("vendor_token");
+          }
+        })
+        .catch((e: Error & { pendingApproval?: boolean }) => {
+          api.clearTokens();
+          setToken(null);
+          setUser(null);
+        })
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
 
     /* Listen for session-expired events from apiFetch */
-    const handleLogout = () => { setToken(null); setUser(null); };
+    const handleLogout = () => {
+      setToken(null);
+      setUser(null);
+    };
     window.addEventListener("ajkmart:logout", handleLogout);
     return () => window.removeEventListener("ajkmart:logout", handleLogout);
   }, []);
@@ -71,7 +95,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     const refreshTok = api.getRefreshToken();
-    if (refreshTok) api.logout(refreshTok).catch((err: unknown) => { log.debug("[vendor-auth] Server logout failed (token expired/network):", err); });
+    if (refreshTok)
+      api.logout(refreshTok).catch((err: unknown) => {
+        log.debug("[vendor-auth] Server logout failed (token expired/network):", err);
+      });
     else api.clearTokens();
     setToken(null);
     setUser(null);
@@ -86,5 +113,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  return <Ctx.Provider value={{ user, token, loading, login, logout, refreshUser }}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={{ user, token, loading, login, logout, refreshUser }}>
+      {children}
+    </Ctx.Provider>
+  );
 }

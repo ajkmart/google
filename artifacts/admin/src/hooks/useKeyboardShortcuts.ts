@@ -17,7 +17,11 @@ const NEW_ITEM_ROUTES: Record<string, string> = {
   "/flash-deals": "new-deal",
 };
 
-export function useKeyboardShortcuts({ onOpenSearch, onCloseModal, onNewItem }: KeyboardShortcutsOptions) {
+export function useKeyboardShortcuts({
+  onOpenSearch,
+  onCloseModal,
+  onNewItem,
+}: KeyboardShortcutsOptions) {
   const [location] = useLocation();
   const locationRef = useRef(location);
   locationRef.current = location;
@@ -25,7 +29,11 @@ export function useKeyboardShortcuts({ onOpenSearch, onCloseModal, onNewItem }: 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
-      const isInput = tag === "input" || tag === "textarea" || tag === "select" || (e.target as HTMLElement)?.isContentEditable;
+      const isInput =
+        tag === "input" ||
+        tag === "textarea" ||
+        tag === "select" ||
+        (e.target as HTMLElement)?.isContentEditable;
 
       if (e.key === "Escape") {
         onCloseModal();
@@ -43,7 +51,7 @@ export function useKeyboardShortcuts({ onOpenSearch, onCloseModal, onNewItem }: 
       if (e.key === "n" || e.key === "N") {
         if (e.ctrlKey || e.metaKey || e.altKey) return;
         const route = locationRef.current;
-        const matchedRoute = Object.keys(NEW_ITEM_ROUTES).find(r => route.startsWith(r));
+        const matchedRoute = Object.keys(NEW_ITEM_ROUTES).find((r) => route.startsWith(r));
         if (matchedRoute && onNewItem) {
           e.preventDefault();
           onNewItem();

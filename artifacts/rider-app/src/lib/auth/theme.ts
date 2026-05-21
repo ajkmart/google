@@ -10,15 +10,15 @@
 import type { AuthTheme } from "@workspace/auth-react";
 
 export const riderTheme: Partial<AuthTheme> = {
-  primary:            "#F0B90B",
-  primaryDark:        "#D97706",
-  primaryLight:       "rgba(240,185,11,0.10)",
-  background:         "#0B0E11",
-  text:               "#E8E9EF",
-  textMuted:          "#6B7280",
-  border:             "#252836",
-  pendingOverlay:     "#0D1017",
-  rejectedOverlay:    "#110B0B",
+  primary: "#F0B90B",
+  primaryDark: "#D97706",
+  primaryLight: "rgba(240,185,11,0.10)",
+  background: "#0B0E11",
+  text: "#E8E9EF",
+  textMuted: "#6B7280",
+  border: "#252836",
+  pendingOverlay: "#0D1017",
+  rejectedOverlay: "#110B0B",
   maintenanceOverlay: "#0D1017",
-  surface:            "#131720",
+  surface: "#131720",
 };

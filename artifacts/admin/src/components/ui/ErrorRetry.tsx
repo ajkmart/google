@@ -1,6 +1,6 @@
-import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 
 /**
  * ErrorRetry — canonical inline error fallback used by every admin page
@@ -48,8 +48,8 @@ export function ErrorRetry({
     variant === "page"
       ? "min-h-[60vh] p-8"
       : variant === "inline"
-      ? "p-4"
-      : "p-8 rounded-xl border border-red-100 bg-red-50";
+        ? "p-4"
+        : "p-8 rounded-xl border border-red-100 bg-red-50";
 
   return (
     <div
@@ -58,7 +58,7 @@ export function ErrorRetry({
       className={cn(
         "flex flex-col items-center justify-center gap-3 text-center",
         containerCls,
-        className,
+        className
       )}
       data-testid="error-retry"
     >

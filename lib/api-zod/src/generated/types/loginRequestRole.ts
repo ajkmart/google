@@ -6,8 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type LoginRequestRole =
-  (typeof LoginRequestRole)[keyof typeof LoginRequestRole];
+export type LoginRequestRole = (typeof LoginRequestRole)[keyof typeof LoginRequestRole];
 
 export const LoginRequestRole = {
   customer: "customer",

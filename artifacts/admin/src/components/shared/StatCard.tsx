@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
+import { TrendingDown, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
-import { TrendingUp, TrendingDown } from "lucide-react";
 
 /**
  * Shared stat card used across high-traffic admin pages.
@@ -43,30 +43,32 @@ function StatCardInner({
   return (
     <div className="flex items-start gap-3">
       <div
-        className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBgClass} ${iconColorClass}`}
+        className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${iconBgClass} ${iconColorClass}`}
       >
-        <Icon className="w-5 h-5" />
+        <Icon className="h-5 w-5" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-muted-foreground truncate">{label}</p>
-        <p className="text-xl font-bold text-foreground leading-tight mt-0.5">{value}</p>
+        <p className="text-muted-foreground truncate text-xs font-medium">{label}</p>
+        <p className="text-foreground mt-0.5 text-xl leading-tight font-bold">{value}</p>
         {(sub || typeof trend === "number") && (
-          <div className="flex items-center gap-1.5 mt-1">
+          <div className="mt-1 flex items-center gap-1.5">
             {typeof trend === "number" && (
               <span
                 className={`inline-flex items-center gap-0.5 text-[11px] font-semibold ${
-                  trendUp ? "text-emerald-600" : trendDown ? "text-red-500" : "text-muted-foreground"
+                  trendUp
+                    ? "text-emerald-600"
+                    : trendDown
+                      ? "text-red-500"
+                      : "text-muted-foreground"
                 }`}
               >
-                {trendUp && <TrendingUp className="w-3 h-3" aria-hidden="true" />}
-                {trendDown && <TrendingDown className="w-3 h-3" aria-hidden="true" />}
+                {trendUp && <TrendingUp className="h-3 w-3" aria-hidden="true" />}
+                {trendDown && <TrendingDown className="h-3 w-3" aria-hidden="true" />}
                 {trend > 0 ? "+" : ""}
                 {trend.toFixed(1)}%
               </span>
             )}
-            {sub && (
-              <span className="text-[11px] text-muted-foreground truncate">{sub}</span>
-            )}
+            {sub && <span className="text-muted-foreground truncate text-[11px]">{sub}</span>}
           </div>
         )}
       </div>
@@ -80,12 +82,14 @@ function StatCardInner({
  */
 export function StatCardSkeleton({ className = "" }: { className?: string }) {
   return (
-    <div className={`rounded-2xl border border-border/50 bg-white p-4 shadow-sm h-[88px] ${className}`}>
+    <div
+      className={`border-border/50 h-[88px] rounded-2xl border bg-white p-4 shadow-sm ${className}`}
+    >
       <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-muted animate-pulse flex-shrink-0" />
+        <div className="bg-muted h-10 w-10 flex-shrink-0 animate-pulse rounded-xl" />
         <div className="flex-1 space-y-2 pt-0.5">
-          <div className="h-3 w-20 bg-muted animate-pulse rounded" />
-          <div className="h-6 w-14 bg-muted animate-pulse rounded" />
+          <div className="bg-muted h-3 w-20 animate-pulse rounded" />
+          <div className="bg-muted h-6 w-14 animate-pulse rounded" />
         </div>
       </div>
     </div>
@@ -93,8 +97,7 @@ export function StatCardSkeleton({ className = "" }: { className?: string }) {
 }
 
 export function StatCard({ href, onClick, className = "", ...props }: StatCardProps) {
-  const base =
-    "rounded-2xl border border-border/50 bg-white p-4 shadow-sm";
+  const base = "rounded-2xl border border-border/50 bg-white p-4 shadow-sm";
   const interactive = href || onClick;
 
   if (href) {

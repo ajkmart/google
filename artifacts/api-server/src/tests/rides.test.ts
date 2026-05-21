@@ -10,9 +10,9 @@
  *   pnpm test
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import supertest from "supertest";
 import type { Express } from "express";
+import supertest from "supertest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const FALLBACK_JWT_SECRET = "rides_test_secret_placeholder_32chars____";
 const FALLBACK_ADMIN_SECRET = "rides_admin_test_placeholder_32chars_____";
@@ -41,7 +41,7 @@ beforeAll(async () => {
   const { usersTable } = await import("@workspace/db/schema");
   const { eq } = await import("drizzle-orm");
 
-  app = await createServer() as any;
+  app = (await createServer()) as any;
 
   customerToken = signUserJwt(TEST_CUSTOMER_ID, TEST_CUSTOMER_PHONE, "customer", "customer", 1);
   riderToken = signUserJwt(TEST_RIDER_ID, TEST_RIDER_PHONE, "rider", "rider", 1);
@@ -81,12 +81,9 @@ afterAll(async () => {
     const { db } = await import("@workspace/db");
     const { usersTable } = await import("@workspace/db/schema");
     const { eq, or } = await import("drizzle-orm");
-    await db.delete(usersTable).where(
-      or(
-        eq(usersTable.id, TEST_CUSTOMER_ID),
-        eq(usersTable.id, TEST_RIDER_ID),
-      ),
-    );
+    await db
+      .delete(usersTable)
+      .where(or(eq(usersTable.id, TEST_CUSTOMER_ID), eq(usersTable.id, TEST_RIDER_ID)));
   } catch (err) {
     console.warn("[rides teardown] best-effort DB cleanup failed:", err);
   }
@@ -170,8 +167,10 @@ describe("Rides auth guards — unauthenticated requests return 401", () => {
       .post("/api/rides")
       .send({
         type: "bike",
-        pickupLat: 33.7294, pickupLng: 73.3825,
-        dropLat: 33.6007, dropLng: 73.0679,
+        pickupLat: 33.7294,
+        pickupLng: 73.3825,
+        dropLat: 33.6007,
+        dropLng: 73.0679,
         pickupAddress: "Muzaffarabad",
         dropAddress: "Rawalpindi",
         paymentMethod: "cash",
@@ -212,7 +211,8 @@ describe("Rides booking input validation", () => {
       .post("/api/rides")
       .send({
         type: "bike",
-        pickupLat: 33.7294, pickupLng: 73.3825,
+        pickupLat: 33.7294,
+        pickupLng: 73.3825,
         dropLng: 73.0679,
         paymentMethod: "cash",
       })
@@ -226,8 +226,10 @@ describe("Rides booking input validation", () => {
     const res = await api()
       .post("/api/rides")
       .send({
-        pickupLat: 33.7294, pickupLng: 73.3825,
-        dropLat: 33.6007, dropLng: 73.0679,
+        pickupLat: 33.7294,
+        pickupLng: 73.3825,
+        dropLat: 33.6007,
+        dropLng: 73.0679,
         paymentMethod: "cash",
       })
       .set("Content-Type", "application/json")

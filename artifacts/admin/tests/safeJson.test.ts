@@ -1,9 +1,5 @@
-import { describe, it, expect } from "vitest";
-import {
-  safeJsonStringify,
-  safeJsonStringifyPretty,
-  safeJsonParse,
-} from "../src/lib/safeJson";
+import { describe, expect, it } from "vitest";
+import { safeJsonParse, safeJsonStringify, safeJsonStringifyPretty } from "../src/lib/safeJson";
 
 describe("safeJsonStringifyPretty", () => {
   it("pretty-prints simple values", () => {

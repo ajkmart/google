@@ -1,28 +1,28 @@
-import { memo, useState, useEffect } from "react";
 import type { TranslationKey } from "@workspace/i18n";
 import {
   CheckCircle,
-  MapPin,
-  Navigation,
-  X,
   Clock,
+  MapPin,
   MessageSquare,
-  Zap,
+  Navigation,
   SkipForward,
+  X,
+  Zap,
 } from "lucide-react";
+import { memo, useEffect, useState } from "react";
+import type { Ride } from "../../lib/api";
+import type { PlatformConfig } from "../../lib/useConfig";
 import { AcceptCountdown } from "./AcceptCountdown";
-import { RequestAge } from "./RequestAge";
 import { RideTypeIcon } from "./Icons";
 import { MiniMap } from "./MiniMap";
+import { RequestAge } from "./RequestAge";
 import {
-  formatCurrency,
-  buildMapsDeepLink,
-  SVC_NAMES,
   ACCEPT_TIMEOUT_SEC,
+  buildMapsDeepLink,
+  formatCurrency,
   PRICING_DEFAULTS,
+  SVC_NAMES,
 } from "./helpers";
-import type { PlatformConfig } from "../../lib/useConfig";
-import type { Ride } from "../../lib/api";
 
 interface RideRequestCardProps {
   ride: Ride;
@@ -74,36 +74,35 @@ export const RideRequestCard = memo(function RideRequestCard({
     if (r.myBid && localBidPending) setLocalBidPending(false);
   }, [r.myBid, localBidPending]);
 
-  const acceptTimeoutSec = config.rides.acceptTimeoutSec ?? config.dispatch?.broadcastTimeoutSec ?? ACCEPT_TIMEOUT_SEC;
+  const acceptTimeoutSec =
+    config.rides.acceptTimeoutSec ?? config.dispatch?.broadcastTimeoutSec ?? ACCEPT_TIMEOUT_SEC;
 
   const isBargain = r.status === "bargaining" && r.offeredFare != null;
   const isDispatched = r.dispatchedRiderId === userId;
   const offeredFare = r.offeredFare ?? r.fare;
   const effectiveFare = isBargain ? offeredFare : r.fare;
-  const rideExpired =
-    (Date.now() - new Date(r.createdAt).getTime()) / 1000 >= acceptTimeoutSec;
+  const rideExpired = (Date.now() - new Date(r.createdAt).getTime()) / 1000 >= acceptTimeoutSec;
 
   const riderEarningPct = config.finance.riderEarningPct ?? PRICING_DEFAULTS.defaultRiderEarningPct;
   const earnings = effectiveFare != null ? Number(effectiveFare) * (riderEarningPct / 100) : null;
 
   const svcName = SVC_NAMES[r.type ?? ""] ?? r.type?.replace(/_/g, " ") ?? "Ride";
   const rideDistKm = r.distance != null ? parseFloat(String(r.distance)) : null;
-  const etaMin = rideDistKm != null && rideDistKm > 0
-    ? Math.max(1, Math.round((rideDistKm / 30) * 60))
-    : null;
+  const etaMin =
+    rideDistKm != null && rideDistKm > 0 ? Math.max(1, Math.round((rideDistKm / 30) * 60)) : null;
 
   /* Map link — prefer drop coords, fall back to pickup, then address */
   const mapsUrl = buildMapsDeepLink(
     r.dropLat != null ? parseFloat(String(r.dropLat)) : null,
     r.dropLng != null ? parseFloat(String(r.dropLng)) : null,
-    r.dropAddress ?? r.pickupAddress ?? null,
+    r.dropAddress ?? r.pickupAddress ?? null
   );
 
   const getMinFare = () => {
     const vt = r.vehicleType as string | undefined;
-    if (vt === "car")      return config.rides.carMinFare      ?? PRICING_DEFAULTS.carMinFare;
+    if (vt === "car") return config.rides.carMinFare ?? PRICING_DEFAULTS.carMinFare;
     if (vt === "rickshaw") return config.rides.rickshawMinFare ?? PRICING_DEFAULTS.rickshawMinFare;
-    if (vt === "daba")     return config.rides.dabaMinFare     ?? PRICING_DEFAULTS.dabaMinFare;
+    if (vt === "daba") return config.rides.dabaMinFare ?? PRICING_DEFAULTS.dabaMinFare;
     return config.rides.bikeMinFare ?? PRICING_DEFAULTS.bikeMinFare;
   };
 
@@ -137,28 +136,35 @@ export const RideRequestCard = memo(function RideRequestCard({
   const dropLat = r.dropLat != null ? parseFloat(String(r.dropLat)) : null;
   const dropLng = r.dropLng != null ? parseFloat(String(r.dropLng)) : null;
   const hasValidPickupCoords =
-    pickupLat != null && Number.isFinite(pickupLat) &&
-    pickupLng != null && Number.isFinite(pickupLng);
+    pickupLat != null &&
+    Number.isFinite(pickupLat) &&
+    pickupLng != null &&
+    Number.isFinite(pickupLng);
 
   return (
     <div
-      className={`p-4 animate-[slideUp_0.3s_ease-out] ${
+      className={`animate-[slideUp_0.3s_ease-out] p-4 ${
         isDispatched
           ? "border-l-4 border-blue-500 bg-gradient-to-r from-blue-50/50 to-white"
           : isBargain
-          ? "border-l-4 border-orange-400 bg-gradient-to-r from-orange-50/50 to-white"
-          : "hover:bg-gray-50/50"
+            ? "border-l-4 border-orange-400 bg-gradient-to-r from-orange-50/50 to-white"
+            : "hover:bg-gray-50/50"
       } transition-colors`}
     >
       <div className="flex items-start gap-3">
-        <AcceptCountdown createdAt={r.createdAt} serverTime={serverTime} onExpired={() => onDismiss(r.id)} timeoutSec={acceptTimeoutSec} />
+        <AcceptCountdown
+          createdAt={r.createdAt}
+          serverTime={serverTime}
+          onExpired={() => onDismiss(r.id)}
+          timeoutSec={acceptTimeoutSec}
+        />
         <div
-          className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm border ${
+          className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl border shadow-sm ${
             isDispatched
-              ? "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200"
+              ? "border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50"
               : isBargain
-              ? "bg-gradient-to-br from-orange-50 to-amber-50 border-orange-200"
-              : "bg-gradient-to-br from-green-50 to-emerald-50 border-green-100"
+                ? "border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50"
+                : "border-green-100 bg-gradient-to-br from-green-50 to-emerald-50"
           }`}
         >
           {isBargain ? (
@@ -167,42 +173,42 @@ export const RideRequestCard = memo(function RideRequestCard({
             <RideTypeIcon type={r.type ?? ""} />
           )}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <p className="font-extrabold text-gray-900 text-[15px] tracking-tight">
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex flex-wrap items-center gap-2">
+            <p className="text-[15px] font-extrabold tracking-tight text-gray-900">
               {svcName} Ride
             </p>
             {isDispatched && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 animate-pulse flex items-center gap-1 border border-blue-200">
+              <span className="flex animate-pulse items-center gap-1 rounded-full border border-blue-200 bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
                 <Zap size={8} /> DISPATCHED
               </span>
             )}
             {isBargain && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 animate-pulse flex items-center gap-1 border border-orange-200">
+              <span className="flex animate-pulse items-center gap-1 rounded-full border border-orange-200 bg-gradient-to-r from-orange-100 to-amber-100 px-2 py-0.5 text-[10px] font-bold text-orange-700">
                 <MessageSquare size={8} /> BARGAIN
               </span>
             )}
             {isBargain && r.myBid && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 flex items-center gap-1 border border-blue-200">
+              <span className="flex items-center gap-1 rounded-full border border-blue-200 bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
                 <CheckCircle size={8} /> Bid Sent
               </span>
             )}
             {r.isParcel && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 flex items-center gap-1 border border-amber-200">
+              <span className="flex items-center gap-1 rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
                 📦 Parcel
               </span>
             )}
             {r.isPoolRide && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-800 flex items-center gap-1 border border-violet-200">
+              <span className="flex items-center gap-1 rounded-full border border-violet-200 bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-800">
                 👥 Pool
               </span>
             )}
             <RequestAge createdAt={r.createdAt} />
           </div>
           {(r.riderDistanceKm != null || r.riderEtaMin != null) && (
-            <div className="flex items-center gap-2 mt-1 mb-1">
+            <div className="mt-1 mb-1 flex items-center gap-2">
               {r.riderDistanceKm != null && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 flex items-center gap-1">
+                <span className="flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600">
                   <Navigation size={9} />{" "}
                   {r.riderDistanceKm < 1
                     ? `${Math.round(r.riderDistanceKm * 1000)}m`
@@ -211,33 +217,33 @@ export const RideRequestCard = memo(function RideRequestCard({
                 </span>
               )}
               {r.riderEtaMin != null && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 border border-purple-100 flex items-center gap-1">
+                <span className="flex items-center gap-1 rounded-full border border-purple-100 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-600">
                   <Clock size={9} /> {r.riderEtaMin} min ETA
                 </span>
               )}
             </div>
           )}
-          <div className="space-y-1 mt-1">
-            <p className="text-xs text-gray-600 truncate flex items-center gap-1.5">
-              <span className="w-2 h-2 bg-green-500 rounded-full inline-block flex-shrink-0 shadow-sm shadow-green-500/30" />
+          <div className="mt-1 space-y-1">
+            <p className="flex items-center gap-1.5 truncate text-xs text-gray-600">
+              <span className="inline-block h-2 w-2 flex-shrink-0 rounded-full bg-green-500 shadow-sm shadow-green-500/30" />
               {r.pickupAddress || "Pickup location"}
             </p>
-            <p className="text-xs text-gray-400 truncate flex items-center gap-1.5">
-              <span className="w-2 h-2 bg-red-500 rounded-full inline-block flex-shrink-0 shadow-sm shadow-red-500/30" />
+            <p className="flex items-center gap-1.5 truncate text-xs text-gray-400">
+              <span className="inline-block h-2 w-2 flex-shrink-0 rounded-full bg-red-500 shadow-sm shadow-red-500/30" />
               {r.dropAddress || "Drop-off location"}
             </p>
           </div>
-          <div className="flex items-center gap-3 mt-2.5 flex-wrap">
+          <div className="mt-2.5 flex flex-wrap items-center gap-3">
             {earnings != null && earnings > 0 ? (
               <div
-                className={`rounded-xl px-3 py-1.5 border ${isBargain ? "bg-orange-50 border-orange-100" : "bg-green-50 border-green-100"}`}
+                className={`rounded-xl border px-3 py-1.5 ${isBargain ? "border-orange-100 bg-orange-50" : "border-green-100 bg-green-50"}`}
               >
                 <p
-                  className={`text-base font-extrabold leading-tight ${isBargain ? "text-orange-600" : "text-green-600"}`}
+                  className={`text-base leading-tight font-extrabold ${isBargain ? "text-orange-600" : "text-green-600"}`}
                 >
                   +{formatCurrency(earnings, currency)}
                 </p>
-                <p className="text-[9px] text-gray-400 font-semibold">{T("yourEarnings")}</p>
+                <p className="text-[9px] font-semibold text-gray-400">{T("yourEarnings")}</p>
               </div>
             ) : null}
             {isBargain && offeredFare != null && (
@@ -245,19 +251,19 @@ export const RideRequestCard = memo(function RideRequestCard({
                 <p className="text-sm font-bold text-orange-700">
                   {formatCurrency(offeredFare, currency)}
                 </p>
-                <p className="text-[9px] text-gray-400 font-medium">{T("customerOffer")}</p>
+                <p className="text-[9px] font-medium text-gray-400">{T("customerOffer")}</p>
               </div>
             )}
             {rideDistKm != null && rideDistKm > 0 && (
               <div>
                 <p className="text-sm font-bold text-gray-700">{rideDistKm.toFixed(1)} km</p>
-                <p className="text-[9px] text-gray-400 font-medium">{T("distance")}</p>
+                <p className="text-[9px] font-medium text-gray-400">{T("distance")}</p>
               </div>
             )}
             {etaMin != null && (
               <div>
                 <p className="text-sm font-bold text-blue-600">{etaMin} min</p>
-                <p className="text-[9px] text-gray-400 font-medium">ETA</p>
+                <p className="text-[9px] font-medium text-gray-400">ETA</p>
               </div>
             )}
             {r.fare != null && (
@@ -265,13 +271,13 @@ export const RideRequestCard = memo(function RideRequestCard({
                 <p className="text-sm font-bold text-gray-300 line-through">
                   {formatCurrency(r.fare, currency)}
                 </p>
-                <p className="text-[9px] text-gray-400 font-medium">{T("platformFare")}</p>
+                <p className="text-[9px] font-medium text-gray-400">{T("platformFare")}</p>
               </div>
             )}
           </div>
           {r.bargainNote && (
-            <div className="mt-2 bg-orange-50 border border-orange-100 rounded-xl px-3 py-2">
-              <p className="text-xs text-orange-700 italic flex items-center gap-1.5">
+            <div className="mt-2 rounded-xl border border-orange-100 bg-orange-50 px-3 py-2">
+              <p className="flex items-center gap-1.5 text-xs text-orange-700 italic">
                 <MessageSquare size={11} className="flex-shrink-0" /> "{r.bargainNote}"
               </p>
             </div>
@@ -280,22 +286,17 @@ export const RideRequestCard = memo(function RideRequestCard({
       </div>
 
       {hasValidPickupCoords && (
-        <MiniMap
-          pickupLat={pickupLat}
-          pickupLng={pickupLng}
-          dropLat={dropLat}
-          dropLng={dropLng}
-        />
+        <MiniMap pickupLat={pickupLat} pickupLng={pickupLng} dropLat={dropLat} dropLng={dropLng} />
       )}
 
       {!isBargain && (
-        <div className="flex gap-2 mt-3">
+        <div className="mt-3 flex gap-2">
           <a
             href={mapsUrl}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Open pickup location in maps"
-            className="flex items-center gap-1 bg-blue-50 border border-blue-200 text-blue-600 text-xs font-bold px-3 py-2.5 rounded-xl hover:bg-blue-100 transition-colors min-h-[44px]"
+            className="flex min-h-[44px] items-center gap-1 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs font-bold text-blue-600 transition-colors hover:bg-blue-100"
           >
             <MapPin size={14} />
           </a>
@@ -303,7 +304,7 @@ export const RideRequestCard = memo(function RideRequestCard({
             <button
               onClick={() => onIgnore(r.id)}
               disabled={ignorePending || acceptPending || anyAcceptPending}
-              className="border border-amber-300 text-amber-600 font-bold px-3 py-2.5 rounded-xl text-sm hover:bg-amber-50 transition-colors flex items-center gap-1 disabled:opacity-60 min-h-[44px]"
+              className="flex min-h-[44px] items-center gap-1 rounded-xl border border-amber-300 px-3 py-2.5 text-sm font-bold text-amber-600 transition-colors hover:bg-amber-50 disabled:opacity-60"
               aria-label="Ignore dispatched ride"
             >
               <SkipForward size={14} /> Ignore
@@ -311,7 +312,7 @@ export const RideRequestCard = memo(function RideRequestCard({
           ) : (
             <button
               onClick={() => onDismiss(r.id)}
-              className="border border-gray-200 text-gray-400 font-bold px-3 py-2.5 rounded-xl text-sm hover:bg-gray-50 transition-colors flex items-center min-h-[44px]"
+              className="flex min-h-[44px] items-center rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold text-gray-400 transition-colors hover:bg-gray-50"
               aria-label="Dismiss ride request"
             >
               <X size={16} />
@@ -322,7 +323,7 @@ export const RideRequestCard = memo(function RideRequestCard({
             disabled={
               rideExpired || acceptPending || anyAcceptPending || ignorePending || !!isRestricted
             }
-            className="flex-1 bg-gray-900 hover:bg-gray-800 text-white font-extrabold py-2.5 rounded-xl text-sm disabled:opacity-60 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-sm min-h-[44px]"
+            className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-gray-900 py-2.5 text-sm font-extrabold text-white shadow-sm transition-all hover:bg-gray-800 active:scale-[0.98] disabled:opacity-60"
             aria-label="Accept ride"
           >
             <CheckCircle size={15} />
@@ -334,28 +335,32 @@ export const RideRequestCard = memo(function RideRequestCard({
       {isBargain && (
         <div className="mt-3 space-y-2">
           {localBidPending && !r.myBid ? (
-            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border-2 border-indigo-200 rounded-xl p-3.5 flex items-center gap-3">
-              <div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+            <div className="flex items-center gap-3 rounded-xl border-2 border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 p-3.5">
+              <div className="h-5 w-5 flex-shrink-0 animate-spin rounded-full border-2 border-indigo-400 border-t-transparent" />
               <div className="flex-1">
-                <p className="text-xs font-bold text-indigo-700">Bid Submitted — Waiting for Response</p>
-                <p className="text-[10px] text-indigo-500 mt-0.5">Your counter offer is being sent to the customer…</p>
+                <p className="text-xs font-bold text-indigo-700">
+                  Bid Submitted — Waiting for Response
+                </p>
+                <p className="mt-0.5 text-[10px] text-indigo-500">
+                  Your counter offer is being sent to the customer…
+                </p>
               </div>
-              <span className="text-[10px] font-bold px-2.5 py-1 bg-indigo-100 text-indigo-600 rounded-full animate-pulse border border-indigo-200">
+              <span className="animate-pulse rounded-full border border-indigo-200 bg-indigo-100 px-2.5 py-1 text-[10px] font-bold text-indigo-600">
                 PENDING
               </span>
             </div>
           ) : r.myBid ? (
-            <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl p-3.5 space-y-2.5">
+            <div className="space-y-2.5 rounded-xl border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 p-3.5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-orange-700 flex items-center gap-1">
+                  <p className="flex items-center gap-1 text-xs font-bold text-orange-700">
                     <MessageSquare size={11} /> Your Bid Pending
                   </p>
                   <p className="text-lg font-extrabold text-orange-600">
                     {formatCurrency(r.myBid.fare, currency)}
                   </p>
                 </div>
-                <span className="text-[10px] font-bold px-2.5 py-1 bg-orange-100 text-orange-600 rounded-full animate-pulse border border-orange-200">
+                <span className="animate-pulse rounded-full border border-orange-200 bg-orange-100 px-2.5 py-1 text-[10px] font-bold text-orange-600">
                   WAITING
                 </span>
               </div>
@@ -369,13 +374,13 @@ export const RideRequestCard = memo(function RideRequestCard({
                     if (counterError) setCounterError("");
                   }}
                   placeholder="Update bid..."
-                  className={`flex-1 h-10 px-3 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 ${counterError ? "border-red-300 focus:border-red-400 focus:ring-red-100" : "border-orange-200 focus:border-orange-400 focus:ring-orange-100"}`}
+                  className={`h-10 flex-1 rounded-xl border bg-white px-3 text-sm focus:ring-2 focus:outline-none ${counterError ? "border-red-300 focus:border-red-400 focus:ring-red-100" : "border-orange-200 focus:border-orange-400 focus:ring-orange-100"}`}
                   aria-label="Update counter fare amount"
                 />
                 <button
                   onClick={validateAndSubmitCounter}
                   disabled={counterPending || rideExpired || !!isRestricted}
-                  className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-3.5 py-2 rounded-xl text-sm disabled:opacity-60 transition-colors min-h-[44px]"
+                  className="min-h-[44px] rounded-xl bg-orange-500 px-3.5 py-2 text-sm font-bold text-white transition-colors hover:bg-orange-600 disabled:opacity-60"
                   aria-label="Update counter bid"
                 >
                   Update
@@ -383,15 +388,13 @@ export const RideRequestCard = memo(function RideRequestCard({
                 <button
                   onClick={() => onAccept(r.id)}
                   disabled={rideExpired || acceptPending || anyAcceptPending || !!isRestricted}
-                  className="bg-gray-900 hover:bg-gray-800 text-white font-bold px-3.5 py-2 rounded-xl text-sm disabled:opacity-60 flex items-center gap-1 transition-colors min-h-[44px]"
+                  className="flex min-h-[44px] items-center gap-1 rounded-xl bg-gray-900 px-3.5 py-2 text-sm font-bold text-white transition-colors hover:bg-gray-800 disabled:opacity-60"
                   aria-label="Accept ride at current fare"
                 >
                   <CheckCircle size={13} /> Accept
                 </button>
               </div>
-              {counterError && (
-                <p className="text-xs text-red-500 font-semibold">{counterError}</p>
-              )}
+              {counterError && <p className="text-xs font-semibold text-red-500">{counterError}</p>}
             </div>
           ) : showCounterForm ? (
             <div className="space-y-2">
@@ -405,13 +408,13 @@ export const RideRequestCard = memo(function RideRequestCard({
                     if (counterError) setCounterError("");
                   }}
                   placeholder="Your counter fare..."
-                  className={`flex-1 h-11 px-4 bg-gray-50 border rounded-xl text-sm focus:outline-none focus:ring-2 ${counterError ? "border-red-300 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-orange-400 focus:ring-orange-100"}`}
+                  className={`h-11 flex-1 rounded-xl border bg-gray-50 px-4 text-sm focus:ring-2 focus:outline-none ${counterError ? "border-red-300 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-orange-400 focus:ring-orange-100"}`}
                   aria-label="Enter counter fare amount"
                 />
                 <button
                   onClick={validateAndSubmitCounter}
                   disabled={counterPending || rideExpired || !!isRestricted}
-                  className="bg-orange-500 hover:bg-orange-600 text-white font-extrabold px-4 py-2.5 rounded-xl text-sm disabled:opacity-60 transition-colors min-h-[44px]"
+                  className="min-h-[44px] rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-extrabold text-white transition-colors hover:bg-orange-600 disabled:opacity-60"
                   aria-label="Submit counter offer"
                 >
                   {counterPending ? "..." : "Submit"}
@@ -421,14 +424,14 @@ export const RideRequestCard = memo(function RideRequestCard({
                     setShowCounterForm(false);
                     setCounterError("");
                   }}
-                  className="bg-gray-100 text-gray-400 px-3 py-2.5 rounded-xl flex items-center hover:bg-gray-200 transition-colors min-h-[44px]"
+                  className="flex min-h-[44px] items-center rounded-xl bg-gray-100 px-3 py-2.5 text-gray-400 transition-colors hover:bg-gray-200"
                   aria-label="Cancel counter offer"
                 >
                   <X size={15} />
                 </button>
               </div>
               {counterError && (
-                <p className="text-xs text-red-500 font-semibold px-1">{counterError}</p>
+                <p className="px-1 text-xs font-semibold text-red-500">{counterError}</p>
               )}
             </div>
           ) : (
@@ -438,21 +441,21 @@ export const RideRequestCard = memo(function RideRequestCard({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Open location in maps"
-                className="flex items-center gap-1 bg-blue-50 border border-blue-200 text-blue-600 text-xs font-bold px-3 py-2.5 rounded-xl hover:bg-blue-100 transition-colors min-h-[44px]"
+                className="flex min-h-[44px] items-center gap-1 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs font-bold text-blue-600 transition-colors hover:bg-blue-100"
               >
                 <MapPin size={14} />
               </a>
               <button
                 onClick={() => onRejectOffer(r.id)}
                 disabled={rejectOfferPending}
-                className="bg-gray-100 text-gray-400 font-bold px-3 py-2.5 rounded-xl text-sm flex items-center hover:bg-gray-200 transition-colors disabled:opacity-50 min-h-[44px]"
+                className="flex min-h-[44px] items-center rounded-xl bg-gray-100 px-3 py-2.5 text-sm font-bold text-gray-400 transition-colors hover:bg-gray-200 disabled:opacity-50"
                 aria-label="Reject ride offer"
               >
                 <X size={16} />
               </button>
               <button
                 onClick={() => setShowCounterForm(true)}
-                className="flex-1 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 font-extrabold py-2.5 rounded-xl text-sm flex items-center justify-center gap-1.5 border border-orange-200 hover:from-orange-200 hover:to-amber-200 transition-all active:scale-[0.98] min-h-[44px]"
+                className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl border border-orange-200 bg-gradient-to-r from-orange-100 to-amber-100 py-2.5 text-sm font-extrabold text-orange-700 transition-all hover:from-orange-200 hover:to-amber-200 active:scale-[0.98]"
                 aria-label="Make counter offer"
               >
                 <MessageSquare size={14} /> Counter Offer
@@ -460,7 +463,7 @@ export const RideRequestCard = memo(function RideRequestCard({
               <button
                 onClick={() => onAccept(r.id)}
                 disabled={rideExpired || acceptPending || anyAcceptPending || !!isRestricted}
-                className="flex-1 bg-gray-900 text-white font-extrabold py-2.5 rounded-xl text-sm disabled:opacity-60 flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all min-h-[44px]"
+                className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-gray-900 py-2.5 text-sm font-extrabold text-white shadow-sm transition-all active:scale-[0.98] disabled:opacity-60"
                 aria-label="Accept ride"
               >
                 <CheckCircle size={14} />

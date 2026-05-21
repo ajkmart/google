@@ -10,6 +10,6 @@ import { ORDER_VALID_STATUSES } from "@workspace/service-constants";
 
 export type OrderStatus = (typeof OrderStatus)[keyof typeof OrderStatus];
 
-export const OrderStatus = Object.fromEntries(
-  ORDER_VALID_STATUSES.map((s) => [s, s]),
-) as { [K in (typeof ORDER_VALID_STATUSES)[number]]: K };
+export const OrderStatus = Object.fromEntries(ORDER_VALID_STATUSES.map((s) => [s, s])) as {
+  [K in (typeof ORDER_VALID_STATUSES)[number]]: K;
+};

@@ -30,7 +30,9 @@ export function encryptTotpSecret(plaintext: string): string {
 export function decryptTotpSecret(ciphertext: string): string {
   const parts = ciphertext.split(":");
   if (parts.length !== 3) {
-    throw new Error("TOTP_DECRYPT_FAILED: Invalid TOTP secret format — expected 3-part encrypted value. Check TOTP_ENCRYPTION_KEY configuration.");
+    throw new Error(
+      "TOTP_DECRYPT_FAILED: Invalid TOTP secret format — expected 3-part encrypted value. Check TOTP_ENCRYPTION_KEY configuration."
+    );
   }
   const [ivHex, tagHex, encrypted] = parts;
   try {
@@ -41,7 +43,9 @@ export function decryptTotpSecret(ciphertext: string): string {
     decrypted += decipher.final("utf8");
     return decrypted;
   } catch (err) {
-    throw new Error(`TOTP_DECRYPT_FAILED: Unable to decrypt TOTP secret — ${err instanceof Error ? err.message : String(err)}. Check TOTP_ENCRYPTION_KEY configuration.`);
+    throw new Error(
+      `TOTP_DECRYPT_FAILED: Unable to decrypt TOTP secret — ${err instanceof Error ? err.message : String(err)}. Check TOTP_ENCRYPTION_KEY configuration.`
+    );
   }
 }
 
@@ -49,7 +53,9 @@ export function decryptTotpSecret(ciphertext: string): string {
 const BASE32_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 function base32Encode(buf: Buffer): string {
-  let bits = 0, value = 0, output = "";
+  let bits = 0,
+    value = 0,
+    output = "";
   for (let i = 0; i < buf.length; i++) {
     value = (value << 8) | buf[i]!;
     bits += 8;
@@ -64,7 +70,8 @@ function base32Encode(buf: Buffer): string {
 
 function base32Decode(str: string): Buffer {
   const cleaned = str.toUpperCase().replace(/=+$/, "").replace(/\s/g, "");
-  let bits = 0, value = 0;
+  let bits = 0,
+    value = 0;
   const out: number[] = [];
   for (const ch of cleaned) {
     const idx = BASE32_CHARS.indexOf(ch);
@@ -84,13 +91,17 @@ function hotp(secret: string, counter: number): string {
   const key = base32Decode(secret);
   const buf = Buffer.alloc(8);
   let c = counter;
-  for (let i = 7; i >= 0; i--) { buf[i] = c & 0xff; c = Math.floor(c / 256); }
+  for (let i = 7; i >= 0; i--) {
+    buf[i] = c & 0xff;
+    c = Math.floor(c / 256);
+  }
   const hmac = crypto.createHmac("sha1", key).update(buf).digest();
   const offset = hmac[19]! & 0xf;
-  const code = ((hmac[offset]! & 0x7f) << 24) |
-               ((hmac[offset + 1]! & 0xff) << 16) |
-               ((hmac[offset + 2]! & 0xff) << 8) |
-               (hmac[offset + 3]! & 0xff);
+  const code =
+    ((hmac[offset]! & 0x7f) << 24) |
+    ((hmac[offset + 1]! & 0xff) << 16) |
+    ((hmac[offset + 2]! & 0xff) << 8) |
+    (hmac[offset + 3]! & 0xff);
   return String(code % 1_000_000).padStart(6, "0");
 }
 
@@ -120,8 +131,8 @@ export async function generateQRCodeDataURL(secret: string, adminName: string): 
 }
 
 export function getTotpUri(secret: string, adminName: string): string {
-  const label   = encodeURIComponent(`${APP_NAME}:${adminName}`);
-  const issuer  = encodeURIComponent(APP_NAME);
+  const label = encodeURIComponent(`${APP_NAME}:${adminName}`);
+  const issuer = encodeURIComponent(APP_NAME);
   return `otpauth://totp/${label}?secret=${secret}&issuer=${issuer}&algorithm=SHA1&digits=6&period=30`;
 }
 

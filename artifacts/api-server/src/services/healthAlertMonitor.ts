@@ -1,10 +1,10 @@
 import { db } from "@workspace/db";
 import { liveLocationsTable, platformSettingsTable } from "@workspace/db/schema";
-import { count, eq, and, gte, sql } from "drizzle-orm";
+import { and, count, eq, gte, sql } from "drizzle-orm";
+import { logger } from "../lib/logger.js";
+import { getDiskPct, getMemoryPct, getP95Ms } from "../lib/metrics/responseTime.js";
 import { getCachedSettings } from "../routes/admin-shared.js";
 import { sendAdminAlert } from "./email.js";
-import { getP95Ms, getMemoryPct, getDiskPct } from "../lib/metrics/responseTime.js";
-import { logger } from "../lib/logger.js";
 
 /* ══════════════════════════════════════════════════════════════════════════
    healthAlertMonitor.ts
@@ -42,7 +42,13 @@ async function runHealthChecks(): Promise<HealthIssue[]> {
   try {
     await db.execute(sql`SELECT 1`);
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     dbOk = false;
   }
   if (!dbOk) {
@@ -61,7 +67,13 @@ async function runHealthChecks(): Promise<HealthIssue[]> {
       const parsed = JSON.parse(rawPatterns);
       if (!Array.isArray(parsed)) valid = false;
     } catch (err) {
-      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
       valid = false;
     }
     if (!valid) {
@@ -86,10 +98,16 @@ async function runHealthChecks(): Promise<HealthIssue[]> {
     try {
       const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000);
       const [[liveRow], [recentRow]] = await Promise.all([
-        db.select({ c: count() }).from(liveLocationsTable).where(eq(liveLocationsTable.role, "rider")),
-        db.select({ c: count() }).from(liveLocationsTable).where(
-          and(eq(liveLocationsTable.role, "rider"), gte(liveLocationsTable.updatedAt, fiveMinAgo)),
-        ),
+        db
+          .select({ c: count() })
+          .from(liveLocationsTable)
+          .where(eq(liveLocationsTable.role, "rider")),
+        db
+          .select({ c: count() })
+          .from(liveLocationsTable)
+          .where(
+            and(eq(liveLocationsTable.role, "rider"), gte(liveLocationsTable.updatedAt, fiveMinAgo))
+          ),
       ]);
       const liveTotal = Number(liveRow?.c ?? 0);
       const recentTotal = Number(recentRow?.c ?? 0);
@@ -102,7 +120,10 @@ async function runHealthChecks(): Promise<HealthIssue[]> {
         });
       }
     } catch (err) {
-      logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] Non-fatal — GPS table query failure shouldn't stop other checks`);
+      logger.debug(
+        { error: err instanceof Error ? err.message : String(err) },
+        `[fn] Non-fatal — GPS table query failure shouldn't stop other checks`
+      );
     }
   }
 
@@ -131,17 +152,17 @@ async function runHealthChecks(): Promise<HealthIssue[]> {
 async function checkPerformanceMetrics(s: Record<string, string>): Promise<HealthIssue[]> {
   const issues: HealthIssue[] = [];
 
-  const thresholdP95Ms    = Math.max(1, parseInt(s["perf_alert_p95_ms"]      ?? "500",  10));
-  const thresholdDbMs     = Math.max(1, parseInt(s["perf_alert_db_query_ms"] ?? "1000", 10));
-  const thresholdMemPct   = Math.max(1, parseInt(s["perf_alert_memory_pct"]  ?? "80",   10));
-  const thresholdDiskPct  = Math.max(1, parseInt(s["perf_alert_disk_pct"]    ?? "80",   10));
+  const thresholdP95Ms = Math.max(1, parseInt(s["perf_alert_p95_ms"] ?? "500", 10));
+  const thresholdDbMs = Math.max(1, parseInt(s["perf_alert_db_query_ms"] ?? "1000", 10));
+  const thresholdMemPct = Math.max(1, parseInt(s["perf_alert_memory_pct"] ?? "80", 10));
+  const thresholdDiskPct = Math.max(1, parseInt(s["perf_alert_disk_pct"] ?? "80", 10));
 
   /* ── p95 response time ── */
   const p95 = getP95Ms();
   if (p95 !== null && p95 > thresholdP95Ms) {
     issues.push({
-      key:     "perf_p95_high",
-      level:   "error",
+      key: "perf_p95_high",
+      level: "error",
       message: `API p95 response time is ${p95}ms — exceeds threshold of ${thresholdP95Ms}ms`,
     });
   }
@@ -153,21 +174,24 @@ async function checkPerformanceMetrics(s: Record<string, string>): Promise<Healt
     const dbMs = Date.now() - t0;
     if (dbMs > thresholdDbMs) {
       issues.push({
-        key:     "perf_db_slow",
-        level:   "error",
+        key: "perf_db_slow",
+        level: "error",
         message: `DB query latency is ${dbMs}ms — exceeds threshold of ${thresholdDbMs}ms`,
       });
     }
   } catch (err) {
-    logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] DB connectivity failures are already caught in the main health check`);
+    logger.debug(
+      { error: err instanceof Error ? err.message : String(err) },
+      `[fn] DB connectivity failures are already caught in the main health check`
+    );
   }
 
   /* ── Memory usage ── */
   const memPct = getMemoryPct();
   if (memPct > thresholdMemPct) {
     issues.push({
-      key:     "perf_memory_high",
-      level:   "error",
+      key: "perf_memory_high",
+      level: "error",
       message: `Heap memory usage is ${memPct}% — exceeds threshold of ${thresholdMemPct}%`,
     });
   }
@@ -176,8 +200,8 @@ async function checkPerformanceMetrics(s: Record<string, string>): Promise<Healt
   const diskPct = getDiskPct();
   if (diskPct !== null && diskPct > thresholdDiskPct) {
     issues.push({
-      key:     "perf_disk_high",
-      level:   "error",
+      key: "perf_disk_high",
+      level: "error",
       message: `Disk usage is ${diskPct}% — exceeds threshold of ${thresholdDiskPct}%`,
     });
   }
@@ -188,7 +212,7 @@ async function checkPerformanceMetrics(s: Record<string, string>): Promise<Healt
 async function sendSlackAlert(
   webhookUrl: string,
   issues: HealthIssue[],
-  appName: string,
+  appName: string
 ): Promise<void> {
   const errors = issues.filter((i) => i.level === "error");
   const warnings = issues.filter((i) => i.level === "warning");
@@ -313,12 +337,10 @@ async function runMonitorCycle(): Promise<void> {
     `;
 
     /* Email */
-    const emailResult = await sendAdminAlert(
-      "health_critical",
-      subject,
-      htmlBody,
-      { ...s, email_alert_health_critical: s["email_alert_health_critical"] ?? "on" },
-    );
+    const emailResult = await sendAdminAlert("health_critical", subject, htmlBody, {
+      ...s,
+      email_alert_health_critical: s["email_alert_health_critical"] ?? "on",
+    });
     if (emailResult.sent) {
       logger.info({ subject }, "[health-monitor] email alert sent");
     } else if (emailResult.reason && !emailResult.reason.includes("disabled")) {
@@ -359,7 +381,7 @@ export function startHealthMonitor(): void {
       if ((s["health_monitor_enabled"] ?? "off") !== "on") {
         logger.info(
           "[health-monitor] disabled (health_monitor_enabled=off). " +
-          "Enable in Admin → Settings → health_monitor to receive alerts.",
+            "Enable in Admin → Settings → health_monitor to receive alerts."
         );
         return;
       }
@@ -374,7 +396,10 @@ export function startHealthMonitor(): void {
         try {
           const cs = await getCachedSettings();
           if ((cs["health_monitor_enabled"] ?? "off") !== "on") {
-            if (monitorTimer) { clearInterval(monitorTimer); monitorTimer = null; }
+            if (monitorTimer) {
+              clearInterval(monitorTimer);
+              monitorTimer = null;
+            }
             logger.info("[health-monitor] disabled mid-run — interval stopped");
             return;
           }
@@ -396,5 +421,5 @@ export function startHealthMonitor(): void {
     stopHealthMonitor();
   };
   process.once("SIGTERM", shutdown);
-  process.once("SIGINT",  shutdown);
+  process.once("SIGINT", shutdown);
 }

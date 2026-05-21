@@ -1,4 +1,4 @@
-import { memo, useState, useEffect } from "react";
+import { memo, useEffect, useState } from "react";
 
 export const LiveClock = memo(function LiveClock() {
   const [time, setTime] = useState(new Date());

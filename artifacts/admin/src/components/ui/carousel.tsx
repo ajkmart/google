@@ -1,8 +1,8 @@
 export {
-  type CarouselApi,
   Carousel,
   CarouselContent,
   CarouselItem,
-  CarouselPrevious,
   CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
 } from "@workspace/ui/components/ui/carousel";

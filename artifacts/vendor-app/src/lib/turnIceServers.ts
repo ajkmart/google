@@ -16,7 +16,7 @@ export function getTurnIceServers(): RTCIceServer[] {
     _warned = true;
     log.warn(
       "TURN relay not configured — calls may fail on restricted networks.\n" +
-      "Set VITE_TURN_SERVER_URL, VITE_TURN_USERNAME, and VITE_TURN_CREDENTIAL in your environment to enable TURN support."
+        "Set VITE_TURN_SERVER_URL, VITE_TURN_USERNAME, and VITE_TURN_CREDENTIAL in your environment to enable TURN support."
     );
   }
 

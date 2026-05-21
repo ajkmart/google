@@ -1,5 +1,4 @@
-import React from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from "react-native";
 
 export interface Country {
   code: string;
@@ -21,15 +20,15 @@ export interface PhoneInputProps {
 }
 
 const DEFAULT_COUNTRY: Country = {
-  code: 'PK',
-  dial: '+92',
-  name: 'Pakistan',
-  flag: '🇵🇰',
+  code: "PK",
+  dial: "+92",
+  name: "Pakistan",
+  flag: "🇵🇰",
 };
 
 function toE164(dial: string, local: string): string {
-  const digits = local.replace(/\D/g, '');
-  const trimmed = digits.startsWith('0') ? digits.slice(1) : digits;
+  const digits = local.replace(/\D/g, "");
+  const trimmed = digits.startsWith("0") ? digits.slice(1) : digits;
   return `${dial}${trimmed}`;
 }
 
@@ -39,21 +38,21 @@ function toE164(dial: string, local: string): string {
  */
 function stripDialPrefix(raw: string, dial: string): string {
   let s = raw.trim();
-  const dialDigits = dial.replace(/\D/g, ''); // e.g. "92"
+  const dialDigits = dial.replace(/\D/g, ""); // e.g. "92"
 
   // "+92XXXX" or "+1XXXX" style
-  if (s.startsWith('+')) {
+  if (s.startsWith("+")) {
     s = s.slice(1);
     if (s.startsWith(dialDigits)) s = s.slice(dialDigits.length);
   }
 
   // "0092XXXX" style
-  if (s.startsWith('00') && s.slice(2).startsWith(dialDigits)) {
+  if (s.startsWith("00") && s.slice(2).startsWith(dialDigits)) {
     s = s.slice(2 + dialDigits.length);
   }
 
   // Keep only digits
-  return s.replace(/\D/g, '');
+  return s.replace(/\D/g, "");
 }
 
 export function PhoneInput({
@@ -61,7 +60,7 @@ export function PhoneInput({
   onChangeText,
   onChange,
   disabled = false,
-  placeholder = '3001234567',
+  placeholder = "3001234567",
   autoFocus = false,
 }: PhoneInputProps) {
   const country = DEFAULT_COUNTRY;
@@ -98,33 +97,33 @@ export function PhoneInput({
 
 const styles = StyleSheet.create({
   wrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1.5,
-    borderColor: '#d1d5db',
+    borderColor: "#d1d5db",
     borderRadius: 10,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginBottom: 12,
-    backgroundColor: '#f9fafb',
+    backgroundColor: "#f9fafb",
   },
   wrapperDisabled: { opacity: 0.55 },
   codeBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 14,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRightWidth: 1,
-    borderRightColor: '#e5e7eb',
+    borderRightColor: "#e5e7eb",
   },
   flag: { fontSize: 18 },
-  dialCode: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  dialCode: { fontSize: 15, fontWeight: "600", color: "#111827" },
   input: {
     flex: 1,
     paddingHorizontal: 14,
     paddingVertical: 13,
     fontSize: 15,
-    color: '#111827',
+    color: "#111827",
   },
 });

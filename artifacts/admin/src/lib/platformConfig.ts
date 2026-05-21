@@ -1,6 +1,6 @@
+import { createLogger } from "@/lib/logger";
 import { adminFetch, getAdminAccessToken } from "./adminFetcher";
 import { applyAdminTimingOverrides, type AdminTimingConfig } from "./adminTiming";
-import { createLogger } from "@/lib/logger";
 const log = createLogger("[platformConfig]");
 
 export const PLATFORM_DEFAULTS = {
@@ -54,7 +54,7 @@ export const loadPlatformConfig = async () => {
   try {
     const data = await adminFetch("/platform-settings");
     const settings: { key: string; value: string }[] = data.settings || [];
-    const sym = settings.find(s => s.key === "currency_symbol")?.value;
+    const sym = settings.find((s) => s.key === "currency_symbol")?.value;
     if (sym) setCurrencySymbol(sym);
 
     const overrides: Partial<Record<keyof AdminTimingConfig, unknown>> = {};

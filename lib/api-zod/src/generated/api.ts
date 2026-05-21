@@ -418,7 +418,7 @@ export const GetLoginHistoryResponse = zod.object({
       userAgent: zod.string().optional(),
       createdAt: zod.string(),
       success: zod.boolean(),
-    }),
+    })
   ),
 });
 
@@ -434,7 +434,7 @@ export const GetSessionsResponse = zod.object({
       createdAt: zod.string(),
       lastUsedAt: zod.string().optional(),
       isCurrent: zod.boolean().optional(),
-    }),
+    })
   ),
 });
 
@@ -508,7 +508,7 @@ export const GetCartSnapshotResponse = zod.object({
       price: zod.string(),
       quantity: zod.number(),
       image: zod.string().optional(),
-    }),
+    })
   ),
   vendorId: zod.string().optional(),
   serviceType: zod.string().optional(),
@@ -526,7 +526,7 @@ export const SaveCartSnapshotBody = zod.object({
       price: zod.string(),
       quantity: zod.number(),
       image: zod.string().optional(),
-    }),
+    })
   ),
   vendorId: zod.string().optional(),
   serviceType: zod.string().optional(),
@@ -541,7 +541,7 @@ export const SaveCartSnapshotResponse = zod.object({
       price: zod.string(),
       quantity: zod.number(),
       image: zod.string().optional(),
-    }),
+    })
   ),
   vendorId: zod.string().optional(),
   serviceType: zod.string().optional(),
@@ -574,15 +574,7 @@ export const GetProductsResponse = zod.object({
       price: zod.string(),
       originalPrice: zod.string().optional(),
       category: zod.string(),
-      type: zod.enum([
-        "mart",
-        "food",
-        "rides",
-        "pharmacy",
-        "parcel",
-        "van",
-        "school",
-      ]),
+      type: zod.enum(["mart", "food", "rides", "pharmacy", "parcel", "van", "school"]),
       image: zod.string().optional(),
       images: zod.array(zod.string()).optional(),
       stock: zod.number().optional(),
@@ -595,7 +587,7 @@ export const GetProductsResponse = zod.object({
       inStock: zod.boolean(),
       unit: zod.string().optional(),
       deliveryTime: zod.string().optional(),
-    }),
+    })
   ),
   total: zod.number(),
 });
@@ -628,15 +620,7 @@ export const GetProductResponse = zod.object({
   price: zod.string(),
   originalPrice: zod.string().optional(),
   category: zod.string(),
-  type: zod.enum([
-    "mart",
-    "food",
-    "rides",
-    "pharmacy",
-    "parcel",
-    "van",
-    "school",
-  ]),
+  type: zod.enum(["mart", "food", "rides", "pharmacy", "parcel", "van", "school"]),
   image: zod.string().optional(),
   images: zod.array(zod.string()).optional(),
   stock: zod.number().optional(),
@@ -666,7 +650,7 @@ export const GetCategoriesResponse = zod.object({
       type: zod.enum(["mart", "food"]),
       image: zod.string().optional(),
       parentId: zod.string().nullish(),
-    }),
+    })
   ),
 });
 
@@ -685,15 +669,7 @@ export const GetOrdersResponse = zod.object({
       userId: zod.string(),
       vendorId: zod.string().optional(),
       assignedRiderId: zod.string().optional(),
-      type: zod.enum([
-        "mart",
-        "food",
-        "rides",
-        "pharmacy",
-        "parcel",
-        "van",
-        "school",
-      ]),
+      type: zod.enum(["mart", "food", "rides", "pharmacy", "parcel", "van", "school"]),
       items: zod.array(
         zod.object({
           productId: zod.string(),
@@ -701,7 +677,7 @@ export const GetOrdersResponse = zod.object({
           price: zod.string(),
           quantity: zod.number(),
           image: zod.string().optional(),
-        }),
+        })
       ),
       status: zod.enum([
         "pending",
@@ -721,7 +697,7 @@ export const GetOrdersResponse = zod.object({
       riderId: zod.string().optional(),
       estimatedTime: zod.string().optional(),
       createdAt: zod.string(),
-    }),
+    })
   ),
   total: zod.number(),
 });
@@ -739,7 +715,7 @@ export const CreateOrderBody = zod.object({
       price: zod.string(),
       quantity: zod.number(),
       image: zod.string().optional(),
-    }),
+    })
   ),
   deliveryAddress: zod.string().optional(),
   paymentMethod: zod.enum(["cash", "wallet"]),
@@ -757,15 +733,7 @@ export const GetOrderResponse = zod.object({
   userId: zod.string(),
   vendorId: zod.string().optional(),
   assignedRiderId: zod.string().optional(),
-  type: zod.enum([
-    "mart",
-    "food",
-    "rides",
-    "pharmacy",
-    "parcel",
-    "van",
-    "school",
-  ]),
+  type: zod.enum(["mart", "food", "rides", "pharmacy", "parcel", "van", "school"]),
   items: zod.array(
     zod.object({
       productId: zod.string(),
@@ -773,7 +741,7 @@ export const GetOrderResponse = zod.object({
       price: zod.string(),
       quantity: zod.number(),
       image: zod.string().optional(),
-    }),
+    })
   ),
   status: zod.enum([
     "pending",
@@ -819,15 +787,7 @@ export const UpdateOrderStatusResponse = zod.object({
   userId: zod.string(),
   vendorId: zod.string().optional(),
   assignedRiderId: zod.string().optional(),
-  type: zod.enum([
-    "mart",
-    "food",
-    "rides",
-    "pharmacy",
-    "parcel",
-    "van",
-    "school",
-  ]),
+  type: zod.enum(["mart", "food", "rides", "pharmacy", "parcel", "van", "school"]),
   items: zod.array(
     zod.object({
       productId: zod.string(),
@@ -835,7 +795,7 @@ export const UpdateOrderStatusResponse = zod.object({
       price: zod.string(),
       quantity: zod.number(),
       image: zod.string().optional(),
-    }),
+    })
   ),
   status: zod.enum([
     "pending",
@@ -873,7 +833,7 @@ export const GetWalletResponse = zod.object({
       amount: zod.string(),
       description: zod.string(),
       createdAt: zod.string(),
-    }),
+    })
   ),
   pinSetup: zod.boolean().optional(),
   walletHidden: zod.boolean().optional(),
@@ -898,7 +858,7 @@ export const TopUpWalletResponse = zod.object({
       amount: zod.string(),
       description: zod.string(),
       createdAt: zod.string(),
-    }),
+    })
   ),
 });
 
@@ -932,7 +892,7 @@ export const GetWalletDepositsResponse = zod.object({
       status: zod.enum(["pending", "approved", "rejected"]),
       transactionId: zod.string().optional(),
       createdAt: zod.string(),
-    }),
+    })
   ),
   total: zod.number(),
 });
@@ -951,7 +911,7 @@ export const GetWalletDepositMethodsResponse = zod.object({
       fee: zod.string().optional(),
       logo: zod.string().optional(),
       available: zod.boolean(),
-    }),
+    })
   ),
 });
 
@@ -969,7 +929,7 @@ export const GetWalletWithdrawalMethodsResponse = zod.object({
       fee: zod.string().optional(),
       logo: zod.string().optional(),
       available: zod.boolean(),
-    }),
+    })
   ),
 });
 
@@ -1125,10 +1085,7 @@ export const GetRideResponse = zod.object({
     .number()
     .nullish()
     .describe("Seconds since the rider's live location was last updated"),
-  riderAvgRating: zod
-    .number()
-    .nullish()
-    .describe("Average star rating of the assigned rider"),
+  riderAvgRating: zod.number().nullish().describe("Average star rating of the assigned rider"),
   bids: zod
     .array(
       zod.object({
@@ -1147,7 +1104,7 @@ export const GetRideResponse = zod.object({
         expiresAt: zod.string(),
         createdAt: zod.string(),
         updatedAt: zod.string(),
-      }),
+      })
     )
     .optional()
     .describe("Pending bids on this ride (only populated while bargaining)"),
@@ -1184,7 +1141,7 @@ export const GetRideStopsResponse = zod.object({
       lng: zod.number(),
       category: zod.string().optional(),
       icon: zod.string().optional(),
-    }),
+    })
   ),
 });
 
@@ -1205,7 +1162,7 @@ export const GetRideServicesResponse = zod.object({
       minFare: zod.string(),
       maxPassengers: zod.number(),
       allowBargaining: zod.boolean(),
-    }),
+    })
   ),
 });
 
@@ -1261,10 +1218,7 @@ export const CancelRideResponse = zod.object({
     .number()
     .nullish()
     .describe("Seconds since the rider's live location was last updated"),
-  riderAvgRating: zod
-    .number()
-    .nullish()
-    .describe("Average star rating of the assigned rider"),
+  riderAvgRating: zod.number().nullish().describe("Average star rating of the assigned rider"),
   bids: zod
     .array(
       zod.object({
@@ -1283,7 +1237,7 @@ export const CancelRideResponse = zod.object({
         expiresAt: zod.string(),
         createdAt: zod.string(),
         updatedAt: zod.string(),
-      }),
+      })
     )
     .optional()
     .describe("Pending bids on this ride (only populated while bargaining)"),
@@ -1341,10 +1295,7 @@ export const AcceptRideBidResponse = zod.object({
     .number()
     .nullish()
     .describe("Seconds since the rider's live location was last updated"),
-  riderAvgRating: zod
-    .number()
-    .nullish()
-    .describe("Average star rating of the assigned rider"),
+  riderAvgRating: zod.number().nullish().describe("Average star rating of the assigned rider"),
   bids: zod
     .array(
       zod.object({
@@ -1363,7 +1314,7 @@ export const AcceptRideBidResponse = zod.object({
         expiresAt: zod.string(),
         createdAt: zod.string(),
         updatedAt: zod.string(),
-      }),
+      })
     )
     .optional()
     .describe("Pending bids on this ride (only populated while bargaining)"),
@@ -1421,10 +1372,7 @@ export const CustomerCounterOfferResponse = zod.object({
     .number()
     .nullish()
     .describe("Seconds since the rider's live location was last updated"),
-  riderAvgRating: zod
-    .number()
-    .nullish()
-    .describe("Average star rating of the assigned rider"),
+  riderAvgRating: zod.number().nullish().describe("Average star rating of the assigned rider"),
   bids: zod
     .array(
       zod.object({
@@ -1443,7 +1391,7 @@ export const CustomerCounterOfferResponse = zod.object({
         expiresAt: zod.string(),
         createdAt: zod.string(),
         updatedAt: zod.string(),
-      }),
+      })
     )
     .optional()
     .describe("Pending bids on this ride (only populated while bargaining)"),
@@ -1490,17 +1438,12 @@ export const GetRideHistoryResponse = zod.object({
       riderLng: zod
         .number()
         .nullish()
-        .describe(
-          "Live longitude of the assigned rider (active statuses only)",
-        ),
+        .describe("Live longitude of the assigned rider (active statuses only)"),
       riderLocAge: zod
         .number()
         .nullish()
         .describe("Seconds since the rider's live location was last updated"),
-      riderAvgRating: zod
-        .number()
-        .nullish()
-        .describe("Average star rating of the assigned rider"),
+      riderAvgRating: zod.number().nullish().describe("Average star rating of the assigned rider"),
       bids: zod
         .array(
           zod.object({
@@ -1519,13 +1462,11 @@ export const GetRideHistoryResponse = zod.object({
             expiresAt: zod.string(),
             createdAt: zod.string(),
             updatedAt: zod.string(),
-          }),
+          })
         )
         .optional()
-        .describe(
-          "Pending bids on this ride (only populated while bargaining)",
-        ),
-    }),
+        .describe("Pending bids on this ride (only populated while bargaining)"),
+    })
   ),
   total: zod.number(),
 });
@@ -1548,7 +1489,7 @@ export const GetNotificationsResponse = zod.object({
       data: zod.record(zod.string(), zod.unknown()).optional(),
       isRead: zod.boolean(),
       createdAt: zod.string(),
-    }),
+    })
   ),
   unreadCount: zod.number(),
   total: zod.number(),
@@ -1589,7 +1530,7 @@ export const GetAddressesResponse = zod.object({
       isDefault: zod.boolean(),
       city: zod.string().optional(),
       createdAt: zod.string(),
-    }),
+    })
   ),
 });
 
@@ -1680,7 +1621,7 @@ export const GetProductReviewsResponse = zod.object({
       comment: zod.string().optional(),
       images: zod.array(zod.string()).optional(),
       createdAt: zod.string(),
-    }),
+    })
   ),
   total: zod.number(),
 });
@@ -1853,7 +1794,7 @@ export const GetSupportMessagesResponse = zod.object({
       type: zod.enum(["text", "image", "audio", "location"]),
       senderRole: zod.enum(["customer", "support"]),
       createdAt: zod.string(),
-    }),
+    })
   ),
   total: zod.number(),
 });
@@ -1898,7 +1839,7 @@ export const GetPublicPromotionsResponse = zod.object({
       maxDiscount: zod.number().optional(),
       expiresAt: zod.string().optional(),
       bannerImage: zod.string().optional(),
-    }),
+    })
   ),
 });
 
@@ -1918,7 +1859,7 @@ export const GetPersonalizedPromotionsResponse = zod.object({
       maxDiscount: zod.number().optional(),
       expiresAt: zod.string().optional(),
       bannerImage: zod.string().optional(),
-    }),
+    })
   ),
 });
 
@@ -1999,7 +1940,7 @@ export const GetBannersResponse = zod.object({
       type: zod.string().optional(),
       position: zod.number().optional(),
       isActive: zod.boolean(),
-    }),
+    })
   ),
 });
 
@@ -2019,15 +1960,7 @@ export const GetTrendingProductsResponse = zod.object({
       price: zod.string(),
       originalPrice: zod.string().optional(),
       category: zod.string(),
-      type: zod.enum([
-        "mart",
-        "food",
-        "rides",
-        "pharmacy",
-        "parcel",
-        "van",
-        "school",
-      ]),
+      type: zod.enum(["mart", "food", "rides", "pharmacy", "parcel", "van", "school"]),
       image: zod.string().optional(),
       images: zod.array(zod.string()).optional(),
       stock: zod.number().optional(),
@@ -2040,7 +1973,7 @@ export const GetTrendingProductsResponse = zod.object({
       inStock: zod.boolean(),
       unit: zod.string().optional(),
       deliveryTime: zod.string().optional(),
-    }),
+    })
   ),
 });
 
@@ -2056,15 +1989,7 @@ export const GetForYouRecommendationsResponse = zod.object({
       price: zod.string(),
       originalPrice: zod.string().optional(),
       category: zod.string(),
-      type: zod.enum([
-        "mart",
-        "food",
-        "rides",
-        "pharmacy",
-        "parcel",
-        "van",
-        "school",
-      ]),
+      type: zod.enum(["mart", "food", "rides", "pharmacy", "parcel", "van", "school"]),
       image: zod.string().optional(),
       images: zod.array(zod.string()).optional(),
       stock: zod.number().optional(),
@@ -2077,7 +2002,7 @@ export const GetForYouRecommendationsResponse = zod.object({
       inStock: zod.boolean(),
       unit: zod.string().optional(),
       deliveryTime: zod.string().optional(),
-    }),
+    })
   ),
 });
 
@@ -2097,15 +2022,7 @@ export const GetSimilarProductsResponse = zod.object({
       price: zod.string(),
       originalPrice: zod.string().optional(),
       category: zod.string(),
-      type: zod.enum([
-        "mart",
-        "food",
-        "rides",
-        "pharmacy",
-        "parcel",
-        "van",
-        "school",
-      ]),
+      type: zod.enum(["mart", "food", "rides", "pharmacy", "parcel", "van", "school"]),
       image: zod.string().optional(),
       images: zod.array(zod.string()).optional(),
       stock: zod.number().optional(),
@@ -2118,7 +2035,7 @@ export const GetSimilarProductsResponse = zod.object({
       inStock: zod.boolean(),
       unit: zod.string().optional(),
       deliveryTime: zod.string().optional(),
-    }),
+    })
   ),
 });
 
@@ -2148,7 +2065,7 @@ export const GetPlatformFaqsResponse = zod.object({
         question: zod.string(),
         answer: zod.string(),
         category: zod.string().optional(),
-      }),
+      })
     )
     .optional(),
 });
@@ -2167,7 +2084,7 @@ export const GetPharmacyOrdersResponse = zod.object({
             name: zod.string(),
             quantity: zod.number(),
             price: zod.string().optional(),
-          }),
+          })
         )
         .optional(),
       prescriptionUrl: zod.string().optional(),
@@ -2184,7 +2101,7 @@ export const GetPharmacyOrdersResponse = zod.object({
       paymentMethod: zod.string().optional(),
       note: zod.string().optional(),
       createdAt: zod.string(),
-    }),
+    })
   ),
   total: zod.number(),
 });
@@ -2198,7 +2115,7 @@ export const CreatePharmacyOrderBody = zod.object({
       zod.object({
         name: zod.string(),
         quantity: zod.number(),
-      }),
+      })
     )
     .optional(),
   prescriptionUrl: zod.string().optional(),
@@ -2223,7 +2140,7 @@ export const GetPharmacyOrderResponse = zod.object({
         name: zod.string(),
         quantity: zod.number(),
         price: zod.string().optional(),
-      }),
+      })
     )
     .optional(),
   prescriptionUrl: zod.string().optional(),
@@ -2262,7 +2179,7 @@ export const CancelPharmacyOrderResponse = zod.object({
         name: zod.string(),
         quantity: zod.number(),
         price: zod.string().optional(),
-      }),
+      })
     )
     .optional(),
   prescriptionUrl: zod.string().optional(),
@@ -2328,7 +2245,7 @@ export const GetParcelBookingsResponse = zod.object({
       estimatedTime: zod.string().optional(),
       riderId: zod.string().optional(),
       createdAt: zod.string(),
-    }),
+    })
   ),
   total: zod.number(),
 });
@@ -2374,14 +2291,7 @@ export const GetParcelBookingResponse = zod.object({
   description: zod.string().optional(),
   fare: zod.string(),
   paymentMethod: zod.string(),
-  status: zod.enum([
-    "pending",
-    "accepted",
-    "picked_up",
-    "in_transit",
-    "delivered",
-    "cancelled",
-  ]),
+  status: zod.enum(["pending", "accepted", "picked_up", "in_transit", "delivered", "cancelled"]),
   estimatedTime: zod.string().optional(),
   riderId: zod.string().optional(),
   createdAt: zod.string(),
@@ -2412,14 +2322,7 @@ export const CancelParcelBookingResponse = zod.object({
   description: zod.string().optional(),
   fare: zod.string(),
   paymentMethod: zod.string(),
-  status: zod.enum([
-    "pending",
-    "accepted",
-    "picked_up",
-    "in_transit",
-    "delivered",
-    "cancelled",
-  ]),
+  status: zod.enum(["pending", "accepted", "picked_up", "in_transit", "delivered", "cancelled"]),
   estimatedTime: zod.string().optional(),
   riderId: zod.string().optional(),
   createdAt: zod.string(),
@@ -2440,7 +2343,7 @@ export const GetPaymentMethodsResponse = zod.object({
       maxAmount: zod.string().optional(),
       fee: zod.string().optional(),
       freeAbove: zod.string().optional(),
-    }),
+    })
   ),
 });
 
@@ -2448,14 +2351,8 @@ export const GetPaymentMethodsResponse = zod.object({
  * @summary Forward geocode an address or place ID to lat/lng
  */
 export const GeocodeAddressQueryParams = zod.object({
-  address: zod.coerce
-    .string()
-    .optional()
-    .describe("Address text to forward geocode"),
-  place_id: zod.coerce
-    .string()
-    .optional()
-    .describe("Place ID to resolve to coordinates"),
+  address: zod.coerce.string().optional().describe("Address text to forward geocode"),
+  place_id: zod.coerce.string().optional().describe("Place ID to resolve to coordinates"),
 });
 
 export const GeocodeAddressResponse = zod.object({
@@ -2489,7 +2386,7 @@ export const GetSchoolRoutesResponse = zod.object({
       name: zod.string(),
       shift: zod.string(),
       capacity: zod.number().optional(),
-    }),
+    })
   ),
 });
 
@@ -2640,7 +2537,7 @@ export const GetVendorOrdersResponse = zod.object({
           price: zod.string(),
           quantity: zod.number(),
           image: zod.string().optional(),
-        }),
+        })
       ),
       status: zod.string(),
       total: zod.number(),
@@ -2650,7 +2547,7 @@ export const GetVendorOrdersResponse = zod.object({
       customerName: zod.string().optional(),
       customerPhone: zod.string().optional(),
       createdAt: zod.string(),
-    }),
+    })
   ),
   total: zod.number(),
 });
@@ -2684,7 +2581,7 @@ export const UpdateVendorOrderStatusResponse = zod.object({
       price: zod.string(),
       quantity: zod.number(),
       image: zod.string().optional(),
-    }),
+    })
   ),
   status: zod.string(),
   total: zod.number(),
@@ -2714,15 +2611,7 @@ export const GetVendorProductsResponse = zod.object({
       price: zod.string(),
       originalPrice: zod.string().optional(),
       category: zod.string(),
-      type: zod.enum([
-        "mart",
-        "food",
-        "rides",
-        "pharmacy",
-        "parcel",
-        "van",
-        "school",
-      ]),
+      type: zod.enum(["mart", "food", "rides", "pharmacy", "parcel", "van", "school"]),
       image: zod.string().optional(),
       images: zod.array(zod.string()).optional(),
       stock: zod.number().optional(),
@@ -2735,7 +2624,7 @@ export const GetVendorProductsResponse = zod.object({
       inStock: zod.boolean(),
       unit: zod.string().optional(),
       deliveryTime: zod.string().optional(),
-    }),
+    })
   ),
   total: zod.number(),
 });
@@ -2781,15 +2670,7 @@ export const UpdateVendorProductResponse = zod.object({
   price: zod.string(),
   originalPrice: zod.string().optional(),
   category: zod.string(),
-  type: zod.enum([
-    "mart",
-    "food",
-    "rides",
-    "pharmacy",
-    "parcel",
-    "van",
-    "school",
-  ]),
+  type: zod.enum(["mart", "food", "rides", "pharmacy", "parcel", "van", "school"]),
   image: zod.string().optional(),
   images: zod.array(zod.string()).optional(),
   stock: zod.number().optional(),
@@ -2827,7 +2708,7 @@ export const GetVendorWalletTransactionsResponse = zod.object({
       amount: zod.string(),
       description: zod.string(),
       createdAt: zod.string(),
-    }),
+    })
   ),
   total: zod.number(),
 });
@@ -2860,13 +2741,13 @@ export const GetVendorAnalyticsResponse = zod.object({
     zod.object({
       date: zod.string().optional(),
       amount: zod.string().optional(),
-    }),
+    })
   ),
   orders: zod.array(
     zod.object({
       date: zod.string().optional(),
       count: zod.number().optional(),
-    }),
+    })
   ),
   topProducts: zod
     .array(
@@ -2877,21 +2758,11 @@ export const GetVendorAnalyticsResponse = zod.object({
         price: zod.string(),
         originalPrice: zod.string().optional(),
         category: zod.string(),
-        type: zod.enum([
-          "mart",
-          "food",
-          "rides",
-          "pharmacy",
-          "parcel",
-          "van",
-          "school",
-        ]),
+        type: zod.enum(["mart", "food", "rides", "pharmacy", "parcel", "van", "school"]),
         image: zod.string().optional(),
         images: zod.array(zod.string()).optional(),
         stock: zod.number().optional(),
-        approvalStatus: zod
-          .enum(["pending", "approved", "rejected"])
-          .optional(),
+        approvalStatus: zod.enum(["pending", "approved", "rejected"]).optional(),
         videoUrl: zod.string().nullish(),
         vendorId: zod.string().optional(),
         vendorName: zod.string().optional(),
@@ -2900,7 +2771,7 @@ export const GetVendorAnalyticsResponse = zod.object({
         inStock: zod.boolean(),
         unit: zod.string().optional(),
         deliveryTime: zod.string().optional(),
-      }),
+      })
     )
     .optional(),
 });
@@ -3152,7 +3023,7 @@ export const GetRiderRequestsResponse = zod.object({
               name: zod.string().optional(),
               quantity: zod.number().optional(),
               price: zod.string().optional(),
-            }),
+            })
           )
           .optional(),
         vendorName: zod.string().optional(),
@@ -3160,9 +3031,7 @@ export const GetRiderRequestsResponse = zod.object({
         vendorAddress: zod.string().optional(),
         notes: zod.string().optional(),
       })
-      .describe(
-        "Rider-facing view of a delivery order (request feed + active trip)",
-      ),
+      .describe("Rider-facing view of a delivery order (request feed + active trip)")
   ),
   rides: zod.array(
     zod
@@ -3187,12 +3056,9 @@ export const GetRiderRequestsResponse = zod.object({
         scheduledFor: zod.string().optional(),
         notes: zod.string().optional(),
       })
-      .describe("Rider-facing view of a ride (request feed + active trip)"),
+      .describe("Rider-facing view of a ride (request feed + active trip)")
   ),
-  _serverTime: zod
-    .string()
-    .nullish()
-    .describe("ISO timestamp from the server at response time"),
+  _serverTime: zod.string().nullish().describe("ISO timestamp from the server at response time"),
 });
 
 /**
@@ -3206,15 +3072,7 @@ export const GetRiderActiveDeliveryResponse = zod.object({
       userId: zod.string(),
       vendorId: zod.string().optional(),
       assignedRiderId: zod.string().optional(),
-      type: zod.enum([
-        "mart",
-        "food",
-        "rides",
-        "pharmacy",
-        "parcel",
-        "van",
-        "school",
-      ]),
+      type: zod.enum(["mart", "food", "rides", "pharmacy", "parcel", "van", "school"]),
       items: zod.array(
         zod.object({
           productId: zod.string(),
@@ -3222,7 +3080,7 @@ export const GetRiderActiveDeliveryResponse = zod.object({
           price: zod.string(),
           quantity: zod.number(),
           image: zod.string().optional(),
-        }),
+        })
       ),
       status: zod.enum([
         "pending",
@@ -3281,17 +3139,12 @@ export const GetRiderActiveDeliveryResponse = zod.object({
       riderLng: zod
         .number()
         .nullish()
-        .describe(
-          "Live longitude of the assigned rider (active statuses only)",
-        ),
+        .describe("Live longitude of the assigned rider (active statuses only)"),
       riderLocAge: zod
         .number()
         .nullish()
         .describe("Seconds since the rider's live location was last updated"),
-      riderAvgRating: zod
-        .number()
-        .nullish()
-        .describe("Average star rating of the assigned rider"),
+      riderAvgRating: zod.number().nullish().describe("Average star rating of the assigned rider"),
       bids: zod
         .array(
           zod.object({
@@ -3310,12 +3163,10 @@ export const GetRiderActiveDeliveryResponse = zod.object({
             expiresAt: zod.string(),
             createdAt: zod.string(),
             updatedAt: zod.string(),
-          }),
+          })
         )
         .optional()
-        .describe(
-          "Pending bids on this ride (only populated while bargaining)",
-        ),
+        .describe("Pending bids on this ride (only populated while bargaining)"),
     })
     .optional(),
 });
@@ -3332,15 +3183,7 @@ export const RiderAcceptOrderResponse = zod.object({
   userId: zod.string(),
   vendorId: zod.string().optional(),
   assignedRiderId: zod.string().optional(),
-  type: zod.enum([
-    "mart",
-    "food",
-    "rides",
-    "pharmacy",
-    "parcel",
-    "van",
-    "school",
-  ]),
+  type: zod.enum(["mart", "food", "rides", "pharmacy", "parcel", "van", "school"]),
   items: zod.array(
     zod.object({
       productId: zod.string(),
@@ -3348,7 +3191,7 @@ export const RiderAcceptOrderResponse = zod.object({
       price: zod.string(),
       quantity: zod.number(),
       image: zod.string().optional(),
-    }),
+    })
   ),
   status: zod.enum([
     "pending",
@@ -3397,15 +3240,7 @@ export const UpdateRiderOrderStatusResponse = zod.object({
   userId: zod.string(),
   vendorId: zod.string().optional(),
   assignedRiderId: zod.string().optional(),
-  type: zod.enum([
-    "mart",
-    "food",
-    "rides",
-    "pharmacy",
-    "parcel",
-    "van",
-    "school",
-  ]),
+  type: zod.enum(["mart", "food", "rides", "pharmacy", "parcel", "van", "school"]),
   items: zod.array(
     zod.object({
       productId: zod.string(),
@@ -3413,7 +3248,7 @@ export const UpdateRiderOrderStatusResponse = zod.object({
       price: zod.string(),
       quantity: zod.number(),
       image: zod.string().optional(),
-    }),
+    })
   ),
   status: zod.enum([
     "pending",
@@ -3487,10 +3322,7 @@ export const RiderAcceptRideResponse = zod.object({
     .number()
     .nullish()
     .describe("Seconds since the rider's live location was last updated"),
-  riderAvgRating: zod
-    .number()
-    .nullish()
-    .describe("Average star rating of the assigned rider"),
+  riderAvgRating: zod.number().nullish().describe("Average star rating of the assigned rider"),
   bids: zod
     .array(
       zod.object({
@@ -3509,7 +3341,7 @@ export const RiderAcceptRideResponse = zod.object({
         expiresAt: zod.string(),
         createdAt: zod.string(),
         updatedAt: zod.string(),
-      }),
+      })
     )
     .optional()
     .describe("Pending bids on this ride (only populated while bargaining)"),
@@ -3567,10 +3399,7 @@ export const RiderVerifyRideOtpResponse = zod.object({
     .number()
     .nullish()
     .describe("Seconds since the rider's live location was last updated"),
-  riderAvgRating: zod
-    .number()
-    .nullish()
-    .describe("Average star rating of the assigned rider"),
+  riderAvgRating: zod.number().nullish().describe("Average star rating of the assigned rider"),
   bids: zod
     .array(
       zod.object({
@@ -3589,7 +3418,7 @@ export const RiderVerifyRideOtpResponse = zod.object({
         expiresAt: zod.string(),
         createdAt: zod.string(),
         updatedAt: zod.string(),
-      }),
+      })
     )
     .optional()
     .describe("Pending bids on this ride (only populated while bargaining)"),
@@ -3647,10 +3476,7 @@ export const UpdateRiderRideStatusResponse = zod.object({
     .number()
     .nullish()
     .describe("Seconds since the rider's live location was last updated"),
-  riderAvgRating: zod
-    .number()
-    .nullish()
-    .describe("Average star rating of the assigned rider"),
+  riderAvgRating: zod.number().nullish().describe("Average star rating of the assigned rider"),
   bids: zod
     .array(
       zod.object({
@@ -3669,7 +3495,7 @@ export const UpdateRiderRideStatusResponse = zod.object({
         expiresAt: zod.string(),
         createdAt: zod.string(),
         updatedAt: zod.string(),
-      }),
+      })
     )
     .optional()
     .describe("Pending bids on this ride (only populated while bargaining)"),
@@ -3727,10 +3553,7 @@ export const RiderCounterOfferResponse = zod.object({
     .number()
     .nullish()
     .describe("Seconds since the rider's live location was last updated"),
-  riderAvgRating: zod
-    .number()
-    .nullish()
-    .describe("Average star rating of the assigned rider"),
+  riderAvgRating: zod.number().nullish().describe("Average star rating of the assigned rider"),
   bids: zod
     .array(
       zod.object({
@@ -3749,7 +3572,7 @@ export const RiderCounterOfferResponse = zod.object({
         expiresAt: zod.string(),
         createdAt: zod.string(),
         updatedAt: zod.string(),
-      }),
+      })
     )
     .optional()
     .describe("Pending bids on this ride (only populated while bargaining)"),
@@ -3771,7 +3594,7 @@ export const GetRiderHistoryResponse = zod.object({
       status: zod.string(),
       fare: zod.string().optional(),
       createdAt: zod.string(),
-    }),
+    })
   ),
   total: zod.number(),
 });
@@ -3795,7 +3618,7 @@ export const GetRiderEarningsResponse = zod.object({
       zod.object({
         date: zod.string().optional(),
         amount: zod.string().optional(),
-      }),
+      })
     )
     .optional(),
 });
@@ -3816,7 +3639,7 @@ export const GetRiderWalletTransactionsResponse = zod.object({
       amount: zod.string(),
       description: zod.string(),
       createdAt: zod.string(),
-    }),
+    })
   ),
   total: zod.number(),
 });

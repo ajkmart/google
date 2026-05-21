@@ -24,15 +24,14 @@ export interface LogoutApi {
  *   3. Run any caller-supplied state-clearing callbacks (React state, cache…).
  *   4. Fire the server-side revocation request (non-blocking, errors ignored).
  */
-export function executeLogoutSequence(
-  apiClient: LogoutApi,
-  clearAppState: () => void,
-): void {
+export function executeLogoutSequence(apiClient: LogoutApi, clearAppState: () => void): void {
   const refreshTok = apiClient.getRefreshToken();
   apiClient.clearTokens();
   clearAppState();
   if (refreshTok) {
     /* Token is already cleared locally — server revocation is fire-and-forget */
-    apiClient.logout(refreshTok).catch((err) => { log.warn("server token revocation failed (local session already cleared):", err); });
+    apiClient.logout(refreshTok).catch((err) => {
+      log.warn("server token revocation failed (local session already cleared):", err);
+    });
   }
 }

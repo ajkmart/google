@@ -1,12 +1,16 @@
 const MAX_DIMENSION = 1280;
 const TARGET_SIZE_BYTES = 200 * 1024;
-const QUALITY_STEPS = [0.82, 0.72, 0.60, 0.48];
+const QUALITY_STEPS = [0.82, 0.72, 0.6, 0.48];
 
 async function blobToFile(blob: Blob, name: string, type: string): Promise<File> {
   return new File([blob], name, { type });
 }
 
-function drawToCanvas(img: HTMLImageElement): { canvas: HTMLCanvasElement; width: number; height: number } {
+function drawToCanvas(img: HTMLImageElement): {
+  canvas: HTMLCanvasElement;
+  width: number;
+  height: number;
+} {
   let { width, height } = img;
   if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
     const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height);
@@ -21,7 +25,11 @@ function drawToCanvas(img: HTMLImageElement): { canvas: HTMLCanvasElement; width
   return { canvas, width, height };
 }
 
-async function tryEncode(canvas: HTMLCanvasElement, mime: "image/webp" | "image/jpeg", quality: number): Promise<Blob | null> {
+async function tryEncode(
+  canvas: HTMLCanvasElement,
+  mime: "image/webp" | "image/jpeg",
+  quality: number
+): Promise<Blob | null> {
   return new Promise<Blob | null>((resolve) => {
     canvas.toBlob((b) => resolve(b), mime, quality);
   });
@@ -47,11 +55,20 @@ export async function compressImage(file: File): Promise<File> {
         if (supportsWebP) {
           const blob = await tryEncode(canvas, "image/webp", quality);
           if (blob && blob.size < file.size) {
-            const candidate = await blobToFile(blob, file.name.replace(/\.[^.]+$/, ".webp"), "image/webp");
+            const candidate = await blobToFile(
+              blob,
+              file.name.replace(/\.[^.]+$/, ".webp"),
+              "image/webp"
+            );
             if (import.meta.env.DEV && !bestFile) {
-              console.debug(`[imageUtils] ${file.name}: ${(file.size / 1024).toFixed(1)}KB → ${(blob.size / 1024).toFixed(1)}KB (webp q${quality})`); // eslint-disable-line no-console
+              console.debug(
+                `[imageUtils] ${file.name}: ${(file.size / 1024).toFixed(1)}KB → ${(blob.size / 1024).toFixed(1)}KB (webp q${quality})`
+              ); // eslint-disable-line no-console
             }
-            if (blob.size <= TARGET_SIZE_BYTES) { resolve(candidate); return; }
+            if (blob.size <= TARGET_SIZE_BYTES) {
+              resolve(candidate);
+              return;
+            }
             if (!bestFile || blob.size < bestFile.size) bestFile = candidate;
           }
         }
@@ -59,18 +76,29 @@ export async function compressImage(file: File): Promise<File> {
         /* JPEG fallback */
         const jblob = await tryEncode(canvas, "image/jpeg", quality);
         if (jblob && jblob.size < file.size) {
-          const candidate = await blobToFile(jblob, file.name.replace(/\.[^.]+$/, ".jpg"), "image/jpeg");
+          const candidate = await blobToFile(
+            jblob,
+            file.name.replace(/\.[^.]+$/, ".jpg"),
+            "image/jpeg"
+          );
           if (import.meta.env.DEV && !bestFile) {
-            console.debug(`[imageUtils] ${file.name}: ${(file.size / 1024).toFixed(1)}KB → ${(jblob.size / 1024).toFixed(1)}KB (jpeg q${quality})`); // eslint-disable-line no-console
+            console.debug(
+              `[imageUtils] ${file.name}: ${(file.size / 1024).toFixed(1)}KB → ${(jblob.size / 1024).toFixed(1)}KB (jpeg q${quality})`
+            ); // eslint-disable-line no-console
           }
-          if (jblob.size <= TARGET_SIZE_BYTES) { resolve(candidate); return; }
+          if (jblob.size <= TARGET_SIZE_BYTES) {
+            resolve(candidate);
+            return;
+          }
           if (!bestFile || jblob.size < bestFile.size) bestFile = candidate;
         }
       }
 
       if (bestFile) {
         if (import.meta.env.DEV) {
-          console.debug(`[imageUtils] ${file.name}: best effort ${(bestFile.size / 1024).toFixed(1)}KB (target was ${(TARGET_SIZE_BYTES / 1024).toFixed(0)}KB)`); // eslint-disable-line no-console
+          console.debug(
+            `[imageUtils] ${file.name}: best effort ${(bestFile.size / 1024).toFixed(1)}KB (target was ${(TARGET_SIZE_BYTES / 1024).toFixed(0)}KB)`
+          ); // eslint-disable-line no-console
         }
         resolve(bestFile);
       } else {
@@ -78,7 +106,10 @@ export async function compressImage(file: File): Promise<File> {
       }
     };
 
-    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file);
+    };
     img.src = objectUrl;
   });
 }

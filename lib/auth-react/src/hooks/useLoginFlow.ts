@@ -1,8 +1,8 @@
-import { useState, useCallback, useContext } from 'react';
-import { AuthContext } from '../AuthProvider';
-import type { AuthUser } from '../AuthProvider';
+import { useCallback, useContext, useState } from "react";
+import type { AuthUser } from "../AuthProvider";
+import { AuthContext } from "../AuthProvider";
 
-export type LoginMethod = 'otp' | 'password' | 'social' | 'magic-link' | 'totp';
+export type LoginMethod = "otp" | "password" | "social" | "magic-link" | "totp";
 
 export interface IdentifierCheckResult {
   method: LoginMethod;
@@ -21,19 +21,24 @@ interface ApiResponse<T> {
 
 export interface UseLoginFlowOptions {
   baseURL?: string;
-  role?: 'customer' | 'rider' | 'vendor' | 'admin';
+  role?: "customer" | "rider" | "vendor" | "admin";
   onSuccess?: (user: AuthUser, accessToken: string) => void;
   /** Optional function to translate raw API error strings before displaying them */
   translateError?: (raw: string) => string;
 }
 
-export function useLoginFlow({ baseURL = '', role, onSuccess, translateError }: UseLoginFlowOptions = {}) {
+export function useLoginFlow({
+  baseURL = "",
+  role,
+  onSuccess,
+  translateError,
+}: UseLoginFlowOptions = {}) {
   const ctx = useContext(AuthContext);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [method, setMethod] = useState<LoginMethod | null>(null);
-  const [identifier, setIdentifier] = useState<string>('');
+  const [identifier, setIdentifier] = useState<string>("");
   const [twoFactorPending, setTwoFactorPending] = useState(false);
 
   function clearError() {
@@ -44,17 +49,14 @@ export function useLoginFlow({ baseURL = '', role, onSuccess, translateError }: 
     return translateError ? translateError(raw) : raw;
   }
 
-  async function apiFetch<T>(
-    path: string,
-    body: Record<string, unknown>
-  ): Promise<ApiResponse<T>> {
+  async function apiFetch<T>(path: string, body: Record<string, unknown>): Promise<ApiResponse<T>> {
     const token = ctx?.tokenStorage.getAccessToken();
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
 
     const res = await fetch(`${baseURL}${path}`, {
-      method: 'POST',
-      credentials: 'include',
+      method: "POST",
+      credentials: "include",
       headers,
       body: JSON.stringify(body),
     });
@@ -81,38 +83,42 @@ export function useLoginFlow({ baseURL = '', role, onSuccess, translateError }: 
       setIdentifier(id);
       try {
         const checkBody: Record<string, unknown> = { identifier: id };
-        if (role && role !== 'admin') checkBody.role = role;
+        if (role && role !== "admin") checkBody.role = role;
         if (metadata && Object.keys(metadata).length > 0) {
           Object.assign(checkBody, metadata);
         }
 
-        const res = await apiFetch<IdentifierCheckResult & { action?: string; availableMethods?: string[] }>(
-          '/api/auth/check-identifier',
-          checkBody
-        );
+        const res = await apiFetch<
+          IdentifierCheckResult & { action?: string; availableMethods?: string[] }
+        >("/api/auth/check-identifier", checkBody);
         const raw = (res.data ?? {}) as Record<string, unknown>;
 
         /* Map the API's action/availableMethods format to the method field
            the LoginScreen step-switcher expects */
-        const rawMethod = typeof raw.method === 'string' ? (raw.method as LoginMethod) : undefined;
-        const rawAction = typeof raw.action === 'string' ? raw.action : undefined;
-        const rawAvailableMethods = Array.isArray(raw.availableMethods) ? (raw.availableMethods as string[]) : [];
-        const rawExists = typeof raw.exists === 'boolean' ? raw.exists : false;
+        const rawMethod = typeof raw.method === "string" ? (raw.method as LoginMethod) : undefined;
+        const rawAction = typeof raw.action === "string" ? raw.action : undefined;
+        const rawAvailableMethods = Array.isArray(raw.availableMethods)
+          ? (raw.availableMethods as string[])
+          : [];
+        const rawExists = typeof raw.exists === "boolean" ? raw.exists : false;
 
         const actionToMethod = (action: string | undefined): LoginMethod => {
-          if (action === 'login_password') return 'password';
-          if (action === 'send_magic_link') return 'magic-link';
-          return 'otp';
+          if (action === "login_password") return "password";
+          if (action === "send_magic_link") return "magic-link";
+          return "otp";
         };
         const derivedMethod: LoginMethod =
           rawMethod ??
           actionToMethod(rawAction) ??
-          (rawAvailableMethods.includes('password') && !rawAvailableMethods.includes('phone_otp') ? 'password' : 'otp');
+          (rawAvailableMethods.includes("password") && !rawAvailableMethods.includes("phone_otp")
+            ? "password"
+            : "otp");
 
         const result: IdentifierCheckResult = {
           method: derivedMethod,
           exists: rawExists,
-          twoFactorEnabled: typeof raw.twoFactorEnabled === 'boolean' ? raw.twoFactorEnabled : undefined,
+          twoFactorEnabled:
+            typeof raw.twoFactorEnabled === "boolean" ? raw.twoFactorEnabled : undefined,
         };
         setMethod(result.method);
 
@@ -122,20 +128,20 @@ export function useLoginFlow({ baseURL = '', role, onSuccess, translateError }: 
            phone-OTP flow.  Without this the user would see an OTP input but
            receive nothing on their phone.
         ─────────────────────────────────────────────────────────────────── */
-        const action: string = rawAction ?? '';
-        if (action === 'send_phone_otp' || derivedMethod === 'otp') {
+        const action: string = rawAction ?? "";
+        if (action === "send_phone_otp" || derivedMethod === "otp") {
           const looksLikePhone = /^[\d\s\-+()]{7,15}$/.test(id.trim());
           if (looksLikePhone) {
             const sendBody: Record<string, unknown> = { phone: id };
-            if (role && role !== 'admin') sendBody.role = role;
+            if (role && role !== "admin") sendBody.role = role;
             if (metadata && Object.keys(metadata).length > 0) {
               Object.assign(sendBody, metadata);
             }
             // Fire-and-forget: errors here are surfaced in verifyOtp if OTP wasn't sent
             try {
-              await apiFetch('/api/auth/send-otp', sendBody);
+              await apiFetch("/api/auth/send-otp", sendBody);
             } catch (sendErr) {
-              const msg = sendErr instanceof Error ? sendErr.message : 'Failed to send OTP';
+              const msg = sendErr instanceof Error ? sendErr.message : "Failed to send OTP";
               setError(applyTranslation(msg));
               throw sendErr;
             }
@@ -144,9 +150,9 @@ export function useLoginFlow({ baseURL = '', role, onSuccess, translateError }: 
 
         return result;
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Failed to check identifier';
+        const msg = err instanceof Error ? err.message : "Failed to check identifier";
         // Only set error if not already set (send-otp errors set it above)
-        setError(prev => prev ?? applyTranslation(msg));
+        setError((prev) => prev ?? applyTranslation(msg));
         throw err;
       } finally {
         setLoading(false);
@@ -166,12 +172,13 @@ export function useLoginFlow({ baseURL = '', role, onSuccess, translateError }: 
       setError(null);
       try {
         const body: Record<string, unknown> = { phone: identifier, otp };
-        if (role && role !== 'admin') body.role = role;
+        if (role && role !== "admin") body.role = role;
 
-        const res = await apiFetch<{ user: AuthUser; accessToken: string; twoFactorRequired?: boolean }>(
-          '/api/auth/verify-otp',
-          body
-        );
+        const res = await apiFetch<{
+          user: AuthUser;
+          accessToken: string;
+          twoFactorRequired?: boolean;
+        }>("/api/auth/verify-otp", body);
         const data = res.data!;
         if (data.twoFactorRequired) {
           setTwoFactorPending(true);
@@ -181,7 +188,7 @@ export function useLoginFlow({ baseURL = '', role, onSuccess, translateError }: 
         ctx?.login(data.user, data.accessToken);
         onSuccess?.(data.user, data.accessToken);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'OTP verification failed';
+        const msg = err instanceof Error ? err.message : "OTP verification failed";
         setError(applyTranslation(msg));
         throw err;
       } finally {
@@ -200,10 +207,11 @@ export function useLoginFlow({ baseURL = '', role, onSuccess, translateError }: 
       setLoading(true);
       setError(null);
       try {
-        const res = await apiFetch<{ user: AuthUser; accessToken: string; twoFactorRequired?: boolean }>(
-          '/api/auth/login',
-          { identifier, password }
-        );
+        const res = await apiFetch<{
+          user: AuthUser;
+          accessToken: string;
+          twoFactorRequired?: boolean;
+        }>("/api/auth/login", { identifier, password });
         const data = res.data!;
         if (data.twoFactorRequired) {
           setTwoFactorPending(true);
@@ -213,7 +221,7 @@ export function useLoginFlow({ baseURL = '', role, onSuccess, translateError }: 
         ctx?.login(data.user, data.accessToken);
         onSuccess?.(data.user, data.accessToken);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Password login failed';
+        const msg = err instanceof Error ? err.message : "Password login failed";
         setError(applyTranslation(msg));
         throw err;
       } finally {
@@ -233,7 +241,7 @@ export function useLoginFlow({ baseURL = '', role, onSuccess, translateError }: 
       setError(null);
       try {
         const res = await apiFetch<{ user: AuthUser; accessToken: string }>(
-          '/api/auth/2fa/verify',
+          "/api/auth/2fa/verify",
           { identifier, code }
         );
         const data = res.data!;
@@ -242,7 +250,7 @@ export function useLoginFlow({ baseURL = '', role, onSuccess, translateError }: 
         ctx?.login(data.user, data.accessToken);
         onSuccess?.(data.user, data.accessToken);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : '2FA verification failed';
+        const msg = err instanceof Error ? err.message : "2FA verification failed";
         setError(applyTranslation(msg));
         throw err;
       } finally {

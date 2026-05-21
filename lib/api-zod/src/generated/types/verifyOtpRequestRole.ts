@@ -6,8 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type VerifyOtpRequestRole =
-  (typeof VerifyOtpRequestRole)[keyof typeof VerifyOtpRequestRole];
+export type VerifyOtpRequestRole = (typeof VerifyOtpRequestRole)[keyof typeof VerifyOtpRequestRole];
 
 export const VerifyOtpRequestRole = {
   customer: "customer",

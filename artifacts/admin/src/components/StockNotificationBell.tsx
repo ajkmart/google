@@ -1,14 +1,22 @@
-import { useEffect, useRef, useState, useCallback } from "react";
-import { createLogger } from "@/lib/logger";
-const log = createLogger("[StockNotificationBell]");
-import { Bell, Package, AlertTriangle, TrendingDown, X, RefreshCw, ExternalLink } from "lucide-react";
-import { type Socket } from "socket.io-client";
-import { useAdminAuth } from "@/lib/adminAuthContext";
-import { getAdminSocket } from "@/lib/adminSocket";
-import { usePermissions } from "@/hooks/usePermissions";
-import { adminFetch } from "@/lib/adminFetcher";
 import { toast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useAdminAuth } from "@/lib/adminAuthContext";
+import { adminFetch } from "@/lib/adminFetcher";
+import { getAdminSocket } from "@/lib/adminSocket";
+import { createLogger } from "@/lib/logger";
+import {
+  AlertTriangle,
+  Bell,
+  ExternalLink,
+  Package,
+  RefreshCw,
+  TrendingDown,
+  X,
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { type Socket } from "socket.io-client";
 import { Link } from "wouter";
+const log = createLogger("[StockNotificationBell]");
 
 const LOW_STOCK_THRESHOLD = 5;
 
@@ -30,21 +38,25 @@ interface StockNotification {
 
 function relativeTime(ts: string | number): string {
   const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
-  if (diff < 5)  return "just now";
+  if (diff < 5) return "just now";
   if (diff < 60) return `${diff}s ago`;
   const m = Math.floor(diff / 60);
-  if (m < 60)    return `${m}m ago`;
+  if (m < 60) return `${m}m ago`;
   const h = Math.floor(m / 60);
-  if (h < 24)    return `${h}h ago`;
+  if (h < 24) return `${h}h ago`;
   return new Date(ts).toLocaleDateString();
 }
 
 function reasonLabel(reason: string): string {
   switch (reason) {
-    case "order":           return "Order";
-    case "order_confirmed": return "Confirmed";
-    case "manual":          return "Manual";
-    default:                return reason;
+    case "order":
+      return "Order";
+    case "order_confirmed":
+      return "Confirmed";
+    case "manual":
+      return "Manual";
+    default:
+      return reason;
   }
 }
 
@@ -53,32 +65,42 @@ function NotificationRow({ n }: { n: StockNotification }) {
   const isLow = n.isLow && !isOut;
 
   return (
-    <div className={`flex items-start gap-3 px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors ${isOut ? "bg-red-50/40" : isLow ? "bg-amber-50/40" : ""}`}>
-      <div className={`mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isOut ? "bg-red-100" : isLow ? "bg-amber-100" : "bg-blue-50"}`}>
-        {isOut
-          ? <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
-          : isLow
-          ? <TrendingDown className="w-3.5 h-3.5 text-amber-500" />
-          : <Package className="w-3.5 h-3.5 text-blue-500" />
-        }
+    <div
+      className={`flex items-start gap-3 border-b border-gray-100 px-4 py-3 transition-colors last:border-0 hover:bg-gray-50 ${isOut ? "bg-red-50/40" : isLow ? "bg-amber-50/40" : ""}`}
+    >
+      <div
+        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${isOut ? "bg-red-100" : isLow ? "bg-amber-100" : "bg-blue-50"}`}
+      >
+        {isOut ? (
+          <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+        ) : isLow ? (
+          <TrendingDown className="h-3.5 w-3.5 text-amber-500" />
+        ) : (
+          <Package className="h-3.5 w-3.5 text-blue-500" />
+        )}
       </div>
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm font-semibold leading-tight truncate ${isOut ? "text-red-700" : isLow ? "text-amber-700" : "text-gray-800"}`}>
+      <div className="min-w-0 flex-1">
+        <p
+          className={`truncate text-sm leading-tight font-semibold ${isOut ? "text-red-700" : isLow ? "text-amber-700" : "text-gray-800"}`}
+        >
           {isOut ? "Out of Stock" : isLow ? "Low Stock Alert" : "Stock Updated"}
         </p>
-        <p className="text-xs text-gray-500 truncate mt-0.5">
+        <p className="mt-0.5 truncate text-xs text-gray-500">
           {n.productName ?? n.productId} — {n.newStock ?? 0} units left
         </p>
-        <div className="flex items-center gap-2 mt-0.5">
+        <div className="mt-0.5 flex items-center gap-2">
           <span className="text-[10px] text-gray-400">{reasonLabel(n.reason)}</span>
           {n.quantityDelta !== null && n.quantityDelta !== 0 && (
-            <span className={`text-[10px] font-bold ${n.quantityDelta < 0 ? "text-red-500" : "text-green-600"}`}>
-              {n.quantityDelta > 0 ? "+" : ""}{n.quantityDelta}
+            <span
+              className={`text-[10px] font-bold ${n.quantityDelta < 0 ? "text-red-500" : "text-green-600"}`}
+            >
+              {n.quantityDelta > 0 ? "+" : ""}
+              {n.quantityDelta}
             </span>
           )}
         </div>
       </div>
-      <span className="text-[10px] text-gray-400 shrink-0 mt-0.5 tabular-nums whitespace-nowrap">
+      <span className="mt-0.5 shrink-0 text-[10px] whitespace-nowrap text-gray-400 tabular-nums">
         {relativeTime(n.changedAt)}
       </span>
     </div>
@@ -94,7 +116,11 @@ export function StockNotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [lastRead, setLastRead] = useState<number>(() => {
-    try { return parseInt(localStorage.getItem("ajkmart_stock_bell_read") ?? "0", 10) || 0; } catch { return 0; }
+    try {
+      return parseInt(localStorage.getItem("ajkmart_stock_bell_read") ?? "0", 10) || 0;
+    } catch {
+      return 0;
+    }
   });
   const dropdownRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -102,14 +128,16 @@ export function StockNotificationBell() {
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await adminFetch("/stock-notifications") as { notifications: StockNotification[] };
+      const data = (await adminFetch("/stock-notifications")) as {
+        notifications: StockNotification[];
+      };
       const list = data.notifications ?? [];
       setNotifications(list);
       // Badge = ALL currently low/out-of-stock items from DB so the count
       // persists across page refreshes, not just items since last read.
-      const alertCount = list.filter(n => n.isLow || n.isOutOfStock).length;
+      const alertCount = list.filter((n) => n.isLow || n.isOutOfStock).length;
       setUnreadCount(alertCount);
-    // eslint-disable-next-line ajk-local/no-silent-catch -- stock notification fetch failure is non-critical; badge simply stays empty
+      // eslint-disable-next-line ajk-local/no-silent-catch -- stock notification fetch failure is non-critical; badge simply stays empty
     } catch {
       /* silent — badge just won't show */
     } finally {
@@ -126,7 +154,13 @@ export function StockNotificationBell() {
     const socket = getAdminSocket(state.accessToken);
     socketRef.current = socket;
 
-    type StockPayload = { productId: string; productName?: string; vendorId: string; stock: number; inStock: boolean };
+    type StockPayload = {
+      productId: string;
+      productName?: string;
+      vendorId: string;
+      stock: number;
+      inStock: boolean;
+    };
 
     const onStockLow = (payload: StockPayload) => {
       const isOut = payload.stock <= 0;
@@ -150,8 +184,8 @@ export function StockNotificationBell() {
         isLow: !isOut && payload.stock < LOW_STOCK_THRESHOLD,
         isOutOfStock: isOut,
       };
-      setNotifications(prev => [synthetic, ...prev].slice(0, 60));
-      setUnreadCount(c => c + 1);
+      setNotifications((prev) => [synthetic, ...prev].slice(0, 60));
+      setUnreadCount((c) => c + 1);
     };
 
     const onStockUpdated = (payload: StockPayload) => {
@@ -173,8 +207,10 @@ export function StockNotificationBell() {
         isLow,
         isOutOfStock: isOut,
       };
-      setNotifications(prev => {
-        const exists = prev.findIndex(n => n.productId === payload.productId && n.source === "live");
+      setNotifications((prev) => {
+        const exists = prev.findIndex(
+          (n) => n.productId === payload.productId && n.source === "live"
+        );
         if (exists >= 0) {
           const next = [...prev];
           next[exists] = synthetic;
@@ -206,23 +242,26 @@ export function StockNotificationBell() {
   }, [open]);
 
   const handleOpen = () => {
-    setOpen(o => {
+    setOpen((o) => {
       if (!o) {
         const now = Date.now();
         setLastRead(now);
         setUnreadCount(0);
-        try { localStorage.setItem("ajkmart_stock_bell_read", String(now)); } catch (err) {
-          log.debug({ err: err instanceof Error ? err.message : String(err) }, "[StockNotificationBell] localStorage unavailable — skipping persistence");
+        try {
+          localStorage.setItem("ajkmart_stock_bell_read", String(now));
+        } catch (err) {
+          log.debug(
+            { err: err instanceof Error ? err.message : String(err) },
+            "[StockNotificationBell] localStorage unavailable — skipping persistence"
+          );
         }
       }
       return !o;
     });
   };
 
-  const lowAndOut = notifications.filter(n => n.isLow || n.isOutOfStock);
-  const displayList = open
-    ? (lowAndOut.length > 0 ? lowAndOut : notifications).slice(0, 20)
-    : [];
+  const lowAndOut = notifications.filter((n) => n.isLow || n.isOutOfStock);
+  const displayList = open ? (lowAndOut.length > 0 ? lowAndOut : notifications).slice(0, 20) : [];
 
   // Only render for admins with inventory.view permission.
   // Legacy tokens (no perms claim) and super-admins always see the bell.
@@ -233,14 +272,21 @@ export function StockNotificationBell() {
       <button
         onClick={handleOpen}
         aria-label={`Stock notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
-        className="relative w-8 h-8 flex items-center justify-center rounded-xl border transition-all duration-150 hover:bg-amber-50"
-        style={{ borderColor: unreadCount > 0 ? "rgba(245,158,11,0.3)" : "rgba(0,0,0,0.08)", background: open ? "rgba(245,158,11,0.06)" : undefined }}
+        className="relative flex h-8 w-8 items-center justify-center rounded-xl border transition-all duration-150 hover:bg-amber-50"
+        style={{
+          borderColor: unreadCount > 0 ? "rgba(245,158,11,0.3)" : "rgba(0,0,0,0.08)",
+          background: open ? "rgba(245,158,11,0.06)" : undefined,
+        }}
       >
-        <Bell className={`w-4 h-4 ${unreadCount > 0 ? "text-amber-500" : "text-slate-400"}`} />
+        <Bell className={`h-4 w-4 ${unreadCount > 0 ? "text-amber-500" : "text-slate-400"}`} />
         {unreadCount > 0 && (
           <span
-            className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full flex items-center justify-center text-[9px] font-black text-white"
-            style={{ background: "#EF4444", padding: "0 3px", boxShadow: "0 1px 4px rgba(239,68,68,0.5)" }}
+            className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full text-[9px] font-black text-white"
+            style={{
+              background: "#EF4444",
+              padding: "0 3px",
+              boxShadow: "0 1px 4px rgba(239,68,68,0.5)",
+            }}
           >
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
@@ -249,7 +295,7 @@ export function StockNotificationBell() {
 
       {open && (
         <div
-          className="absolute right-0 top-full mt-2 z-50 rounded-2xl overflow-hidden"
+          className="absolute top-full right-0 z-50 mt-2 overflow-hidden rounded-2xl"
           style={{
             width: 340,
             background: "#fff",
@@ -257,12 +303,15 @@ export function StockNotificationBell() {
             boxShadow: "0 12px 40px rgba(0,0,0,0.14)",
           }}
         >
-          <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+          <div
+            className="flex items-center justify-between px-4 py-3"
+            style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}
+          >
             <div className="flex items-center gap-2">
-              <Bell className="w-4 h-4 text-amber-500" />
+              <Bell className="h-4 w-4 text-amber-500" />
               <span className="text-sm font-bold text-gray-800">Stock Alerts</span>
               {lowAndOut.length > 0 && (
-                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-600">
                   {lowAndOut.length} alert{lowAndOut.length !== 1 ? "s" : ""}
                 </span>
               )}
@@ -271,44 +320,46 @@ export function StockNotificationBell() {
               <button
                 onClick={fetchNotifications}
                 disabled={loading}
-                className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors text-gray-400"
+                className="flex h-6 w-6 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100"
                 title="Refresh"
               >
-                <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
+                <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
               </button>
               <button
                 onClick={() => setOpen(false)}
-                className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors text-gray-400"
+                className="flex h-6 w-6 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100"
               >
-                <X className="w-3 h-3" />
+                <X className="h-3 w-3" />
               </button>
             </div>
           </div>
 
           <div className="overflow-y-auto" style={{ maxHeight: 380 }}>
             {loading && notifications.length === 0 ? (
-              <div className="flex items-center justify-center py-10 text-sm text-gray-400 gap-2">
-                <RefreshCw className="w-4 h-4 animate-spin" />
+              <div className="flex items-center justify-center gap-2 py-10 text-sm text-gray-400">
+                <RefreshCw className="h-4 w-4 animate-spin" />
                 Loading…
               </div>
             ) : displayList.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 gap-2 text-center px-4">
-                <div className="w-9 h-9 rounded-2xl bg-green-50 flex items-center justify-center">
-                  <Package className="w-4.5 h-4.5 text-green-400" />
+              <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">
+                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-green-50">
+                  <Package className="h-4.5 w-4.5 text-green-400" />
                 </div>
                 <p className="text-sm font-semibold text-gray-700">All stock levels healthy</p>
-                <p className="text-xs text-gray-400">No low-stock or out-of-stock products right now.</p>
+                <p className="text-xs text-gray-400">
+                  No low-stock or out-of-stock products right now.
+                </p>
               </div>
             ) : (
-              displayList.map(n => <NotificationRow key={n.id} n={n} />)
+              displayList.map((n) => <NotificationRow key={n.id} n={n} />)
             )}
           </div>
 
           <div className="px-4 py-2.5" style={{ borderTop: "1px solid rgba(0,0,0,0.05)" }}>
             <Link href="/products" onClick={() => setOpen(false)}>
-              <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 cursor-pointer transition-colors">
+              <div className="flex cursor-pointer items-center justify-center gap-1.5 text-xs font-semibold text-indigo-600 transition-colors hover:text-indigo-700">
                 View all products
-                <ExternalLink className="w-3 h-3" />
+                <ExternalLink className="h-3 w-3" />
               </div>
             </Link>
           </div>

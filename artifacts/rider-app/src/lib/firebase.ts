@@ -21,12 +21,12 @@ function getFirebaseConfig() {
   const fb = riderEnv.firebase;
   if (!fb.apiKey) return null;
   return {
-    apiKey:            fb.apiKey,
-    authDomain:        fb.authDomain        ?? "",
-    projectId:         fb.projectId         ?? "",
-    storageBucket:     fb.storageBucket     ?? "",
+    apiKey: fb.apiKey,
+    authDomain: fb.authDomain ?? "",
+    projectId: fb.projectId ?? "",
+    storageBucket: fb.storageBucket ?? "",
     messagingSenderId: fb.messagingSenderId ?? "",
-    appId:             fb.appId             ?? "",
+    appId: fb.appId ?? "",
   };
 }
 

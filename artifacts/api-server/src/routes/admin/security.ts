@@ -1,11 +1,20 @@
-import { Router } from "express";
 import { db } from "@workspace/db";
 import { dataExportLogsTable, refreshTokensTable, usersTable } from "@workspace/db/schema";
-import { desc, asc, count, eq, and, isNotNull, ne } from "drizzle-orm";
-import { adminAuth, addAuditEntry, addSecurityEvent, getClientIp, type AdminRequest } from "../admin-shared.js";
-import { revokeAllUserRefreshTokens, setUserRevocationTimestamp } from "../../middleware/security.js";
+import { and, asc, count, desc, eq, isNotNull } from "drizzle-orm";
+import { Router } from "express";
 import { logger } from "../../lib/logger.js";
-import { sendSuccess, sendError } from "../../lib/response.js";
+import { sendError, sendSuccess } from "../../lib/response.js";
+import {
+  revokeAllUserRefreshTokens,
+  setUserRevocationTimestamp,
+} from "../../middleware/security.js";
+import {
+  addAuditEntry,
+  addSecurityEvent,
+  adminAuth,
+  getClientIp,
+  type AdminRequest,
+} from "../admin-shared.js";
 
 const router = Router();
 
@@ -13,12 +22,17 @@ const router = Router();
 type EventType = "rotation" | "breach" | "reuse" | "security" | "expired" | "active" | "other";
 function classifyReason(r: string | null): EventType {
   if (!r) return "other";
-  if (r === "ROTATED")                                              return "rotation";
-  if (r === "FAMILY_BREACH_DETECTED")                              return "breach";
-  if (r === "SUSPICIOUS_FAMILY_REUSE" || r === "REUSE_DETECTED")  return "reuse";
-  if (r === "EXPIRED")                                             return "expired";
-  if (r === "AUTH_METHOD_DISABLED" || r === "UNKNOWN_METHOD" ||
-      r === "USER_UNAVAILABLE"     || r === "ALL_SESSIONS_REVOKED") return "security";
+  if (r === "ROTATED") return "rotation";
+  if (r === "FAMILY_BREACH_DETECTED") return "breach";
+  if (r === "SUSPICIOUS_FAMILY_REUSE" || r === "REUSE_DETECTED") return "reuse";
+  if (r === "EXPIRED") return "expired";
+  if (
+    r === "AUTH_METHOD_DISABLED" ||
+    r === "UNKNOWN_METHOD" ||
+    r === "USER_UNAVAILABLE" ||
+    r === "ALL_SESSIONS_REVOKED"
+  )
+    return "security";
   return "other";
 }
 
@@ -28,12 +42,13 @@ function classifyReason(r: string | null): EventType {
    Requires admin auth (mounted via admin.ts → adminAuth).
 ══════════════════════════════════════════════════════════════════ */
 router.get("/security/data-exports", adminAuth, async (req, res) => {
-  const limit  = Math.min(parseInt(String(req.query["limit"]  ?? "50"),  10), 200);
+  const limit = Math.min(parseInt(String(req.query["limit"] ?? "50"), 10), 200);
   const offset = Math.max(0, parseInt(String(req.query["offset"] ?? "0"), 10));
 
   try {
     const [rows, [totRow]] = await Promise.all([
-      db.select()
+      db
+        .select()
         .from(dataExportLogsTable)
         .orderBy(desc(dataExportLogsTable.requestedAt))
         .limit(limit)
@@ -42,17 +57,17 @@ router.get("/security/data-exports", adminAuth, async (req, res) => {
     ]);
 
     sendSuccess(res, {
-      exports: rows.map(r => ({
-        id:          r.id,
-        userId:      r.userId,
+      exports: rows.map((r) => ({
+        id: r.id,
+        userId: r.userId,
         maskedPhone: r.maskedPhone,
-        ip:          r.ip,
-        userAgent:   r.userAgent,
+        ip: r.ip,
+        userAgent: r.userAgent,
         requestedAt: r.requestedAt.toISOString(),
         completedAt: r.completedAt?.toISOString() ?? null,
-        success:     r.success,
+        success: r.success,
       })),
-      total:  totRow?.total ?? 0,
+      total: totRow?.total ?? 0,
       limit,
       offset,
     });
@@ -74,7 +89,7 @@ router.get("/security/data-exports", adminAuth, async (req, res) => {
      reason   (optional — e.g. "ROTATED", "SUSPICIOUS_FAMILY_REUSE")
 ══════════════════════════════════════════════════════════════════ */
 router.get("/security/token-audit", adminAuth, async (req, res) => {
-  const limit  = Math.min(parseInt(String(req.query["limit"]  ?? "50"),  10), 200);
+  const limit = Math.min(parseInt(String(req.query["limit"] ?? "50"), 10), 200);
   const offset = Math.max(0, parseInt(String(req.query["offset"] ?? "0"), 10));
   const userId = req.query["userId"] ? String(req.query["userId"]).trim() : null;
   const reason = req.query["reason"] ? String(req.query["reason"]).trim() : null;
@@ -93,15 +108,15 @@ router.get("/security/token-audit", adminAuth, async (req, res) => {
     const [rows, [totRow]] = await Promise.all([
       db
         .select({
-          id:            refreshTokensTable.id,
-          userId:        refreshTokensTable.userId,
-          authMethod:    refreshTokensTable.authMethod,
+          id: refreshTokensTable.id,
+          userId: refreshTokensTable.userId,
+          authMethod: refreshTokensTable.authMethod,
           tokenFamilyId: refreshTokensTable.tokenFamilyId,
           revokedReason: refreshTokensTable.revokedReason,
-          revokedAt:     refreshTokensTable.revokedAt,
-          createdAt:     refreshTokensTable.createdAt,
-          userPhone:     usersTable.phone,
-          userName:      usersTable.name,
+          revokedAt: refreshTokensTable.revokedAt,
+          createdAt: refreshTokensTable.createdAt,
+          userPhone: usersTable.phone,
+          userName: usersTable.name,
         })
         .from(refreshTokensTable)
         .leftJoin(usersTable, eq(refreshTokensTable.userId, usersTable.id))
@@ -109,29 +124,26 @@ router.get("/security/token-audit", adminAuth, async (req, res) => {
         .orderBy(desc(refreshTokensTable.revokedAt))
         .limit(limit)
         .offset(offset),
-      db
-        .select({ total: count() })
-        .from(refreshTokensTable)
-        .where(where),
+      db.select({ total: count() }).from(refreshTokensTable).where(where),
     ]);
 
     /* Classify events by reason for the frontend */
     const classify = classifyReason;
 
     sendSuccess(res, {
-      events: rows.map(r => ({
-        id:            r.id,
-        userId:        r.userId,
-        userPhone:     r.userPhone ?? null,
-        userName:      r.userName ?? null,
-        authMethod:    r.authMethod ?? null,
+      events: rows.map((r) => ({
+        id: r.id,
+        userId: r.userId,
+        userPhone: r.userPhone ?? null,
+        userName: r.userName ?? null,
+        authMethod: r.authMethod ?? null,
         tokenFamilyId: r.tokenFamilyId ?? null,
         revokedReason: r.revokedReason ?? null,
-        eventType:     classify(r.revokedReason),
-        revokedAt:     r.revokedAt?.toISOString() ?? null,
-        issuedAt:      r.createdAt.toISOString(),
+        eventType: classify(r.revokedReason),
+        revokedAt: r.revokedAt?.toISOString() ?? null,
+        issuedAt: r.createdAt.toISOString(),
       })),
-      total:  totRow?.total ?? 0,
+      total: totRow?.total ?? 0,
       limit,
       offset,
     });
@@ -161,20 +173,22 @@ router.get("/security/token-timeline/:userId", adminAuth, async (req, res) => {
 
   try {
     const [userRows, tokenRows] = await Promise.all([
-      db.select({ phone: usersTable.phone, name: usersTable.name })
+      db
+        .select({ phone: usersTable.phone, name: usersTable.name })
         .from(usersTable)
         .where(eq(usersTable.id, userId))
         .limit(1),
-      db.select({
-          id:            refreshTokensTable.id,
+      db
+        .select({
+          id: refreshTokensTable.id,
           tokenFamilyId: refreshTokensTable.tokenFamilyId,
-          authMethod:    refreshTokensTable.authMethod,
-          revoked:       refreshTokensTable.revoked,
+          authMethod: refreshTokensTable.authMethod,
+          revoked: refreshTokensTable.revoked,
           revokedReason: refreshTokensTable.revokedReason,
-          usedAt:        refreshTokensTable.usedAt,
-          expiresAt:     refreshTokensTable.expiresAt,
-          revokedAt:     refreshTokensTable.revokedAt,
-          createdAt:     refreshTokensTable.createdAt,
+          usedAt: refreshTokensTable.usedAt,
+          expiresAt: refreshTokensTable.expiresAt,
+          revokedAt: refreshTokensTable.revokedAt,
+          createdAt: refreshTokensTable.createdAt,
         })
         .from(refreshTokensTable)
         .where(eq(refreshTokensTable.userId, userId))
@@ -200,51 +214,56 @@ router.get("/security/token-timeline/:userId", adminAuth, async (req, res) => {
     /* Determine status for each token */
     const tokenStatus = (t: (typeof tokenRows)[0]): EventType => {
       if (!t.revoked && new Date() < t.expiresAt) return "active";
-      if (t.revoked && t.revokedReason)            return classifyReason(t.revokedReason);
+      if (t.revoked && t.revokedReason) return classifyReason(t.revokedReason);
       if (!t.revoked && new Date() >= t.expiresAt) return "expired";
       return "other";
     };
 
     const mapToken = (t: (typeof tokenRows)[0]) => ({
-      id:            t.id,
-      authMethod:    t.authMethod ?? null,
-      revoked:       t.revoked,
+      id: t.id,
+      authMethod: t.authMethod ?? null,
+      revoked: t.revoked,
       revokedReason: t.revokedReason ?? null,
-      status:        tokenStatus(t),
-      usedAt:        t.usedAt?.toISOString() ?? null,
-      expiresAt:     t.expiresAt.toISOString(),
-      revokedAt:     t.revokedAt?.toISOString() ?? null,
-      issuedAt:      t.createdAt.toISOString(),
+      status: tokenStatus(t),
+      usedAt: t.usedAt?.toISOString() ?? null,
+      expiresAt: t.expiresAt.toISOString(),
+      revokedAt: t.revokedAt?.toISOString() ?? null,
+      issuedAt: t.createdAt.toISOString(),
     });
 
     /* Build sorted families — newest login first */
     const families = [
       ...[...familyMap.entries()]
         .map(([fid, tokens]) => ({
-          familyId:  fid,
+          familyId: fid,
           startedAt: tokens[0]!.createdAt.toISOString(),
-          tokens:    tokens.map(mapToken),
+          tokens: tokens.map(mapToken),
         }))
         .sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
-      ...(noFamilyBucket.length > 0 ? [{
-        familyId:  null,
-        startedAt: noFamilyBucket[0]!.createdAt.toISOString(),
-        tokens:    noFamilyBucket.map(mapToken),
-      }] : []),
+      ...(noFamilyBucket.length > 0
+        ? [
+            {
+              familyId: null,
+              startedAt: noFamilyBucket[0]!.createdAt.toISOString(),
+              tokens: noFamilyBucket.map(mapToken),
+            },
+          ]
+        : []),
     ];
 
-    const allTokens    = tokenRows;
-    const activeCount  = allTokens.filter(t => !t.revoked && new Date() < t.expiresAt).length;
-    const breachCount  = allTokens.filter(t =>
-      t.revokedReason === "FAMILY_BREACH_DETECTED" ||
-      t.revokedReason === "SUSPICIOUS_FAMILY_REUSE" ||
-      t.revokedReason === "REUSE_DETECTED",
+    const allTokens = tokenRows;
+    const activeCount = allTokens.filter((t) => !t.revoked && new Date() < t.expiresAt).length;
+    const breachCount = allTokens.filter(
+      (t) =>
+        t.revokedReason === "FAMILY_BREACH_DETECTED" ||
+        t.revokedReason === "SUSPICIOUS_FAMILY_REUSE" ||
+        t.revokedReason === "REUSE_DETECTED"
     ).length;
 
     sendSuccess(res, {
       userId,
-      userPhone:   user?.phone ?? null,
-      userName:    user?.name ?? null,
+      userPhone: user?.phone ?? null,
+      userName: user?.name ?? null,
       totalTokens: allTokens.length,
       activeCount,
       breachCount,
@@ -252,7 +271,10 @@ router.get("/security/token-timeline/:userId", adminAuth, async (req, res) => {
       families,
     });
   } catch (err: unknown) {
-    logger.error({ err: (err as Error).message, userId }, "[security/token-timeline] DB query failed");
+    logger.error(
+      { err: (err as Error).message, userId },
+      "[security/token-timeline] DB query failed"
+    );
     sendError(res, "Failed to load token timeline", 500);
   }
 });
@@ -275,35 +297,37 @@ router.get("/security/token-export/:userId", adminAuth, async (req, res) => {
 
   try {
     const [userRows, tokenRows] = await Promise.all([
-      db.select({ phone: usersTable.phone, name: usersTable.name })
+      db
+        .select({ phone: usersTable.phone, name: usersTable.name })
         .from(usersTable)
         .where(eq(usersTable.id, userId))
         .limit(1),
-      db.select({
-          id:            refreshTokensTable.id,
+      db
+        .select({
+          id: refreshTokensTable.id,
           tokenFamilyId: refreshTokensTable.tokenFamilyId,
-          authMethod:    refreshTokensTable.authMethod,
-          revoked:       refreshTokensTable.revoked,
+          authMethod: refreshTokensTable.authMethod,
+          revoked: refreshTokensTable.revoked,
           revokedReason: refreshTokensTable.revokedReason,
-          usedAt:        refreshTokensTable.usedAt,
-          expiresAt:     refreshTokensTable.expiresAt,
-          revokedAt:     refreshTokensTable.revokedAt,
-          createdAt:     refreshTokensTable.createdAt,
+          usedAt: refreshTokensTable.usedAt,
+          expiresAt: refreshTokensTable.expiresAt,
+          revokedAt: refreshTokensTable.revokedAt,
+          createdAt: refreshTokensTable.createdAt,
         })
         .from(refreshTokensTable)
         .where(eq(refreshTokensTable.userId, userId))
         .orderBy(asc(refreshTokensTable.createdAt)),
     ]);
 
-    const user        = userRows[0] ?? null;
+    const user = userRows[0] ?? null;
     const userDisplay = user?.phone ?? user?.name ?? userId;
-    const now         = new Date();
+    const now = new Date();
 
     /* Classify each token's status (mirrors token-timeline logic) */
     const tokenStatus = (t: (typeof tokenRows)[0]): string => {
-      if (!t.revoked && now < t.expiresAt)   return "active";
-      if (t.revoked && t.revokedReason)       return classifyReason(t.revokedReason);
-      if (!t.revoked && now >= t.expiresAt)   return "expired";
+      if (!t.revoked && now < t.expiresAt) return "active";
+      if (t.revoked && t.revokedReason) return classifyReason(t.revokedReason);
+      if (!t.revoked && now >= t.expiresAt) return "expired";
       return "other";
     };
 
@@ -313,16 +337,23 @@ router.get("/security/token-export/:userId", adminAuth, async (req, res) => {
       return `"${String(v).replace(/"/g, '""')}"`;
     };
 
-    const isoOrEmpty = (d: Date | null | undefined): string =>
-      d ? d.toISOString() : "";
+    const isoOrEmpty = (d: Date | null | undefined): string => (d ? d.toISOString() : "");
 
     /* Build CSV */
     const header = [
-      "tokenId", "familyId", "authMethod", "status",
-      "issuedAt", "usedAt", "expiresAt", "revokedAt", "revokedReason", "revoked",
+      "tokenId",
+      "familyId",
+      "authMethod",
+      "status",
+      "issuedAt",
+      "usedAt",
+      "expiresAt",
+      "revokedAt",
+      "revokedReason",
+      "revoked",
     ].join(",");
 
-    const rows = tokenRows.map(t =>
+    const rows = tokenRows.map((t) =>
       [
         esc(t.id),
         esc(t.tokenFamilyId),
@@ -337,24 +368,24 @@ router.get("/security/token-export/:userId", adminAuth, async (req, res) => {
       ].join(",")
     );
 
-    const csv      = [header, ...rows].join("\r\n");
-    const dateStr  = now.toISOString().slice(0, 10);
+    const csv = [header, ...rows].join("\r\n");
+    const dateStr = now.toISOString().slice(0, 10);
     const filename = `session-history-${userId.slice(0, 8)}-${dateStr}.csv`;
 
     /* Audit log — treat the export itself as a sensitive action */
     const adminReq = req as AdminRequest;
     addAuditEntry({
-      action:         "token_history_export",
-      adminId:        adminReq.adminId,
-      ip:             getClientIp(req),
-      details:        `Exported ${tokenRows.length} token record(s) for user ${userDisplay} (${userId})`,
-      result:         "success",
+      action: "token_history_export",
+      adminId: adminReq.adminId,
+      ip: getClientIp(req),
+      details: `Exported ${tokenRows.length} token record(s) for user ${userDisplay} (${userId})`,
+      result: "success",
       affectedUserId: userId,
     });
 
     logger.info(
       { adminId: adminReq.adminId, userId, tokenCount: tokenRows.length },
-      "[AUDIT:EXPORT] Admin exported token history",
+      "[AUDIT:EXPORT] Admin exported token history"
     );
 
     res
@@ -391,14 +422,19 @@ router.post("/security/revoke-family/:userId/:familyId", adminAuth, async (req, 
       .from(refreshTokensTable)
       .where(
         and(
-          eq(refreshTokensTable.userId,         userId),
-          eq(refreshTokensTable.tokenFamilyId,  familyId),
-          eq(refreshTokensTable.revoked,         false),
-        ),
+          eq(refreshTokensTable.userId, userId),
+          eq(refreshTokensTable.tokenFamilyId, familyId),
+          eq(refreshTokensTable.revoked, false)
+        )
       );
 
     if (activeCount === 0) {
-      sendSuccess(res, { userId, familyId, revokedCount: 0, message: "No active tokens in this family." });
+      sendSuccess(res, {
+        userId,
+        familyId,
+        revokedCount: 0,
+        message: "No active tokens in this family.",
+      });
       return;
     }
 
@@ -414,10 +450,7 @@ router.post("/security/revoke-family/:userId/:familyId", adminAuth, async (req, 
       .update(refreshTokensTable)
       .set({ revoked: true, revokedAt: new Date(), revokedReason: "ADMIN_REVOKE_FAMILY" })
       .where(
-        and(
-          eq(refreshTokensTable.userId,        userId),
-          eq(refreshTokensTable.tokenFamilyId, familyId),
-        ),
+        and(eq(refreshTokensTable.userId, userId), eq(refreshTokensTable.tokenFamilyId, familyId))
       );
 
     /* Write a Redis revocation fence — any access token issued before this
@@ -425,30 +458,30 @@ router.post("/security/revoke-family/:userId/:familyId", adminAuth, async (req, 
        TTL = access_token_ttl_sec so the key auto-expires with the tokens. */
     await setUserRevocationTimestamp(userId);
 
-    const adminReq    = req as AdminRequest;
-    const ip          = getClientIp(req);
+    const adminReq = req as AdminRequest;
+    const ip = getClientIp(req);
     const userDisplay = userRow?.phone ?? userRow?.name ?? userId;
 
     addAuditEntry({
-      action:         "revoke_family",
-      adminId:        adminReq.adminId,
+      action: "revoke_family",
+      adminId: adminReq.adminId,
       ip,
-      details:        `Revoked ${activeCount} token(s) in family ${familyId.slice(0, 8)}… for user ${userDisplay} (${userId})`,
-      result:         "success",
+      details: `Revoked ${activeCount} token(s) in family ${familyId.slice(0, 8)}… for user ${userDisplay} (${userId})`,
+      result: "success",
       affectedUserId: userId,
     });
 
     addSecurityEvent({
-      type:     "admin_revoke_family",
+      type: "admin_revoke_family",
       ip,
       userId,
-      details:  `Admin (${adminReq.adminId ?? "unknown"}) surgically revoked family ${familyId.slice(0, 8)}… — ${activeCount} token(s)`,
+      details: `Admin (${adminReq.adminId ?? "unknown"}) surgically revoked family ${familyId.slice(0, 8)}… — ${activeCount} token(s)`,
       severity: "medium",
     });
 
     logger.warn(
       { adminId: adminReq.adminId, userId, familyId, revokedCount: activeCount, ip },
-      "[AUDIT:AUTH] Admin revoked single token family",
+      "[AUDIT:AUTH] Admin revoked single token family"
     );
 
     sendSuccess(res, {
@@ -458,7 +491,10 @@ router.post("/security/revoke-family/:userId/:familyId", adminAuth, async (req, 
       message: `${activeCount} token(s) in this session family revoked.`,
     });
   } catch (err: unknown) {
-    logger.error({ err: (err as Error).message, userId, familyId }, "[security/revoke-family] Failed");
+    logger.error(
+      { err: (err as Error).message, userId, familyId },
+      "[security/revoke-family] Failed"
+    );
     sendError(res, "Failed to revoke token family", 500);
   }
 });
@@ -482,12 +518,7 @@ router.post("/security/force-logout/:userId", adminAuth, async (req, res) => {
     const [{ activeCount }] = await db
       .select({ activeCount: count() })
       .from(refreshTokensTable)
-      .where(
-        and(
-          eq(refreshTokensTable.userId, userId),
-          eq(refreshTokensTable.revoked, false),
-        ),
-      );
+      .where(and(eq(refreshTokensTable.userId, userId), eq(refreshTokensTable.revoked, false)));
 
     if (activeCount === 0) {
       sendSuccess(res, { userId, revokedCount: 0, message: "No active sessions to revoke." });
@@ -504,32 +535,32 @@ router.post("/security/force-logout/:userId", adminAuth, async (req, res) => {
     /* Revoke every token for this user */
     await revokeAllUserRefreshTokens(userId, "ADMIN_FORCE_LOGOUT");
 
-    const adminReq   = req as AdminRequest;
-    const ip         = getClientIp(req);
+    const adminReq = req as AdminRequest;
+    const ip = getClientIp(req);
     const userDisplay = userRow?.phone ?? userRow?.name ?? userId;
 
     /* Admin audit log */
     addAuditEntry({
-      action:         "force_logout",
-      adminId:        adminReq.adminId,
+      action: "force_logout",
+      adminId: adminReq.adminId,
       ip,
-      details:        `Force-logged out ${activeCount} session(s) for user ${userDisplay} (${userId})`,
-      result:         "success",
+      details: `Force-logged out ${activeCount} session(s) for user ${userDisplay} (${userId})`,
+      result: "success",
       affectedUserId: userId,
     });
 
     /* In-memory security event */
     addSecurityEvent({
-      type:     "admin_force_logout",
+      type: "admin_force_logout",
       ip,
       userId,
-      details:  `Admin (${adminReq.adminId ?? "unknown"}) force-revoked ${activeCount} token(s) for user ${userDisplay}`,
+      details: `Admin (${adminReq.adminId ?? "unknown"}) force-revoked ${activeCount} token(s) for user ${userDisplay}`,
       severity: "high",
     });
 
     logger.warn(
       { adminId: adminReq.adminId, userId, revokedCount: activeCount, ip },
-      "[AUDIT:AUTH] Admin force-logout executed",
+      "[AUDIT:AUTH] Admin force-logout executed"
     );
 
     sendSuccess(res, {

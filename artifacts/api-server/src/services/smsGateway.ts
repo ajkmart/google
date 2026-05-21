@@ -12,10 +12,10 @@
 
 import { db } from "@workspace/db";
 import { smsGatewaysTable, whitelistUsersTable } from "@workspace/db/schema";
-import { eq, asc, and, or, isNull, gt } from "drizzle-orm";
-import { sendOtpSMS, type SMSResult } from "./sms.js";
-import { logger } from "../lib/logger.js";
 import type { Language } from "@workspace/i18n";
+import { and, asc, eq, gt, isNull, or } from "drizzle-orm";
+import { logger } from "../lib/logger.js";
+import { sendOtpSMS, type SMSResult } from "./sms.js";
 
 /* ── Whitelist check ─────────────────────────────────────────────────────── */
 
@@ -39,7 +39,13 @@ export async function getWhitelistBypass(identifier: string): Promise<string | n
       .limit(1);
     return rows[0]?.bypassCode ?? null;
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return null;
   }
 }
@@ -97,11 +103,19 @@ async function tryZong(phone: string, message: string, gw: any): Promise<SMSResu
       body: JSON.stringify({
         messages: {
           authentication: { producttoken: apiKey },
-          msg: [{ from: senderId ?? "AJKMart", to: [{ number: toE164(phone) }], body: { type: "AUTO", content: message } }],
+          msg: [
+            {
+              from: senderId ?? "AJKMart",
+              to: [{ number: toE164(phone) }],
+              body: { type: "AUTO", content: message },
+            },
+          ],
         },
       }),
     });
-    return resp.ok ? { sent: true, provider: "zong" } : { sent: false, provider: "zong", error: await resp.text() };
+    return resp.ok
+      ? { sent: true, provider: "zong" }
+      : { sent: false, provider: "zong", error: await resp.text() };
   } catch (err: any) {
     return { sent: false, provider: "zong", error: err.message };
   }
@@ -115,7 +129,7 @@ function consoleResult(phone: string, message: string): SMSResult {
 function toE164(phone: string): string {
   const d = phone.replace(/\D/g, "");
   if (d.startsWith("92")) return `+${d}`;
-  if (d.startsWith("0"))  return `+92${d.slice(1)}`;
+  if (d.startsWith("0")) return `+92${d.slice(1)}`;
   return `+92${d}`;
 }
 
@@ -171,11 +185,20 @@ export async function sendOtpWithFailover(
     let result: SMSResult;
 
     switch (gw.provider) {
-      case "twilio":  result = await tryTwilio(phone, message, gw); break;
-      case "msg91":   result = await tryMsg91(phone, message, gw); break;
-      case "zong":    result = await tryZong(phone, message, gw); break;
-      case "console": result = consoleResult(phone, message); break;
-      default:        result = { sent: false, provider: gw.provider, error: "Unknown provider" };
+      case "twilio":
+        result = await tryTwilio(phone, message, gw);
+        break;
+      case "msg91":
+        result = await tryMsg91(phone, message, gw);
+        break;
+      case "zong":
+        result = await tryZong(phone, message, gw);
+        break;
+      case "console":
+        result = consoleResult(phone, message);
+        break;
+      default:
+        result = { sent: false, provider: gw.provider, error: "Unknown provider" };
     }
 
     if (result.sent) {
@@ -186,7 +209,10 @@ export async function sendOtpWithFailover(
     }
 
     errors.push(`${gw.provider}: ${result.error ?? "unknown error"}`);
-    logger.warn({ provider: gw.provider, error: result.error }, "[SMS:failover] Provider failed, trying next");
+    logger.warn(
+      { provider: gw.provider, error: result.error },
+      "[SMS:failover] Provider failed, trying next"
+    );
   }
 
   /* All gateways failed — log and return failure */

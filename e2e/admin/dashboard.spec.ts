@@ -1,9 +1,8 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { loginAdmin } from "../helpers/auth";
 
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME ?? "superadmin";
-const ADMIN_PASSWORD =
-  process.env.ADMIN_PASSWORD ?? process.env.ADMIN_SEED_PASSWORD ?? "Admin@123";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? process.env.ADMIN_SEED_PASSWORD ?? "Admin@123";
 
 test.describe("Admin Dashboard", () => {
   test.beforeEach(async ({ page }) => {
@@ -69,7 +68,9 @@ test.describe("Admin Dashboard", () => {
 
     await page.waitForTimeout(1_500);
 
-    const refreshed = page.getByText(/Total Revenue|Total Riders|Total Vendors|Total Orders/i).first();
+    const refreshed = page
+      .getByText(/Total Revenue|Total Riders|Total Vendors|Total Orders/i)
+      .first();
     await expect(refreshed).toBeVisible({ timeout: 15_000 });
     const refreshedText = await refreshed.textContent();
     expect(refreshedText).toBeTruthy();

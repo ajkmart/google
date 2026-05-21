@@ -6,8 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ParcelBookingStatus =
-  (typeof ParcelBookingStatus)[keyof typeof ParcelBookingStatus];
+export type ParcelBookingStatus = (typeof ParcelBookingStatus)[keyof typeof ParcelBookingStatus];
 
 export const ParcelBookingStatus = {
   pending: "pending",

@@ -10,6 +10,8 @@ export const platformSettingsTable = pgTable("platform_settings", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export const insertPlatformSettingSchema = createInsertSchema(platformSettingsTable).omit({ updatedAt: true });
+export const insertPlatformSettingSchema = createInsertSchema(platformSettingsTable).omit({
+  updatedAt: true,
+});
 export type InsertPlatformSetting = z.infer<typeof insertPlatformSettingSchema>;
 export type PlatformSetting = typeof platformSettingsTable.$inferSelect;

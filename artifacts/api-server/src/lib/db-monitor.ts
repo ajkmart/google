@@ -45,10 +45,7 @@ export function wrapDbWithMonitoring<T extends AnyDb>(db: T): T {
           return result.finally(() => {
             const ms = Date.now() - start;
             if (ms > SLOW_QUERY_THRESHOLD_MS) {
-              logger.warn(
-                { ms, method: String(prop) },
-                "[db] Slow query detected",
-              );
+              logger.warn({ ms, method: String(prop) }, "[db] Slow query detected");
             }
           });
         }

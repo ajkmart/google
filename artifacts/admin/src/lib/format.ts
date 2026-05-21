@@ -1,7 +1,7 @@
-import { format } from "date-fns";
-import { getCurrencySymbol } from "./platformConfig";
-import { escapeHtml } from "./escapeHtml";
 import { createLogger } from "@/lib/logger";
+import { format } from "date-fns";
+import { escapeHtml } from "./escapeHtml";
+import { getCurrencySymbol } from "./platformConfig";
 const log = createLogger("[format]");
 
 export const formatCurrency = (amount: number | null | undefined) => {
@@ -18,13 +18,12 @@ export const formatCurrency = (amount: number | null | undefined) => {
  * calling `formatCurrency` / `formatDateLocale` directly — React already
  * escapes JSX text children.
  */
-export const formatCurrencyHtml = (amount: number) =>
-  escapeHtml(formatCurrency(amount));
+export const formatCurrencyHtml = (amount: number) => escapeHtml(formatCurrency(amount));
 
 export const formatDateLocaleHtml = (
   dateString: string,
   locale?: string,
-  options?: Intl.DateTimeFormatOptions,
+  options?: Intl.DateTimeFormatOptions
 ) => escapeHtml(formatDateLocale(dateString, locale, options));
 
 export const formatDate = (dateString: string) => {
@@ -52,7 +51,7 @@ export const formatDateLocale = (
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  },
+  }
 ) => {
   const d = new Date(dateString);
   if (Number.isNaN(d.getTime())) {
@@ -62,40 +61,36 @@ export const formatDateLocale = (
   try {
     return new Intl.DateTimeFormat(locale, options).format(d);
   } catch (err) {
-    log.warn(
-      "formatDateLocale Intl.DateTimeFormat failed",
-      { locale, options, dateString },
-      err,
-    );
+    log.warn("formatDateLocale Intl.DateTimeFormat failed", { locale, options, dateString }, err);
     return dateString;
   }
 };
 
 export const getStatusColor = (status: string) => {
   switch (status.toLowerCase()) {
-    case 'pending':
-    case 'searching':
-      return 'bg-amber-100 text-amber-800 border-amber-200';
-    case 'confirmed':
-    case 'accepted':
-    case 'ongoing':
-      return 'bg-blue-100 text-blue-800 border-blue-200';
-    case 'preparing':
-    case 'arrived':
-      return 'bg-purple-100 text-purple-800 border-purple-200';
-    case 'ready':
-      return 'bg-teal-100 text-teal-800 border-teal-200';
-    case 'picked_up':
-      return 'bg-indigo-100 text-indigo-800 border-indigo-200';
-    case 'out_for_delivery':
-    case 'in_transit':
-      return 'bg-orange-100 text-orange-800 border-orange-200';
-    case 'delivered':
-    case 'completed':
-      return 'bg-green-100 text-green-800 border-green-200';
-    case 'cancelled':
-      return 'bg-red-100 text-red-800 border-red-200';
+    case "pending":
+    case "searching":
+      return "bg-amber-100 text-amber-800 border-amber-200";
+    case "confirmed":
+    case "accepted":
+    case "ongoing":
+      return "bg-blue-100 text-blue-800 border-blue-200";
+    case "preparing":
+    case "arrived":
+      return "bg-purple-100 text-purple-800 border-purple-200";
+    case "ready":
+      return "bg-teal-100 text-teal-800 border-teal-200";
+    case "picked_up":
+      return "bg-indigo-100 text-indigo-800 border-indigo-200";
+    case "out_for_delivery":
+    case "in_transit":
+      return "bg-orange-100 text-orange-800 border-orange-200";
+    case "delivered":
+    case "completed":
+      return "bg-green-100 text-green-800 border-green-200";
+    case "cancelled":
+      return "bg-red-100 text-red-800 border-red-200";
     default:
-      return 'bg-gray-100 text-gray-800 border-gray-200';
+      return "bg-gray-100 text-gray-800 border-gray-200";
   }
 };

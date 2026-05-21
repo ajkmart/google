@@ -8,7 +8,7 @@
  *  - Each test cleans up the created user in afterEach.
  */
 
-import { vi, describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 // ── Mocks (hoisted) ────────────────────────────────────────────────────────────
 vi.mock("../../../modules/otp/otp.deliver.js", () => ({
@@ -41,18 +41,18 @@ vi.mock("../../../services/email.js", () => ({
 }));
 
 // ── Imports ────────────────────────────────────────────────────────────────────
+import { db } from "@workspace/db";
+import { riderProfilesTable, usersTable, vendorProfilesTable } from "@workspace/db/schema";
+import { eq } from "drizzle-orm";
 import request from "supertest";
 import { createServer } from "../../../app.js";
-import { db } from "@workspace/db";
-import { usersTable, riderProfilesTable, vendorProfilesTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
 import {
-  generateTestPhone,
-  toCanonicalPhone,
-  deleteTestUserByPhone,
   cleanupOtpTokens,
-  seedPlatformSetting,
   deletePlatformSetting,
+  deleteTestUserByPhone,
+  generateTestPhone,
+  seedPlatformSetting,
+  toCanonicalPhone,
 } from "../helpers/db-helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

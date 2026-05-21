@@ -1,7 +1,7 @@
-import { pgTable, text, timestamp, varchar, index } from "drizzle-orm/pg-core";
-import { adminAccountsTable } from "./admin_accounts";
+import { index, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { adminAccountsTable } from "./admin_accounts";
 
 /**
  * Admin password reset tokens.
@@ -18,26 +18,27 @@ import { z } from "zod/v4";
 export const adminPasswordResetTokensTable = pgTable(
   "admin_password_reset_tokens",
   {
-    id:                   text("id").primaryKey(),
-    adminId:              text("admin_id")
+    id: text("id").primaryKey(),
+    adminId: text("admin_id")
       .notNull()
       .references(() => adminAccountsTable.id, { onDelete: "cascade" }),
-    tokenHash:            text("token_hash").notNull().unique(),
-    expiresAt:            timestamp("expires_at").notNull(),
-    usedAt:               timestamp("used_at"),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
     /** 'self' (forgot-password) | 'super_admin' (send-reset-link). */
-    requestedBy:          text("requested_by").notNull().default("self"),
+    requestedBy: text("requested_by").notNull().default("self"),
     /** Super-admin who issued the link (when requestedBy = 'super_admin'). */
-    requesterAdminId:     text("requester_admin_id")
-      .references(() => adminAccountsTable.id, { onDelete: "set null" }),
-    requesterIp:          varchar("requester_ip", { length: 45 }).notNull().default("unknown"),
-    requesterUserAgent:   text("requester_user_agent"),
-    createdAt:            timestamp("created_at").notNull().defaultNow(),
+    requesterAdminId: text("requester_admin_id").references(() => adminAccountsTable.id, {
+      onDelete: "set null",
+    }),
+    requesterIp: varchar("requester_ip", { length: 45 }).notNull().default("unknown"),
+    requesterUserAgent: text("requester_user_agent"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => ({
-    adminIdx:   index("admin_password_reset_tokens_admin_idx").on(t.adminId),
+    adminIdx: index("admin_password_reset_tokens_admin_idx").on(t.adminId),
     expiresIdx: index("admin_password_reset_tokens_expires_idx").on(t.expiresAt),
-  }),
+  })
 );
 
 export const insertAdminPasswordResetTokenSchema = createInsertSchema(

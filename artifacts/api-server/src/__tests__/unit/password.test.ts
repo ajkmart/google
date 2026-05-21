@@ -1,14 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  hashPassword,
-  verifyPassword,
-  validatePasswordStrength,
+  decryptTotpSecret,
+  encryptTotpSecret,
   generateSecureOtp,
   hashAdminSecret,
-  verifyAdminSecret,
+  hashPassword,
   makeTokenHash,
-  encryptTotpSecret,
-  decryptTotpSecret,
+  validatePasswordStrength,
+  verifyAdminSecret,
+  verifyPassword,
   verifyTotpCode,
 } from "../../services/password.js";
 
@@ -17,8 +17,8 @@ describe("hashPassword", () => {
     const h = hashPassword("secret123");
     expect(h).toContain(":");
     const [salt, hash] = h.split(":");
-    expect(salt).toHaveLength(32);   // 16 bytes = 32 hex chars
-    expect(hash).toHaveLength(128);  // 64 bytes = 128 hex chars
+    expect(salt).toHaveLength(32); // 16 bytes = 32 hex chars
+    expect(hash).toHaveLength(128); // 64 bytes = 128 hex chars
   });
 
   it("returns different hashes for same password", () => {

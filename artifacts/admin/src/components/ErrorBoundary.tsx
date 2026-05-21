@@ -1,7 +1,7 @@
-import { Component, type ReactNode } from "react";
-import { reportError } from "@/lib/error-reporter";
 import { ErrorRetry } from "@/components/ui/ErrorRetry";
+import { reportError } from "@/lib/error-reporter";
 import { createLogger } from "@/lib/logger";
+import { Component, type ReactNode } from "react";
 const log = createLogger("[ErrorBoundary]");
 
 type FallbackFn = (reset: () => void, error: Error | null) => ReactNode;
@@ -10,7 +10,10 @@ interface Props {
   children: ReactNode;
   fallback?: ReactNode | FallbackFn;
 }
-interface State { hasError: boolean; error: Error | null; }
+interface State {
+  hasError: boolean;
+  error: Error | null;
+}
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
@@ -48,7 +51,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div
           role="alert"
           aria-live="assertive"
-          className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-gray-50"
+          className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-6 text-center"
         >
           <ErrorRetry
             title="Something went wrong"

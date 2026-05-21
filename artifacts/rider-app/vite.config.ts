@@ -1,16 +1,14 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
-import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
 import { visualizer } from "rollup-plugin-visualizer";
+import { defineConfig } from "vite";
 
 const rawPort = process.env.PORT;
 
 if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
+  throw new Error("PORT environment variable is required but was not provided.");
 }
 
 const port = Number(rawPort);
@@ -22,9 +20,7 @@ if (Number.isNaN(port) || port <= 0) {
 const basePath = process.env.BASE_PATH;
 
 if (!basePath) {
-  throw new Error(
-    "BASE_PATH environment variable is required but was not provided.",
-  );
+  throw new Error("BASE_PATH environment variable is required but was not provided.");
 }
 
 export default defineConfig({
@@ -35,17 +31,14 @@ export default defineConfig({
     runtimeErrorOverlay(),
     process.env.ANALYZE === "1" &&
       visualizer({ filename: "dist/bundle-stats.html", open: false, gzipSize: true }),
-    ...(process.env.NODE_ENV !== "production" &&
-    process.env.REPL_ID !== undefined
+    ...(process.env.NODE_ENV !== "production" && process.env.REPL_ID !== undefined
       ? [
           await import("@replit/vite-plugin-cartographer").then((m) =>
             m.cartographer({
               root: path.resolve(import.meta.dirname, ".."),
-            }),
+            })
           ),
-          await import("@replit/vite-plugin-dev-banner").then((m) =>
-            m.devBanner(),
-          ),
+          await import("@replit/vite-plugin-dev-banner").then((m) => m.devBanner()),
         ]
       : []),
   ],
@@ -65,9 +58,7 @@ export default defineConfig({
     port,
     host: "0.0.0.0",
     allowedHosts: true,
-    hmr: process.env.REPL_ID
-      ? { clientPort: 443, protocol: "wss" }
-      : undefined,
+    hmr: process.env.REPL_ID ? { clientPort: 443, protocol: "wss" } : undefined,
     proxy: {
       "/api": {
         target: `http://127.0.0.1:${process.env.VITE_API_PROXY_TARGET ? new URL(process.env.VITE_API_PROXY_TARGET).port : "5000"}`,

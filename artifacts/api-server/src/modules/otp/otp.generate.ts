@@ -7,13 +7,13 @@ function resolveHmacSecret(): string {
   if (!secret) {
     throw new Error(
       "HMAC_OTP_SECRET (or JWT_SECRET fallback) is not set. " +
-      "Set HMAC_OTP_SECRET in Replit Secrets."
+        "Set HMAC_OTP_SECRET in Replit Secrets."
     );
   }
   if (!process.env["HMAC_OTP_SECRET"] && process.env["JWT_SECRET"]) {
     logger.warn(
       "HMAC_OTP_SECRET not set — using JWT_SECRET as fallback. " +
-      "Set a dedicated HMAC_OTP_SECRET in production."
+        "Set a dedicated HMAC_OTP_SECRET in production."
     );
   }
   return secret;
@@ -38,7 +38,7 @@ export function verifyOtpHash(code: string, storedHash: string): boolean {
   try {
     const incomingHash = hashOtpCode(code);
     const incomingBuf = Buffer.from(incomingHash, "hex");
-    const storedBuf   = Buffer.from(storedHash,   "hex");
+    const storedBuf = Buffer.from(storedHash, "hex");
     if (incomingBuf.length !== storedBuf.length) return false;
     return timingSafeEqual(incomingBuf, storedBuf);
   } catch {

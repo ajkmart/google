@@ -1,56 +1,49 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createLogger } from "@/lib/logger";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getPollingIntervalForTier, useNetworkQuality } from "../hooks/useNetworkQuality";
 const log = createLogger("[Home]");
-import { useNetworkQuality, getPollingIntervalForTier } from "../hooks/useNetworkQuality";
 
-import { Link } from "wouter";
-import { useAuth } from "../lib/rider-auth";
-import { api, type Order, type Ride } from "../lib/api";
-import { usePlatformConfig } from "../lib/useConfig";
-import { useLanguage } from "../lib/useLanguage";
-import { useSocket } from "../lib/socket";
-import { parseRideAssignedPayload } from "../lib/socketEvents";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { tDual } from "@workspace/i18n";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, CheckCircle, ChevronRight, Clock, Wifi, Zap } from "lucide-react";
+import { Link } from "wouter";
+import { haversineMeters } from "../components/dashboard/helpers";
+import { api, type Order, type Ride } from "../lib/api";
 import {
-  playRequestSound,
-  unlockAudio,
-  isAudioLocked,
-  isSilenced,
-  getSilenceRemaining,
-  getSilenceMode,
-  setSilenceMode,
-} from "../lib/notificationSound";
-import { logRideEvent } from "../lib/rideUtils";
-import {
-  enqueue,
   addDismissed,
+  clearAllDismissed,
+  enqueue,
   removeDismissed,
   sweepAndLoadDismissed,
-  clearAllDismissed,
 } from "../lib/gpsQueue";
-import { enqueueAction } from "../lib/offline/queueManager";
-import { haversineMeters } from "../components/dashboard/helpers";
 import {
-  Wifi,
-  Zap,
-  Clock,
-  ChevronRight,
-  CheckCircle,
-  AlertTriangle,
-} from "lucide-react";
+  getSilenceMode,
+  getSilenceRemaining,
+  isAudioLocked,
+  isSilenced,
+  playRequestSound,
+  setSilenceMode,
+  unlockAudio,
+} from "../lib/notificationSound";
+import { enqueueAction } from "../lib/offline/queueManager";
+import { useAuth } from "../lib/rider-auth";
+import { logRideEvent } from "../lib/rideUtils";
+import { useSocket } from "../lib/socket";
+import { parseRideAssignedPayload } from "../lib/socketEvents";
+import { usePlatformConfig } from "../lib/useConfig";
+import { useLanguage } from "../lib/useLanguage";
 
 import {
-  LiveClock,
-  SkeletonHome,
-  StatsGrid,
-  OnlineToggleCard,
-  SilenceControls,
+  ActiveTaskBanner,
   FixedBanners,
   InlineWarnings,
+  LiveClock,
   OfflineConfirmDialog,
-  ActiveTaskBanner,
+  OnlineToggleCard,
   RequestListHeader,
+  SilenceControls,
+  SkeletonHome,
+  StatsGrid,
   formatCurrency,
 } from "../components/dashboard";
 import { GoalSection } from "../components/home/GoalSection";
@@ -72,9 +65,12 @@ export default function Home() {
   const [newFlash, setNewFlash] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set<string>());
   const [profileBannerDismissed, setProfileBannerDismissed] = useState(() => {
-    try { return sessionStorage.getItem("_ajkm_profileBannerDismissed") === "1"; } catch { return false; }
+    try {
+      return sessionStorage.getItem("_ajkm_profileBannerDismissed") === "1";
+    } catch {
+      return false;
+    }
   });
-
 
   const [audioLocked, setAudioLocked] = useState(false);
 
@@ -96,7 +92,6 @@ export default function Home() {
   const [showSilenceMenu, setShowSilenceMenu] = useState(false);
 
   useEffect(() => {
-
     const handler = () => {
       unlockAudio();
       setAudioLocked(false);
@@ -126,15 +121,12 @@ export default function Home() {
     return () => clearInterval(t);
   }, [silenced]);
 
-  const showToast = useCallback(
-    (msg: string, type: "success" | "error" = "success") => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-      setToastMsg(msg);
-      setToastType(type);
-      toastTimerRef.current = setTimeout(() => setToastMsg(""), 3000);
-    },
-    [],
-  );
+  const showToast = useCallback((msg: string, type: "success" | "error" = "success") => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToastMsg(msg);
+    setToastType(type);
+    toastTimerRef.current = setTimeout(() => setToastMsg(""), 3000);
+  }, []);
 
   const [wakeLockWarning, setWakeLockWarning] = useState(false);
   const [optimisticOnline, setOptimisticOnline] = useState<boolean | null>(null);
@@ -173,7 +165,12 @@ export default function Home() {
       } else {
         setZoneWarning(null);
       }
-      await refreshUser().catch((err) => { log.error({ err: err instanceof Error ? err.message : String(err) }, "[Home] refreshUser failed"); });
+      await refreshUser().catch((err) => {
+        log.error(
+          { err: err instanceof Error ? err.message : String(err) },
+          "[Home] refreshUser failed"
+        );
+      });
       if (!isMountedRef.current) return;
       succeeded = true;
       showToast(newStatus ? T("youAreNowOnline") : T("youAreNowOffline"), "success");
@@ -217,12 +214,16 @@ export default function Home() {
   });
   const hasActiveTask = !!(activeData?.order || activeData?.ride);
 
-  const { data: requestsData, isLoading: requestsLoading, isError: requestsError } = useQuery({
+  const {
+    data: requestsData,
+    isLoading: requestsLoading,
+    isError: requestsError,
+  } = useQuery({
     queryKey: ["rider-requests"],
     queryFn: () => api.getRequests(),
-    refetchInterval: tabVisible && effectiveOnline ? getPollingIntervalForTier(networkTier) : 60_000,
+    refetchInterval:
+      tabVisible && effectiveOnline ? getPollingIntervalForTier(networkTier) : 60_000,
     enabled: effectiveOnline,
-
   });
 
   const { data: cancelStatsData } = useQuery({
@@ -347,14 +348,24 @@ export default function Home() {
           }
         ).wakeLock.request("screen");
         setWakeLockWarning(false);
-      } catch (err) { log.error({ err: err instanceof Error ? err.message : String(err) }, "[Home] GPS watchPosition error"); }
+      } catch (err) {
+        log.error(
+          { err: err instanceof Error ? err.message : String(err) },
+          "[Home] GPS watchPosition error"
+        );
+      }
     };
 
     acquire();
 
     return () => {
       cancelled = true;
-      sentinel?.release().catch((err) => { log.error({ err: err instanceof Error ? err.message : String(err) }, "[Home] sentinel release failed"); });
+      sentinel?.release().catch((err) => {
+        log.error(
+          { err: err instanceof Error ? err.message : String(err) },
+          "[Home] sentinel release failed"
+        );
+      });
     };
   }, [effectiveOnline, tabVisible]);
 
@@ -378,10 +389,16 @@ export default function Home() {
   const batteryRef = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (typeof navigator === "undefined" || !("getBattery" in navigator)) return;
-    type BattMgr = { level: number; addEventListener: (e: string, cb: () => void) => void; removeEventListener: (e: string, cb: () => void) => void };
+    type BattMgr = {
+      level: number;
+      addEventListener: (e: string, cb: () => void) => void;
+      removeEventListener: (e: string, cb: () => void) => void;
+    };
     let mounted = true;
     let batt: BattMgr | undefined;
-    const onLevelChange = () => { if (batt) batteryRef.current = Math.round(batt.level * 100); };
+    const onLevelChange = () => {
+      if (batt) batteryRef.current = Math.round(batt.level * 100);
+    };
     (navigator as unknown as { getBattery: () => Promise<BattMgr> })
       .getBattery()
       .then((b) => {
@@ -390,8 +407,16 @@ export default function Home() {
         batteryRef.current = Math.round(b.level * 100);
         b.addEventListener("levelchange", onLevelChange);
       })
-      .catch((err) => { log.error({ err: err instanceof Error ? err.message : String(err) }, "[Home] GPS ping enqueue failed"); });
-    return () => { mounted = false; batt?.removeEventListener("levelchange", onLevelChange); };
+      .catch((err) => {
+        log.error(
+          { err: err instanceof Error ? err.message : String(err) },
+          "[Home] GPS ping enqueue failed"
+        );
+      });
+    return () => {
+      mounted = false;
+      batt?.removeEventListener("levelchange", onLevelChange);
+    };
   }, []);
 
   /* Socket event listeners — invalidate queries on new or changed requests */
@@ -470,7 +495,7 @@ export default function Home() {
         const isMockGps = accuracy === 0 && speed === 0 && heading === null;
         if (isMockGps) {
           setGpsWarningWithRef(
-            "Suspicious GPS accuracy detected. Please disable mock location apps.",
+            "Suspicious GPS accuracy detected. Please disable mock location apps."
           );
           return;
         }
@@ -513,7 +538,12 @@ export default function Home() {
         };
 
         if (!navigator.onLine) {
-          enqueue(queuedPing).catch((err) => { log.error({ err: err instanceof Error ? err.message : String(err) }, "[Home] GPS ping enqueue failed"); });
+          enqueue(queuedPing).catch((err) => {
+            log.error(
+              { err: err instanceof Error ? err.message : String(err) },
+              "[Home] GPS ping enqueue failed"
+            );
+          });
           return;
         }
 
@@ -529,7 +559,12 @@ export default function Home() {
             if (isSpoofError) {
               setGpsWarningWithRef(`GPS Spoof Detected: ${msg}`);
             } else {
-              enqueue(queuedPing).catch((err) => { log.error({ err: err instanceof Error ? err.message : String(err) }, "[Home] GPS ping enqueue failed"); });
+              enqueue(queuedPing).catch((err) => {
+                log.error(
+                  { err: err instanceof Error ? err.message : String(err) },
+                  "[Home] GPS ping enqueue failed"
+                );
+              });
               setGpsWarningWithRef(T("gpsLocationError"));
             }
           });
@@ -537,7 +572,7 @@ export default function Home() {
       () => {
         setGpsWarningWithRef(T("gpsNotAvailable"));
       },
-      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 30_000 },
+      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 30_000 }
     );
 
     return () => {
@@ -552,11 +587,11 @@ export default function Home() {
      including it as a dep is correct. T2: typed callbacks instead of `any`. */
   const orders = useMemo(
     () => allOrders.filter((o: Order) => !dismissed.has(o.id)),
-    [allOrders, dismissed],
+    [allOrders, dismissed]
   );
   const rides = useMemo(
     () => allRides.filter((r: Ride) => !dismissed.has(r.id)),
-    [allRides, dismissed],
+    [allRides, dismissed]
   );
   const totalRequests = orders.length + rides.length;
   totalRequestsRef.current = totalRequests;
@@ -581,7 +616,7 @@ export default function Home() {
         return next;
       });
     },
-    [allOrders, allRides],
+    [allOrders, allRides]
   );
 
   const stopRequestSoundIfEmpty = () => {
@@ -610,12 +645,21 @@ export default function Home() {
     onSuccess: (_: unknown, id: string) => {
       /* Accepted items should NOT be added to the dismissed set (dismissed = rejected by rider).
          Remove the id from dismissed persistence if it was there, and prune cache directly. */
-      removeDismissed(id).catch((err: unknown) => { log.debug("[Home] removeDismissed order accept failed:", err); });
-      setDismissed((prev) => { const next = new Set([...prev]); next.delete(id); return next; });
-      qc.setQueryData(["rider-requests"], (old: { orders?: { id: string }[]; rides?: { id: string }[] } | undefined) => {
-        if (!old) return old;
-        return { ...old, orders: (old.orders ?? []).filter((o) => o.id !== id) };
+      removeDismissed(id).catch((err: unknown) => {
+        log.debug("[Home] removeDismissed order accept failed:", err);
       });
+      setDismissed((prev) => {
+        const next = new Set([...prev]);
+        next.delete(id);
+        return next;
+      });
+      qc.setQueryData(
+        ["rider-requests"],
+        (old: { orders?: { id: string }[]; rides?: { id: string }[] } | undefined) => {
+          if (!old) return old;
+          return { ...old, orders: (old.orders ?? []).filter((o) => o.id !== id) };
+        }
+      );
       stopRequestSoundIfEmpty();
       qc.invalidateQueries({ queryKey: ["rider-active"] });
       showToast("Order accepted! Check Active tab.", "success");
@@ -623,15 +667,24 @@ export default function Home() {
     onError: (e: Error & { status?: number }, id) => {
       if (e?.status === 409 || /already taken|already accepted/i.test(e?.message || "")) {
         dismiss(id);
-        qc.setQueryData(["rider-requests"], (old: { orders?: { id: string }[]; rides?: { id: string }[] } | undefined) => {
-          if (!old) return old;
-          return { ...old, orders: (old.orders || []).filter((o) => o.id !== id) };
-        });
+        qc.setQueryData(
+          ["rider-requests"],
+          (old: { orders?: { id: string }[]; rides?: { id: string }[] } | undefined) => {
+            if (!old) return old;
+            return { ...old, orders: (old.orders || []).filter((o) => o.id !== id) };
+          }
+        );
         showToast("This order was already accepted by another rider.", "error");
       } else {
         /* Persist to IndexedDB queue so the accept survives connectivity loss */
         const looksLikeNetErr = /network|fetch|timeout|offline/i.test(e?.message || "");
-        if (looksLikeNetErr) enqueueAction("accept_order", id, {}).catch((err) => { log.error({ err: err instanceof Error ? err.message : String(err) }, "[Home] enqueueAction accept_order failed"); });
+        if (looksLikeNetErr)
+          enqueueAction("accept_order", id, {}).catch((err) => {
+            log.error(
+              { err: err instanceof Error ? err.message : String(err) },
+              "[Home] enqueueAction accept_order failed"
+            );
+          });
         showToast(e.message || "Could not accept order. Please try again.", "error");
       }
     },
@@ -658,31 +711,47 @@ export default function Home() {
     onSuccess: (_: unknown, id: string) => {
       /* Accepted items should NOT be added to the dismissed set (dismissed = rejected by rider).
          Remove the id from dismissed persistence if it was there, and prune cache directly. */
-      removeDismissed(id).catch((err: unknown) => { log.debug("[Home] removeDismissed ride accept failed:", err); });
-      setDismissed((prev) => { const next = new Set([...prev]); next.delete(id); return next; });
-      qc.setQueryData(["rider-requests"], (old: { orders?: { id: string }[]; rides?: { id: string }[] } | undefined) => {
-        if (!old) return old;
-        return { ...old, rides: (old.rides ?? []).filter((r) => r.id !== id) };
+      removeDismissed(id).catch((err: unknown) => {
+        log.debug("[Home] removeDismissed ride accept failed:", err);
       });
+      setDismissed((prev) => {
+        const next = new Set([...prev]);
+        next.delete(id);
+        return next;
+      });
+      qc.setQueryData(
+        ["rider-requests"],
+        (old: { orders?: { id: string }[]; rides?: { id: string }[] } | undefined) => {
+          if (!old) return old;
+          return { ...old, rides: (old.rides ?? []).filter((r) => r.id !== id) };
+        }
+      );
       stopRequestSoundIfEmpty();
       qc.invalidateQueries({ queryKey: ["rider-active"] });
-      logRideEvent(id, "accepted", (msg, isErr) =>
-        showToast(msg, isErr ? "error" : "success"),
-      );
+      logRideEvent(id, "accepted", (msg, isErr) => showToast(msg, isErr ? "error" : "success"));
       showToast("Ride accepted! Check Active tab.", "success");
     },
     onError: (e: Error & { status?: number }, id) => {
       if (e?.status === 409 || /already taken|already accepted/i.test(e?.message || "")) {
         dismiss(id);
-        qc.setQueryData(["rider-requests"], (old: { orders?: { id: string }[]; rides?: { id: string }[] } | undefined) => {
-          if (!old) return old;
-          return { ...old, rides: (old.rides || []).filter((r) => r.id !== id) };
-        });
+        qc.setQueryData(
+          ["rider-requests"],
+          (old: { orders?: { id: string }[]; rides?: { id: string }[] } | undefined) => {
+            if (!old) return old;
+            return { ...old, rides: (old.rides || []).filter((r) => r.id !== id) };
+          }
+        );
         showToast("This ride was already accepted by another rider.", "error");
       } else {
         /* Persist to IndexedDB queue so the accept survives connectivity loss */
         const looksLikeNetErr = /network|fetch|timeout|offline/i.test(e?.message || "");
-        if (looksLikeNetErr) enqueueAction("accept_ride", id, {}).catch((err) => { log.error({ err: err instanceof Error ? err.message : String(err) }, "[Home] enqueueAction accept_ride failed"); });
+        if (looksLikeNetErr)
+          enqueueAction("accept_ride", id, {}).catch((err) => {
+            log.error(
+              { err: err instanceof Error ? err.message : String(err) },
+              "[Home] enqueueAction accept_ride failed"
+            );
+          });
         showToast(e.message || "Could not accept ride. Please try again.", "error");
       }
     },
@@ -733,7 +802,7 @@ export default function Home() {
       if ((p?.penaltyApplied ?? 0) > 0) {
         showToast(
           `Ignored — ${currency} ${p.penaltyApplied} penalty deducted!${p.restricted ? " Account restricted." : ""}`,
-          "error",
+          "error"
         );
       } else {
         showToast(`Ride ignored (${p?.dailyIgnores || "?"} today).`, "success");
@@ -751,7 +820,7 @@ export default function Home() {
     setSilenceOn(next);
     showToast(
       next ? "Silence mode ON — no alert sounds" : "Silence mode OFF — sounds enabled",
-      "success",
+      "success"
     );
   };
 
@@ -775,7 +844,7 @@ export default function Home() {
   const topBannerOffsetPx = topBannerCount * BANNER_H_PX;
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F5F6F8] animate-[fadeIn_0.3s_ease-out]">
+    <div className="flex min-h-screen animate-[fadeIn_0.3s_ease-out] flex-col bg-[#F5F6F8]">
       <FixedBanners
         socketConnected={socketConnected}
         effectiveOnline={effectiveOnline}
@@ -792,37 +861,43 @@ export default function Home() {
       />
 
       <header
-        className="bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 text-white px-4 sm:px-6 pb-6 sm:pb-8 rounded-b-[2rem] relative overflow-hidden"
+        className="relative overflow-hidden rounded-b-[2rem] bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 px-4 pb-6 text-white sm:px-6 sm:pb-8"
         style={{
           paddingTop: `calc(env(safe-area-inset-top, 0px) + 3.5rem + ${topBannerOffsetPx}px)`,
         }}
       >
-        <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-green-500/[0.04]" />
-        <div className="absolute bottom-10 -left-16 w-56 h-56 rounded-full bg-white/[0.02]" />
-        <div className="absolute top-1/2 right-1/4 w-32 h-32 rounded-full bg-white/[0.015]" />
+        <div className="absolute -top-20 -right-20 h-72 w-72 rounded-full bg-green-500/[0.04]" />
+        <div className="absolute bottom-10 -left-16 h-56 w-56 rounded-full bg-white/[0.02]" />
+        <div className="absolute top-1/2 right-1/4 h-32 w-32 rounded-full bg-white/[0.015]" />
 
-        <div className="relative max-w-2xl mx-auto">
-          <div className="flex items-start justify-between mb-5">
+        <div className="relative mx-auto max-w-2xl">
+          <div className="mb-5 flex items-start justify-between">
             <div>
-              <p className="text-white/40 text-[11px] font-semibold tracking-widest uppercase flex items-center gap-1.5 mb-1">
+              <p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold tracking-widest text-white/40 uppercase">
                 <Clock size={11} /> <LiveClock /> · AJKMart Rider
               </p>
-              <h1 className={`text-[20px] sm:text-[22px] font-extrabold tracking-tight leading-tight transition-colors ${newFlash ? "text-green-300" : "text-white"}`}>
+              <h1
+                className={`text-[20px] leading-tight font-extrabold tracking-tight transition-colors sm:text-[22px] ${newFlash ? "text-green-300" : "text-white"}`}
+              >
                 {greeting}, {user?.name?.split(" ")[0] || "Rider"} 👋
               </h1>
               {newFlash && (
-                <p className="text-green-400 text-[11px] font-bold mt-0.5 animate-pulse flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-green-400 rounded-full" />
+                <p className="mt-0.5 flex animate-pulse items-center gap-1 text-[11px] font-bold text-green-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
                   New request available!
                 </p>
               )}
             </div>
-            <Link href="/wallet" className="flex flex-col items-end flex-shrink-0" aria-label="View wallet balance">
-              <div className="bg-white/[0.06] backdrop-blur-sm border border-white/[0.06] rounded-2xl px-3 sm:px-3.5 py-2 text-right">
-                <p className="text-white/40 text-[9px] font-bold uppercase tracking-wider">
+            <Link
+              href="/wallet"
+              className="flex flex-shrink-0 flex-col items-end"
+              aria-label="View wallet balance"
+            >
+              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.06] px-3 py-2 text-right backdrop-blur-sm sm:px-3.5">
+                <p className="text-[9px] font-bold tracking-wider text-white/40 uppercase">
                   {T("wallet")}
                 </p>
-                <p className="font-extrabold text-base sm:text-lg leading-tight">
+                <p className="text-base leading-tight font-extrabold sm:text-lg">
                   {formatCurrency(user?.walletBalance ?? "0", currency)}
                 </p>
               </div>
@@ -859,7 +934,7 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="px-3 sm:px-4 pt-4 space-y-3 relative z-10 w-full max-w-2xl mx-auto pb-6">
+      <main className="relative z-10 mx-auto w-full max-w-2xl space-y-3 px-3 pt-4 pb-6 sm:px-4">
         <InlineWarnings
           gpsWarning={gpsWarning}
           onDismissGps={() => setGpsWarning(null)}
@@ -891,25 +966,31 @@ export default function Home() {
           if (profileBannerDismissed || (!showBankBanner && !showKycBanner)) return null;
 
           const dismissBanner = () => {
-            try { sessionStorage.setItem("_ajkm_profileBannerDismissed", "1"); } catch (err) { log.warn("[Home] sessionStorage.setItem failed:", err); }
+            try {
+              sessionStorage.setItem("_ajkm_profileBannerDismissed", "1");
+            } catch (err) {
+              log.warn("[Home] sessionStorage.setItem failed:", err);
+            }
             setProfileBannerDismissed(true);
           };
 
           return (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-3">
-              <AlertTriangle size={15} className="text-amber-500 flex-shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-amber-800">Complete your profile to unlock withdrawals</p>
+            <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <AlertTriangle size={15} className="mt-0.5 flex-shrink-0 text-amber-500" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-amber-800">
+                  Complete your profile to unlock withdrawals
+                </p>
                 <div className="mt-1 space-y-0.5">
                   {showBankBanner && (
-                    <p className="text-[10px] text-amber-700 flex items-center gap-1">
-                      <span className="w-1 h-1 rounded-full bg-amber-500 flex-shrink-0" />
+                    <p className="flex items-center gap-1 text-[10px] text-amber-700">
+                      <span className="h-1 w-1 flex-shrink-0 rounded-full bg-amber-500" />
                       Bank account not added
                     </p>
                   )}
                   {showKycBanner && (
-                    <p className="text-[10px] text-amber-700 flex items-center gap-1">
-                      <span className="w-1 h-1 rounded-full bg-amber-500 flex-shrink-0" />
+                    <p className="flex items-center gap-1 text-[10px] text-amber-700">
+                      <span className="h-1 w-1 flex-shrink-0 rounded-full bg-amber-500" />
                       KYC not verified
                     </p>
                   )}
@@ -923,7 +1004,7 @@ export default function Home() {
               </div>
               <button
                 onClick={dismissBanner}
-                className="flex-shrink-0 text-amber-400 hover:text-amber-600 transition-colors p-0.5"
+                className="flex-shrink-0 p-0.5 text-amber-400 transition-colors hover:text-amber-600"
                 aria-label="Dismiss banner"
               >
                 ✕
@@ -955,7 +1036,7 @@ export default function Home() {
             )}
 
             <div
-              className={`rounded-3xl shadow-sm overflow-hidden transition-all duration-300 ${newFlash ? "ring-4 ring-green-400 ring-offset-2 ring-offset-[#F5F6F8]" : ""}`}
+              className={`overflow-hidden rounded-3xl shadow-sm transition-all duration-300 ${newFlash ? "ring-4 ring-green-400 ring-offset-2 ring-offset-[#F5F6F8]" : ""}`}
             >
               <RequestListHeader totalRequests={totalRequests} T={T} />
               <HomeRequestList
@@ -963,7 +1044,10 @@ export default function Home() {
                 requestsError={requestsError}
                 totalRequests={totalRequests}
                 dismissed={dismissed}
-                onClearDismissed={() => { setDismissed(new Set()); clearAllDismissed(); }}
+                onClearDismissed={() => {
+                  setDismissed(new Set());
+                  clearAllDismissed();
+                }}
                 orders={orders}
                 rides={rides}
                 currency={currency}
@@ -990,18 +1074,20 @@ export default function Home() {
             </div>
           </>
         ) : (
-          <div className="bg-white rounded-3xl shadow-sm p-8 sm:p-10 text-center border border-gray-100 animate-[slideUp_0.3s_ease-out]">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-50 rounded-3xl flex items-center justify-center mx-auto mb-4">
+          <div className="animate-[slideUp_0.3s_ease-out] rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-sm sm:p-10">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-gray-50 sm:h-20 sm:w-20">
               <Wifi size={32} className="text-gray-300" />
             </div>
-            <p className="text-gray-700 font-extrabold text-base sm:text-lg tracking-tight">You are Offline</p>
-            <p className="text-gray-400 text-sm mt-1.5">
+            <p className="text-base font-extrabold tracking-tight text-gray-700 sm:text-lg">
+              You are Offline
+            </p>
+            <p className="mt-1.5 text-sm text-gray-400">
               Toggle the switch above to start accepting orders
             </p>
             <button
               onClick={toggleOnline}
               disabled={toggling}
-              className="mt-5 bg-gray-900 text-white font-bold text-sm px-6 py-3 rounded-xl shadow-sm hover:bg-gray-800 transition-all active:scale-[0.98] disabled:opacity-60 inline-flex items-center gap-2"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gray-900 px-6 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-gray-800 active:scale-[0.98] disabled:opacity-60"
               aria-label="Go online to start accepting orders"
             >
               <Zap size={16} /> Go Online
@@ -1019,9 +1105,9 @@ export default function Home() {
       </main>
 
       {toastMsg && (
-        <div className="fixed top-6 left-4 right-4 z-[1100] pointer-events-none animate-[slideDown_0.3s_ease-out]">
+        <div className="pointer-events-none fixed top-6 right-4 left-4 z-[1100] animate-[slideDown_0.3s_ease-out]">
           <div
-            className={`${toastType === "success" ? "bg-green-600" : "bg-red-600"} text-white text-sm font-semibold px-5 py-3.5 rounded-2xl shadow-2xl flex items-center justify-center gap-2 max-w-md mx-auto`}
+            className={`${toastType === "success" ? "bg-green-600" : "bg-red-600"} mx-auto flex max-w-md items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-semibold text-white shadow-2xl`}
           >
             {toastType === "success" ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
             {toastMsg}
@@ -1032,15 +1118,15 @@ export default function Home() {
       {hasActiveTask && !config.content.trackerBannerEnabled && (
         <Link
           href="/active"
-          className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+72px)] left-4 right-4 z-30 block bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl px-4 py-3 shadow-lg shadow-green-300/40 active:scale-[0.98] transition-transform animate-[slideUp_0.3s_ease-out]"
+          className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom,0px)+72px)] left-4 z-30 block animate-[slideUp_0.3s_ease-out] rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-3 shadow-lg shadow-green-300/40 transition-transform active:scale-[0.98]"
           aria-label="Go to active task"
         >
-          <div className="flex items-center gap-2.5 max-w-md mx-auto">
-            <div className="w-2.5 h-2.5 bg-white rounded-full animate-pulse flex-shrink-0" />
-            <p className="text-sm font-extrabold text-white flex-1 truncate">
+          <div className="mx-auto flex max-w-md items-center gap-2.5">
+            <div className="h-2.5 w-2.5 flex-shrink-0 animate-pulse rounded-full bg-white" />
+            <p className="flex-1 truncate text-sm font-extrabold text-white">
               {T("youHaveActiveTask")}
             </p>
-            <ChevronRight size={14} className="text-white/80 flex-shrink-0" />
+            <ChevronRight size={14} className="flex-shrink-0 text-white/80" />
           </div>
         </Link>
       )}
@@ -1055,7 +1141,6 @@ export default function Home() {
           }}
         />
       )}
-
     </div>
   );
 }

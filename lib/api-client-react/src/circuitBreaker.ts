@@ -38,7 +38,7 @@ export class CircuitOpenError extends Error {
   constructor(endpoint: string, retryAfterMs: number) {
     super(
       `Circuit open for "${endpoint}" — server overloaded. ` +
-      `Retry in ${Math.ceil(retryAfterMs / 1000)}s.`
+        `Retry in ${Math.ceil(retryAfterMs / 1000)}s.`
     );
     this.name = "CircuitOpenError";
     this.endpoint = endpoint;
@@ -122,7 +122,7 @@ export function createCircuitBreaker(config: CircuitBreakerConfig = {}) {
         rec.openedAt = Date.now();
         log.warn(
           `OPEN — "${endpoint}" failed ${rec.failures}× consecutively. ` +
-          `Cooling down for ${cooldownMs / 1000}s.`
+            `Cooling down for ${cooldownMs / 1000}s.`
         );
       }
     },
@@ -132,9 +132,7 @@ export function createCircuitBreaker(config: CircuitBreakerConfig = {}) {
       const endpoint = _normalize(path);
       const rec = _getOrCreate(endpoint);
       const retryAfterMs =
-        rec.state === "open"
-          ? Math.max(0, cooldownMs - (Date.now() - rec.openedAt))
-          : 0;
+        rec.state === "open" ? Math.max(0, cooldownMs - (Date.now() - rec.openedAt)) : 0;
       return { state: rec.state, failures: rec.failures, retryAfterMs };
     },
 

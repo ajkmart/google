@@ -1,15 +1,22 @@
-import { Router, type Request, type Response, type NextFunction } from "express";
-import crypto from "crypto";
-import { z } from "zod";
 import { db } from "@workspace/db";
-import { errorReportsTable, customerErrorReportsTable, errorResolutionBackupsTable, autoResolveLogTable, platformSettingsTable, fileScanResultsTable } from "@workspace/db/schema";
-import { eq, desc, and, gte, lte, count, inArray, ne, sql, lt, type SQL } from "drizzle-orm";
+import {
+  autoResolveLogTable,
+  customerErrorReportsTable,
+  errorReportsTable,
+  errorResolutionBackupsTable,
+  fileScanResultsTable,
+  platformSettingsTable,
+} from "@workspace/db/schema";
+import crypto from "crypto";
+import { and, count, desc, eq, gte, inArray, lt, lte, ne, sql, type SQL } from "drizzle-orm";
+import { Router, type NextFunction, type Request, type Response } from "express";
+import { z } from "zod";
 import { generateId } from "../lib/id.js";
-import { sendSuccess, sendError, sendNotFound, sendValidationError } from "../lib/response.js";
-import { adminAuth, type AdminRequest } from "./admin-shared.js";
-import { validateBody } from "../middleware/validate.js";
 import { logger } from "../lib/logger.js";
+import { sendError, sendNotFound, sendSuccess, sendValidationError } from "../lib/response.js";
+import { validateBody } from "../middleware/validate.js";
 import { runFileScanner, type FileScanFinding } from "../services/file-scanner.js";
+import { adminAuth, type AdminRequest } from "./admin-shared.js";
 
 const router = Router();
 
@@ -86,7 +93,13 @@ function timingSafeEqualHex(a: string, b: string): boolean {
   try {
     return crypto.timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return false;
   }
 }
@@ -139,21 +152,33 @@ function errorReportIngestGuard(req: Request, res: Response, next: NextFunction)
 }
 
 const VALID_SOURCE_APPS = ["customer", "rider", "vendor", "admin", "api"] as const;
-const VALID_ERROR_TYPES = ["frontend_crash", "api_error", "db_error", "route_error", "ui_error", "unhandled_exception"] as const;
+const VALID_ERROR_TYPES = [
+  "frontend_crash",
+  "api_error",
+  "db_error",
+  "route_error",
+  "ui_error",
+  "unhandled_exception",
+] as const;
 const VALID_SEVERITIES = ["critical", "medium", "minor"] as const;
 const VALID_STATUSES = ["new", "acknowledged", "in_progress", "resolved"] as const;
 
-type SourceApp = typeof VALID_SOURCE_APPS[number];
-type ErrorType = typeof VALID_ERROR_TYPES[number];
+type SourceApp = (typeof VALID_SOURCE_APPS)[number];
+type ErrorType = (typeof VALID_ERROR_TYPES)[number];
 
-function classifySeverity(errorType: ErrorType, statusCode?: number, errorMessage?: string): typeof VALID_SEVERITIES[number] {
+function classifySeverity(
+  errorType: ErrorType,
+  statusCode?: number,
+  errorMessage?: string
+): (typeof VALID_SEVERITIES)[number] {
   if (errorType === "db_error") return "critical";
   if (errorType === "unhandled_exception") return "medium";
   if (errorType === "ui_error") return "minor";
   if (errorType === "frontend_crash") return "critical";
 
   const msg = (errorMessage || "").toLowerCase();
-  if (msg.includes("auth") || msg.includes("payment") || msg.includes("database")) return "critical";
+  if (msg.includes("auth") || msg.includes("payment") || msg.includes("database"))
+    return "critical";
 
   if (errorType === "api_error" || errorType === "route_error") {
     if (statusCode && statusCode >= 500) return "critical";
@@ -166,12 +191,36 @@ function classifySeverity(errorType: ErrorType, statusCode?: number, errorMessag
 
 function classifyImpact(errorType: ErrorType, severity: string): string {
   const impacts: Record<string, Record<string, string>> = {
-    frontend_crash: { critical: "App crash — user cannot continue", medium: "Component failure — partial functionality loss", minor: "Minor rendering issue" },
-    api_error:      { critical: "Server error — feature unavailable", medium: "Request rejected — user action blocked", minor: "Non-critical API issue" },
-    db_error:       { critical: "Database failure — data operations blocked", medium: "Database query issue", minor: "Minor database issue" },
-    route_error:    { critical: "Route handler failure — endpoint down", medium: "Route error — degraded service", minor: "Minor routing issue" },
-    ui_error:       { critical: "UI completely broken", medium: "UI partially broken", minor: "Minor UI glitch" },
-    unhandled_exception: { critical: "Unhandled crash — potential data loss", medium: "Unhandled error — unexpected behavior", minor: "Minor unhandled error" },
+    frontend_crash: {
+      critical: "App crash — user cannot continue",
+      medium: "Component failure — partial functionality loss",
+      minor: "Minor rendering issue",
+    },
+    api_error: {
+      critical: "Server error — feature unavailable",
+      medium: "Request rejected — user action blocked",
+      minor: "Non-critical API issue",
+    },
+    db_error: {
+      critical: "Database failure — data operations blocked",
+      medium: "Database query issue",
+      minor: "Minor database issue",
+    },
+    route_error: {
+      critical: "Route handler failure — endpoint down",
+      medium: "Route error — degraded service",
+      minor: "Minor routing issue",
+    },
+    ui_error: {
+      critical: "UI completely broken",
+      medium: "UI partially broken",
+      minor: "Minor UI glitch",
+    },
+    unhandled_exception: {
+      critical: "Unhandled crash — potential data loss",
+      medium: "Unhandled error — unexpected behavior",
+      minor: "Minor unhandled error",
+    },
   };
   return impacts[errorType]?.[severity] || "Error detected — investigation needed";
 }
@@ -181,28 +230,38 @@ function metadataDepth(value: unknown, depth = 0): number {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return depth;
   const children = Object.values(value as Record<string, unknown>);
   if (children.length === 0) return depth;
-  return Math.max(...children.map(v => metadataDepth(v, depth + 1)));
+  return Math.max(...children.map((v) => metadataDepth(v, depth + 1)));
 }
 
 const createErrorReportSchema = z.object({
-  sourceApp:     z.enum(VALID_SOURCE_APPS),
-  errorType:     z.enum(VALID_ERROR_TYPES),
-  severity:      z.enum(VALID_SEVERITIES).optional().transform(() => undefined),
-  functionName:  z.string().min(1).max(500).optional(),
-  moduleName:    z.string().min(1).max(500).optional(),
+  sourceApp: z.enum(VALID_SOURCE_APPS),
+  errorType: z.enum(VALID_ERROR_TYPES),
+  severity: z
+    .enum(VALID_SEVERITIES)
+    .optional()
+    .transform(() => undefined),
+  functionName: z.string().min(1).max(500).optional(),
+  moduleName: z.string().min(1).max(500).optional(),
   componentName: z.string().min(1).max(500).optional(),
-  errorMessage:  z.string().min(1).max(5000),
-  stackTrace:    z.string().max(50000).regex(/^[\s\S]*$/).optional(),
-  metadata:      z.record(z.string(), z.unknown()).optional().refine(
-    (m) => !m || JSON.stringify(m).length <= 10 * 1024,
-    { message: "metadata exceeds 10 KB limit" },
-  ).refine(
-    (m) => !m || metadataDepth(m) <= 3,
-    { message: "metadata nesting exceeds 3 levels" },
-  ),
-  statusCode:    z.number().optional(),
+  errorMessage: z.string().min(1).max(5000),
+  stackTrace: z
+    .string()
+    .max(50000)
+    .regex(/^[\s\S]*$/)
+    .optional(),
+  metadata: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .refine((m) => !m || JSON.stringify(m).length <= 10 * 1024, {
+      message: "metadata exceeds 10 KB limit",
+    })
+    .refine((m) => !m || metadataDepth(m) <= 3, { message: "metadata nesting exceeds 3 levels" }),
+  statusCode: z.number().optional(),
   /** Client-computed hash for deduplication — must be exactly 8 lowercase hex chars */
-  errorHash:     z.string().regex(/^[0-9a-f]{8}$/).optional(),
+  errorHash: z
+    .string()
+    .regex(/^[0-9a-f]{8}$/)
+    .optional(),
 });
 
 /* ── Deterministic DJB2 fingerprint for grouping identical errors ──────── */
@@ -218,117 +277,148 @@ function computeErrorHash(errorMessage: string, errorType: string, sourceApp: st
 
 const DEDUP_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
-router.post("/", errorReportIngestGuard, validateBody(createErrorReportSchema), async (req, res) => {
-  try {
-    const body = req.body;
-    const severity = classifySeverity(body.errorType, body.statusCode, body.errorMessage);
-    const shortImpact = classifyImpact(body.errorType, severity);
-
-    /* ── Hash-based deduplication with smart re-open ───────────────────── */
-    const hash = body.errorHash ?? computeErrorHash(body.errorMessage, body.errorType, body.sourceApp);
-    let activeExisting: (typeof errorReportsTable.$inferSelect) | undefined;
-    let resolvedExisting: (typeof errorReportsTable.$inferSelect) | undefined;
+router.post(
+  "/",
+  errorReportIngestGuard,
+  validateBody(createErrorReportSchema),
+  async (req, res) => {
     try {
-      const cutoff = new Date(Date.now() - DEDUP_WINDOW_MS);
-      // First: look for an active (non-resolved) match within the dedup window
-      const [activeRow] = await db.select()
-        .from(errorReportsTable)
-        .where(and(
-          eq(errorReportsTable.errorHash, hash),
-          ne(errorReportsTable.status, "resolved"),
-          gte(errorReportsTable.timestamp, cutoff),
-        ))
-        .limit(1);
-      activeExisting = activeRow;
+      const body = req.body;
+      const severity = classifySeverity(body.errorType, body.statusCode, body.errorMessage);
+      const shortImpact = classifyImpact(body.errorType, severity);
 
-      // Second: look for a resolved match (any time) if no active one
-      if (!activeExisting) {
-        const [resolvedRow] = await db.select()
+      /* ── Hash-based deduplication with smart re-open ───────────────────── */
+      const hash =
+        body.errorHash ?? computeErrorHash(body.errorMessage, body.errorType, body.sourceApp);
+      let activeExisting: typeof errorReportsTable.$inferSelect | undefined;
+      let resolvedExisting: typeof errorReportsTable.$inferSelect | undefined;
+      try {
+        const cutoff = new Date(Date.now() - DEDUP_WINDOW_MS);
+        // First: look for an active (non-resolved) match within the dedup window
+        const [activeRow] = await db
+          .select()
           .from(errorReportsTable)
-          .where(and(
-            eq(errorReportsTable.errorHash, hash),
-            eq(errorReportsTable.status, "resolved"),
-          ))
-          .orderBy(desc(errorReportsTable.updatedAt))
+          .where(
+            and(
+              eq(errorReportsTable.errorHash, hash),
+              ne(errorReportsTable.status, "resolved"),
+              gte(errorReportsTable.timestamp, cutoff)
+            )
+          )
           .limit(1);
-        resolvedExisting = resolvedRow;
+        activeExisting = activeRow;
+
+        // Second: look for a resolved match (any time) if no active one
+        if (!activeExisting) {
+          const [resolvedRow] = await db
+            .select()
+            .from(errorReportsTable)
+            .where(
+              and(eq(errorReportsTable.errorHash, hash), eq(errorReportsTable.status, "resolved"))
+            )
+            .orderBy(desc(errorReportsTable.updatedAt))
+            .limit(1);
+          resolvedExisting = resolvedRow;
+        }
+      } catch (err) {
+        logger.debug(
+          { error: err instanceof Error ? err.message : String(err) },
+          `[fn] Columns may not exist yet on first startup — safe to skip dedup`
+        );
       }
-    } catch (err) {
-      logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] Columns may not exist yet on first startup — safe to skip dedup`);
-    }
 
-    // Case 1: active duplicate — just increment count
-    if (activeExisting) {
-      const newCount = (activeExisting.occurrenceCount ?? 1) + 1;
-      try {
-        await db.update(errorReportsTable)
-          .set({ occurrenceCount: newCount, updatedAt: new Date() })
-          .where(eq(errorReportsTable.id, activeExisting.id));
-      } catch (err) { logger.warn({ err }, '[error-reports] dedup DB update failed — non-fatal'); }
-      return sendSuccess(res, {
-        ...activeExisting,
-        occurrenceCount: newCount,
-        deduplicated: true,
-        timestamp: activeExisting.timestamp.toISOString(),
-        resolvedAt: activeExisting.resolvedAt?.toISOString() ?? null,
-        acknowledgedAt: activeExisting.acknowledgedAt?.toISOString() ?? null,
-        updatedAt: new Date().toISOString(),
-      }, undefined, 200);
-    }
+      // Case 1: active duplicate — just increment count
+      if (activeExisting) {
+        const newCount = (activeExisting.occurrenceCount ?? 1) + 1;
+        try {
+          await db
+            .update(errorReportsTable)
+            .set({ occurrenceCount: newCount, updatedAt: new Date() })
+            .where(eq(errorReportsTable.id, activeExisting.id));
+        } catch (err) {
+          logger.warn({ err }, "[error-reports] dedup DB update failed — non-fatal");
+        }
+        return sendSuccess(
+          res,
+          {
+            ...activeExisting,
+            occurrenceCount: newCount,
+            deduplicated: true,
+            timestamp: activeExisting.timestamp.toISOString(),
+            resolvedAt: activeExisting.resolvedAt?.toISOString() ?? null,
+            acknowledgedAt: activeExisting.acknowledgedAt?.toISOString() ?? null,
+            updatedAt: new Date().toISOString(),
+          },
+          undefined,
+          200
+        );
+      }
 
-    // Case 2: previously resolved — reopen it
-    if (resolvedExisting) {
-      const newCount = (resolvedExisting.occurrenceCount ?? 1) + 1;
-      const now = new Date();
-      try {
-        await db.update(errorReportsTable)
-          .set({
+      // Case 2: previously resolved — reopen it
+      if (resolvedExisting) {
+        const newCount = (resolvedExisting.occurrenceCount ?? 1) + 1;
+        const now = new Date();
+        try {
+          await db
+            .update(errorReportsTable)
+            .set({
+              status: "new",
+              occurrenceCount: newCount,
+              resolvedAt: null,
+              resolutionMethod: null,
+              resolutionNotes: null,
+              updatedAt: now,
+            })
+            .where(eq(errorReportsTable.id, resolvedExisting.id));
+        } catch (err) {
+          logger.warn({ err }, "[error-reports] dedup DB update failed — non-fatal");
+        }
+        return sendSuccess(
+          res,
+          {
+            ...resolvedExisting,
             status: "new",
             occurrenceCount: newCount,
             resolvedAt: null,
             resolutionMethod: null,
             resolutionNotes: null,
-            updatedAt: now,
-          })
-          .where(eq(errorReportsTable.id, resolvedExisting.id));
-      } catch (err) { logger.warn({ err }, '[error-reports] dedup DB update failed — non-fatal'); }
-      return sendSuccess(res, {
-        ...resolvedExisting,
-        status: "new",
-        occurrenceCount: newCount,
-        resolvedAt: null,
-        resolutionMethod: null,
-        resolutionNotes: null,
-        reopened: true,
-        timestamp: resolvedExisting.timestamp.toISOString(),
-        acknowledgedAt: resolvedExisting.acknowledgedAt?.toISOString() ?? null,
-        updatedAt: now.toISOString(),
-      }, undefined, 200);
+            reopened: true,
+            timestamp: resolvedExisting.timestamp.toISOString(),
+            acknowledgedAt: resolvedExisting.acknowledgedAt?.toISOString() ?? null,
+            updatedAt: now.toISOString(),
+          },
+          undefined,
+          200
+        );
+      }
+
+      const id = generateId();
+      const [report] = await db
+        .insert(errorReportsTable)
+        .values({
+          id,
+          sourceApp: body.sourceApp,
+          errorType: body.errorType,
+          severity,
+          functionName: body.functionName || null,
+          moduleName: body.moduleName || null,
+          componentName: body.componentName || null,
+          errorMessage: body.errorMessage,
+          shortImpact,
+          stackTrace: body.stackTrace || null,
+          metadata: body.metadata || null,
+          errorHash: hash,
+          occurrenceCount: 1,
+        })
+        .returning();
+
+      sendSuccess(res, report, undefined, 201);
+    } catch (err) {
+      logger.error({ err }, "Failed to store error report");
+      sendError(res, "Failed to store error report", 500);
     }
-
-    const id = generateId();
-    const [report] = await db.insert(errorReportsTable).values({
-      id,
-      sourceApp: body.sourceApp,
-      errorType: body.errorType,
-      severity,
-      functionName: body.functionName || null,
-      moduleName: body.moduleName || null,
-      componentName: body.componentName || null,
-      errorMessage: body.errorMessage,
-      shortImpact,
-      stackTrace: body.stackTrace || null,
-      metadata: body.metadata || null,
-      errorHash: hash,
-      occurrenceCount: 1,
-    }).returning();
-
-    sendSuccess(res, report, undefined, 201);
-  } catch (err) {
-    logger.error({ err }, "Failed to store error report");
-    sendError(res, "Failed to store error report", 500);
   }
-});
+);
 
 router.get("/", adminAuth, async (req, res) => {
   try {
@@ -345,12 +435,18 @@ router.get("/", adminAuth, async (req, res) => {
 
     const severity = req.query["severity"] as string | undefined;
     if (severity && (VALID_SEVERITIES as readonly string[]).includes(severity)) {
-      conditions.push(eq(errorReportsTable.severity, severity as typeof VALID_SEVERITIES[number]));
+      conditions.push(
+        eq(errorReportsTable.severity, severity as (typeof VALID_SEVERITIES)[number])
+      );
     }
 
     const statusParam = req.query["status"];
-    const statusValues = (Array.isArray(statusParam) ? statusParam : statusParam ? [statusParam] : []) as string[];
-    const validStatusValues = statusValues.filter(s => (VALID_STATUSES as readonly string[]).includes(s)) as typeof VALID_STATUSES[number][];
+    const statusValues = (
+      Array.isArray(statusParam) ? statusParam : statusParam ? [statusParam] : []
+    ) as string[];
+    const validStatusValues = statusValues.filter((s) =>
+      (VALID_STATUSES as readonly string[]).includes(s)
+    ) as (typeof VALID_STATUSES)[number][];
     if (validStatusValues.length === 1) {
       conditions.push(eq(errorReportsTable.status, validStatusValues[0]!));
     } else if (validStatusValues.length > 1) {
@@ -375,14 +471,24 @@ router.get("/", adminAuth, async (req, res) => {
     }
 
     const resolutionMethod = req.query["resolutionMethod"] as string | undefined;
-    if (resolutionMethod && ["manual", "auto_resolved", "task_created"].includes(resolutionMethod)) {
-      conditions.push(eq(errorReportsTable.resolutionMethod, resolutionMethod as "manual" | "auto_resolved" | "task_created"));
+    if (
+      resolutionMethod &&
+      ["manual", "auto_resolved", "task_created"].includes(resolutionMethod)
+    ) {
+      conditions.push(
+        eq(
+          errorReportsTable.resolutionMethod,
+          resolutionMethod as "manual" | "auto_resolved" | "task_created"
+        )
+      );
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
     const [reports, [totalRow]] = await Promise.all([
-      db.select().from(errorReportsTable)
+      db
+        .select()
+        .from(errorReportsTable)
         .where(where)
         .orderBy(desc(errorReportsTable.timestamp))
         .limit(limit)
@@ -392,20 +498,23 @@ router.get("/", adminAuth, async (req, res) => {
 
     const total = totalRow?.count ?? 0;
 
-    const reportIds = reports.map(r => r.id);
+    const reportIds = reports.map((r) => r.id);
     let backupSet = new Set<string>();
     if (reportIds.length > 0) {
-      const backups = await db.select({ errorReportId: errorResolutionBackupsTable.errorReportId })
+      const backups = await db
+        .select({ errorReportId: errorResolutionBackupsTable.errorReportId })
         .from(errorResolutionBackupsTable)
-        .where(and(
-          inArray(errorResolutionBackupsTable.errorReportId, reportIds),
-          gte(errorResolutionBackupsTable.expiresAt, new Date()),
-        ));
-      backupSet = new Set(backups.map(b => b.errorReportId));
+        .where(
+          and(
+            inArray(errorResolutionBackupsTable.errorReportId, reportIds),
+            gte(errorResolutionBackupsTable.expiresAt, new Date())
+          )
+        );
+      backupSet = new Set(backups.map((b) => b.errorReportId));
     }
 
     sendSuccess(res, {
-      reports: reports.map(r => ({
+      reports: reports.map((r) => ({
         ...r,
         timestamp: r.timestamp.toISOString(),
         resolvedAt: r.resolvedAt?.toISOString() || null,
@@ -423,7 +532,8 @@ router.get("/", adminAuth, async (req, res) => {
 
 router.get("/new-count", adminAuth, async (_req, res) => {
   try {
-    const [row] = await db.select({ count: count() })
+    const [row] = await db
+      .select({ count: count() })
       .from(errorReportsTable)
       .where(eq(errorReportsTable.status, "new"));
     sendSuccess(res, { count: row?.count ?? 0 });
@@ -448,16 +558,22 @@ router.post("/bulk-resolve", adminAuth, async (req, res) => {
       conditions.push(eq(errorReportsTable.sourceApp, sourceApp as SourceApp));
     }
     if (severity && (VALID_SEVERITIES as readonly string[]).includes(severity)) {
-      conditions.push(eq(errorReportsTable.severity, severity as typeof VALID_SEVERITIES[number]));
+      conditions.push(
+        eq(errorReportsTable.severity, severity as (typeof VALID_SEVERITIES)[number])
+      );
     }
     if (errorType && (VALID_ERROR_TYPES as readonly string[]).includes(errorType)) {
       conditions.push(eq(errorReportsTable.errorType, errorType as ErrorType));
     }
 
     if (statusFilter && statusFilter.length > 0) {
-      const validStatuses = statusFilter.filter(s => (VALID_STATUSES as readonly string[]).includes(s));
+      const validStatuses = statusFilter.filter((s) =>
+        (VALID_STATUSES as readonly string[]).includes(s)
+      );
       if (validStatuses.length > 0) {
-        conditions.push(inArray(errorReportsTable.status, validStatuses as typeof VALID_STATUSES[number][]));
+        conditions.push(
+          inArray(errorReportsTable.status, validStatuses as (typeof VALID_STATUSES)[number][])
+        );
       }
     } else {
       conditions.push(ne(errorReportsTable.status, "resolved"));
@@ -465,14 +581,12 @@ router.post("/bulk-resolve", adminAuth, async (req, res) => {
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-    const toResolve = await db.select().from(errorReportsTable)
-      .where(where)
-      .limit(200);
+    const toResolve = await db.select().from(errorReportsTable).where(where).limit(200);
 
     const now = new Date();
     if (toResolve.length > 0) {
       await db.insert(errorResolutionBackupsTable).values(
-        toResolve.map(report => ({
+        toResolve.map((report) => ({
           id: generateId(),
           errorReportId: report.id,
           previousStatus: report.status,
@@ -490,9 +604,10 @@ router.post("/bulk-resolve", adminAuth, async (req, res) => {
       );
     }
 
-    const resolveIds = toResolve.map(r => r.id);
+    const resolveIds = toResolve.map((r) => r.id);
     if (resolveIds.length > 0) {
-      await db.update(errorReportsTable)
+      await db
+        .update(errorReportsTable)
         .set({ status: "resolved", resolvedAt: now, resolutionMethod: "manual", updatedAt: now })
         .where(inArray(errorReportsTable.id, resolveIds));
     }
@@ -510,31 +625,43 @@ router.post("/scan", adminAuth, async (req, res) => {
     const findings: Array<{ type: string; severity: string; message: string; detail: string }> = [];
 
     const oneHourAgo = new Date(Date.now() - 3600000);
-    const oneDayAgo  = new Date(Date.now() - 86400000);
+    const oneDayAgo = new Date(Date.now() - 86400000);
 
-    const [
-      [dbCheck],
-      criticalLastHour,
-      unresolvedCritical,
-      errorsByType,
-      [totalUnresolved],
-    ] = await Promise.all([
-      db.select({ now: sql<string>`now()` }).from(errorReportsTable).limit(1),
-      db.select({ count: count() }).from(errorReportsTable).where(
-        and(eq(errorReportsTable.severity, "critical"), gte(errorReportsTable.timestamp, oneHourAgo))
-      ),
-      db.select({ count: count() }).from(errorReportsTable).where(
-        and(eq(errorReportsTable.severity, "critical"), ne(errorReportsTable.status, "resolved"))
-      ),
-      db.select({ errorType: errorReportsTable.errorType, count: count() })
-        .from(errorReportsTable)
-        .where(gte(errorReportsTable.timestamp, oneDayAgo))
-        .groupBy(errorReportsTable.errorType)
-        .orderBy(desc(count())),
-      db.select({ count: count() }).from(errorReportsTable).where(
-        ne(errorReportsTable.status, "resolved")
-      ),
-    ]);
+    const [[dbCheck], criticalLastHour, unresolvedCritical, errorsByType, [totalUnresolved]] =
+      await Promise.all([
+        db
+          .select({ now: sql<string>`now()` })
+          .from(errorReportsTable)
+          .limit(1),
+        db
+          .select({ count: count() })
+          .from(errorReportsTable)
+          .where(
+            and(
+              eq(errorReportsTable.severity, "critical"),
+              gte(errorReportsTable.timestamp, oneHourAgo)
+            )
+          ),
+        db
+          .select({ count: count() })
+          .from(errorReportsTable)
+          .where(
+            and(
+              eq(errorReportsTable.severity, "critical"),
+              ne(errorReportsTable.status, "resolved")
+            )
+          ),
+        db
+          .select({ errorType: errorReportsTable.errorType, count: count() })
+          .from(errorReportsTable)
+          .where(gte(errorReportsTable.timestamp, oneDayAgo))
+          .groupBy(errorReportsTable.errorType)
+          .orderBy(desc(count())),
+        db
+          .select({ count: count() })
+          .from(errorReportsTable)
+          .where(ne(errorReportsTable.status, "resolved")),
+      ]);
 
     const dbOk = !!dbCheck;
     if (!dbOk) {
@@ -602,7 +729,8 @@ router.post("/scan", adminAuth, async (req, res) => {
       });
     }
 
-    const customerReportCount = await db.select({ count: count() })
+    const customerReportCount = await db
+      .select({ count: count() })
       .from(customerErrorReportsTable)
       .where(eq(customerErrorReportsTable.status, "new"));
 
@@ -617,11 +745,11 @@ router.post("/scan", adminAuth, async (req, res) => {
     }
 
     const durationMs = Date.now() - startedAt.getTime();
-    const overallSeverity = findings.some(f => f.severity === "critical")
+    const overallSeverity = findings.some((f) => f.severity === "critical")
       ? "critical"
-      : findings.some(f => f.severity === "medium")
-      ? "medium"
-      : "ok";
+      : findings.some((f) => f.severity === "medium")
+        ? "medium"
+        : "ok";
 
     sendSuccess(res, {
       scannedAt: startedAt.toISOString(),
@@ -654,7 +782,8 @@ router.patch("/:id", adminAuth, validateBody(updateStatusSchema), async (req, re
     const { id } = req.params as Record<string, string>;
     const { status: newStatus } = req.body;
 
-    const [existing] = await db.select()
+    const [existing] = await db
+      .select()
       .from(errorReportsTable)
       .where(eq(errorReportsTable.id, id!))
       .limit(1);
@@ -669,7 +798,7 @@ router.patch("/:id", adminAuth, validateBody(updateStatusSchema), async (req, re
       sendError(
         res,
         `Invalid transition: cannot move from '${existing.status}' to '${newStatus}'. Expected next step: '${allowedNext ?? "none (already resolved)"}'.`,
-        400,
+        400
       );
       return;
     }
@@ -700,7 +829,8 @@ router.patch("/:id", adminAuth, validateBody(updateStatusSchema), async (req, re
       });
     }
 
-    const [updated] = await db.update(errorReportsTable)
+    const [updated] = await db
+      .update(errorReportsTable)
       .set(updates)
       .where(eq(errorReportsTable.id, id!))
       .returning();
@@ -724,35 +854,38 @@ router.patch("/:id", adminAuth, validateBody(updateStatusSchema), async (req, re
 });
 
 const customerReportSchema = z.object({
-  customerName:  z.string().min(1).max(200),
+  customerName: z.string().min(1).max(200),
   customerEmail: z.string().email().optional(),
   customerPhone: z.string().max(30).optional(),
-  userId:        z.string().optional(),
-  appVersion:    z.string().max(50).optional(),
-  deviceInfo:    z.string().max(500).optional(),
-  platform:      z.enum(["ios", "android", "web"]).optional(),
-  screen:        z.string().max(200).optional(),
-  description:   z.string().min(5).max(5000),
-  reproSteps:    z.string().max(5000).optional(),
+  userId: z.string().optional(),
+  appVersion: z.string().max(50).optional(),
+  deviceInfo: z.string().max(500).optional(),
+  platform: z.enum(["ios", "android", "web"]).optional(),
+  screen: z.string().max(200).optional(),
+  description: z.string().min(5).max(5000),
+  reproSteps: z.string().max(5000).optional(),
 });
 
 router.post("/customer-report", validateBody(customerReportSchema), async (req, res) => {
   try {
     const body = req.body;
     const id = generateId();
-    const [report] = await db.insert(customerErrorReportsTable).values({
-      id,
-      customerName:  body.customerName,
-      customerEmail: body.customerEmail || null,
-      customerPhone: body.customerPhone || null,
-      userId:        body.userId || null,
-      appVersion:    body.appVersion || null,
-      deviceInfo:    body.deviceInfo || null,
-      platform:      body.platform || null,
-      screen:        body.screen || null,
-      description:   body.description,
-      reproSteps:    body.reproSteps || null,
-    }).returning();
+    const [report] = await db
+      .insert(customerErrorReportsTable)
+      .values({
+        id,
+        customerName: body.customerName,
+        customerEmail: body.customerEmail || null,
+        customerPhone: body.customerPhone || null,
+        userId: body.userId || null,
+        appVersion: body.appVersion || null,
+        deviceInfo: body.deviceInfo || null,
+        platform: body.platform || null,
+        screen: body.screen || null,
+        description: body.description,
+        reproSteps: body.reproSteps || null,
+      })
+      .returning();
 
     sendSuccess(res, { id: report.id, message: "Report submitted successfully" }, undefined, 201);
   } catch (err) {
@@ -763,30 +896,35 @@ router.post("/customer-report", validateBody(customerReportSchema), async (req, 
 
 router.get("/customer-reports", adminAuth, async (req, res) => {
   try {
-    const page  = Math.max(1, parseInt(String(req.query["page"] || "1")));
+    const page = Math.max(1, parseInt(String(req.query["page"] || "1")));
     const limit = Math.min(100, Math.max(1, parseInt(String(req.query["limit"] || "30"))));
     const offset = (page - 1) * limit;
 
     const statusParam = req.query["status"] as string | undefined;
     const conditions: SQL[] = [];
     if (statusParam && ["new", "reviewed", "closed"].includes(statusParam)) {
-      conditions.push(eq(customerErrorReportsTable.status, statusParam as "new" | "reviewed" | "closed"));
+      conditions.push(
+        eq(customerErrorReportsTable.status, statusParam as "new" | "reviewed" | "closed")
+      );
     }
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
     const [reports, [totalRow]] = await Promise.all([
-      db.select().from(customerErrorReportsTable)
+      db
+        .select()
+        .from(customerErrorReportsTable)
         .where(where)
         .orderBy(desc(customerErrorReportsTable.timestamp))
-        .limit(limit).offset(offset),
+        .limit(limit)
+        .offset(offset),
       db.select({ count: count() }).from(customerErrorReportsTable).where(where),
     ]);
 
     const total = totalRow?.count ?? 0;
     sendSuccess(res, {
-      reports: reports.map(r => ({
+      reports: reports.map((r) => ({
         ...r,
-        timestamp:  r.timestamp.toISOString(),
+        timestamp: r.timestamp.toISOString(),
         reviewedAt: r.reviewedAt?.toISOString() || null,
       })),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
@@ -798,51 +936,57 @@ router.get("/customer-reports", adminAuth, async (req, res) => {
 });
 
 const updateCustomerReportSchema = z.object({
-  status:    z.enum(["new", "reviewed", "closed"]).optional(),
+  status: z.enum(["new", "reviewed", "closed"]).optional(),
   adminNote: z.string().max(2000).optional(),
 });
 
-router.patch("/customer-reports/:id", adminAuth, validateBody(updateCustomerReportSchema), async (req, res) => {
-  try {
-    const { id } = req.params as Record<string, string>;
-    const body = req.body;
+router.patch(
+  "/customer-reports/:id",
+  adminAuth,
+  validateBody(updateCustomerReportSchema),
+  async (req, res) => {
+    try {
+      const { id } = req.params as Record<string, string>;
+      const body = req.body;
 
-    const updates: Record<string, unknown> = {};
-    if (body.status) {
-      updates.status = body.status;
-      if (body.status === "reviewed" || body.status === "closed") {
-        updates.reviewedAt = new Date();
+      const updates: Record<string, unknown> = {};
+      if (body.status) {
+        updates.status = body.status;
+        if (body.status === "reviewed" || body.status === "closed") {
+          updates.reviewedAt = new Date();
+        }
       }
-    }
-    if (body.adminNote !== undefined) {
-      updates.adminNote = body.adminNote;
-    }
+      if (body.adminNote !== undefined) {
+        updates.adminNote = body.adminNote;
+      }
 
-    if (Object.keys(updates).length === 0) {
-      sendValidationError(res, "No fields to update");
-      return;
+      if (Object.keys(updates).length === 0) {
+        sendValidationError(res, "No fields to update");
+        return;
+      }
+
+      const [updated] = await db
+        .update(customerErrorReportsTable)
+        .set(updates)
+        .where(eq(customerErrorReportsTable.id, id!))
+        .returning();
+
+      if (!updated) {
+        sendNotFound(res, "Customer report not found");
+        return;
+      }
+
+      sendSuccess(res, {
+        ...updated,
+        timestamp: updated.timestamp.toISOString(),
+        reviewedAt: updated.reviewedAt?.toISOString() || null,
+      });
+    } catch (err) {
+      logger.error({ err }, "Failed to update customer report");
+      sendError(res, "Failed to update customer report", 500);
     }
-
-    const [updated] = await db.update(customerErrorReportsTable)
-      .set(updates)
-      .where(eq(customerErrorReportsTable.id, id!))
-      .returning();
-
-    if (!updated) {
-      sendNotFound(res, "Customer report not found");
-      return;
-    }
-
-    sendSuccess(res, {
-      ...updated,
-      timestamp:  updated.timestamp.toISOString(),
-      reviewedAt: updated.reviewedAt?.toISOString() || null,
-    });
-  } catch (err) {
-    logger.error({ err }, "Failed to update customer report");
-    sendError(res, "Failed to update customer report", 500);
   }
-});
+);
 
 const BACKUP_TTL_MS = 72 * 60 * 60 * 1000;
 
@@ -862,7 +1006,9 @@ router.post("/:id/resolve", adminAuth, validateBody(resolveSchema), async (req, 
     const { id } = req.params as Record<string, string>;
     const { method, resolutionNotes, rootCause } = req.body;
 
-    const [existing] = await db.select().from(errorReportsTable)
+    const [existing] = await db
+      .select()
+      .from(errorReportsTable)
       .where(eq(errorReportsTable.id, id!))
       .limit(1);
 
@@ -894,7 +1040,8 @@ router.post("/:id/resolve", adminAuth, validateBody(resolveSchema), async (req, 
     });
 
     const now = new Date();
-    const [updated] = await db.update(errorReportsTable)
+    const [updated] = await db
+      .update(errorReportsTable)
       .set({
         status: "resolved",
         resolvedAt: now,
@@ -929,11 +1076,15 @@ router.post("/:id/undo", adminAuth, async (req, res) => {
   try {
     const { id } = req.params as Record<string, string>;
 
-    const [backup] = await db.select().from(errorResolutionBackupsTable)
-      .where(and(
-        eq(errorResolutionBackupsTable.errorReportId, id!),
-        gte(errorResolutionBackupsTable.expiresAt, new Date()),
-      ))
+    const [backup] = await db
+      .select()
+      .from(errorResolutionBackupsTable)
+      .where(
+        and(
+          eq(errorResolutionBackupsTable.errorReportId, id!),
+          gte(errorResolutionBackupsTable.expiresAt, new Date())
+        )
+      )
       .orderBy(desc(errorResolutionBackupsTable.createdAt))
       .limit(1);
 
@@ -945,12 +1096,19 @@ router.post("/:id/undo", adminAuth, async (req, res) => {
     const prevData = backup.previousData as Record<string, unknown>;
     const now = new Date();
 
-    const [updated] = await db.update(errorReportsTable)
+    const [updated] = await db
+      .update(errorReportsTable)
       .set({
-        status: (prevData.status as string) as "new" | "acknowledged" | "in_progress" | "resolved",
+        status: prevData.status as string as "new" | "acknowledged" | "in_progress" | "resolved",
         resolvedAt: prevData.resolvedAt ? new Date(prevData.resolvedAt as string) : null,
-        acknowledgedAt: prevData.acknowledgedAt ? new Date(prevData.acknowledgedAt as string) : null,
-        resolutionMethod: (prevData.resolutionMethod as string | null) as "manual" | "auto_resolved" | "task_created" | null,
+        acknowledgedAt: prevData.acknowledgedAt
+          ? new Date(prevData.acknowledgedAt as string)
+          : null,
+        resolutionMethod: prevData.resolutionMethod as string | null as
+          | "manual"
+          | "auto_resolved"
+          | "task_created"
+          | null,
         resolutionNotes: (prevData.resolutionNotes as string | null) || null,
         rootCause: (prevData.rootCause as string | null) || null,
         updatedAt: now,
@@ -958,7 +1116,8 @@ router.post("/:id/undo", adminAuth, async (req, res) => {
       .where(eq(errorReportsTable.id, id!))
       .returning();
 
-    await db.delete(errorResolutionBackupsTable)
+    await db
+      .delete(errorResolutionBackupsTable)
       .where(eq(errorResolutionBackupsTable.id, backup.id));
 
     if (!updated) {
@@ -982,23 +1141,29 @@ router.post("/:id/undo", adminAuth, async (req, res) => {
 router.get("/:id/backup", adminAuth, async (req, res) => {
   try {
     const { id } = req.params as Record<string, string>;
-    const [backup] = await db.select().from(errorResolutionBackupsTable)
-      .where(and(
-        eq(errorResolutionBackupsTable.errorReportId, id!),
-        gte(errorResolutionBackupsTable.expiresAt, new Date()),
-      ))
+    const [backup] = await db
+      .select()
+      .from(errorResolutionBackupsTable)
+      .where(
+        and(
+          eq(errorResolutionBackupsTable.errorReportId, id!),
+          gte(errorResolutionBackupsTable.expiresAt, new Date())
+        )
+      )
       .orderBy(desc(errorResolutionBackupsTable.createdAt))
       .limit(1);
 
     sendSuccess(res, {
       hasBackup: !!backup,
-      backup: backup ? {
-        id: backup.id,
-        previousStatus: backup.previousStatus,
-        resolutionMethod: backup.resolutionMethod,
-        createdAt: backup.createdAt.toISOString(),
-        expiresAt: backup.expiresAt.toISOString(),
-      } : null,
+      backup: backup
+        ? {
+            id: backup.id,
+            previousStatus: backup.previousStatus,
+            resolutionMethod: backup.resolutionMethod,
+            createdAt: backup.createdAt.toISOString(),
+            expiresAt: backup.expiresAt.toISOString(),
+          }
+        : null,
     });
   } catch (err) {
     logger.error({ err }, "Failed to check backup");
@@ -1009,23 +1174,28 @@ router.get("/:id/backup", adminAuth, async (req, res) => {
 router.delete("/backups/cleanup", adminAuth, async (_req, res) => {
   try {
     const now = new Date();
-    const expired = await db.select({ id: errorResolutionBackupsTable.id, errorReportId: errorResolutionBackupsTable.errorReportId })
+    const expired = await db
+      .select({
+        id: errorResolutionBackupsTable.id,
+        errorReportId: errorResolutionBackupsTable.errorReportId,
+      })
       .from(errorResolutionBackupsTable)
       .where(lt(errorResolutionBackupsTable.expiresAt, now));
 
     let deletedCount = 0;
     if (expired.length > 0) {
-      const reportIds = [...new Set(expired.map(b => b.errorReportId))];
-      const resolvedReports = await db.select({ id: errorReportsTable.id })
+      const reportIds = [...new Set(expired.map((b) => b.errorReportId))];
+      const resolvedReports = await db
+        .select({ id: errorReportsTable.id })
         .from(errorReportsTable)
-        .where(and(
-          inArray(errorReportsTable.id, reportIds),
-          eq(errorReportsTable.status, "resolved"),
-        ));
-      const resolvedSet = new Set(resolvedReports.map(r => r.id));
-      const toDelete = expired.filter(b => resolvedSet.has(b.errorReportId)).map(b => b.id);
+        .where(
+          and(inArray(errorReportsTable.id, reportIds), eq(errorReportsTable.status, "resolved"))
+        );
+      const resolvedSet = new Set(resolvedReports.map((r) => r.id));
+      const toDelete = expired.filter((b) => resolvedSet.has(b.errorReportId)).map((b) => b.id);
       if (toDelete.length > 0) {
-        await db.delete(errorResolutionBackupsTable)
+        await db
+          .delete(errorResolutionBackupsTable)
           .where(inArray(errorResolutionBackupsTable.id, toDelete));
         deletedCount = toDelete.length;
       }
@@ -1041,26 +1211,34 @@ router.delete("/backups/cleanup", adminAuth, async (_req, res) => {
 export async function cleanupExpiredBackups() {
   try {
     const now = new Date();
-    const expired = await db.select({ id: errorResolutionBackupsTable.id, errorReportId: errorResolutionBackupsTable.errorReportId })
+    const expired = await db
+      .select({
+        id: errorResolutionBackupsTable.id,
+        errorReportId: errorResolutionBackupsTable.errorReportId,
+      })
       .from(errorResolutionBackupsTable)
       .where(lt(errorResolutionBackupsTable.expiresAt, now));
 
     if (expired.length === 0) return;
 
-    const reportIds = [...new Set(expired.map(b => b.errorReportId))];
-    const resolvedReports = await db.select({ id: errorReportsTable.id })
+    const reportIds = [...new Set(expired.map((b) => b.errorReportId))];
+    const resolvedReports = await db
+      .select({ id: errorReportsTable.id })
       .from(errorReportsTable)
-      .where(and(
-        inArray(errorReportsTable.id, reportIds),
-        eq(errorReportsTable.status, "resolved"),
-      ));
-    const resolvedSet = new Set(resolvedReports.map(r => r.id));
+      .where(
+        and(inArray(errorReportsTable.id, reportIds), eq(errorReportsTable.status, "resolved"))
+      );
+    const resolvedSet = new Set(resolvedReports.map((r) => r.id));
 
-    const toDelete = expired.filter(b => resolvedSet.has(b.errorReportId)).map(b => b.id);
+    const toDelete = expired.filter((b) => resolvedSet.has(b.errorReportId)).map((b) => b.id);
     if (toDelete.length > 0) {
-      await db.delete(errorResolutionBackupsTable)
+      await db
+        .delete(errorResolutionBackupsTable)
         .where(inArray(errorResolutionBackupsTable.id, toDelete));
-      logger.info({ count: toDelete.length }, "Cleaned up expired resolution backups for resolved errors");
+      logger.info(
+        { count: toDelete.length },
+        "Cleaned up expired resolution backups for resolved errors"
+      );
     }
   } catch (err) {
     logger.error({ err }, "Failed to cleanup expired backups");
@@ -1078,18 +1256,29 @@ const DEFAULT_AUTO_RESOLVE_SETTINGS = {
 
 export async function getAutoResolveSettings() {
   try {
-    const [row] = await db.select().from(platformSettingsTable)
+    const [row] = await db
+      .select()
+      .from(platformSettingsTable)
       .where(eq(platformSettingsTable.key, "auto_resolve_settings"));
     if (row) {
       try {
         return { ...DEFAULT_AUTO_RESOLVE_SETTINGS, ...JSON.parse(row.value) };
       } catch (err) {
-        logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+        logger.error(
+          {
+            error: err instanceof Error ? err.message : String(err),
+            timestamp: new Date().toISOString(),
+          },
+          "[route] unhandled error"
+        );
         return { ...DEFAULT_AUTO_RESOLVE_SETTINGS };
       }
     }
   } catch (err) {
-    logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[error-reports] auto-resolve settings DB read failed — using defaults");
+    logger.debug(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[error-reports] auto-resolve settings DB read failed — using defaults"
+    );
   }
   return { ...DEFAULT_AUTO_RESOLVE_SETTINGS };
 }
@@ -1113,28 +1302,36 @@ const autoResolveSettingsSchema = z.object({
   intervalMs: z.number().min(30000).max(3600000).optional(),
 });
 
-router.put("/auto-resolve-settings", adminAuth, validateBody(autoResolveSettingsSchema), async (req, res) => {
-  try {
-    const current = await getAutoResolveSettings();
-    const updated = { ...current, ...req.body };
+router.put(
+  "/auto-resolve-settings",
+  adminAuth,
+  validateBody(autoResolveSettingsSchema),
+  async (req, res) => {
+    try {
+      const current = await getAutoResolveSettings();
+      const updated = { ...current, ...req.body };
 
-    await db.insert(platformSettingsTable).values({
-      key: "auto_resolve_settings",
-      value: JSON.stringify(updated),
-      label: "Auto-Resolve Engine Settings",
-      category: "error_monitor",
-    }).onConflictDoUpdate({
-      target: platformSettingsTable.key,
-      set: { value: JSON.stringify(updated), updatedAt: new Date() },
-    });
+      await db
+        .insert(platformSettingsTable)
+        .values({
+          key: "auto_resolve_settings",
+          value: JSON.stringify(updated),
+          label: "Auto-Resolve Engine Settings",
+          category: "error_monitor",
+        })
+        .onConflictDoUpdate({
+          target: platformSettingsTable.key,
+          set: { value: JSON.stringify(updated), updatedAt: new Date() },
+        });
 
-    if (_onSettingsChanged) _onSettingsChanged();
-    sendSuccess(res, updated);
-  } catch (err) {
-    logger.error({ err }, "Failed to update auto-resolve settings");
-    sendError(res, "Failed to update auto-resolve settings", 500);
+      if (_onSettingsChanged) _onSettingsChanged();
+      sendSuccess(res, updated);
+    } catch (err) {
+      logger.error({ err }, "Failed to update auto-resolve settings");
+      sendError(res, "Failed to update auto-resolve settings", 500);
+    }
   }
-});
+);
 
 export async function runAutoResolve() {
   try {
@@ -1154,40 +1351,59 @@ export async function runAutoResolve() {
       conditions.push(lte(errorReportsTable.timestamp, cutoff));
     }
 
-    const candidates = await db.select().from(errorReportsTable)
+    const candidates = await db
+      .select()
+      .from(errorReportsTable)
       .where(and(...conditions))
       .orderBy(desc(errorReportsTable.timestamp))
       .limit(50);
 
     let resolvedAlready: Set<string> = new Set();
     if (settings.duplicateDetection && candidates.length > 0) {
-      const candidateHashes = candidates.flatMap(c => (c.errorHash ? [c.errorHash] : []));
+      const candidateHashes = candidates.flatMap((c) => (c.errorHash ? [c.errorHash] : []));
       if (candidateHashes.length > 0) {
-        const resolvedHashRows = await db.select({
-          errorHash: errorReportsTable.errorHash,
-        }).from(errorReportsTable)
-          .where(and(
-            eq(errorReportsTable.status, "resolved"),
-            inArray(errorReportsTable.errorHash, candidateHashes),
-          ));
-        resolvedAlready = new Set(resolvedHashRows.flatMap(r => (r.errorHash ? [r.errorHash] : [])));
+        const resolvedHashRows = await db
+          .select({
+            errorHash: errorReportsTable.errorHash,
+          })
+          .from(errorReportsTable)
+          .where(
+            and(
+              eq(errorReportsTable.status, "resolved"),
+              inArray(errorReportsTable.errorHash, candidateHashes)
+            )
+          );
+        resolvedAlready = new Set(
+          resolvedHashRows.flatMap((r) => (r.errorHash ? [r.errorHash] : []))
+        );
       }
     }
 
     const now = new Date();
-    const toResolve: Array<{ candidate: typeof candidates[0]; reason: string; ruleMatched: string }> = [];
+    const toResolve: Array<{
+      candidate: (typeof candidates)[0];
+      reason: string;
+      ruleMatched: string;
+    }> = [];
 
     for (const candidate of candidates) {
       let reason = "";
       let ruleMatched = "";
 
-      if (settings.duplicateDetection && candidate.errorHash && resolvedAlready.has(candidate.errorHash)) {
+      if (
+        settings.duplicateDetection &&
+        candidate.errorHash &&
+        resolvedAlready.has(candidate.errorHash)
+      ) {
         reason = `Duplicate of previously resolved error`;
         ruleMatched = "duplicate_detection";
       } else if (settings.severities.includes(candidate.severity)) {
         reason = `Severity "${candidate.severity}" matches auto-resolve filter`;
         ruleMatched = "severity_filter";
-      } else if (settings.errorTypes.length > 0 && settings.errorTypes.includes(candidate.errorType)) {
+      } else if (
+        settings.errorTypes.length > 0 &&
+        settings.errorTypes.includes(candidate.errorType)
+      ) {
         reason = `Error type "${candidate.errorType}" matches auto-resolve filter`;
         ruleMatched = "error_type_filter";
       } else {
@@ -1218,7 +1434,8 @@ export async function runAutoResolve() {
 
       await Promise.all(
         toResolve.map(({ candidate, reason }) =>
-          db.update(errorReportsTable)
+          db
+            .update(errorReportsTable)
             .set({
               status: "resolved",
               resolvedAt: now,
@@ -1271,14 +1488,19 @@ router.post("/auto-resolve-run", adminAuth, async (_req, res) => {
 router.post("/:id/ai-analyze", adminAuth, async (req, res) => {
   try {
     const { id } = req.params as Record<string, string>;
-    const [report] = await db.select().from(errorReportsTable)
+    const [report] = await db
+      .select()
+      .from(errorReportsTable)
       .where(eq(errorReportsTable.id, id!))
       .limit(1);
 
-    if (!report) { sendNotFound(res, "Error report not found"); return; }
+    if (!report) {
+      sendNotFound(res, "Error report not found");
+      return;
+    }
 
     const baseUrl = process.env["AI_INTEGRATIONS_GEMINI_BASE_URL"];
-    const apiKey  = process.env["AI_INTEGRATIONS_GEMINI_API_KEY"];
+    const apiKey = process.env["AI_INTEGRATIONS_GEMINI_API_KEY"];
 
     /* ── Gemini primary ────────────────────────────────────────────────── */
     if (baseUrl && apiKey) {
@@ -1324,7 +1546,8 @@ Return this JSON structure:
         };
 
         if (parsed.rootCause) {
-          await db.update(errorReportsTable)
+          await db
+            .update(errorReportsTable)
             .set({ rootCause: parsed.rootCause, updatedAt: new Date() })
             .where(eq(errorReportsTable.id, id!));
           return sendSuccess(res, { ...parsed, fallback: false, errorId: id });
@@ -1339,7 +1562,8 @@ Return this JSON structure:
     return sendSuccess(res, {
       rootCause: rca.causes.join("; ") || "Root cause could not be determined automatically.",
       fixSteps: rca.fixes,
-      impactAssessment: rca.consequences.join("; ") || report.shortImpact || "Investigate for user impact.",
+      impactAssessment:
+        rca.consequences.join("; ") || report.shortImpact || "Investigate for user impact.",
       confidence: 0.4,
       autoResolvable: false,
       preventionTips: [],
@@ -1355,21 +1579,29 @@ Return this JSON structure:
 router.get("/auto-resolve-log", adminAuth, async (req, res) => {
   try {
     const limit = Math.min(100, Math.max(1, parseInt(String(req.query["limit"] || "50"))));
-    const logs = await db.select().from(autoResolveLogTable)
+    const logs = await db
+      .select()
+      .from(autoResolveLogTable)
       .orderBy(desc(autoResolveLogTable.createdAt))
       .limit(limit);
 
-    sendSuccess(res, logs.map(l => ({
-      ...l,
-      createdAt: l.createdAt.toISOString(),
-    })));
+    sendSuccess(
+      res,
+      logs.map((l) => ({
+        ...l,
+        createdAt: l.createdAt.toISOString(),
+      }))
+    );
   } catch (err) {
     logger.error({ err }, "Failed to fetch auto-resolve log");
     sendError(res, "Failed to fetch auto-resolve log", 500);
   }
 });
 
-function analyzeErrorCauseServer(errorType: string, errorMessage: string): { causes: string[]; consequences: string[]; fixes: string[] } {
+function analyzeErrorCauseServer(
+  errorType: string,
+  errorMessage: string
+): { causes: string[]; consequences: string[]; fixes: string[] } {
   const msg = (errorMessage || "").toLowerCase();
   const causes: string[] = [];
   const consequences: string[] = [];
@@ -1459,10 +1691,16 @@ function extractFileReferences(stackTrace: string): Array<{ file: string; line: 
   return refs;
 }
 
-function buildSingleTaskPlan(report: typeof errorReportsTable.$inferSelect): { markdown: string; fileReferences: Array<{ file: string; line: number }> } {
+function buildSingleTaskPlan(report: typeof errorReportsTable.$inferSelect): {
+  markdown: string;
+  fileReferences: Array<{ file: string; line: number }>;
+} {
   const severityLabel = report.severity.toUpperCase();
-  const typeLabel = report.errorType.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-  const sourceLabel = report.sourceApp === "api" ? "API Server" : report.sourceApp.charAt(0).toUpperCase() + report.sourceApp.slice(1);
+  const typeLabel = report.errorType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const sourceLabel =
+    report.sourceApp === "api"
+      ? "API Server"
+      : report.sourceApp.charAt(0).toUpperCase() + report.sourceApp.slice(1);
   const fileReferences = extractFileReferences(report.stackTrace ?? "");
 
   const lines = [
@@ -1500,7 +1738,7 @@ function buildSingleTaskPlan(report: typeof errorReportsTable.$inferSelect): { m
 
   if (fileReferences.length > 0) {
     lines.push(`## Files to Investigate`);
-    fileReferences.forEach(ref => lines.push(`- \`${ref.file}\` — line ${ref.line}`));
+    fileReferences.forEach((ref) => lines.push(`- \`${ref.file}\` — line ${ref.line}`));
     lines.push(``);
   }
 
@@ -1523,7 +1761,7 @@ function buildSingleTaskPlan(report: typeof errorReportsTable.$inferSelect): { m
   const rca = analyzeErrorCauseServer(report.errorType, report.errorMessage);
   if (rca.causes.length > 0) {
     lines.push(`## Likely Root Causes`);
-    rca.causes.forEach(c => lines.push(`- ${c}`));
+    rca.causes.forEach((c) => lines.push(`- ${c}`));
     lines.push(``);
   }
   if (rca.fixes.length > 0) {
@@ -1533,7 +1771,7 @@ function buildSingleTaskPlan(report: typeof errorReportsTable.$inferSelect): { m
   }
   if (rca.consequences.length > 0) {
     lines.push(`## Consequences If Unresolved`);
-    rca.consequences.forEach(c => lines.push(`- ${c}`));
+    rca.consequences.forEach((c) => lines.push(`- ${c}`));
     lines.push(``);
   }
 
@@ -1545,9 +1783,13 @@ function buildSingleTaskPlan(report: typeof errorReportsTable.$inferSelect): { m
   lines.push(`5. Deploy to staging and verify resolution`);
   lines.push(``);
   lines.push(`## Priority`);
-  lines.push(report.severity === "critical" ? `🔴 **HIGH** — Critical error actively affecting users. Fix immediately.` :
-    report.severity === "medium" ? `🟡 **MEDIUM** — Impacts functionality. Schedule for next sprint.` :
-    `🟢 **LOW** — Minor issue. Address when convenient.`);
+  lines.push(
+    report.severity === "critical"
+      ? `🔴 **HIGH** — Critical error actively affecting users. Fix immediately.`
+      : report.severity === "medium"
+        ? `🟡 **MEDIUM** — Impacts functionality. Schedule for next sprint.`
+        : `🟢 **LOW** — Minor issue. Address when convenient.`
+  );
 
   return { markdown: lines.join("\n"), fileReferences };
 }
@@ -1555,7 +1797,9 @@ function buildSingleTaskPlan(report: typeof errorReportsTable.$inferSelect): { m
 router.post("/:id/generate-task", adminAuth, async (req, res) => {
   try {
     const { id } = req.params as Record<string, string>;
-    const [report] = await db.select().from(errorReportsTable)
+    const [report] = await db
+      .select()
+      .from(errorReportsTable)
       .where(eq(errorReportsTable.id, id!))
       .limit(1);
 
@@ -1566,7 +1810,8 @@ router.post("/:id/generate-task", adminAuth, async (req, res) => {
 
     const { markdown, fileReferences } = buildSingleTaskPlan(report);
 
-    await db.update(errorReportsTable)
+    await db
+      .update(errorReportsTable)
       .set({ resolutionMethod: "task_created", updatedAt: new Date() })
       .where(eq(errorReportsTable.id, id!));
 
@@ -1581,116 +1826,126 @@ const bulkGenerateTaskSchema = z.object({
   ids: z.array(z.string()).min(1).max(20),
 });
 
-router.post("/bulk-generate-task", adminAuth, validateBody(bulkGenerateTaskSchema), async (req, res) => {
-  try {
-    const { ids } = req.body as { ids: string[] };
-    const reports = await db.select().from(errorReportsTable)
-      .where(inArray(errorReportsTable.id, ids));
+router.post(
+  "/bulk-generate-task",
+  adminAuth,
+  validateBody(bulkGenerateTaskSchema),
+  async (req, res) => {
+    try {
+      const { ids } = req.body as { ids: string[] };
+      const reports = await db
+        .select()
+        .from(errorReportsTable)
+        .where(inArray(errorReportsTable.id, ids));
 
-    if (reports.length === 0) {
-      sendNotFound(res, "No matching error reports found");
-      return;
-    }
+      if (reports.length === 0) {
+        sendNotFound(res, "No matching error reports found");
+        return;
+      }
 
-    const severityOrder = { critical: 0, medium: 1, minor: 2 };
-    const sorted = [...reports].sort((a, b) =>
-      (severityOrder[a.severity] ?? 2) - (severityOrder[b.severity] ?? 2)
-    );
+      const severityOrder = { critical: 0, medium: 1, minor: 2 };
+      const sorted = [...reports].sort(
+        (a, b) => (severityOrder[a.severity] ?? 2) - (severityOrder[b.severity] ?? 2)
+      );
 
-    const criticalCount = sorted.filter(r => r.severity === "critical").length;
-    const mediumCount = sorted.filter(r => r.severity === "medium").length;
-    const minorCount = sorted.filter(r => r.severity === "minor").length;
-    const overallSeverity = criticalCount > 0 ? "CRITICAL" : mediumCount > 0 ? "MEDIUM" : "LOW";
+      const criticalCount = sorted.filter((r) => r.severity === "critical").length;
+      const mediumCount = sorted.filter((r) => r.severity === "medium").length;
+      const minorCount = sorted.filter((r) => r.severity === "minor").length;
+      const overallSeverity = criticalCount > 0 ? "CRITICAL" : mediumCount > 0 ? "MEDIUM" : "LOW";
 
-    const lines: string[] = [
-      `# Bulk Bug Fix Task Plan — ${reports.length} Error${reports.length > 1 ? "s" : ""}`,
-      ``,
-      `> **For developer or AI agent** — this plan covers ${reports.length} selected errors. Fix in priority order.`,
-      ``,
-      `## Overview`,
-      `| Severity | Count |`,
-      `|----------|-------|`,
-      `| 🔴 Critical | ${criticalCount} |`,
-      `| 🟡 Medium | ${mediumCount} |`,
-      `| 🟢 Minor | ${minorCount} |`,
-      `| **Overall Priority** | **${overallSeverity}** |`,
-      ``,
-    ];
+      const lines: string[] = [
+        `# Bulk Bug Fix Task Plan — ${reports.length} Error${reports.length > 1 ? "s" : ""}`,
+        ``,
+        `> **For developer or AI agent** — this plan covers ${reports.length} selected errors. Fix in priority order.`,
+        ``,
+        `## Overview`,
+        `| Severity | Count |`,
+        `|----------|-------|`,
+        `| 🔴 Critical | ${criticalCount} |`,
+        `| 🟡 Medium | ${mediumCount} |`,
+        `| 🟢 Minor | ${minorCount} |`,
+        `| **Overall Priority** | **${overallSeverity}** |`,
+        ``,
+      ];
 
-    for (let i = 0; i < sorted.length; i++) {
-      const r = sorted[i]!;
-      const typeLabel = r.errorType.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-      const sourceLabel = r.sourceApp === "api" ? "API Server" : r.sourceApp.charAt(0).toUpperCase() + r.sourceApp.slice(1);
-      const sevIcon = r.severity === "critical" ? "🔴" : r.severity === "medium" ? "🟡" : "🟢";
-      const rca = analyzeErrorCauseServer(r.errorType, r.errorMessage);
-      const fileRefs = extractFileReferences(r.stackTrace ?? "");
+      for (let i = 0; i < sorted.length; i++) {
+        const r = sorted[i]!;
+        const typeLabel = r.errorType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        const sourceLabel =
+          r.sourceApp === "api"
+            ? "API Server"
+            : r.sourceApp.charAt(0).toUpperCase() + r.sourceApp.slice(1);
+        const sevIcon = r.severity === "critical" ? "🔴" : r.severity === "medium" ? "🟡" : "🟢";
+        const rca = analyzeErrorCauseServer(r.errorType, r.errorMessage);
+        const fileRefs = extractFileReferences(r.stackTrace ?? "");
+
+        lines.push(`---`);
+        lines.push(``);
+        lines.push(`## Error ${i + 1} of ${sorted.length}: ${sevIcon} ${typeLabel}`);
+        lines.push(``);
+        lines.push(`| Field | Value |`);
+        lines.push(`|-------|-------|`);
+        lines.push(`| Error ID | \`${r.id}\` |`);
+        lines.push(`| Severity | ${sevIcon} ${r.severity.toUpperCase()} |`);
+        lines.push(`| Source | ${sourceLabel} |`);
+        lines.push(`| Type | ${typeLabel} |`);
+        lines.push(`| Occurrences | ${r.occurrenceCount ?? 1} |`);
+        lines.push(`| Status | ${r.status} |`);
+        if (r.moduleName) lines.push(`| Module | \`${r.moduleName}\` |`);
+        if (r.functionName) lines.push(`| Function | \`${r.functionName}\` |`);
+        if (r.componentName) lines.push(`| Component | \`${r.componentName}\` |`);
+        lines.push(``);
+
+        lines.push(`**Error Message:**`);
+        lines.push(`\`\`\``);
+        lines.push(r.errorMessage);
+        lines.push(`\`\`\``);
+        lines.push(``);
+
+        if (fileRefs.length > 0) {
+          lines.push(`**Files to Investigate:**`);
+          fileRefs.forEach((ref) => lines.push(`- \`${ref.file}\` line ${ref.line}`));
+          lines.push(``);
+        }
+
+        if (r.stackTrace) {
+          lines.push(`**Stack Trace (excerpt):**`);
+          lines.push(`\`\`\``);
+          lines.push(r.stackTrace.slice(0, 1500));
+          lines.push(`\`\`\``);
+          lines.push(``);
+        }
+
+        if (rca.causes.length > 0) {
+          lines.push(`**Likely Root Causes:**`);
+          rca.causes.forEach((c) => lines.push(`- ${c}`));
+          lines.push(``);
+        }
+
+        if (rca.fixes.length > 0) {
+          lines.push(`**Fix Steps:**`);
+          rca.fixes.forEach((f, fi) => lines.push(`${fi + 1}. ${f}`));
+          lines.push(``);
+        }
+      }
 
       lines.push(`---`);
       lines.push(``);
-      lines.push(`## Error ${i + 1} of ${sorted.length}: ${sevIcon} ${typeLabel}`);
-      lines.push(``);
-      lines.push(`| Field | Value |`);
-      lines.push(`|-------|-------|`);
-      lines.push(`| Error ID | \`${r.id}\` |`);
-      lines.push(`| Severity | ${sevIcon} ${r.severity.toUpperCase()} |`);
-      lines.push(`| Source | ${sourceLabel} |`);
-      lines.push(`| Type | ${typeLabel} |`);
-      lines.push(`| Occurrences | ${r.occurrenceCount ?? 1} |`);
-      lines.push(`| Status | ${r.status} |`);
-      if (r.moduleName) lines.push(`| Module | \`${r.moduleName}\` |`);
-      if (r.functionName) lines.push(`| Function | \`${r.functionName}\` |`);
-      if (r.componentName) lines.push(`| Component | \`${r.componentName}\` |`);
-      lines.push(``);
+      lines.push(`## Prioritized Fix Order`);
+      sorted.forEach((r, i) => {
+        const sevIcon = r.severity === "critical" ? "🔴" : r.severity === "medium" ? "🟡" : "🟢";
+        const typeLabel = r.errorType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        lines.push(`${i + 1}. ${sevIcon} \`${r.id}\` — ${typeLabel} (${r.sourceApp})`);
+      });
 
-      lines.push(`**Error Message:**`);
-      lines.push(`\`\`\``);
-      lines.push(r.errorMessage);
-      lines.push(`\`\`\``);
-      lines.push(``);
-
-      if (fileRefs.length > 0) {
-        lines.push(`**Files to Investigate:**`);
-        fileRefs.forEach(ref => lines.push(`- \`${ref.file}\` line ${ref.line}`));
-        lines.push(``);
-      }
-
-      if (r.stackTrace) {
-        lines.push(`**Stack Trace (excerpt):**`);
-        lines.push(`\`\`\``);
-        lines.push(r.stackTrace.slice(0, 1500));
-        lines.push(`\`\`\``);
-        lines.push(``);
-      }
-
-      if (rca.causes.length > 0) {
-        lines.push(`**Likely Root Causes:**`);
-        rca.causes.forEach(c => lines.push(`- ${c}`));
-        lines.push(``);
-      }
-
-      if (rca.fixes.length > 0) {
-        lines.push(`**Fix Steps:**`);
-        rca.fixes.forEach((f, fi) => lines.push(`${fi + 1}. ${f}`));
-        lines.push(``);
-      }
+      const markdown = lines.join("\n");
+      sendSuccess(res, { taskPlan: markdown, count: reports.length });
+    } catch (err) {
+      logger.error({ err }, "Failed to generate bulk task plan");
+      sendError(res, "Failed to generate bulk task plan", 500);
     }
-
-    lines.push(`---`);
-    lines.push(``);
-    lines.push(`## Prioritized Fix Order`);
-    sorted.forEach((r, i) => {
-      const sevIcon = r.severity === "critical" ? "🔴" : r.severity === "medium" ? "🟡" : "🟢";
-      const typeLabel = r.errorType.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-      lines.push(`${i + 1}. ${sevIcon} \`${r.id}\` — ${typeLabel} (${r.sourceApp})`);
-    });
-
-    const markdown = lines.join("\n");
-    sendSuccess(res, { taskPlan: markdown, count: reports.length });
-  } catch (err) {
-    logger.error({ err }, "Failed to generate bulk task plan");
-    sendError(res, "Failed to generate bulk task plan", 500);
   }
-});
+);
 
 /* ── File Scanner routes ────────────────────────────────────────────────── */
 
@@ -1716,17 +1971,21 @@ router.post("/file-scan/run", adminAuth, async (req: AdminRequest, res) => {
 
 router.get("/file-scan/history", adminAuth, async (_req, res) => {
   try {
-    const rows = await db.select({
-      id: fileScanResultsTable.id,
-      scannedAt: fileScanResultsTable.scannedAt,
-      durationMs: fileScanResultsTable.durationMs,
-      totalFindings: fileScanResultsTable.totalFindings,
-      triggeredBy: fileScanResultsTable.triggeredBy,
-    })
+    const rows = await db
+      .select({
+        id: fileScanResultsTable.id,
+        scannedAt: fileScanResultsTable.scannedAt,
+        durationMs: fileScanResultsTable.durationMs,
+        totalFindings: fileScanResultsTable.totalFindings,
+        triggeredBy: fileScanResultsTable.triggeredBy,
+      })
       .from(fileScanResultsTable)
       .orderBy(desc(fileScanResultsTable.scannedAt))
       .limit(7);
-    sendSuccess(res, rows.map(r => ({ ...r, scannedAt: r.scannedAt.toISOString() })));
+    sendSuccess(
+      res,
+      rows.map((r) => ({ ...r, scannedAt: r.scannedAt.toISOString() }))
+    );
   } catch (err) {
     logger.error({ err }, "Failed to fetch file scan history");
     sendError(res, "Failed to fetch file scan history", 500);
@@ -1735,7 +1994,9 @@ router.get("/file-scan/history", adminAuth, async (_req, res) => {
 
 router.get("/file-scan/latest", adminAuth, async (_req, res) => {
   try {
-    const [row] = await db.select().from(fileScanResultsTable)
+    const [row] = await db
+      .select()
+      .from(fileScanResultsTable)
       .orderBy(desc(fileScanResultsTable.scannedAt))
       .limit(1);
     if (!row) {
@@ -1760,109 +2021,132 @@ const fileScanTaskSchema = z.object({
   }),
 });
 
-router.post("/file-scan/generate-task", adminAuth, validateBody(fileScanTaskSchema), async (req, res) => {
-  try {
-    const { finding } = req.body as { finding: FileScanFinding };
-    const sevIcon = finding.severity === "critical" ? "🔴" : finding.severity === "medium" ? "🟡" : "🟢";
-    const ruleLabel = finding.ruleName.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+router.post(
+  "/file-scan/generate-task",
+  adminAuth,
+  validateBody(fileScanTaskSchema),
+  async (req, res) => {
+    try {
+      const { finding } = req.body as { finding: FileScanFinding };
+      const sevIcon =
+        finding.severity === "critical" ? "🔴" : finding.severity === "medium" ? "🟡" : "🟢";
+      const ruleLabel = finding.ruleName
+        .replace(/-/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
 
-    const lines = [
-      `# Code Quality Fix Task: ${ruleLabel}`,
-      ``,
-      `> **For developer or AI agent** — static analysis identified a code quality issue that needs fixing.`,
-      ``,
-      `## Issue Summary`,
-      `| Field | Value |`,
-      `|-------|-------|`,
-      `| Rule | \`${finding.ruleName}\` |`,
-      `| Severity | ${sevIcon} ${finding.severity.toUpperCase()} |`,
-      `| File | \`${finding.filePath}\` |`,
-      `| Line | ${finding.lineNumber} |`,
-      ``,
-      `## Problem Description`,
-      finding.message,
-      ``,
-      `## Code Snippet (line ${finding.lineNumber})`,
-      `\`\`\`typescript`,
-      finding.snippet,
-      `\`\`\``,
-      ``,
-      `## Why This Is Risky`,
-    ];
+      const lines = [
+        `# Code Quality Fix Task: ${ruleLabel}`,
+        ``,
+        `> **For developer or AI agent** — static analysis identified a code quality issue that needs fixing.`,
+        ``,
+        `## Issue Summary`,
+        `| Field | Value |`,
+        `|-------|-------|`,
+        `| Rule | \`${finding.ruleName}\` |`,
+        `| Severity | ${sevIcon} ${finding.severity.toUpperCase()} |`,
+        `| File | \`${finding.filePath}\` |`,
+        `| Line | ${finding.lineNumber} |`,
+        ``,
+        `## Problem Description`,
+        finding.message,
+        ``,
+        `## Code Snippet (line ${finding.lineNumber})`,
+        `\`\`\`typescript`,
+        finding.snippet,
+        `\`\`\``,
+        ``,
+        `## Why This Is Risky`,
+      ];
 
-    const whyRisky: Record<string, string> = {
-      "empty-catch": "Silent error swallowing hides bugs in production. Errors are thrown but never logged or handled, making debugging nearly impossible.",
-      "console-log": "console.log calls in production code leak implementation details, may expose sensitive data, and bypass structured logging that supports filtering, alerting, and aggregation.",
-      "todo-fixme-hack": "TODO/FIXME/HACK comments mark unfinished or temporary code. If left indefinitely, they accumulate as technical debt and may indicate incomplete features or known bugs.",
-      "async-no-trycatch": "Async functions without try/catch will result in unhandled promise rejections which crash Node.js workers or leave React components in a broken state.",
-      "route-no-trycatch": "Express route handlers without try/catch cause unhandled exceptions that crash the entire server process or return 500 with no user-friendly message.",
-      "missing-null-check": "Accessing properties on potentially null/undefined values causes TypeError crashes that are hard to debug in production.",
-      "unhandled-promise": "Promise-returning calls without await or .catch() leave errors completely unhandled — the operation may silently fail.",
-      "silent-catch-continue": "A catch block that only has comments effectively swallows the error, making it invisible in logs and impossible to diagnose.",
-    };
+      const whyRisky: Record<string, string> = {
+        "empty-catch":
+          "Silent error swallowing hides bugs in production. Errors are thrown but never logged or handled, making debugging nearly impossible.",
+        "console-log":
+          "console.log calls in production code leak implementation details, may expose sensitive data, and bypass structured logging that supports filtering, alerting, and aggregation.",
+        "todo-fixme-hack":
+          "TODO/FIXME/HACK comments mark unfinished or temporary code. If left indefinitely, they accumulate as technical debt and may indicate incomplete features or known bugs.",
+        "async-no-trycatch":
+          "Async functions without try/catch will result in unhandled promise rejections which crash Node.js workers or leave React components in a broken state.",
+        "route-no-trycatch":
+          "Express route handlers without try/catch cause unhandled exceptions that crash the entire server process or return 500 with no user-friendly message.",
+        "missing-null-check":
+          "Accessing properties on potentially null/undefined values causes TypeError crashes that are hard to debug in production.",
+        "unhandled-promise":
+          "Promise-returning calls without await or .catch() leave errors completely unhandled — the operation may silently fail.",
+        "silent-catch-continue":
+          "A catch block that only has comments effectively swallows the error, making it invisible in logs and impossible to diagnose.",
+      };
 
-    lines.push(whyRisky[finding.ruleName] ?? "This pattern is considered unsafe and should be addressed to improve code reliability.");
-    lines.push(``);
+      lines.push(
+        whyRisky[finding.ruleName] ??
+          "This pattern is considered unsafe and should be addressed to improve code reliability."
+      );
+      lines.push(``);
 
-    lines.push(`## How to Fix`);
-    const howToFix: Record<string, string[]> = {
-      "empty-catch": [
-        "1. Open `" + finding.filePath + "` at line " + finding.lineNumber,
-        "2. Add error logging: `logger.error({ err }, 'Description of what failed')`",
-        "3. Either re-throw the error or handle it gracefully",
-        "4. Never leave a catch block completely empty",
-      ],
-      "console-log": [
-        "1. Import the structured logger: `import { logger } from '../lib/logger.js'`",
-        "2. Replace `console.log(...)` with `logger.info(...)` or appropriate log level",
-        "3. Use structured fields: `logger.info({ userId, action }, 'User performed action')`",
-      ],
-      "todo-fixme-hack": [
-        "1. Create a proper task/ticket for the noted work",
-        "2. Either complete the work now or remove the comment and track it in your backlog",
-        "3. Never leave TODO/FIXME comments in production code without a tracking ticket",
-      ],
-      "async-no-trycatch": [
-        "1. Wrap the function body in a try/catch block",
-        "2. Log the error with context in the catch: `logger.error({ err }, 'What failed')`",
-        "3. Return a meaningful error response or re-throw as appropriate",
-      ],
-      "route-no-trycatch": [
-        "1. Wrap the entire route handler body in `try { ... } catch (err) { ... }`",
-        "2. In the catch block: `logger.error({ err }, 'Route failed'); sendError(res, 'message', 500)`",
-        "3. Never let route handlers throw uncaught exceptions",
-      ],
-      "missing-null-check": [
-        "1. Use optional chaining: `req.body?.field?.subField`",
-        "2. Add runtime validation with Zod before accessing nested properties",
-        "3. Provide default values: `const value = req.body?.field ?? defaultValue`",
-      ],
-    };
+      lines.push(`## How to Fix`);
+      const howToFix: Record<string, string[]> = {
+        "empty-catch": [
+          "1. Open `" + finding.filePath + "` at line " + finding.lineNumber,
+          "2. Add error logging: `logger.error({ err }, 'Description of what failed')`",
+          "3. Either re-throw the error or handle it gracefully",
+          "4. Never leave a catch block completely empty",
+        ],
+        "console-log": [
+          "1. Import the structured logger: `import { logger } from '../lib/logger.js'`",
+          "2. Replace `console.log(...)` with `logger.info(...)` or appropriate log level",
+          "3. Use structured fields: `logger.info({ userId, action }, 'User performed action')`",
+        ],
+        "todo-fixme-hack": [
+          "1. Create a proper task/ticket for the noted work",
+          "2. Either complete the work now or remove the comment and track it in your backlog",
+          "3. Never leave TODO/FIXME comments in production code without a tracking ticket",
+        ],
+        "async-no-trycatch": [
+          "1. Wrap the function body in a try/catch block",
+          "2. Log the error with context in the catch: `logger.error({ err }, 'What failed')`",
+          "3. Return a meaningful error response or re-throw as appropriate",
+        ],
+        "route-no-trycatch": [
+          "1. Wrap the entire route handler body in `try { ... } catch (err) { ... }`",
+          "2. In the catch block: `logger.error({ err }, 'Route failed'); sendError(res, 'message', 500)`",
+          "3. Never let route handlers throw uncaught exceptions",
+        ],
+        "missing-null-check": [
+          "1. Use optional chaining: `req.body?.field?.subField`",
+          "2. Add runtime validation with Zod before accessing nested properties",
+          "3. Provide default values: `const value = req.body?.field ?? defaultValue`",
+        ],
+      };
 
-    const fixes = howToFix[finding.ruleName] ?? [
-      `1. Open \`${finding.filePath}\` at line ${finding.lineNumber}`,
-      `2. Review the flagged code and apply the appropriate fix`,
-      `3. Add a test to cover the fixed code path`,
-    ];
-    fixes.forEach(f => lines.push(f));
-    lines.push(``);
+      const fixes = howToFix[finding.ruleName] ?? [
+        `1. Open \`${finding.filePath}\` at line ${finding.lineNumber}`,
+        `2. Review the flagged code and apply the appropriate fix`,
+        `3. Add a test to cover the fixed code path`,
+      ];
+      fixes.forEach((f) => lines.push(f));
+      lines.push(``);
 
-    lines.push(`## Surrounding Context`);
-    lines.push(`Open \`${finding.filePath}\` and navigate to line ${finding.lineNumber}. Review the surrounding ~20 lines for full context before making changes.`);
-    lines.push(``);
-    lines.push(`## Priority`);
-    lines.push(finding.severity === "critical"
-      ? `🔴 **HIGH** — This issue can cause crashes or data loss. Fix immediately.`
-      : finding.severity === "medium"
-      ? `🟡 **MEDIUM** — This issue reduces reliability. Fix in the current sprint.`
-      : `🟢 **LOW** — Code quality improvement. Fix when convenient.`);
+      lines.push(`## Surrounding Context`);
+      lines.push(
+        `Open \`${finding.filePath}\` and navigate to line ${finding.lineNumber}. Review the surrounding ~20 lines for full context before making changes.`
+      );
+      lines.push(``);
+      lines.push(`## Priority`);
+      lines.push(
+        finding.severity === "critical"
+          ? `🔴 **HIGH** — This issue can cause crashes or data loss. Fix immediately.`
+          : finding.severity === "medium"
+            ? `🟡 **MEDIUM** — This issue reduces reliability. Fix in the current sprint.`
+            : `🟢 **LOW** — Code quality improvement. Fix when convenient.`
+      );
 
-    sendSuccess(res, { taskPlan: lines.join("\n"), finding });
-  } catch (err) {
-    logger.error({ err }, "Failed to generate file scan task plan");
-    sendError(res, "Failed to generate file scan task plan", 500);
+      sendSuccess(res, { taskPlan: lines.join("\n"), finding });
+    } catch (err) {
+      logger.error({ err }, "Failed to generate file scan task plan");
+      sendError(res, "Failed to generate file scan task plan", 500);
+    }
   }
-});
+);
 
 /* ── Daily file scanner scheduler ─────────────────────────────────────── */
 let _dailyScanTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -1913,18 +2197,30 @@ export async function ensureErrorResolutionTables() {
       END $$
     `);
   } catch (err) {
-    logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[error-reports] CREATE TYPE resolution_method migration failed — may already exist");
+    logger.debug(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[error-reports] CREATE TYPE resolution_method migration failed — may already exist"
+    );
   }
   try {
-    await db.execute(sql`ALTER TABLE error_reports ADD COLUMN IF NOT EXISTS resolution_method resolution_method`);
+    await db.execute(
+      sql`ALTER TABLE error_reports ADD COLUMN IF NOT EXISTS resolution_method resolution_method`
+    );
     await db.execute(sql`ALTER TABLE error_reports ADD COLUMN IF NOT EXISTS resolution_notes TEXT`);
     await db.execute(sql`ALTER TABLE error_reports ADD COLUMN IF NOT EXISTS root_cause TEXT`);
     await db.execute(sql`ALTER TABLE error_reports ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP`);
     await db.execute(sql`ALTER TABLE error_reports ADD COLUMN IF NOT EXISTS error_hash TEXT`);
-    await db.execute(sql`ALTER TABLE error_reports ADD COLUMN IF NOT EXISTS occurrence_count INTEGER NOT NULL DEFAULT 1`);
-    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_error_reports_hash ON error_reports (error_hash, status, timestamp)`);
+    await db.execute(
+      sql`ALTER TABLE error_reports ADD COLUMN IF NOT EXISTS occurrence_count INTEGER NOT NULL DEFAULT 1`
+    );
+    await db.execute(
+      sql`CREATE INDEX IF NOT EXISTS idx_error_reports_hash ON error_reports (error_hash, status, timestamp)`
+    );
   } catch (err) {
-    logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[error-reports] ALTER TABLE error_reports migration failed — columns may already exist");
+    logger.debug(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[error-reports] ALTER TABLE error_reports migration failed — columns may already exist"
+    );
   }
   try {
     await db.execute(sql`
@@ -1939,7 +2235,10 @@ export async function ensureErrorResolutionTables() {
       )
     `);
   } catch (err) {
-    logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[error-reports] CREATE TABLE error_resolution_backups migration failed — may already exist");
+    logger.debug(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[error-reports] CREATE TABLE error_resolution_backups migration failed — may already exist"
+    );
   }
   try {
     await db.execute(sql`
@@ -1952,7 +2251,10 @@ export async function ensureErrorResolutionTables() {
       )
     `);
   } catch (err) {
-    logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[error-reports] CREATE TABLE auto_resolve_log migration failed — may already exist");
+    logger.debug(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[error-reports] CREATE TABLE auto_resolve_log migration failed — may already exist"
+    );
   }
   try {
     await db.execute(sql`
@@ -1966,11 +2268,14 @@ export async function ensureErrorResolutionTables() {
       )
     `);
   } catch (err) {
-    logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[error-reports] CREATE TABLE file_scan_results migration failed — may already exist");
+    logger.debug(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[error-reports] CREATE TABLE file_scan_results migration failed — may already exist"
+    );
   }
   _resolutionMigrated = true;
 }
 
 export default router;
 
-export { classifySeverity, classifyImpact, VALID_SOURCE_APPS, VALID_ERROR_TYPES };
+export { classifyImpact, classifySeverity, VALID_ERROR_TYPES, VALID_SOURCE_APPS };

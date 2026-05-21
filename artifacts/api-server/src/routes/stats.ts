@@ -1,16 +1,17 @@
-import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import {
-  productsTable, vendorProfilesTable, ordersTable, ridesTable,
-  usersTable, walletTransactionsTable,
+  ordersTable,
+  productsTable,
+  ridesTable,
+  usersTable,
+  vendorProfilesTable,
 } from "@workspace/db/schema";
-import { count, eq, gte, and, sum, sql, isNull } from "drizzle-orm";
-import { sendSuccess, sendInternalError } from "../lib/response.js";
+import { and, count, eq, gte, isNull, sql, sum } from "drizzle-orm";
+import { Router, type IRouter } from "express";
+import { logger } from "../lib/logger.js";
+import { getDiskPct, getMemoryPct, getP95Ms, getSampleCount } from "../lib/metrics/responseTime.js";
+import { sendInternalError, sendSuccess } from "../lib/response.js";
 import { adminAuth } from "./admin-shared.js";
-import { logger } from '../lib/logger.js';
-import {
-  getP95Ms, getMemoryPct, getDiskPct, getSampleCount,
-} from "../lib/metrics/responseTime.js";
 
 const router: IRouter = Router();
 
@@ -18,14 +19,23 @@ router.get("/public", async (_req, res) => {
   try {
     const [[products], [vendors]] = await Promise.all([
       db.select({ c: count() }).from(productsTable).where(eq(productsTable.inStock, true)),
-      db.select({ c: count() }).from(vendorProfilesTable).where(eq(vendorProfilesTable.storeIsOpen, true)),
+      db
+        .select({ c: count() })
+        .from(vendorProfilesTable)
+        .where(eq(vendorProfilesTable.storeIsOpen, true)),
     ]);
     sendSuccess(res, {
       productCount: products?.c ?? 0,
       restaurantCount: vendors?.c ?? 0,
     });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     sendInternalError(res, "Failed to fetch stats");
   }
 });
@@ -48,30 +58,41 @@ router.get("/", adminAuth, async (_req, res) => {
       newUsersTodayRow,
       activeVendorsRow,
     ] = await Promise.all([
-      db.select({ total: sum(ordersTable.total) })
+      db
+        .select({ total: sum(ordersTable.total) })
         .from(ordersTable)
-        .where(and(sql`${ordersTable.status} NOT IN ('cancelled', 'refunded')`, isNull(ordersTable.deletedAt))),
-      db.select({ total: sum(ordersTable.total) })
+        .where(
+          and(
+            sql`${ordersTable.status} NOT IN ('cancelled', 'refunded')`,
+            isNull(ordersTable.deletedAt)
+          )
+        ),
+      db
+        .select({ total: sum(ordersTable.total) })
         .from(ordersTable)
-        .where(and(
-          gte(ordersTable.createdAt, todayStart),
-          sql`${ordersTable.status} NOT IN ('cancelled', 'refunded')`,
-          isNull(ordersTable.deletedAt),
-        )),
-      db.select({ status: ordersTable.status, c: count() })
+        .where(
+          and(
+            gte(ordersTable.createdAt, todayStart),
+            sql`${ordersTable.status} NOT IN ('cancelled', 'refunded')`,
+            isNull(ordersTable.deletedAt)
+          )
+        ),
+      db
+        .select({ status: ordersTable.status, c: count() })
         .from(ordersTable)
         .where(isNull(ordersTable.deletedAt))
         .groupBy(ordersTable.status),
-      db.select({ c: count() })
-        .from(ridesTable)
-        .where(eq(ridesTable.status, "completed")),
-      db.select({ c: count() })
+      db.select({ c: count() }).from(ridesTable).where(eq(ridesTable.status, "completed")),
+      db
+        .select({ c: count() })
         .from(usersTable)
         .where(and(gte(usersTable.createdAt, weekStart), isNull(usersTable.deletedAt))),
-      db.select({ c: count() })
+      db
+        .select({ c: count() })
         .from(usersTable)
         .where(and(gte(usersTable.createdAt, todayStart), isNull(usersTable.deletedAt))),
-      db.select({ c: count() })
+      db
+        .select({ c: count() })
         .from(vendorProfilesTable)
         .where(eq(vendorProfilesTable.storeIsOpen, true)),
     ]);
@@ -102,7 +123,13 @@ router.get("/", adminAuth, async (_req, res) => {
       },
     });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     sendInternalError(res, "Failed to fetch stats");
   }
 });

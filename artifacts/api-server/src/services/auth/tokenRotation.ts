@@ -1,33 +1,33 @@
-import crypto from "crypto";
-import { fireAndForget } from "../../lib/fireAndForget.js";
 import { db } from "@workspace/db";
 import { refreshTokensTable, usersTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
-import {
-  signAccessToken,
-  generateRefreshToken,
-  addSecurityEvent,
-  getRefreshTokenTtlDays,
-  getAccessTokenTtlSec,
-  getCachedSettings,
-  writeAuthAuditLog,
-} from "../../middleware/security.js";
+import crypto from "crypto";
+import { and, eq } from "drizzle-orm";
+import { fireAndForget } from "../../lib/fireAndForget.js";
 import { generateId } from "../../lib/id.js";
 import { logger } from "../../lib/logger.js";
+import {
+  addSecurityEvent,
+  generateRefreshToken,
+  getAccessTokenTtlSec,
+  getCachedSettings,
+  getRefreshTokenTtlDays,
+  signAccessToken,
+  writeAuthAuditLog,
+} from "../../middleware/security.js";
 
 export interface RotationResult {
-  accessToken:    string;
-  refreshToken:   string;
-  expiresAt:      string;
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: string;
   newRefreshHash: string;
 }
 
 export type UserForRotation = {
-  id:           string;
-  phone:        string | null;
-  roles:        string | null;
+  id: string;
+  phone: string | null;
+  roles: string | null;
   tokenVersion: number | null;
-  authMethod?:  string | null;
+  authMethod?: string | null;
 };
 
 /**
@@ -42,11 +42,12 @@ export type UserForRotation = {
 export async function rotateRefreshToken(
   oldToken: typeof refreshTokensTable.$inferSelect,
   user: UserForRotation,
-  ip: string,
+  ip: string
 ): Promise<RotationResult> {
   const now = new Date();
 
-  await db.update(refreshTokensTable)
+  await db
+    .update(refreshTokensTable)
     .set({ revokedAt: now, revoked: true, revokedReason: "ROTATED" })
     .where(eq(refreshTokensTable.tokenHash, oldToken.tokenHash));
 
@@ -55,32 +56,30 @@ export async function rotateRefreshToken(
     user.phone ?? "",
     user.roles ?? "customer",
     user.roles ?? "customer",
-    user.tokenVersion ?? 0,
+    user.tokenVersion ?? 0
   );
 
   const { raw: newRefreshRaw, hash: newRefreshHash } = generateRefreshToken();
-  const newRefreshExpiresAt = new Date(
-    Date.now() + getRefreshTokenTtlDays() * 24 * 60 * 60 * 1000,
-  );
+  const newRefreshExpiresAt = new Date(Date.now() + getRefreshTokenTtlDays() * 24 * 60 * 60 * 1000);
 
   const familyId = oldToken.tokenFamilyId ?? crypto.randomUUID();
 
   await db.insert(refreshTokensTable).values({
-    id:            generateId(),
-    userId:        user.id,
-    tokenHash:     newRefreshHash,
-    authMethod:    oldToken.authMethod ?? null,
+    id: generateId(),
+    userId: user.id,
+    tokenHash: newRefreshHash,
+    authMethod: oldToken.authMethod ?? null,
     tokenFamilyId: familyId,
-    revoked:       false,
-    expiresAt:     newRefreshExpiresAt,
+    revoked: false,
+    expiresAt: newRefreshExpiresAt,
   });
 
   logger.info({ userId: user.id, ip }, "[AUDIT:AUTH] Refresh token rotated");
 
   return {
-    accessToken:  newAccessToken,
+    accessToken: newAccessToken,
     refreshToken: newRefreshRaw,
-    expiresAt:    new Date(Date.now() + getAccessTokenTtlSec() * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + getAccessTokenTtlSec() * 1000).toISOString(),
     newRefreshHash,
   };
 }
@@ -93,35 +92,36 @@ export async function invalidateTokenFamily(
   tokenFamilyId: string,
   userId: string,
   reason: string,
-  ip: string,
+  ip: string
 ): Promise<void> {
   if (!tokenFamilyId) return;
 
-  await db.update(refreshTokensTable)
+  await db
+    .update(refreshTokensTable)
     .set({ revokedAt: new Date(), revoked: true, revokedReason: reason })
     .where(
       and(
         eq(refreshTokensTable.tokenFamilyId, tokenFamilyId),
-        eq(refreshTokensTable.userId, userId),
-      ),
+        eq(refreshTokensTable.userId, userId)
+      )
     );
 
   addSecurityEvent({
-    type:     "refresh_token_family_invalidated",
+    type: "refresh_token_family_invalidated",
     ip,
     userId,
-    details:  `Token family invalidated — reason: ${reason}`,
+    details: `Token family invalidated — reason: ${reason}`,
     severity: "high",
   });
 
-  logger.error(
-    { userId, tokenFamilyId, reason, ip },
-    "[SECURITY] Token family fully invalidated",
-  );
+  logger.error({ userId, tokenFamilyId, reason, ip }, "[SECURITY] Token family fully invalidated");
 }
 
 export class TokenFamilyBreachError extends Error {
-  constructor(public readonly userId: string, public readonly familyId: string) {
+  constructor(
+    public readonly userId: string,
+    public readonly familyId: string
+  ) {
     super("TOKEN_FAMILY_BREACH");
     this.name = "TokenFamilyBreachError";
   }
@@ -137,7 +137,9 @@ export class TokenFamilyBreachError extends Error {
  *
  * Returns the token record so the caller can read `tokenFamilyId` for chaining.
  */
-export async function detectAndInvalidateFamily(tokenHash: string): Promise<typeof refreshTokensTable.$inferSelect> {
+export async function detectAndInvalidateFamily(
+  tokenHash: string
+): Promise<typeof refreshTokensTable.$inferSelect> {
   const [rt] = await db
     .select()
     .from(refreshTokensTable)
@@ -153,7 +155,7 @@ export async function detectAndInvalidateFamily(tokenHash: string): Promise<type
 
     logger.error(
       { userId: rt.userId, familyId, tokenHash: tokenHash.slice(0, 16) },
-      "[SECURITY:BREACH] Token replay detected! Revoking entire token family.",
+      "[SECURITY:BREACH] Token replay detected! Revoking entire token family."
     );
 
     if (familyId) {
@@ -165,19 +167,21 @@ export async function detectAndInvalidateFamily(tokenHash: string): Promise<type
       await db
         .update(refreshTokensTable)
         .set({ revokedAt: new Date(), revoked: true, revokedReason: "FAMILY_BREACH_DETECTED" })
-        .where(and(eq(refreshTokensTable.userId, rt.userId), eq(refreshTokensTable.tokenHash, tokenHash)));
+        .where(
+          and(eq(refreshTokensTable.userId, rt.userId), eq(refreshTokensTable.tokenHash, tokenHash))
+        );
     }
 
     addSecurityEvent({
-      type:     "token_family_breach",
-      ip:       "server",
-      userId:   rt.userId,
-      details:  `Token replay detected. Family ${familyId ?? "unknown"} fully revoked. Token hash prefix: ${tokenHash.slice(0, 16)}`,
+      type: "token_family_breach",
+      ip: "server",
+      userId: rt.userId,
+      details: `Token replay detected. Family ${familyId ?? "unknown"} fully revoked. Token hash prefix: ${tokenHash.slice(0, 16)}`,
       severity: "critical",
     });
 
     await writeAuthAuditLog("token_family_breach", {
-      userId:   rt.userId,
+      userId: rt.userId,
       metadata: { familyId, hashPrefix: tokenHash.slice(0, 16) },
     });
 
@@ -185,7 +189,7 @@ export async function detectAndInvalidateFamily(tokenHash: string): Promise<type
       sendBreachNotification(rt.userId, familyId ?? "unknown"),
       "tokenRotation:breach-notification",
       logger,
-      { userId: rt.userId, code: "TOKEN_BREACH_NOTIF_FAILED" },
+      { userId: rt.userId, code: "TOKEN_BREACH_NOTIF_FAILED" }
     );
 
     throw new TokenFamilyBreachError(rt.userId, familyId ?? "unknown");
@@ -250,9 +254,14 @@ export async function sendBreachNotification(userId: string, familyId: string): 
       try {
         const { sendEmail } = await import("../email.js");
         await sendEmail({
-          to:      user.email,
+          to: user.email,
           subject: `[${appName}] Security Alert: Unauthorized access detected`,
-          html:    buildBreachNotificationEmail({ userName: user.name, appName, detectedAt, familyId }),
+          html: buildBreachNotificationEmail({
+            userName: user.name,
+            appName,
+            detectedAt,
+            familyId,
+          }),
         });
       } catch (err) {
         logger.warn({ err, userId }, "[tokenRotation] Email breach notification failed");
@@ -263,7 +272,7 @@ export async function sendBreachNotification(userId: string, familyId: string): 
       try {
         const { sendSms } = await import("../sms.js");
         await sendSms({
-          to:      user.phone,
+          to: user.phone,
           message: `[${appName}] SECURITY ALERT: Unauthorized session replay detected. All your sessions have been revoked. If this wasn't you, change your password immediately.`,
         });
       } catch (err) {

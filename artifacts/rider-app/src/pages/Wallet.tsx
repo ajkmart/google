@@ -1,82 +1,162 @@
-import { formatCurrency as _sharedFcW } from "@workspace/api-zod";
 import { createLogger } from "@/lib/logger";
-const log = createLogger("[Wallet]");
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
-import { useAuth } from "../lib/rider-auth";
-import { api } from "../lib/api";
-import { usePlatformConfig, formatDateTz } from "../lib/useConfig";
-import { useLanguage } from "../lib/useLanguage";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { formatCurrency as _sharedFcW } from "@workspace/api-zod";
 import { tDual, type TranslationKey } from "@workspace/i18n";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PullToRefresh } from "../components/PullToRefresh";
 import { ErrorState } from "../components/ui/ErrorState";
 import WithdrawModal from "../components/wallet/WithdrawModal";
+import { api } from "../lib/api";
+import { useAuth } from "../lib/rider-auth";
+import { formatDateTz, usePlatformConfig } from "../lib/useConfig";
+import { useLanguage } from "../lib/useLanguage";
+const log = createLogger("[Wallet]");
 /* W3: Each wallet modal owns its own state and is conditionally mounted —
    we ensure that flipping `showWithdraw`/`showDeposit`/`showRemittance` to
    false unmounts the modal so its `useState` defaults reset on next open.
    The render below already does this via `{showWithdraw && <WithdrawModal …>}`
    guards, so reopening the modal yields a fresh instance with empty inputs. */
-import RemittanceModal from "../components/wallet/RemittanceModal";
-import DepositModal from "../components/wallet/DepositModal";
 import {
-  TrendingUp, Gift, Star, Heart, Building2, ArrowDownToLine,
-  Banknote, ArrowUpFromLine, Lock, Wallet2, CreditCard,
-  AlertTriangle, CheckCircle, Clock, XCircle,
-  Landmark, Smartphone, ChevronDown, ChevronUp, ShieldCheck,
-  Eye, EyeOff, Sparkles, BarChart3, ChevronRight,
+  AlertTriangle,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Banknote,
+  BarChart3,
+  Building2,
+  CheckCircle,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Clock,
+  CreditCard,
+  Eye,
+  EyeOff,
+  Gift,
+  Heart,
+  Landmark,
+  Lock,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+  Star,
+  TrendingUp,
+  Wallet2,
+  XCircle,
 } from "lucide-react";
+import DepositModal from "../components/wallet/DepositModal";
+import RemittanceModal from "../components/wallet/RemittanceModal";
 
-const fc = (n: string | number | null | undefined, currencySymbol = "Rs.") => _sharedFcW(n != null ? String(n) : (n as null | undefined), currencySymbol);
-const fd  = (d: string | Date, tz?: string) => formatDateTz(d, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }, tz ?? "Asia/Karachi");
+const fc = (n: string | number | null | undefined, currencySymbol = "Rs.") =>
+  _sharedFcW(n != null ? String(n) : (n as null | undefined), currencySymbol);
+const fd = (d: string | Date, tz?: string) =>
+  formatDateTz(
+    d,
+    { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" },
+    tz ?? "Asia/Karachi"
+  );
 const fdr = (d: string | Date) => {
   const diff = Date.now() - new Date(d).getTime();
   const h = Math.floor(diff / 3600000);
-  if (h < 1)  return "just now";
+  if (h < 1) return "just now";
   if (h < 24) return `${h}h ago`;
   return `${Math.floor(h / 24)}d ago`;
 };
 function dateGroupLabel(d: string): string {
   const now = new Date();
-  const dt  = new Date(d);
+  const dt = new Date(d);
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
   if (dt >= today) return "today_group";
   if (dt >= yesterday) return "yesterday_group";
-  const weekAgo = new Date(today); weekAgo.setDate(today.getDate() - 7);
+  const weekAgo = new Date(today);
+  weekAgo.setDate(today.getDate() - 7);
   if (dt >= weekAgo) return "thisWeek_group";
   return dt.toLocaleDateString("en-PK", { month: "long", year: "numeric" });
 }
 function TxIcon({ type }: { type: string }) {
   const base = "w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0";
-  if (type === "credit")          return <div className={`${base} bg-green-50`}><TrendingUp size={18} className="text-green-600"/></div>;
-  if (type === "bonus")           return <div className={`${base} bg-blue-50`}><Gift size={18} className="text-blue-600"/></div>;
-  if (type === "loyalty")         return <div className={`${base} bg-purple-50`}><Star size={18} className="text-purple-600"/></div>;
-  if (type === "cashback")        return <div className={`${base} bg-pink-50`}><Heart size={18} className="text-pink-600"/></div>;
-  if (type === "platform_fee")    return <div className={`${base} bg-orange-50`}><Building2 size={18} className="text-orange-500"/></div>;
-  if (type === "deposit")         return <div className={`${base} bg-teal-50`}><ArrowDownToLine size={18} className="text-teal-600"/></div>;
-  if (type === "cod_remittance")  return <div className={`${base} bg-blue-50`}><Banknote size={18} className="text-blue-600"/></div>;
-  if (type === "cash_collection") return <div className={`${base} bg-blue-50`}><Banknote size={18} className="text-blue-400"/></div>;
-  return                                 <div className={`${base} bg-red-50`}><ArrowUpFromLine size={18} className="text-red-500"/></div>;
+  if (type === "credit")
+    return (
+      <div className={`${base} bg-green-50`}>
+        <TrendingUp size={18} className="text-green-600" />
+      </div>
+    );
+  if (type === "bonus")
+    return (
+      <div className={`${base} bg-blue-50`}>
+        <Gift size={18} className="text-blue-600" />
+      </div>
+    );
+  if (type === "loyalty")
+    return (
+      <div className={`${base} bg-purple-50`}>
+        <Star size={18} className="text-purple-600" />
+      </div>
+    );
+  if (type === "cashback")
+    return (
+      <div className={`${base} bg-pink-50`}>
+        <Heart size={18} className="text-pink-600" />
+      </div>
+    );
+  if (type === "platform_fee")
+    return (
+      <div className={`${base} bg-orange-50`}>
+        <Building2 size={18} className="text-orange-500" />
+      </div>
+    );
+  if (type === "deposit")
+    return (
+      <div className={`${base} bg-teal-50`}>
+        <ArrowDownToLine size={18} className="text-teal-600" />
+      </div>
+    );
+  if (type === "cod_remittance")
+    return (
+      <div className={`${base} bg-blue-50`}>
+        <Banknote size={18} className="text-blue-600" />
+      </div>
+    );
+  if (type === "cash_collection")
+    return (
+      <div className={`${base} bg-blue-50`}>
+        <Banknote size={18} className="text-blue-400" />
+      </div>
+    );
+  return (
+    <div className={`${base} bg-red-50`}>
+      <ArrowUpFromLine size={18} className="text-red-500" />
+    </div>
+  );
 }
 
 function txMeta(type: string) {
-  if (type === "credit")          return { labelKey: "earnings" as TranslationKey,    badge: "bg-green-100 text-green-700"    };
-  if (type === "bonus")           return { labelKey: "bonus" as TranslationKey,       badge: "bg-blue-100 text-blue-700"      };
-  if (type === "loyalty")         return { labelKey: "loyalty" as TranslationKey,     badge: "bg-purple-100 text-purple-700"  };
-  if (type === "cashback")        return { labelKey: "cashback" as TranslationKey,    badge: "bg-pink-100 text-pink-700"      };
-  if (type === "platform_fee")    return { labelKey: "platformFare" as TranslationKey,badge: "bg-orange-100 text-orange-700"  };
-  if (type === "deposit")         return { labelKey: "deposit" as TranslationKey,     badge: "bg-teal-100 text-teal-700"      };
-  if (type === "cod_remittance")  return { labelKey: "remittanceLabel" as TranslationKey, badge: "bg-blue-100 text-blue-700"  };
-  if (type === "cash_collection") return { labelKey: "collected" as TranslationKey,  badge: "bg-blue-100 text-blue-600"      };
-  return                                 { labelKey: "withdraw" as TranslationKey,  badge: "bg-red-100 text-red-600"        };
+  if (type === "credit")
+    return { labelKey: "earnings" as TranslationKey, badge: "bg-green-100 text-green-700" };
+  if (type === "bonus")
+    return { labelKey: "bonus" as TranslationKey, badge: "bg-blue-100 text-blue-700" };
+  if (type === "loyalty")
+    return { labelKey: "loyalty" as TranslationKey, badge: "bg-purple-100 text-purple-700" };
+  if (type === "cashback")
+    return { labelKey: "cashback" as TranslationKey, badge: "bg-pink-100 text-pink-700" };
+  if (type === "platform_fee")
+    return { labelKey: "platformFare" as TranslationKey, badge: "bg-orange-100 text-orange-700" };
+  if (type === "deposit")
+    return { labelKey: "deposit" as TranslationKey, badge: "bg-teal-100 text-teal-700" };
+  if (type === "cod_remittance")
+    return { labelKey: "remittanceLabel" as TranslationKey, badge: "bg-blue-100 text-blue-700" };
+  if (type === "cash_collection")
+    return { labelKey: "collected" as TranslationKey, badge: "bg-blue-100 text-blue-600" };
+  return { labelKey: "withdraw" as TranslationKey, badge: "bg-red-100 text-red-600" };
 }
 
 function MethodIcon({ method }: { method: string | null }) {
-  if (!method) return <Landmark size={16} className="text-blue-500"/>;
+  if (!method) return <Landmark size={16} className="text-blue-500" />;
   const m = method.toLowerCase();
-  if (m.includes("jazzcash"))  return <Smartphone size={16} className="text-red-500"/>;
-  if (m.includes("easypaisa")) return <Smartphone size={16} className="text-green-500"/>;
-  return <Landmark size={16} className="text-blue-500"/>;
+  if (m.includes("jazzcash")) return <Smartphone size={16} className="text-red-500" />;
+  if (m.includes("easypaisa")) return <Smartphone size={16} className="text-green-500" />;
+  return <Landmark size={16} className="text-blue-500" />;
 }
 
 function EarningsChart({ transactions }: { transactions: WalletTx[] }) {
@@ -90,9 +170,12 @@ function EarningsChart({ transactions }: { transactions: WalletTx[] }) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       d.setHours(0, 0, 0, 0);
-      const next = new Date(d); next.setDate(next.getDate() + 1);
+      const next = new Date(d);
+      next.setDate(next.getDate() + 1);
       const earned = transactions
-        .filter(t => t.type === "credit" && new Date(t.createdAt) >= d && new Date(t.createdAt) < next)
+        .filter(
+          (t) => t.type === "credit" && new Date(t.createdAt) >= d && new Date(t.createdAt) < next
+        )
         .reduce((s, t) => s + Number(t.amount), 0);
       result.push({
         label: i === 0 ? T("today") : d.toLocaleDateString("en-PK", { weekday: "short" }),
@@ -103,23 +186,23 @@ function EarningsChart({ transactions }: { transactions: WalletTx[] }) {
     return result;
   }, [transactions]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const maxVal = Math.max(...days.map(d => d.amount), 1);
+  const maxVal = Math.max(...days.map((d) => d.amount), 1);
   const weekTotal = days.reduce((s, d) => s + d.amount, 0);
-  const bestIdx = days.reduce((best, d, i) => d.amount > days[best].amount ? i : best, 0);
+  const bestIdx = days.reduce((best, d, i) => (d.amount > days[best].amount ? i : best), 0);
 
   return (
-    <div className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
+    <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <BarChart3 size={15} className="text-gray-400"/>
-          <p className="font-bold text-gray-800 text-sm">{T("sevenDayEarnings")}</p>
+          <BarChart3 size={15} className="text-gray-400" />
+          <p className="text-sm font-bold text-gray-800">{T("sevenDayEarnings")}</p>
         </div>
         <p className="text-base font-black text-green-600">{fc(weekTotal, chartCurrency)}</p>
       </div>
-      <div className="flex items-end gap-3 h-20">
+      <div className="flex h-20 items-end gap-3">
         {days.map((d, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-            <div className="w-full flex items-end justify-center" style={{ height: 56 }}>
+          <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
+            <div className="flex w-full items-end justify-center" style={{ height: 56 }}>
               <div
                 className={`w-full max-w-[20px] rounded-md transition-all duration-500 ${
                   i === bestIdx ? "bg-green-500" : "bg-gray-100"
@@ -128,7 +211,11 @@ function EarningsChart({ transactions }: { transactions: WalletTx[] }) {
                 title={`${d.date}: ${fc(d.amount, chartCurrency)}`}
               />
             </div>
-            <p className={`text-[9px] font-semibold ${i === bestIdx ? "text-green-600" : "text-gray-300"}`}>{d.label}</p>
+            <p
+              className={`text-[9px] font-semibold ${i === bestIdx ? "text-green-600" : "text-gray-300"}`}
+            >
+              {d.label}
+            </p>
           </div>
         ))}
       </div>
@@ -143,59 +230,115 @@ function PendingRequestCard({ tx }: { tx: WalletTx }) {
   const cardCurrency = cardConfig.platform.currencySymbol ?? "Rs.";
   const parsed = (() => {
     const parts = (tx.description || "").replace("Withdrawal — ", "").split(" · ");
-    return { bank: parts[0] || "—", account: parts[1] || "—", title: parts[2] || "—", note: parts[3] || "" };
+    return {
+      bank: parts[0] || "—",
+      account: parts[1] || "—",
+      title: parts[2] || "—",
+      note: parts[3] || "",
+    };
   })();
 
   const ref = tx.reference ?? "pending";
-  const status = ref === "pending" ? "pending" : ref.startsWith("paid:") ? "paid" : ref.startsWith("rejected:") ? "rejected" : "pending";
-  const refNo  = ref.startsWith("paid:") ? ref.slice(5) : ref.startsWith("rejected:") ? ref.slice(9) : "";
+  const status =
+    ref === "pending"
+      ? "pending"
+      : ref.startsWith("paid:")
+        ? "paid"
+        : ref.startsWith("rejected:")
+          ? "rejected"
+          : "pending";
+  const refNo = ref.startsWith("paid:")
+    ? ref.slice(5)
+    : ref.startsWith("rejected:")
+      ? ref.slice(9)
+      : "";
 
   const statusConfig = {
-    pending:  { label: T("processing"), icon: <Clock size={11}/>,       bg: "bg-amber-50",  border: "border-amber-200", badge: "bg-amber-100 text-amber-700", dot: "bg-amber-400"  },
-    paid:     { label: T("paid"),       icon: <CheckCircle size={11}/>, bg: "bg-green-50",  border: "border-green-200", badge: "bg-green-100 text-green-700",  dot: "bg-green-400" },
-    rejected: { label: T("rejected"),   icon: <XCircle size={11}/>,     bg: "bg-red-50",    border: "border-red-200",   badge: "bg-red-100 text-red-600",     dot: "bg-red-400"   },
-  }[status] ?? { label: T("processing"), icon: <Clock size={11}/>, bg: "bg-amber-50", border: "border-amber-200", badge: "bg-amber-100 text-amber-700", dot: "bg-amber-400" };
+    pending: {
+      label: T("processing"),
+      icon: <Clock size={11} />,
+      bg: "bg-amber-50",
+      border: "border-amber-200",
+      badge: "bg-amber-100 text-amber-700",
+      dot: "bg-amber-400",
+    },
+    paid: {
+      label: T("paid"),
+      icon: <CheckCircle size={11} />,
+      bg: "bg-green-50",
+      border: "border-green-200",
+      badge: "bg-green-100 text-green-700",
+      dot: "bg-green-400",
+    },
+    rejected: {
+      label: T("rejected"),
+      icon: <XCircle size={11} />,
+      bg: "bg-red-50",
+      border: "border-red-200",
+      badge: "bg-red-100 text-red-600",
+      dot: "bg-red-400",
+    },
+  }[status] ?? {
+    label: T("processing"),
+    icon: <Clock size={11} />,
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+    badge: "bg-amber-100 text-amber-700",
+    dot: "bg-amber-400",
+  };
 
   return (
     <div className={`${statusConfig.bg} border ${statusConfig.border} rounded-2xl p-4`}>
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm">
-            <MethodIcon method={tx.paymentMethod || parsed.bank}/>
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm">
+            <MethodIcon method={tx.paymentMethod || parsed.bank} />
           </div>
           <div className="min-w-0">
-            <p className="font-black text-gray-900 text-sm">{parsed.bank}</p>
-            <p className="text-xs text-gray-500 font-mono mt-0.5">{parsed.account}</p>
+            <p className="text-sm font-black text-gray-900">{parsed.bank}</p>
+            <p className="mt-0.5 font-mono text-xs text-gray-500">{parsed.account}</p>
           </div>
         </div>
-        <div className="text-right flex-shrink-0">
+        <div className="flex-shrink-0 text-right">
           <p className="text-lg font-black text-gray-900">{fc(Number(tx.amount), cardCurrency)}</p>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusConfig.badge} inline-flex items-center gap-1`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot} ${status === "pending" ? "animate-pulse" : ""}`}/>
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${statusConfig.badge} inline-flex items-center gap-1`}
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${statusConfig.dot} ${status === "pending" ? "animate-pulse" : ""}`}
+            />
             {statusConfig.icon} {statusConfig.label}
           </span>
         </div>
       </div>
-      <div className="mt-3 pt-3 border-t border-white/60 flex items-center justify-between">
-        <p className="text-[10px] text-gray-500">{fd(tx.createdAt)} · {fdr(tx.createdAt)}</p>
+      <div className="mt-3 flex items-center justify-between border-t border-white/60 pt-3">
+        <p className="text-[10px] text-gray-500">
+          {fd(tx.createdAt)} · {fdr(tx.createdAt)}
+        </p>
         {refNo && <p className="text-[10px] font-bold text-gray-600">Ref: {refNo}</p>}
       </div>
       {status === "rejected" && refNo && (
-        <div className="mt-2 bg-white/70 rounded-xl px-3 py-2">
-          <p className="text-xs text-red-600 font-medium">{T("reason")}: {refNo}</p>
-          <p className="text-[10px] text-red-500 mt-0.5">{T("amountRefunded")}</p>
+        <div className="mt-2 rounded-xl bg-white/70 px-3 py-2">
+          <p className="text-xs font-medium text-red-600">
+            {T("reason")}: {refNo}
+          </p>
+          <p className="mt-0.5 text-[10px] text-red-500">{T("amountRefunded")}</p>
         </div>
       )}
       {status === "pending" && (
-        <p className="text-[10px] text-amber-600 mt-2 font-medium">{T("adminProcess24h")}</p>
+        <p className="mt-2 text-[10px] font-medium text-amber-600">{T("adminProcess24h")}</p>
       )}
     </div>
   );
 }
 
 type WalletTx = {
-  id: string; type: string; amount: string | number;
-  description?: string; reference?: string; createdAt: string;
+  id: string;
+  type: string;
+  amount: string | number;
+  description?: string;
+  reference?: string;
+  createdAt: string;
   paymentMethod?: string;
 };
 
@@ -206,24 +349,25 @@ export default function Wallet() {
   const { config } = usePlatformConfig();
   const currency = config.platform.currencySymbol ?? "Rs.";
   const tz = config.regional?.timezone ?? "Asia/Karachi";
-  const fd = (d: string | Date) => formatDateTz(d, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }, tz);
-  const riderKeepPct      = config.rider?.keepPct ?? config.finance.riderEarningPct;
-  const minPayout         = config.rider?.minPayout ?? config.finance.minRiderPayout;
-  const maxPayout         = config.rider?.maxPayout ?? 0;
+  const fd = (d: string | Date) =>
+    formatDateTz(d, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }, tz);
+  const riderKeepPct = config.rider?.keepPct ?? config.finance.riderEarningPct;
+  const minPayout = config.rider?.minPayout ?? config.finance.minRiderPayout;
+  const maxPayout = config.rider?.maxPayout ?? 0;
   const withdrawalEnabled = config.rider?.withdrawalEnabled !== false;
-  const depositEnabled    = config.rider?.depositEnabled !== false;
+  const depositEnabled = config.rider?.depositEnabled !== false;
   const minBalanceFallback = config.rider?.minBalance ?? 0;
-  const procDays          = config.wallet?.withdrawalProcessingDays ?? 2;
+  const procDays = config.wallet?.withdrawalProcessingDays ?? 2;
   const qc = useQueryClient();
 
-  const [showWithdraw, setShowWithdraw]     = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
   const [showRemittance, setShowRemittance] = useState(false);
-  const [showDeposit, setShowDeposit]       = useState(false);
-  const [toast, setToast]                   = useState<{ message: string; type: "success" | "error" } | null>(null);
-  const [filter, setFilter]                 = useState<TxFilter>("all");
-  const [showRequests, setShowRequests]     = useState(true);
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [filter, setFilter] = useState<TxFilter>("all");
+  const [showRequests, setShowRequests] = useState(true);
   const [showCodHistory, setShowCodHistory] = useState(false);
-  const [balanceHidden, setBalanceHidden]   = useState(false);
+  const [balanceHidden, setBalanceHidden] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /* W2: sentinel observed at the bottom of the transactions list to trigger
      fetchNextPage. Kept as a ref so the IntersectionObserver re-binds only
@@ -247,32 +391,26 @@ export default function Wallet() {
      visible list; the IntersectionObserver below auto-loads the next page
      when the sentinel scrolls into view. */
   const PAGE_SIZE = 50;
-  const {
-    data,
-    isLoading,
-    isError,
-    refetch,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useInfiniteQuery({
-    queryKey: ["rider-wallet"],
-    queryFn: ({ pageParam }) => api.getWalletPage({ cursor: pageParam ?? null, limit: PAGE_SIZE }),
-    initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) => lastPage?.nextCursor ?? null,
-    refetchInterval: 30000,
-    enabled: config.features.wallet,
-  });
+  const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteQuery({
+      queryKey: ["rider-wallet"],
+      queryFn: ({ pageParam }) =>
+        api.getWalletPage({ cursor: pageParam ?? null, limit: PAGE_SIZE }),
+      initialPageParam: null as string | null,
+      getNextPageParam: (lastPage) => lastPage?.nextCursor ?? null,
+      refetchInterval: 30000,
+      enabled: config.features.wallet,
+    });
 
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
 
   const FILTER_TABS_LOCAL = [
-    { key: "all" as TxFilter,    label: T("all")         },
-    { key: "credit" as TxFilter, label: T("earnings")    },
-    { key: "debit" as TxFilter,  label: T("withdraw")    },
-    { key: "bonus" as TxFilter,  label: T("bonus" as TranslationKey) },
-    { key: "fees" as TxFilter,   label: T("platformFare") },
+    { key: "all" as TxFilter, label: T("all") },
+    { key: "credit" as TxFilter, label: T("earnings") },
+    { key: "debit" as TxFilter, label: T("withdraw") },
+    { key: "bonus" as TxFilter, label: T("bonus" as TranslationKey) },
+    { key: "fees" as TxFilter, label: T("platformFare") },
   ];
 
   const resolveGroupLabel = (g: string) => {
@@ -326,34 +464,60 @@ export default function Wallet() {
   const balanceNum = balanceFromServer != null ? Number(balanceFromServer) : 0;
   const isBalanceStale = false;
 
-  const today   = new Date(); today.setHours(0,0,0,0);
-  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
 
-  const todayEarned    = transactions.filter(t => t.type === "credit" && new Date(t.createdAt) >= today).reduce((s, t) => s + Number(t.amount), 0);
-  const weekEarned     = transactions.filter(t => t.type === "credit" && new Date(t.createdAt) >= weekAgo).reduce((s, t) => s + Number(t.amount), 0);
-  const totalEarned    = transactions.filter(t => t.type === "credit" || t.type === "bonus").reduce((s, t) => s + Number(t.amount), 0);
-  const totalWithdrawn = transactions.filter(t => t.type === "debit" && !t.reference?.startsWith("refund:")).reduce((s, t) => s + Number(t.amount), 0);
-  const promoBalance   = useMemo(() => transactions.filter(t => ["bonus", "cashback", "loyalty"].includes(t.type)).reduce((s, t) => s + Math.max(0, Number(t.amount)), 0), [transactions]);
-
-  const withdrawalRequests = transactions.filter(t =>
-    t.type === "debit" && t.description?.startsWith("Withdrawal") && !t.reference?.startsWith("refund:")
+  const todayEarned = transactions
+    .filter((t) => t.type === "credit" && new Date(t.createdAt) >= today)
+    .reduce((s, t) => s + Number(t.amount), 0);
+  const weekEarned = transactions
+    .filter((t) => t.type === "credit" && new Date(t.createdAt) >= weekAgo)
+    .reduce((s, t) => s + Number(t.amount), 0);
+  const totalEarned = transactions
+    .filter((t) => t.type === "credit" || t.type === "bonus")
+    .reduce((s, t) => s + Number(t.amount), 0);
+  const totalWithdrawn = transactions
+    .filter((t) => t.type === "debit" && !t.reference?.startsWith("refund:"))
+    .reduce((s, t) => s + Number(t.amount), 0);
+  const promoBalance = useMemo(
+    () =>
+      transactions
+        .filter((t) => ["bonus", "cashback", "loyalty"].includes(t.type))
+        .reduce((s, t) => s + Math.max(0, Number(t.amount)), 0),
+    [transactions]
   );
-  const pendingRequests = withdrawalRequests.filter(t => !t.reference || t.reference === "pending");
+
+  const withdrawalRequests = transactions.filter(
+    (t) =>
+      t.type === "debit" &&
+      t.description?.startsWith("Withdrawal") &&
+      !t.reference?.startsWith("refund:")
+  );
+  const pendingRequests = withdrawalRequests.filter(
+    (t) => !t.reference || t.reference === "pending"
+  );
   const pendingAmt = pendingRequests.reduce((s, t) => s + Number(t.amount), 0);
 
-  const codNetOwed    = codData?.netOwed       ?? 0;
-  const codCollected  = codData?.totalCollected ?? 0;
-  const codVerified   = codData?.totalVerified  ?? 0;
-  const codOrderCount = codData?.codOrderCount  ?? 0;
+  const codNetOwed = codData?.netOwed ?? 0;
+  const codCollected = codData?.totalCollected ?? 0;
+  const codVerified = codData?.totalVerified ?? 0;
+  const codOrderCount = codData?.codOrderCount ?? 0;
   const codRemittances: WalletTx[] = codData?.remittances ?? [];
-  const codPending    = codRemittances.filter(r => !r.reference || r.reference === "pending" || r.reference === null);
+  const codPending = codRemittances.filter(
+    (r) => !r.reference || r.reference === "pending" || r.reference === null
+  );
 
   const filtered = useMemo(() => {
     if (filter === "all") return transactions;
-    if (filter === "bonus") return transactions.filter(t => t.type === "bonus" || t.type === "loyalty" || t.type === "cashback");
-    if (filter === "fees") return transactions.filter(t => t.type === "platform_fee");
-    if (filter === "debit") return transactions.filter(t => t.type === "debit");
-    return transactions.filter(t => t.type === filter);
+    if (filter === "bonus")
+      return transactions.filter(
+        (t) => t.type === "bonus" || t.type === "loyalty" || t.type === "cashback"
+      );
+    if (filter === "fees") return transactions.filter((t) => t.type === "platform_fee");
+    if (filter === "debit") return transactions.filter((t) => t.type === "debit");
+    return transactions.filter((t) => t.type === filter);
   }, [filter, transactions]);
 
   const groupedTx = useMemo(() => {
@@ -385,50 +549,58 @@ export default function Wallet() {
     if (!hasNextPage) return;
     const node = loadMoreRef.current;
     if (!node) return;
-    const obs = new IntersectionObserver((entries) => {
-      for (const entry of entries) {
-        if (entry.isIntersecting && !isFetchingNextPage) {
-          fetchNextPage();
-          break;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && !isFetchingNextPage) {
+            fetchNextPage();
+            break;
+          }
         }
-      }
-    }, { rootMargin: "200px" });
+      },
+      { rootMargin: "200px" }
+    );
     obs.observe(node);
     return () => obs.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (isLoading) {
     return (
-      <div className="bg-[#F5F6F8] min-h-screen">
-        <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 px-5 pb-8 rounded-b-[2rem] relative overflow-hidden"
-          style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}>
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/[0.03] rounded-full -translate-y-1/2 translate-x-1/3"/>
-          <div className="absolute bottom-0 left-0 w-44 h-44 bg-white/[0.02] rounded-full translate-y-1/2 -translate-x-1/4"/>
+      <div className="min-h-screen bg-[#F5F6F8]">
+        <div
+          className="relative overflow-hidden rounded-b-[2rem] bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 px-5 pb-8"
+          style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}
+        >
+          <div className="absolute top-0 right-0 h-64 w-64 translate-x-1/3 -translate-y-1/2 rounded-full bg-white/[0.03]" />
+          <div className="absolute bottom-0 left-0 h-44 w-44 -translate-x-1/4 translate-y-1/2 rounded-full bg-white/[0.02]" />
           <div className="relative">
-            <div className="flex items-center justify-between mb-6 animate-pulse">
-              <div className="h-3 w-24 bg-white/10 rounded"/>
-              <div className="w-8 h-8 bg-white/5 rounded-full"/>
+            <div className="mb-6 flex animate-pulse items-center justify-between">
+              <div className="h-3 w-24 rounded bg-white/10" />
+              <div className="h-8 w-8 rounded-full bg-white/5" />
             </div>
-            <div className="h-12 w-52 bg-white/10 rounded-xl mb-6 animate-pulse"/>
-            <div className="flex gap-3 mb-5 animate-pulse">
-              <div className="flex-1 h-16 bg-white/5 rounded-2xl"/>
-              <div className="flex-1 h-16 bg-white/5 rounded-2xl"/>
-              <div className="flex-1 h-16 bg-white/5 rounded-2xl"/>
+            <div className="mb-6 h-12 w-52 animate-pulse rounded-xl bg-white/10" />
+            <div className="mb-5 flex animate-pulse gap-3">
+              <div className="h-16 flex-1 rounded-2xl bg-white/5" />
+              <div className="h-16 flex-1 rounded-2xl bg-white/5" />
+              <div className="h-16 flex-1 rounded-2xl bg-white/5" />
             </div>
-            <div className="flex gap-3 animate-pulse">
-              <div className="flex-1 h-13 bg-white/15 rounded-2xl"/>
-              <div className="flex-1 h-13 bg-white/10 rounded-2xl"/>
+            <div className="flex animate-pulse gap-3">
+              <div className="h-13 flex-1 rounded-2xl bg-white/15" />
+              <div className="h-13 flex-1 rounded-2xl bg-white/10" />
             </div>
           </div>
         </div>
-        <div className="px-5 py-5 space-y-4 -mt-4">
-          <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm animate-pulse">
-            <div className="h-4 w-32 bg-gray-200 rounded mb-4"/>
-            <div className="flex items-end gap-3 h-20">
+        <div className="-mt-4 space-y-4 px-5 py-5">
+          <div className="animate-pulse rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+            <div className="mb-4 h-4 w-32 rounded bg-gray-200" />
+            <div className="flex h-20 items-end gap-3">
               {[20, 35, 15, 45, 30, 50, 25].map((h, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                  <div className="w-full max-w-[20px] bg-gray-100 rounded-md" style={{ height: `${h}px` }}/>
-                  <div className="h-2 w-4 bg-gray-100 rounded"/>
+                <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
+                  <div
+                    className="w-full max-w-[20px] rounded-md bg-gray-100"
+                    style={{ height: `${h}px` }}
+                  />
+                  <div className="h-2 w-4 rounded bg-gray-100" />
                 </div>
               ))}
             </div>
@@ -440,13 +612,17 @@ export default function Wallet() {
 
   if (isError) {
     return (
-      <div className="bg-[#F5F6F8] min-h-screen flex flex-col">
-        <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 px-5 pb-10 rounded-b-[2rem]"
-          style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}>
-          <p className="text-white/40 text-xs font-semibold tracking-widest uppercase mb-1">{T("walletBalance")}</p>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">{T("wallet")}</h1>
+      <div className="flex min-h-screen flex-col bg-[#F5F6F8]">
+        <div
+          className="rounded-b-[2rem] bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 px-5 pb-10"
+          style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}
+        >
+          <p className="mb-1 text-xs font-semibold tracking-widest text-white/40 uppercase">
+            {T("walletBalance")}
+          </p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-white">{T("wallet")}</h1>
         </div>
-        <div className="flex-1 flex items-center justify-center -mt-4">
+        <div className="-mt-4 flex flex-1 items-center justify-center">
           <ErrorState
             title={T("somethingWentWrong")}
             subtitle={T("checkInternetRetry")}
@@ -460,17 +636,21 @@ export default function Wallet() {
 
   if (!config.features.wallet) {
     return (
-      <div className="bg-[#F5F6F8] min-h-screen">
-        <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 px-5 pb-10 rounded-b-[2rem]"
-          style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}>
-          <p className="text-white/40 text-xs font-semibold tracking-widest uppercase">{T("wallet")}</p>
+      <div className="min-h-screen bg-[#F5F6F8]">
+        <div
+          className="rounded-b-[2rem] bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 px-5 pb-10"
+          style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}
+        >
+          <p className="text-xs font-semibold tracking-widest text-white/40 uppercase">
+            {T("wallet")}
+          </p>
         </div>
-        <div className="px-5 -mt-4">
-          <div className="bg-white rounded-3xl p-10 shadow-sm border border-gray-100 text-center">
-            <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Lock size={32} className="text-gray-300"/>
+        <div className="-mt-4 px-5">
+          <div className="rounded-3xl border border-gray-100 bg-white p-10 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-50">
+              <Lock size={32} className="text-gray-300" />
             </div>
-            <h3 className="text-lg font-black text-gray-900 mb-2">{T("walletDisabled")}</h3>
+            <h3 className="mb-2 text-lg font-black text-gray-900">{T("walletDisabled")}</h3>
             <p className="text-sm text-gray-400">{T("withdrawalsDisabled")}</p>
           </div>
         </div>
@@ -479,94 +659,130 @@ export default function Wallet() {
   }
 
   return (
-    <PullToRefresh onRefresh={handlePullRefresh} className="bg-[#F5F6F8] min-h-screen">
-
-      <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 px-5 pb-8 rounded-b-[2rem] relative overflow-hidden"
-        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}>
-        <div className="absolute top-0 right-0 w-72 h-72 bg-green-500/[0.04] rounded-full -translate-y-1/2 translate-x-1/3"/>
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/[0.02] rounded-full translate-y-1/2 -translate-x-1/4"/>
-        <div className="absolute top-1/2 right-8 w-24 h-24 bg-emerald-500/[0.03] rounded-full"/>
+    <PullToRefresh onRefresh={handlePullRefresh} className="min-h-screen bg-[#F5F6F8]">
+      <div
+        className="relative overflow-hidden rounded-b-[2rem] bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 px-5 pb-8"
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}
+      >
+        <div className="absolute top-0 right-0 h-72 w-72 translate-x-1/3 -translate-y-1/2 rounded-full bg-green-500/[0.04]" />
+        <div className="absolute bottom-0 left-0 h-48 w-48 -translate-x-1/4 translate-y-1/2 rounded-full bg-white/[0.02]" />
+        <div className="absolute top-1/2 right-8 h-24 w-24 rounded-full bg-emerald-500/[0.03]" />
 
         <div className="relative">
-          <div className="flex items-center justify-between mb-1">
+          <div className="mb-1 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <p className="text-white/40 text-xs font-semibold tracking-widest uppercase">{T("availableBalance")}</p>
+              <p className="text-xs font-semibold tracking-widest text-white/40 uppercase">
+                {T("availableBalance")}
+              </p>
             </div>
-            <button onClick={() => setBalanceHidden(v => !v)} className="w-8 h-8 bg-white/5 rounded-full flex items-center justify-center active:bg-white/10 transition-colors">
-              {balanceHidden ? <EyeOff size={13} className="text-white/40"/> : <Eye size={13} className="text-white/40"/>}
+            <button
+              onClick={() => setBalanceHidden((v) => !v)}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 transition-colors active:bg-white/10"
+            >
+              {balanceHidden ? (
+                <EyeOff size={13} className="text-white/40" />
+              ) : (
+                <Eye size={13} className="text-white/40" />
+              )}
             </button>
           </div>
 
-          <div className="flex items-end gap-3 mb-1">
-            <p className="text-[42px] font-black text-white tracking-tight leading-none">
-              {balanceHidden ? "••••••" : isLoading ? <span className="text-[28px] animate-pulse text-white/40">loading...</span> : fc(balance, currency)}
+          <div className="mb-1 flex items-end gap-3">
+            <p className="text-[42px] leading-none font-black tracking-tight text-white">
+              {balanceHidden ? (
+                "••••••"
+              ) : isLoading ? (
+                <span className="animate-pulse text-[28px] text-white/40">loading...</span>
+              ) : (
+                fc(balance, currency)
+              )}
             </p>
             {isBalanceStale && !balanceHidden && (
-              <div className="mb-2 flex items-center gap-1 bg-amber-500/15 px-2 py-0.5 rounded-full">
-                <AlertTriangle size={9} className="text-amber-400"/>
-                <span className="text-[9px] text-amber-400 font-bold">cached</span>
+              <div className="mb-2 flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5">
+                <AlertTriangle size={9} className="text-amber-400" />
+                <span className="text-[9px] font-bold text-amber-400">cached</span>
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-2 mb-5">
+          <div className="mb-5 flex items-center gap-2">
             {user?.isOnline && (
-              <div className="flex items-center gap-1 bg-green-500/15 px-2 py-0.5 rounded-full">
-                <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"/>
-                <span className="text-[9px] text-green-400 font-bold">{T("online" as TranslationKey)}</span>
+              <div className="flex items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5">
+                <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-400" />
+                <span className="text-[9px] font-bold text-green-400">
+                  {T("online" as TranslationKey)}
+                </span>
               </div>
             )}
             {pendingAmt > 0 && (
-              <div className="flex items-center gap-1 bg-amber-500/15 px-2 py-0.5 rounded-full">
-                <Clock size={9} className="text-amber-400"/>
-                <span className="text-[9px] text-amber-400 font-bold">{fc(pendingAmt, currency)} {T("pending")}</span>
+              <div className="flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5">
+                <Clock size={9} className="text-amber-400" />
+                <span className="text-[9px] font-bold text-amber-400">
+                  {fc(pendingAmt, currency)} {T("pending")}
+                </span>
               </div>
             )}
           </div>
 
-          <div className="grid grid-cols-3 gap-2.5 mb-3">
-            <div className="bg-white/[0.06] backdrop-blur-sm rounded-2xl px-3 py-2.5 border border-white/[0.06]">
-              <p className="text-[9px] text-white/30 uppercase tracking-wider font-bold">{T("earnedToday")}</p>
-              <p className="text-sm font-black text-green-400 mt-0.5">{balanceHidden ? "••••" : fc(todayEarned, currency)}</p>
+          <div className="mb-3 grid grid-cols-3 gap-2.5">
+            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.06] px-3 py-2.5 backdrop-blur-sm">
+              <p className="text-[9px] font-bold tracking-wider text-white/30 uppercase">
+                {T("earnedToday")}
+              </p>
+              <p className="mt-0.5 text-sm font-black text-green-400">
+                {balanceHidden ? "••••" : fc(todayEarned, currency)}
+              </p>
             </div>
-            <div className="bg-white/[0.06] backdrop-blur-sm rounded-2xl px-3 py-2.5 border border-white/[0.06]">
-              <p className="text-[9px] text-white/30 uppercase tracking-wider font-bold">{T("yourShare" as TranslationKey)}</p>
-              <p className="text-sm font-black text-white mt-0.5">{riderKeepPct}%</p>
+            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.06] px-3 py-2.5 backdrop-blur-sm">
+              <p className="text-[9px] font-bold tracking-wider text-white/30 uppercase">
+                {T("yourShare" as TranslationKey)}
+              </p>
+              <p className="mt-0.5 text-sm font-black text-white">{riderKeepPct}%</p>
             </div>
-            <div className="bg-white/[0.06] backdrop-blur-sm rounded-2xl px-3 py-2.5 border border-white/[0.06]">
-              <p className="text-[9px] text-white/30 uppercase tracking-wider font-bold">{T("totalWithdrawn")}</p>
-              <p className="text-sm font-black text-red-400 mt-0.5">{fc(totalWithdrawn, currency)}</p>
+            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.06] px-3 py-2.5 backdrop-blur-sm">
+              <p className="text-[9px] font-bold tracking-wider text-white/30 uppercase">
+                {T("totalWithdrawn")}
+              </p>
+              <p className="mt-0.5 text-sm font-black text-red-400">
+                {fc(totalWithdrawn, currency)}
+              </p>
             </div>
           </div>
 
           {promoBalance > 0 && (
-            <div className="mb-5 bg-gradient-to-br from-purple-600/25 to-indigo-600/20 backdrop-blur-sm rounded-2xl px-4 py-3.5 border border-purple-400/20 flex items-center justify-between">
+            <div className="mb-5 flex items-center justify-between rounded-2xl border border-purple-400/20 bg-gradient-to-br from-purple-600/25 to-indigo-600/20 px-4 py-3.5 backdrop-blur-sm">
               <div>
-                <p className="text-[9px] text-purple-300 uppercase tracking-wider font-bold flex items-center gap-1">
-                  <Sparkles size={9}/> Promo Balance
+                <p className="flex items-center gap-1 text-[9px] font-bold tracking-wider text-purple-300 uppercase">
+                  <Sparkles size={9} /> Promo Balance
                 </p>
-                <p className="text-xl font-black text-white mt-0.5">{balanceHidden ? "••••" : fc(promoBalance, currency)}</p>
-                <p className="text-[9px] text-white/30 mt-0.5">Bonuses · Cashback · Loyalty</p>
+                <p className="mt-0.5 text-xl font-black text-white">
+                  {balanceHidden ? "••••" : fc(promoBalance, currency)}
+                </p>
+                <p className="mt-0.5 text-[9px] text-white/30">Bonuses · Cashback · Loyalty</p>
               </div>
-              <div className="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-400/20 flex items-center justify-center flex-shrink-0">
-                <Sparkles size={16} className="text-purple-300"/>
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-purple-400/20 bg-purple-500/20">
+                <Sparkles size={16} className="text-purple-300" />
               </div>
             </div>
           )}
 
           {minBalance > 0 && balanceNum < minBalance && (
-            <div className="mb-4 bg-amber-500/15 rounded-2xl px-3.5 py-2.5 flex items-center gap-2.5 border border-amber-500/15">
-              <AlertTriangle size={14} className="text-amber-400 flex-shrink-0"/>
+            <div className="mb-4 flex items-center gap-2.5 rounded-2xl border border-amber-500/15 bg-amber-500/15 px-3.5 py-2.5">
+              <AlertTriangle size={14} className="flex-shrink-0 text-amber-400" />
               <div>
-                <p className="text-xs text-amber-300 font-bold">{T("cashMinBalance")}: {fc(minBalance, currency)}</p>
-                <p className="text-[10px] text-amber-400/60">{currency} {Math.round(minBalance - balanceNum)} {T("moreNeeded")}</p>
+                <p className="text-xs font-bold text-amber-300">
+                  {T("cashMinBalance")}: {fc(minBalance, currency)}
+                </p>
+                <p className="text-[10px] text-amber-400/60">
+                  {currency} {Math.round(minBalance - balanceNum)} {T("moreNeeded")}
+                </p>
               </div>
             </div>
           )}
 
           {procDays > 0 && (
-            <p className="text-[10px] text-white/25 mb-3 flex items-center gap-1.5">
-              <Clock size={9} className="text-white/25"/>
+            <p className="mb-3 flex items-center gap-1.5 text-[10px] text-white/25">
+              <Clock size={9} className="text-white/25" />
               {T("walletProcessingTime")}: {procDays * 24}–{procDays * 24 + 24}h
             </p>
           )}
@@ -582,53 +798,78 @@ export default function Wallet() {
               <>
                 {/* Bank info gate */}
                 {bankBlocked && withdrawalEnabled && (
-                  <div className="mb-3 bg-amber-500/15 border border-amber-500/20 rounded-2xl px-3.5 py-3 flex items-start gap-2.5">
-                    <AlertTriangle size={14} className="text-amber-400 flex-shrink-0 mt-0.5"/>
+                  <div className="mb-3 flex items-start gap-2.5 rounded-2xl border border-amber-500/20 bg-amber-500/15 px-3.5 py-3">
+                    <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-amber-400" />
                     <div>
-                      <p className="text-xs text-amber-300 font-bold">Bank account required</p>
-                      <p className="text-[10px] text-amber-400/70 mt-0.5">Add your bank details in Profile → Bank tab to enable withdrawals.</p>
+                      <p className="text-xs font-bold text-amber-300">Bank account required</p>
+                      <p className="mt-0.5 text-[10px] text-amber-400/70">
+                        Add your bank details in Profile → Bank tab to enable withdrawals.
+                      </p>
                     </div>
                   </div>
                 )}
 
                 {/* KYC gate */}
                 {kycBlocked && withdrawalEnabled && (
-                  <div className="mb-3 bg-blue-500/15 border border-blue-500/20 rounded-2xl px-3.5 py-3 flex items-start gap-2.5">
-                    <ShieldCheck size={14} className="text-blue-400 flex-shrink-0 mt-0.5"/>
+                  <div className="mb-3 flex items-start gap-2.5 rounded-2xl border border-blue-500/20 bg-blue-500/15 px-3.5 py-3">
+                    <ShieldCheck size={14} className="mt-0.5 flex-shrink-0 text-blue-400" />
                     <div>
-                      <p className="text-xs text-blue-300 font-bold">KYC verification required</p>
-                      <p className="text-[10px] text-blue-400/70 mt-0.5">Your documents must be verified before withdrawing. Status: <span className="font-semibold capitalize">{(user as { kycStatus?: string } | null)?.kycStatus ?? "none"}</span>.</p>
+                      <p className="text-xs font-bold text-blue-300">KYC verification required</p>
+                      <p className="mt-0.5 text-[10px] text-blue-400/70">
+                        Your documents must be verified before withdrawing. Status:{" "}
+                        <span className="font-semibold capitalize">
+                          {(user as { kycStatus?: string } | null)?.kycStatus ?? "none"}
+                        </span>
+                        .
+                      </p>
                     </div>
                   </div>
                 )}
 
                 <div className="flex gap-2.5">
                   {withdrawalEnabled && !kycBlocked && !bankBlocked ? (
-                    <button onClick={() => setShowWithdraw(true)}
-                      className="flex-1 bg-white text-gray-900 font-black rounded-2xl py-3.5 text-sm flex items-center justify-center gap-2 active:bg-gray-100 transition-all shadow-lg shadow-white/10">
-                      <ArrowUpFromLine size={15}/> {T("withdraw")}
+                    <button
+                      onClick={() => setShowWithdraw(true)}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-white py-3.5 text-sm font-black text-gray-900 shadow-lg shadow-white/10 transition-all active:bg-gray-100"
+                    >
+                      <ArrowUpFromLine size={15} /> {T("withdraw")}
                     </button>
                   ) : withdrawalEnabled ? (
-                    <button disabled className="flex-1 bg-white/10 text-white/40 font-bold rounded-2xl py-3.5 text-sm flex items-center justify-center gap-2 cursor-not-allowed border border-white/10">
-                      <Lock size={14}/> {bankBlocked ? "Add Bank Info" : kycBlocked ? "KYC Required" : T("withdrawalsPaused")}
+                    <button
+                      disabled
+                      className="flex flex-1 cursor-not-allowed items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 py-3.5 text-sm font-bold text-white/40"
+                    >
+                      <Lock size={14} />{" "}
+                      {bankBlocked
+                        ? "Add Bank Info"
+                        : kycBlocked
+                          ? "KYC Required"
+                          : T("withdrawalsPaused")}
                     </button>
                   ) : (
-                    <button disabled className="flex-1 bg-white/10 text-white/40 font-bold rounded-2xl py-3.5 text-sm flex items-center justify-center gap-2 cursor-not-allowed border border-white/10">
-                      <Lock size={14}/> {T("withdrawalsPaused")}
+                    <button
+                      disabled
+                      className="flex flex-1 cursor-not-allowed items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 py-3.5 text-sm font-bold text-white/40"
+                    >
+                      <Lock size={14} /> {T("withdrawalsPaused")}
                     </button>
                   )}
                   {depositEnabled && (
-                    <button onClick={() => setShowDeposit(true)}
-                      className="flex-1 bg-white/10 text-white font-bold rounded-2xl py-3.5 text-sm flex items-center justify-center gap-2 border border-white/[0.08] active:bg-white/15 transition-all backdrop-blur-sm">
-                      <ArrowDownToLine size={15}/> {T("deposit")}
+                    <button
+                      onClick={() => setShowDeposit(true)}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/[0.08] bg-white/10 py-3.5 text-sm font-bold text-white backdrop-blur-sm transition-all active:bg-white/15"
+                    >
+                      <ArrowDownToLine size={15} /> {T("deposit")}
                     </button>
                   )}
                 </div>
 
                 {!withdrawalEnabled && (
-                  <div className="mt-3 bg-red-500/15 rounded-2xl px-3 py-2 flex items-center gap-2 border border-red-500/15">
-                    <XCircle size={12} className="text-red-400 flex-shrink-0"/>
-                    <p className="text-[10px] text-red-300 font-medium">{T("withdrawalsDisabled")}</p>
+                  <div className="mt-3 flex items-center gap-2 rounded-2xl border border-red-500/15 bg-red-500/15 px-3 py-2">
+                    <XCircle size={12} className="flex-shrink-0 text-red-400" />
+                    <p className="text-[10px] font-medium text-red-300">
+                      {T("withdrawalsDisabled")}
+                    </p>
                   </div>
                 )}
               </>
@@ -637,103 +878,192 @@ export default function Wallet() {
         </div>
       </div>
 
-      <div className="px-5 py-5 space-y-4 -mt-3">
-
-        <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
+      <div className="-mt-3 space-y-4 px-5 py-5">
+        <div className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
           <div className="grid grid-cols-3 divide-x divide-gray-100">
             {[
-              { label: T("earnedToday"),    value: fc(todayEarned, currency),  color: "text-emerald-600", icon: <TrendingUp size={13} className="text-emerald-500"/> },
-              { label: T("earnedThisWeek"), value: fc(weekEarned, currency),   color: "text-blue-600",    icon: <BarChart3 size={13} className="text-blue-500"/>    },
-              { label: T("totalEarned"),     value: fc(totalEarned, currency),  color: "text-violet-600",  icon: <Wallet2 size={13} className="text-violet-500"/>    },
+              {
+                label: T("earnedToday"),
+                value: fc(todayEarned, currency),
+                color: "text-emerald-600",
+                icon: <TrendingUp size={13} className="text-emerald-500" />,
+              },
+              {
+                label: T("earnedThisWeek"),
+                value: fc(weekEarned, currency),
+                color: "text-blue-600",
+                icon: <BarChart3 size={13} className="text-blue-500" />,
+              },
+              {
+                label: T("totalEarned"),
+                value: fc(totalEarned, currency),
+                color: "text-violet-600",
+                icon: <Wallet2 size={13} className="text-violet-500" />,
+              },
             ].map((s, i) => (
-              <div key={s.label} className={`text-center ${i === 0 ? "pr-3" : i === 2 ? "pl-3" : "px-3"}`}>
-                <div className="flex items-center justify-center gap-1 mb-1">{s.icon}</div>
+              <div
+                key={s.label}
+                className={`text-center ${i === 0 ? "pr-3" : i === 2 ? "pl-3" : "px-3"}`}
+              >
+                <div className="mb-1 flex items-center justify-center gap-1">{s.icon}</div>
                 <p className={`text-sm font-black ${s.color}`}>{s.value}</p>
-                <p className="text-[9px] text-gray-400 mt-0.5 font-semibold leading-tight">{s.label}</p>
+                <p className="mt-0.5 text-[9px] leading-tight font-semibold text-gray-400">
+                  {s.label}
+                </p>
               </div>
             ))}
           </div>
         </div>
 
-        <EarningsChart transactions={transactions}/>
+        <EarningsChart transactions={transactions} />
 
         {codOrderCount > 0 && (
-          <div className={`rounded-3xl shadow-sm overflow-hidden border ${codNetOwed > 0 ? "border-blue-100 bg-white" : "border-green-100 bg-white"}`}>
-            <div className="px-5 py-4 flex items-center justify-between">
+          <div
+            className={`overflow-hidden rounded-3xl border shadow-sm ${codNetOwed > 0 ? "border-blue-100 bg-white" : "border-green-100 bg-white"}`}
+          >
+            <div className="flex items-center justify-between px-5 py-4">
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${codNetOwed > 0 ? "bg-blue-50" : "bg-green-50"}`}>
-                  <Banknote size={20} className={codNetOwed > 0 ? "text-blue-600" : "text-green-600"}/>
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-2xl ${codNetOwed > 0 ? "bg-blue-50" : "bg-green-50"}`}
+                >
+                  <Banknote
+                    size={20}
+                    className={codNetOwed > 0 ? "text-blue-600" : "text-green-600"}
+                  />
                 </div>
                 <div>
-                  <p className="font-bold text-gray-800 text-sm">{T("codCashBalance")}</p>
+                  <p className="text-sm font-bold text-gray-800">{T("codCashBalance")}</p>
                   <p className="text-[10px] text-gray-400">{T("cashOnDelivery")}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className={`text-xl font-black ${codNetOwed > 0 ? "text-blue-600" : "text-green-600"}`}>{fc(codNetOwed, currency)}</p>
-                <p className="text-[10px] text-gray-400 flex items-center gap-1 justify-end">
-                  {codNetOwed > 0 ? T("remitCodCashBtn") : <><CheckCircle size={10} className="text-green-500"/> {T("allClear")}</>}
+                <p
+                  className={`text-xl font-black ${codNetOwed > 0 ? "text-blue-600" : "text-green-600"}`}
+                >
+                  {fc(codNetOwed, currency)}
+                </p>
+                <p className="flex items-center justify-end gap-1 text-[10px] text-gray-400">
+                  {codNetOwed > 0 ? (
+                    T("remitCodCashBtn")
+                  ) : (
+                    <>
+                      <CheckCircle size={10} className="text-green-500" /> {T("allClear")}
+                    </>
+                  )}
                 </p>
               </div>
             </div>
 
-            <div className="px-5 pb-3 grid grid-cols-3 gap-2 text-center border-t border-gray-50 pt-3">
-              <div className="bg-gray-50 rounded-xl py-2">
+            <div className="grid grid-cols-3 gap-2 border-t border-gray-50 px-5 pt-3 pb-3 text-center">
+              <div className="rounded-xl bg-gray-50 py-2">
                 <p className="text-xs font-black text-gray-800">{fc(codCollected, currency)}</p>
-                <p className="text-[9px] text-gray-400 font-medium">{T("collected")}</p>
+                <p className="text-[9px] font-medium text-gray-400">{T("collected")}</p>
               </div>
-              <div className="bg-gray-50 rounded-xl py-2">
+              <div className="rounded-xl bg-gray-50 py-2">
                 <p className="text-xs font-black text-green-600">{fc(codVerified, currency)}</p>
-                <p className="text-[9px] text-gray-400 font-medium">{T("verified")}</p>
+                <p className="text-[9px] font-medium text-gray-400">{T("verified")}</p>
               </div>
-              <div className="bg-gray-50 rounded-xl py-2">
-                <p className={`text-xs font-black ${codNetOwed > 0 ? "text-blue-600" : "text-gray-400"}`}>{fc(codNetOwed, currency)}</p>
-                <p className="text-[9px] text-gray-400 font-medium">{T("owed")}</p>
+              <div className="rounded-xl bg-gray-50 py-2">
+                <p
+                  className={`text-xs font-black ${codNetOwed > 0 ? "text-blue-600" : "text-gray-400"}`}
+                >
+                  {fc(codNetOwed, currency)}
+                </p>
+                <p className="text-[9px] font-medium text-gray-400">{T("owed")}</p>
               </div>
             </div>
 
             {codPending.length > 0 && (
-              <div className="mx-5 mb-3 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse flex-shrink-0"/>
-                <p className="text-xs text-amber-700 font-semibold">{codPending.length} {T("remitPending")}</p>
+              <div className="mx-5 mb-3 flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2">
+                <div className="h-1.5 w-1.5 flex-shrink-0 animate-pulse rounded-full bg-amber-400" />
+                <p className="text-xs font-semibold text-amber-700">
+                  {codPending.length} {T("remitPending")}
+                </p>
               </div>
             )}
 
-            <div className="px-5 pb-4 flex gap-2">
+            <div className="flex gap-2 px-5 pb-4">
               {codNetOwed > 0 && (
-                <button onClick={() => setShowRemittance(true)}
-                  className="flex-1 bg-gray-900 text-white font-black rounded-2xl py-3 flex items-center justify-center gap-2 text-sm active:bg-gray-800 transition-colors">
-                  <Banknote size={16}/> {T("remitCodCashBtn")}
+                <button
+                  onClick={() => setShowRemittance(true)}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gray-900 py-3 text-sm font-black text-white transition-colors active:bg-gray-800"
+                >
+                  <Banknote size={16} /> {T("remitCodCashBtn")}
                 </button>
               )}
-              <button onClick={() => setShowCodHistory(!showCodHistory)}
-                className={`${codNetOwed > 0 ? "w-auto px-4" : "flex-1"} bg-gray-50 text-gray-600 font-bold rounded-2xl py-3 text-sm flex items-center justify-center gap-1.5 border border-gray-100 active:bg-gray-100 transition-colors`}>
-                {showCodHistory ? <><ChevronUp size={14}/> {T("hide")}</> : T("history")}
+              <button
+                onClick={() => setShowCodHistory(!showCodHistory)}
+                className={`${codNetOwed > 0 ? "w-auto px-4" : "flex-1"} flex items-center justify-center gap-1.5 rounded-2xl border border-gray-100 bg-gray-50 py-3 text-sm font-bold text-gray-600 transition-colors active:bg-gray-100`}
+              >
+                {showCodHistory ? (
+                  <>
+                    <ChevronUp size={14} /> {T("hide")}
+                  </>
+                ) : (
+                  T("history")
+                )}
               </button>
             </div>
 
             {showCodHistory && codRemittances.length > 0 && (
-              <div className="border-t border-gray-100 divide-y divide-gray-50">
-                {codRemittances.map(r => {
+              <div className="divide-y divide-gray-50 border-t border-gray-100">
+                {codRemittances.map((r) => {
                   const ref = r.reference ?? "pending";
-                  const st  = ref === "pending" ? "pending" : ref.startsWith("verified:") ? "verified" : ref.startsWith("rejected:") ? "rejected" : "pending";
-                  const stBadge = st === "pending" ? "bg-amber-100 text-amber-700" : st === "verified" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600";
-                  const stIcon  = st === "pending" ? <Clock size={10}/> : st === "verified" ? <CheckCircle size={10}/> : <XCircle size={10}/>;
-                  const stLabel = st === "pending" ? T("pending") : st === "verified" ? T("verified") : T("rejected");
+                  const st =
+                    ref === "pending"
+                      ? "pending"
+                      : ref.startsWith("verified:")
+                        ? "verified"
+                        : ref.startsWith("rejected:")
+                          ? "rejected"
+                          : "pending";
+                  const stBadge =
+                    st === "pending"
+                      ? "bg-amber-100 text-amber-700"
+                      : st === "verified"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-600";
+                  const stIcon =
+                    st === "pending" ? (
+                      <Clock size={10} />
+                    ) : st === "verified" ? (
+                      <CheckCircle size={10} />
+                    ) : (
+                      <XCircle size={10} />
+                    );
+                  const stLabel =
+                    st === "pending"
+                      ? T("pending")
+                      : st === "verified"
+                        ? T("verified")
+                        : T("rejected");
                   const parts = (r.description || "").replace("COD Remittance — ", "").split(" · ");
                   return (
-                    <div key={r.id} className="px-5 py-3.5 flex items-center gap-3">
-                      <div className="w-9 h-9 bg-blue-50 rounded-2xl flex items-center justify-center flex-shrink-0">
-                        <Banknote size={16} className="text-blue-600"/>
+                    <div key={r.id} className="flex items-center gap-3 px-5 py-3.5">
+                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl bg-blue-50">
+                        <Banknote size={16} className="text-blue-600" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-gray-800">{parts[0] || "Remittance"}</p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <p className="text-[10px] text-gray-400">{new Date(r.createdAt).toLocaleDateString("en-PK", { day:"numeric", month:"short" })}</p>
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5 ${stBadge}`}>{stIcon} {stLabel}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-gray-800">
+                          {parts[0] || "Remittance"}
+                        </p>
+                        <div className="mt-0.5 flex items-center gap-1.5">
+                          <p className="text-[10px] text-gray-400">
+                            {new Date(r.createdAt).toLocaleDateString("en-PK", {
+                              day: "numeric",
+                              month: "short",
+                            })}
+                          </p>
+                          <span
+                            className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${stBadge}`}
+                          >
+                            {stIcon} {stLabel}
+                          </span>
                         </div>
                       </div>
-                      <p className="text-sm font-black text-blue-600 flex-shrink-0">{fc(Number(r.amount), currency)}</p>
+                      <p className="flex-shrink-0 text-sm font-black text-blue-600">
+                        {fc(Number(r.amount), currency)}
+                      </p>
                     </div>
                   );
                 })}
@@ -742,83 +1072,135 @@ export default function Wallet() {
           </div>
         )}
 
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
           <button
-            className="w-full flex items-center justify-between px-5 py-4"
-            onClick={() => { setShowDeposits(v => !v); if (!showDeposits) refetchDeposits(); }}
+            className="flex w-full items-center justify-between px-5 py-4"
+            onClick={() => {
+              setShowDeposits((v) => !v);
+              if (!showDeposits) refetchDeposits();
+            }}
           >
             <div className="flex items-center gap-2.5">
-              <ArrowDownToLine size={16} className="text-green-600"/>
-              <span className="font-bold text-gray-800 text-sm">Deposit History</span>
+              <ArrowDownToLine size={16} className="text-green-600" />
+              <span className="text-sm font-bold text-gray-800">Deposit History</span>
             </div>
-            {showDeposits ? <ChevronUp size={16} className="text-gray-400"/> : <ChevronDown size={16} className="text-gray-400"/>}
+            {showDeposits ? (
+              <ChevronUp size={16} className="text-gray-400" />
+            ) : (
+              <ChevronDown size={16} className="text-gray-400" />
+            )}
           </button>
           {showDeposits && (
             <div className="border-t border-gray-50">
               {!depositsData ? (
-                <div className="px-5 py-8 flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin"/>
+                <div className="flex items-center justify-center px-5 py-8">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-700" />
                 </div>
-              ) : (() => {
-                const depositList: any[] = depositsData?.deposits ?? depositsData ?? [];
-                if (depositList.length === 0) return (
-                  <div className="px-5 py-8 text-center">
-                    <p className="text-sm text-gray-400 font-medium">No deposits yet</p>
-                  </div>
-                );
-                return (
-                <div className="divide-y divide-gray-50">
-                  {depositList.map((dep: any) => {
-                    const st = dep.status === "verified" ? "verified" : dep.status === "rejected" ? "rejected" : "pending";
-                    const stBadge = st === "pending" ? "bg-amber-100 text-amber-700" : st === "verified" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600";
-                    const stIcon = st === "pending" ? <Clock size={10}/> : st === "verified" ? <CheckCircle size={10}/> : <XCircle size={10}/>;
+              ) : (
+                (() => {
+                  const depositList: any[] = depositsData?.deposits ?? depositsData ?? [];
+                  if (depositList.length === 0)
                     return (
-                      <div key={dep.id} className="px-5 py-3.5 flex items-center gap-3">
-                        <div className="w-9 h-9 bg-green-50 rounded-2xl flex items-center justify-center flex-shrink-0">
-                          <ArrowDownToLine size={16} className="text-green-600"/>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-gray-800">{dep.method || "Deposit"}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <p className="text-[10px] text-gray-400">{new Date(dep.createdAt).toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric" })}</p>
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5 ${stBadge}`}>{stIcon} {st}</span>
-                          </div>
-                          {dep.note && <p className="text-[10px] text-gray-400 mt-0.5 truncate">{dep.note}</p>}
-                        </div>
-                        <p className="text-sm font-black text-green-600 flex-shrink-0">{fc(Number(dep.amount), currency)}</p>
+                      <div className="px-5 py-8 text-center">
+                        <p className="text-sm font-medium text-gray-400">No deposits yet</p>
                       </div>
                     );
-                  })}
-                </div>
-                );
-              })()}
+                  return (
+                    <div className="divide-y divide-gray-50">
+                      {depositList.map((dep: any) => {
+                        const st =
+                          dep.status === "verified"
+                            ? "verified"
+                            : dep.status === "rejected"
+                              ? "rejected"
+                              : "pending";
+                        const stBadge =
+                          st === "pending"
+                            ? "bg-amber-100 text-amber-700"
+                            : st === "verified"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-red-100 text-red-600";
+                        const stIcon =
+                          st === "pending" ? (
+                            <Clock size={10} />
+                          ) : st === "verified" ? (
+                            <CheckCircle size={10} />
+                          ) : (
+                            <XCircle size={10} />
+                          );
+                        return (
+                          <div key={dep.id} className="flex items-center gap-3 px-5 py-3.5">
+                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl bg-green-50">
+                              <ArrowDownToLine size={16} className="text-green-600" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-semibold text-gray-800">
+                                {dep.method || "Deposit"}
+                              </p>
+                              <div className="mt-0.5 flex items-center gap-1.5">
+                                <p className="text-[10px] text-gray-400">
+                                  {new Date(dep.createdAt).toLocaleDateString("en-PK", {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                  })}
+                                </p>
+                                <span
+                                  className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${stBadge}`}
+                                >
+                                  {stIcon} {st}
+                                </span>
+                              </div>
+                              {dep.note && (
+                                <p className="mt-0.5 truncate text-[10px] text-gray-400">
+                                  {dep.note}
+                                </p>
+                              )}
+                            </div>
+                            <p className="flex-shrink-0 text-sm font-black text-green-600">
+                              {fc(Number(dep.amount), currency)}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()
+              )}
             </div>
           )}
         </div>
 
         {withdrawalRequests.length > 0 && (
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
             <button
-              className="w-full flex items-center justify-between px-5 py-4"
+              className="flex w-full items-center justify-between px-5 py-4"
               onClick={() => setShowRequests(!showRequests)}
             >
               <div className="flex items-center gap-2.5">
-                <span className="font-bold text-gray-800 text-sm">{T("withdrawalRequests")}</span>
+                <span className="text-sm font-bold text-gray-800">{T("withdrawalRequests")}</span>
                 {pendingRequests.length > 0 && (
-                  <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <Clock size={9}/> {pendingRequests.length} {T("pending")}
+                  <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                    <Clock size={9} /> {pendingRequests.length} {T("pending")}
                   </span>
                 )}
               </div>
-              {showRequests ? <ChevronUp size={16} className="text-gray-400"/> : <ChevronDown size={16} className="text-gray-400"/>}
+              {showRequests ? (
+                <ChevronUp size={16} className="text-gray-400" />
+              ) : (
+                <ChevronDown size={16} className="text-gray-400" />
+              )}
             </button>
             {showRequests && (
-              <div className="px-4 pb-4 space-y-3 border-t border-gray-50 pt-3">
-                {withdrawalRequests.map(tx => <PendingRequestCard key={tx.id} tx={tx}/>)}
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex gap-2">
-                  <ShieldCheck size={14} className="text-blue-500 flex-shrink-0 mt-0.5"/>
-                  <p className="text-xs text-blue-700 font-medium">
-                    {T("processingTime")}: {procDays * 24}–{procDays * 24 + 24}h. {T("adminApproveNotify")}
+              <div className="space-y-3 border-t border-gray-50 px-4 pt-3 pb-4">
+                {withdrawalRequests.map((tx) => (
+                  <PendingRequestCard key={tx.id} tx={tx} />
+                ))}
+                <div className="flex gap-2 rounded-xl border border-blue-100 bg-blue-50 p-3">
+                  <ShieldCheck size={14} className="mt-0.5 flex-shrink-0 text-blue-500" />
+                  <p className="text-xs font-medium text-blue-700">
+                    {T("processingTime")}: {procDays * 24}–{procDays * 24 + 24}h.{" "}
+                    {T("adminApproveNotify")}
                   </p>
                 </div>
               </div>
@@ -827,22 +1209,46 @@ export default function Wallet() {
         )}
 
         {withdrawalRequests.length === 0 && (
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
-            <p className="font-bold text-gray-800 text-sm mb-4 flex items-center gap-2">
-              <Sparkles size={15} className="text-green-500"/> {T("howItWorks")}
+          <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+            <p className="mb-4 flex items-center gap-2 text-sm font-bold text-gray-800">
+              <Sparkles size={15} className="text-green-500" /> {T("howItWorks")}
             </p>
             <div className="space-y-3">
               {[
-                { step: "1", icon: <TrendingUp size={14} className="text-green-600"/>, title: T("completeDeliveries"),    desc: `${riderKeepPct}% ${T("earningsAddedInstantly")}` },
-                { step: "2", icon: <Wallet2 size={14} className="text-green-600"/>,    title: T("buildBalance"),    desc: `${T("minToWithdraw")}: ${fc(minPayout, currency)}`   },
-                { step: "3", icon: <ArrowUpFromLine size={14} className="text-green-600"/>, title: T("requestWithdrawal"), desc: T("selectPaymentMethod")     },
-                { step: "4", icon: <CheckCircle size={14} className="text-green-600"/>, title: T("receivePayment"),       desc: `${procDays * 24}–${procDays * 24 + 24}h ${T("transferTime")}` },
-              ].map(s => (
+                {
+                  step: "1",
+                  icon: <TrendingUp size={14} className="text-green-600" />,
+                  title: T("completeDeliveries"),
+                  desc: `${riderKeepPct}% ${T("earningsAddedInstantly")}`,
+                },
+                {
+                  step: "2",
+                  icon: <Wallet2 size={14} className="text-green-600" />,
+                  title: T("buildBalance"),
+                  desc: `${T("minToWithdraw")}: ${fc(minPayout, currency)}`,
+                },
+                {
+                  step: "3",
+                  icon: <ArrowUpFromLine size={14} className="text-green-600" />,
+                  title: T("requestWithdrawal"),
+                  desc: T("selectPaymentMethod"),
+                },
+                {
+                  step: "4",
+                  icon: <CheckCircle size={14} className="text-green-600" />,
+                  title: T("receivePayment"),
+                  desc: `${procDays * 24}–${procDays * 24 + 24}h ${T("transferTime")}`,
+                },
+              ].map((s) => (
                 <div key={s.step} className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-green-50 rounded-xl flex items-center justify-center text-sm font-black text-green-600 flex-shrink-0">{s.step}</div>
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-green-50 text-sm font-black text-green-600">
+                    {s.step}
+                  </div>
                   <div className="min-w-0 pt-0.5">
-                    <p className="text-sm font-bold text-gray-800 flex items-center gap-1.5">{s.icon} {s.title}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{s.desc}</p>
+                    <p className="flex items-center gap-1.5 text-sm font-bold text-gray-800">
+                      {s.icon} {s.title}
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-400">{s.desc}</p>
                   </div>
                 </div>
               ))}
@@ -850,20 +1256,25 @@ export default function Wallet() {
           </div>
         )}
 
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
           <div className="px-5 pt-5 pb-3">
-            <div className="flex items-center justify-between mb-3">
-              <p className="font-bold text-gray-800 text-sm">{T("transactionHistoryTitle")}</p>
-              <span className="text-[10px] text-gray-400 font-medium">{filtered.length} {T("records")}</span>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm font-bold text-gray-800">{T("transactionHistoryTitle")}</p>
+              <span className="text-[10px] font-medium text-gray-400">
+                {filtered.length} {T("records")}
+              </span>
             </div>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
-              {FILTER_TABS_LOCAL.map(tab => (
-                <button key={tab.key} onClick={() => setFilter(tab.key)}
-                  className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all ${
+            <div className="no-scrollbar flex gap-2 overflow-x-auto pb-0.5">
+              {FILTER_TABS_LOCAL.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setFilter(tab.key)}
+                  className={`flex-shrink-0 rounded-full px-4 py-2 text-xs font-bold transition-all ${
                     filter === tab.key
                       ? "bg-gray-900 text-white"
-                      : "bg-gray-50 text-gray-400 border border-gray-100 active:bg-gray-100"
-                  }`}>
+                      : "border border-gray-100 bg-gray-50 text-gray-400 active:bg-gray-100"
+                  }`}
+                >
                   {tab.label}
                 </button>
               ))}
@@ -871,24 +1282,29 @@ export default function Wallet() {
           </div>
 
           {filtered.length === 0 ? (
-            <div className="px-5 py-12 text-center border-t border-gray-50">
-              <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <CreditCard size={28} className="text-gray-200"/>
+            <div className="border-t border-gray-50 px-5 py-12 text-center">
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-50">
+                <CreditCard size={28} className="text-gray-200" />
               </div>
               <p className="font-bold text-gray-600">{T("noTransactionsFilter")}</p>
-              <p className="text-sm text-gray-400 mt-1">{T("completeDeliveriesTrack")}</p>
+              <p className="mt-1 text-sm text-gray-400">{T("completeDeliveriesTrack")}</p>
               {filter !== "all" && (
-                <button onClick={() => setFilter("all")} className="mt-3 text-xs text-green-600 font-bold flex items-center gap-0.5 mx-auto">
-                  {T("all")} {T("transactionHistoryTitle")} <ChevronRight size={12}/>
+                <button
+                  onClick={() => setFilter("all")}
+                  className="mx-auto mt-3 flex items-center gap-0.5 text-xs font-bold text-green-600"
+                >
+                  {T("all")} {T("transactionHistoryTitle")} <ChevronRight size={12} />
                 </button>
               )}
             </div>
           ) : (
             <div className="border-t border-gray-50">
-              {groupedTx.map(group => (
+              {groupedTx.map((group) => (
                 <div key={group.label}>
-                  <div className="px-5 py-2.5 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{resolveGroupLabel(group.label)}</p>
+                  <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/50 px-5 py-2.5">
+                    <p className="text-[11px] font-bold tracking-wider text-gray-400 uppercase">
+                      {resolveGroupLabel(group.label)}
+                    </p>
                     <span className="text-[10px] text-gray-300">{group.items.length}</span>
                   </div>
                   <div className="divide-y divide-gray-50">
@@ -898,32 +1314,63 @@ export default function Wallet() {
                       const isCredit = !isDebitType;
                       const isW = t.type === "debit" && t.description?.startsWith("Withdrawal");
                       const isDeposit = t.type === "deposit";
-                      const ref = (isW || isDeposit) ? (t.reference ?? "pending") : null;
-                      const wStatus = !ref ? null
-                        : ref === "pending" ? "pending"
-                        : (ref.startsWith("paid:") || ref.startsWith("approved:")) ? "approved"
-                        : ref.startsWith("rejected:") ? "rejected" : null;
+                      const ref = isW || isDeposit ? (t.reference ?? "pending") : null;
+                      const wStatus = !ref
+                        ? null
+                        : ref === "pending"
+                          ? "pending"
+                          : ref.startsWith("paid:") || ref.startsWith("approved:")
+                            ? "approved"
+                            : ref.startsWith("rejected:")
+                              ? "rejected"
+                              : null;
                       return (
-                        <div key={t.id} className="px-5 py-3.5 flex items-center gap-3">
-                          <TxIcon type={t.type}/>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-800 leading-snug line-clamp-1">{t.description}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <div key={t.id} className="flex items-center gap-3 px-5 py-3.5">
+                          <TxIcon type={t.type} />
+                          <div className="min-w-0 flex-1">
+                            <p className="line-clamp-1 text-sm leading-snug font-semibold text-gray-800">
+                              {t.description}
+                            </p>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                               <p className="text-[10px] text-gray-400">{fdr(t.createdAt)}</p>
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${meta.badge}`}>{T(meta.labelKey)}</span>
-                              {wStatus === "pending"  && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 flex items-center gap-0.5"><Clock size={8}/> {T("pending")}</span>}
-                              {wStatus === "approved" && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 flex items-center gap-0.5"><CheckCircle size={8}/> {isDeposit ? T("creditedLabel") : T("paid")}</span>}
-                              {wStatus === "rejected" && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 flex items-center gap-0.5"><XCircle size={8}/> {T("rejected")}</span>}
+                              <span
+                                className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${meta.badge}`}
+                              >
+                                {T(meta.labelKey)}
+                              </span>
+                              {wStatus === "pending" && (
+                                <span className="flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">
+                                  <Clock size={8} /> {T("pending")}
+                                </span>
+                              )}
+                              {wStatus === "approved" && (
+                                <span className="flex items-center gap-0.5 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">
+                                  <CheckCircle size={8} />{" "}
+                                  {isDeposit ? T("creditedLabel") : T("paid")}
+                                </span>
+                              )}
+                              {wStatus === "rejected" && (
+                                <span className="flex items-center gap-0.5 rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-600">
+                                  <XCircle size={8} /> {T("rejected")}
+                                </span>
+                              )}
                             </div>
                           </div>
-                          <p className={`text-sm font-black flex-shrink-0 ${
-                            isDeposit && wStatus === "pending" ? "text-amber-500"
-                            : isDeposit ? "text-teal-600"
-                            : isCredit ? "text-green-600"
-                            : wStatus === "rejected" ? "text-gray-400 line-through"
-                            : "text-red-500"
-                          }`}>
-                            {isDebitType ? "−" : "+"}{fc(Number(t.amount), currency)}
+                          <p
+                            className={`flex-shrink-0 text-sm font-black ${
+                              isDeposit && wStatus === "pending"
+                                ? "text-amber-500"
+                                : isDeposit
+                                  ? "text-teal-600"
+                                  : isCredit
+                                    ? "text-green-600"
+                                    : wStatus === "rejected"
+                                      ? "text-gray-400 line-through"
+                                      : "text-red-500"
+                            }`}
+                          >
+                            {isDebitType ? "−" : "+"}
+                            {fc(Number(t.amount), currency)}
                           </p>
                         </div>
                       );
@@ -934,43 +1381,50 @@ export default function Wallet() {
               {/* W2: infinite-scroll sentinel + spinner. Only rendered when
                  there is a next page so we never show a permanent loader. */}
               {hasNextPage && (
-                <div ref={loadMoreRef} className="px-5 py-4 flex items-center justify-center">
+                <div ref={loadMoreRef} className="flex items-center justify-center px-5 py-4">
                   {isFetchingNextPage ? (
-                    <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin"/>
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-700" />
                   ) : (
-                    <div className="h-5"/>
+                    <div className="h-5" />
                   )}
                 </div>
               )}
               {!hasNextPage && transactions.length > 0 && (
-                <p className="text-center text-[10px] text-gray-300 py-3">{T("allTransactionsSecure")}</p>
+                <p className="py-3 text-center text-[10px] text-gray-300">
+                  {T("allTransactionsSecure")}
+                </p>
               )}
             </div>
           )}
         </div>
 
-        <div className="bg-green-50 rounded-3xl border border-green-100 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <ShieldCheck size={15} className="text-green-600"/>
+        <div className="rounded-3xl border border-green-100 bg-green-50 p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <ShieldCheck size={15} className="text-green-600" />
             <p className="text-sm font-bold text-green-800">{T("payoutPolicy")}</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {[
-              { label: T("yourShare" as TranslationKey),       value: `${riderKeepPct}%` },
-              { label: T("minWithdrawalLabel"),  value: fc(minPayout, currency) },
-              { label: T("processingTime"),      value: `${procDays * 24}-${procDays * 24 + 24}h` },
-              { label: T("maxWithdrawalLabel"),  value: fc(maxPayout, currency) },
-            ].map(p => (
-              <div key={p.label} className="bg-white rounded-xl px-3 py-2.5 border border-green-100">
-                <p className="text-[10px] text-green-600/60 font-bold uppercase tracking-wider">{p.label}</p>
-                <p className="text-sm font-black text-green-800 mt-0.5">{p.value}</p>
+              { label: T("yourShare" as TranslationKey), value: `${riderKeepPct}%` },
+              { label: T("minWithdrawalLabel"), value: fc(minPayout, currency) },
+              { label: T("processingTime"), value: `${procDays * 24}-${procDays * 24 + 24}h` },
+              { label: T("maxWithdrawalLabel"), value: fc(maxPayout, currency) },
+            ].map((p) => (
+              <div
+                key={p.label}
+                className="rounded-xl border border-green-100 bg-white px-3 py-2.5"
+              >
+                <p className="text-[10px] font-bold tracking-wider text-green-600/60 uppercase">
+                  {p.label}
+                </p>
+                <p className="mt-0.5 text-sm font-black text-green-800">{p.value}</p>
               </div>
             ))}
           </div>
         </div>
 
-        <p className="text-center text-[10px] text-gray-300 pb-2 flex items-center justify-center gap-1.5">
-          <ShieldCheck size={10}/> {T("allTransactionsSecure")} {config.platform.appName}
+        <p className="flex items-center justify-center gap-1.5 pb-2 text-center text-[10px] text-gray-300">
+          <ShieldCheck size={10} /> {T("allTransactionsSecure")} {config.platform.appName}
         </p>
       </div>
 
@@ -993,7 +1447,9 @@ export default function Wallet() {
 
       {showWithdraw && withdrawalEnabled && (
         <WithdrawModal
-          balance={balanceNum} minPayout={minPayout} maxPayout={maxPayout}
+          balance={balanceNum}
+          minPayout={minPayout}
+          maxPayout={maxPayout}
           onClose={() => setShowWithdraw(false)}
           onSuccess={() => {
             qc.invalidateQueries({ queryKey: ["rider-wallet"] });
@@ -1002,7 +1458,12 @@ export default function Wallet() {
             refetch();
             refetchCod();
             refetchDeposits();
-            refreshUser().catch((err) => { log.error({ err: err instanceof Error ? err.message : String(err) }, "[Wallet] refreshUser failed"); });
+            refreshUser().catch((err) => {
+              log.error(
+                { err: err instanceof Error ? err.message : String(err) },
+                "[Wallet] refreshUser failed"
+              );
+            });
             /* Show "Under Review" message so rider knows the request is pending admin review
                and their balance will only be deducted after the request is approved. */
             showToast(`${T("withdrawalSubmitted")} ${T("underReview")}`, "success");
@@ -1012,7 +1473,8 @@ export default function Wallet() {
 
       {showDeposit && depositEnabled && (
         <DepositModal
-          balance={balanceNum} minBalance={minBalance}
+          balance={balanceNum}
+          minBalance={minBalance}
           onClose={() => setShowDeposit(false)}
           onSuccess={() => {
             qc.invalidateQueries({ queryKey: ["rider-wallet"] });
@@ -1026,10 +1488,16 @@ export default function Wallet() {
       )}
 
       {toast && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-2xl text-sm font-semibold flex items-center gap-2 animate-[slideDown_0.3s_ease-out] max-w-[90vw] ${
-          toast.type === "error" ? "bg-red-600 text-white" : "bg-gray-900 text-white"
-        }`}>
-          {toast.type === "error" ? <XCircle size={15} className="text-red-300 flex-shrink-0"/> : <CheckCircle size={15} className="text-green-400 flex-shrink-0"/>}
+        <div
+          className={`fixed top-4 left-1/2 z-50 flex max-w-[90vw] -translate-x-1/2 animate-[slideDown_0.3s_ease-out] items-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold shadow-2xl ${
+            toast.type === "error" ? "bg-red-600 text-white" : "bg-gray-900 text-white"
+          }`}
+        >
+          {toast.type === "error" ? (
+            <XCircle size={15} className="flex-shrink-0 text-red-300" />
+          ) : (
+            <CheckCircle size={15} className="flex-shrink-0 text-green-400" />
+          )}
           {toast.message}
         </div>
       )}

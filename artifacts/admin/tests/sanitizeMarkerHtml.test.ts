@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { sanitizeMarkerHtml } from "../src/lib/sanitizeMarkerHtml";
 
 /**
@@ -14,7 +14,7 @@ import { sanitizeMarkerHtml } from "../src/lib/sanitizeMarkerHtml";
  */
 describe("sanitizeMarkerHtml", () => {
   it("strips raw <script> tags", () => {
-    const out = sanitizeMarkerHtml('<div>ok<script>x</script></div>');
+    const out = sanitizeMarkerHtml("<div>ok<script>x</script></div>");
     expect(out).not.toContain("<script");
   });
 
@@ -37,7 +37,7 @@ describe("sanitizeMarkerHtml", () => {
 
   it("preserves SVG marker shapes", () => {
     const out = sanitizeMarkerHtml(
-      '<svg width="20" height="20"><circle cx="10" cy="10" r="5"></circle></svg>',
+      '<svg width="20" height="20"><circle cx="10" cy="10" r="5"></circle></svg>'
     );
     expect(out).toContain("<svg");
     expect(out).toContain("<circle");

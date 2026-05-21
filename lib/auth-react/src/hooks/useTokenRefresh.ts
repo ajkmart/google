@@ -1,6 +1,6 @@
-import { useEffect, useRef, useCallback } from 'react';
-import { decodeJwt, getTokenExpiryRemaining } from '../utils/jwtUtils';
-import type { TokenStorage } from '../api/tokenStorage';
+import { useCallback, useEffect, useRef } from "react";
+import type { TokenStorage } from "../api/tokenStorage";
+import { decodeJwt, getTokenExpiryRemaining } from "../utils/jwtUtils";
 
 export interface UseTokenRefreshOptions {
   tokenStorage: TokenStorage;
@@ -22,14 +22,11 @@ export interface UseTokenRefreshOptions {
 const MAX_ATTEMPTS = 5;
 const BASE_DELAY_MS = 300;
 
-async function doRefresh(
-  baseURL: string,
-  refreshEndpoint: string
-): Promise<string | null> {
+async function doRefresh(baseURL: string, refreshEndpoint: string): Promise<string | null> {
   const res = await fetch(`${baseURL}${refreshEndpoint}`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) return null;
   const data = (await res.json()) as { accessToken?: string; data?: { accessToken?: string } };
@@ -39,7 +36,7 @@ async function doRefresh(
 export function useTokenRefresh({
   tokenStorage,
   baseURL,
-  refreshEndpoint = '/api/auth/refresh',
+  refreshEndpoint = "/api/auth/refresh",
   leewaySeconds = 60,
   refreshIntervalSeconds,
   onLogout,
@@ -67,10 +64,7 @@ export function useTokenRefresh({
       if (timerRef.current) clearTimeout(timerRef.current);
       const remaining = getTokenExpiryRemaining(token);
       const delaySeconds = Math.max(0, remaining - effectiveLeeway);
-      timerRef.current = setTimeout(
-        () => void refreshTokenRef.current?.(),
-        delaySeconds * 1000
-      );
+      timerRef.current = setTimeout(() => void refreshTokenRef.current?.(), delaySeconds * 1000);
     },
     [effectiveLeeway]
   );

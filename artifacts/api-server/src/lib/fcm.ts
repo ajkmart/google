@@ -11,8 +11,8 @@
  * automatically once the key is registered.
  */
 
-import { logger } from "./logger.js";
 import { getFirebaseAdmin } from "../services/firebase.js";
+import { logger } from "./logger.js";
 
 interface FcmPayload {
   title: string;
@@ -70,7 +70,7 @@ export async function sendFcmToToken(token: string, payload: FcmPayload): Promis
  */
 export async function sendFcmToTokens(
   tokens: string[],
-  payload: FcmPayload,
+  payload: FcmPayload
 ): Promise<{ stale: string[]; delivered: number }> {
   if (tokens.length === 0) return { stale: [], delivered: 0 };
   const admin = await getFirebaseAdmin();

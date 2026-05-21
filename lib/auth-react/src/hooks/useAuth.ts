@@ -1,5 +1,5 @@
-import { useAuthContext } from '../AuthProvider';
-import { useTokenRefresh } from './useTokenRefresh';
+import { useAuthContext } from "../AuthProvider";
+import { useTokenRefresh } from "./useTokenRefresh";
 
 /**
  * Primary hook for consuming auth state in any component.

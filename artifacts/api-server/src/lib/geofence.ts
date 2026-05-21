@@ -5,18 +5,13 @@ import { getCachedSettings } from "../middleware/security.js";
 import { logger } from "./logger.js";
 
 /* ── Haversine distance in km ── */
-export function haversineKm(
-  lat1: number, lng1: number,
-  lat2: number, lng2: number,
-): number {
+export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) *
-    Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLng / 2) ** 2;
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -51,15 +46,15 @@ async function getActiveZones(): Promise<ZoneRow[]> {
   try {
     _zoneCache = await db
       .select({
-        id:               serviceZonesTable.id,
-        name:             serviceZonesTable.name,
-        city:             serviceZonesTable.city,
-        lat:              serviceZonesTable.lat,
-        lng:              serviceZonesTable.lng,
-        radiusKm:         serviceZonesTable.radiusKm,
-        appliesToRides:   serviceZonesTable.appliesToRides,
-        appliesToOrders:  serviceZonesTable.appliesToOrders,
-        appliesToParcel:  serviceZonesTable.appliesToParcel,
+        id: serviceZonesTable.id,
+        name: serviceZonesTable.name,
+        city: serviceZonesTable.city,
+        lat: serviceZonesTable.lat,
+        lng: serviceZonesTable.lng,
+        radiusKm: serviceZonesTable.radiusKm,
+        appliesToRides: serviceZonesTable.appliesToRides,
+        appliesToOrders: serviceZonesTable.appliesToOrders,
+        appliesToParcel: serviceZonesTable.appliesToParcel,
       })
       .from(serviceZonesTable)
       .where(eq(serviceZonesTable.isActive, true));
@@ -70,12 +65,12 @@ async function getActiveZones(): Promise<ZoneRow[]> {
       _zoneLoadFailed = true;
       logger.warn(
         { err: (err as Error).message },
-        "[geofence] DB error during zone refresh and cache is empty — new orders will be blocked (fail-closed)",
+        "[geofence] DB error during zone refresh and cache is empty — new orders will be blocked (fail-closed)"
       );
     } else {
       logger.warn(
         { err: (err as Error).message, cachedZones: _zoneCache.length },
-        "[geofence] DB error during zone refresh — serving stale cache",
+        "[geofence] DB error during zone refresh — serving stale cache"
       );
     }
   }
@@ -103,18 +98,21 @@ export type ServiceType = "rides" | "orders" | "parcel";
 export async function isInServiceZone(
   lat: number,
   lng: number,
-  serviceType: ServiceType,
+  serviceType: ServiceType
 ): Promise<{ allowed: boolean; zoneName?: string }> {
   const zones = await getActiveZones();
 
   /* Fail-closed: zone cache is empty due to a DB error — deny new requests */
   if (_zoneLoadFailed && zones.length === 0) {
-    logger.warn({ lat, lng, serviceType }, "[geofence] zone cache empty after DB error — denying request (fail-closed)");
+    logger.warn(
+      { lat, lng, serviceType },
+      "[geofence] zone cache empty after DB error — denying request (fail-closed)"
+    );
     return { allowed: false };
   }
 
-  const relevant = zones.filter(z => {
-    if (serviceType === "rides")  return z.appliesToRides;
+  const relevant = zones.filter((z) => {
+    if (serviceType === "rides") return z.appliesToRides;
     if (serviceType === "orders") return z.appliesToOrders;
     if (serviceType === "parcel") return z.appliesToParcel;
     return true;
@@ -125,11 +123,7 @@ export async function isInServiceZone(
   if (relevant.length === 0) return { allowed: openWorldFallback };
 
   for (const z of relevant) {
-    const distKm = haversineKm(
-      lat, lng,
-      parseFloat(z.lat),
-      parseFloat(z.lng),
-    );
+    const distKm = haversineKm(lat, lng, parseFloat(z.lat), parseFloat(z.lng));
     if (distKm <= parseFloat(z.radiusKm)) {
       return { allowed: true, zoneName: z.name };
     }

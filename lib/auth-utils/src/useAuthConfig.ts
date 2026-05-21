@@ -12,7 +12,7 @@
  *   HYBRID   — OTP primary + Firebase optional
  */
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export interface AuthConfig {
   authMode: "OTP" | "EMAIL" | "FIREBASE" | "HYBRID";
@@ -59,7 +59,7 @@ async function fetchAuthConfig(apiBase: string): Promise<AuthConfig> {
     try {
       const res = await fetch(`${apiBase}/auth/config`, { signal: AbortSignal.timeout(5000) });
       if (!res.ok) return DEFAULT_CONFIG;
-      const data = await res.json() as AuthConfigApiResponse;
+      const data = (await res.json()) as AuthConfigApiResponse;
 
       const config: AuthConfig = {
         authMode: (data.auth_mode as AuthConfig["authMode"]) ?? "OTP",
@@ -88,7 +88,9 @@ export function useAuthConfig(apiBase = "/api"): AuthConfig {
   const [config, setConfig] = useState<AuthConfig>(DEFAULT_CONFIG);
 
   useEffect(() => {
-    fetchAuthConfig(apiBase).then(setConfig).catch(() => setConfig({ ...DEFAULT_CONFIG, loaded: true }));
+    fetchAuthConfig(apiBase)
+      .then(setConfig)
+      .catch(() => setConfig({ ...DEFAULT_CONFIG, loaded: true }));
   }, [apiBase]);
 
   return config;

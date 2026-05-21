@@ -40,7 +40,7 @@ export interface TimingRegistry<T extends Record<string, number>> {
  * per logical config and re-export the resulting registry.
  */
 export function createTimingRegistry<T extends Record<string, number>>(
-  defaults: T,
+  defaults: T
 ): TimingRegistry<T> {
   let current: T = { ...defaults };
   const frozenDefaults: Readonly<T> = Object.freeze({ ...defaults });

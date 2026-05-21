@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import request from "supertest";
-import express from "express";
 import cookieParser from "cookie-parser";
+import express from "express";
+import request from "supertest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockSettings = {
   auth_phone_otp_enabled: "on",
@@ -25,14 +25,34 @@ const mockSelectChain = {
 
 const mockDb = {
   select: vi.fn().mockReturnValue(mockSelectChain),
-  update: vi.fn().mockReturnValue({ set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) }),
-  insert: vi.fn().mockReturnValue({ values: vi.fn().mockReturnThis(), onConflictDoUpdate: vi.fn().mockResolvedValue(undefined) }),
+  update: vi
+    .fn()
+    .mockReturnValue({
+      set: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue(undefined),
+    }),
+  insert: vi
+    .fn()
+    .mockReturnValue({
+      values: vi.fn().mockReturnThis(),
+      onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+    }),
   delete: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) }),
 };
 
 vi.mock("@workspace/db", () => ({ db: mockDb }));
 vi.mock("@workspace/db/schema", () => ({
-  usersTable: { id: "id", phone: "phone", email: "email", username: "username", roles: "roles", isBanned: "isBanned", passwordHash: "passwordHash", totpEnabled: "totpEnabled", isActive: "isActive" },
+  usersTable: {
+    id: "id",
+    phone: "phone",
+    email: "email",
+    username: "username",
+    roles: "roles",
+    isBanned: "isBanned",
+    passwordHash: "passwordHash",
+    totpEnabled: "totpEnabled",
+    isActive: "isActive",
+  },
   refreshTokensTable: {},
   pendingOtpsTable: {},
   rateLimitsTable: {},
@@ -53,7 +73,8 @@ vi.mock("@workspace/phone-utils", () => ({
 vi.mock("@workspace/i18n", () => ({ t: (key: string) => key }));
 vi.mock("@workspace/auth-utils/server", () => ({
   isAuthMethodEnabled: (settings: Record<string, string>, key: string) => settings[key] === "on",
-  isAuthMethodEnabledStrict: (settings: Record<string, string>, key: string) => settings[key] === "on",
+  isAuthMethodEnabledStrict: (settings: Record<string, string>, key: string) =>
+    settings[key] === "on",
 }));
 vi.mock("../../src/middleware/security.js", () => ({
   getCachedSettings: vi.fn().mockResolvedValue(mockSettings),
@@ -93,22 +114,58 @@ vi.mock("../../src/services/sms.js", () => ({
   isSMSProviderConfigured: vi.fn().mockReturnValue(false),
   isSMSConsoleActive: vi.fn().mockReturnValue(false),
 }));
-vi.mock("../../src/services/smsGateway.js", () => ({ sendOtpWithFailover: vi.fn(), getWhitelistBypass: vi.fn().mockResolvedValue(null) }));
-vi.mock("../../src/services/whatsapp.js", () => ({ sendWhatsAppOTP: vi.fn(), isWhatsAppProviderConfigured: vi.fn().mockReturnValue(false) }));
-vi.mock("../../src/services/email.js", () => ({ sendVerificationEmail: vi.fn(), sendPasswordResetEmail: vi.fn(), sendMagicLinkEmail: vi.fn(), alertNewVendor: vi.fn(), isEmailProviderConfigured: vi.fn().mockReturnValue(false) }));
-vi.mock("../../src/services/password.js", () => ({ hashPassword: vi.fn().mockReturnValue("hashed"), verifyPassword: vi.fn().mockReturnValue(false), validatePasswordStrength: vi.fn().mockReturnValue({ ok: true }), generateSecureOtp: vi.fn().mockReturnValue("123456"), verifyTotpCode: vi.fn().mockReturnValue(false) }));
-vi.mock("../../src/services/totp.js", () => ({ generateTotpSecret: vi.fn(), verifyTotpToken: vi.fn(), generateQRCodeDataURL: vi.fn(), getTotpUri: vi.fn(), encryptTotpSecret: vi.fn(), decryptTotpSecret: vi.fn() }));
+vi.mock("../../src/services/smsGateway.js", () => ({
+  sendOtpWithFailover: vi.fn(),
+  getWhitelistBypass: vi.fn().mockResolvedValue(null),
+}));
+vi.mock("../../src/services/whatsapp.js", () => ({
+  sendWhatsAppOTP: vi.fn(),
+  isWhatsAppProviderConfigured: vi.fn().mockReturnValue(false),
+}));
+vi.mock("../../src/services/email.js", () => ({
+  sendVerificationEmail: vi.fn(),
+  sendPasswordResetEmail: vi.fn(),
+  sendMagicLinkEmail: vi.fn(),
+  alertNewVendor: vi.fn(),
+  isEmailProviderConfigured: vi.fn().mockReturnValue(false),
+}));
+vi.mock("../../src/services/password.js", () => ({
+  hashPassword: vi.fn().mockReturnValue("hashed"),
+  verifyPassword: vi.fn().mockReturnValue(false),
+  validatePasswordStrength: vi.fn().mockReturnValue({ ok: true }),
+  generateSecureOtp: vi.fn().mockReturnValue("123456"),
+  verifyTotpCode: vi.fn().mockReturnValue(false),
+}));
+vi.mock("../../src/services/totp.js", () => ({
+  generateTotpSecret: vi.fn(),
+  verifyTotpToken: vi.fn(),
+  generateQRCodeDataURL: vi.fn(),
+  getTotpUri: vi.fn(),
+  encryptTotpSecret: vi.fn(),
+  decryptTotpSecret: vi.fn(),
+}));
 vi.mock("../../src/services/auth/tokenRotation.js", () => ({
   rotateRefreshToken: vi.fn().mockResolvedValue({ token: "new_refresh", record: {} }),
   invalidateTokenFamily: vi.fn().mockResolvedValue(undefined),
-  detectAndInvalidateFamily: vi.fn().mockResolvedValue({ userId: "usr_001", expiresAt: new Date(Date.now() + 86400_000), revokedAt: null }),
+  detectAndInvalidateFamily: vi
+    .fn()
+    .mockResolvedValue({
+      userId: "usr_001",
+      expiresAt: new Date(Date.now() + 86400_000),
+      revokedAt: null,
+    }),
 }));
 vi.mock("../../src/lib/id.js", () => ({ generateId: vi.fn().mockReturnValue("test_id") }));
-vi.mock("../../src/lib/getUserLanguage.js", () => ({ getUserLanguage: vi.fn().mockResolvedValue("en"), getPlatformDefaultLanguage: vi.fn().mockResolvedValue("en") }));
+vi.mock("../../src/lib/getUserLanguage.js", () => ({
+  getUserLanguage: vi.fn().mockResolvedValue("en"),
+  getPlatformDefaultLanguage: vi.fn().mockResolvedValue("en"),
+}));
 vi.mock("../../src/lib/webhook-emitter.js", () => ({ emitWebhookEvent: vi.fn() }));
 vi.mock("../../src/lib/fireAndForget.js", () => ({ fireAndForget: vi.fn() }));
 vi.mock("../../src/routes/rider/index.js", () => ({ clearSpoofHits: vi.fn() }));
-vi.mock("../../src/routes/admin.js", () => ({ getPlatformSettings: vi.fn().mockResolvedValue(mockSettings) }));
+vi.mock("../../src/routes/admin.js", () => ({
+  getPlatformSettings: vi.fn().mockResolvedValue(mockSettings),
+}));
 vi.mock("../../src/routes/admin-shared.js", () => ({
   getCachedSettings: vi.fn().mockResolvedValue(mockSettings),
   DEFAULT_PLATFORM_SETTINGS: {},
@@ -116,7 +173,14 @@ vi.mock("../../src/routes/admin-shared.js", () => ({
 vi.mock("../../src/routes/auth/helpers.js", () => ({
   isValidCanonicalPhone: vi.fn().mockResolvedValue(true),
   hashOtp: vi.fn().mockReturnValue("hashed_otp"),
-  issueTokensForUser: vi.fn().mockResolvedValue({ token: "access_token", refreshToken: "refresh_token", user: { id: "usr_001" }, isNewUser: false }),
+  issueTokensForUser: vi
+    .fn()
+    .mockResolvedValue({
+      token: "access_token",
+      refreshToken: "refresh_token",
+      user: { id: "usr_001" },
+      isNewUser: false,
+    }),
   extractAuthUser: vi.fn().mockReturnValue({ userId: "usr_001" }),
   storePendingTotpSecret: vi.fn().mockResolvedValue(undefined),
   getPendingTotpSecret: vi.fn().mockResolvedValue(null),
@@ -143,7 +207,9 @@ vi.mock("../../src/routes/auth/helpers.js", () => ({
   isVendorSession: vi.fn().mockReturnValue(false),
   detectIdentifierType: vi.fn().mockReturnValue("phone"),
   shouldUseSecureCookie: vi.fn().mockReturnValue(false),
-  findUserByIdentifier: vi.fn().mockResolvedValue({ user: null, idType: "phone", lookupKey: "+923001234567" }),
+  findUserByIdentifier: vi
+    .fn()
+    .mockResolvedValue({ user: null, idType: "phone", lookupKey: "+923001234567" }),
   sendOtpSchema: {},
   verifyOtpSchema: {},
   OtpBypassSchema: {},
@@ -192,13 +258,15 @@ describe("POST /auth/check-identifier", () => {
   });
 
   it("returns send_phone_otp for an existing user phone", async () => {
-    mockSelectChain.limit.mockResolvedValueOnce([{
-      id: "usr_01",
-      phone: "+923001234567",
-      roles: "customer",
-      isBanned: false,
-      passwordHash: null,
-    }]);
+    mockSelectChain.limit.mockResolvedValueOnce([
+      {
+        id: "usr_01",
+        phone: "+923001234567",
+        roles: "customer",
+        isBanned: false,
+        passwordHash: null,
+      },
+    ]);
 
     const res = await request(app)
       .post("/auth/check-identifier")
@@ -209,13 +277,15 @@ describe("POST /auth/check-identifier", () => {
   });
 
   it("does not reveal banned status to the client for phone identifiers", async () => {
-    mockSelectChain.limit.mockResolvedValueOnce([{
-      id: "usr_02",
-      phone: "+923001234567",
-      roles: "customer",
-      isBanned: true,
-      passwordHash: null,
-    }]);
+    mockSelectChain.limit.mockResolvedValueOnce([
+      {
+        id: "usr_02",
+        phone: "+923001234567",
+        roles: "customer",
+        isBanned: true,
+        passwordHash: null,
+      },
+    ]);
 
     const res = await request(app)
       .post("/auth/check-identifier")
@@ -238,13 +308,15 @@ describe("POST /auth/check-identifier", () => {
   });
 
   it("returns login_password action for existing username with password hash", async () => {
-    mockSelectChain.limit.mockResolvedValueOnce([{
-      id: "usr_03",
-      username: "existinguser",
-      roles: "customer",
-      isBanned: false,
-      passwordHash: "hashed_password",
-    }]);
+    mockSelectChain.limit.mockResolvedValueOnce([
+      {
+        id: "usr_03",
+        username: "existinguser",
+        roles: "customer",
+        isBanned: false,
+        passwordHash: "hashed_password",
+      },
+    ]);
 
     const res = await request(app)
       .post("/auth/check-identifier")
@@ -255,13 +327,15 @@ describe("POST /auth/check-identifier", () => {
   });
 
   it("returns blocked action for a banned username user", async () => {
-    mockSelectChain.limit.mockResolvedValueOnce([{
-      id: "usr_04",
-      username: "banneduser",
-      roles: "customer",
-      isBanned: true,
-      passwordHash: null,
-    }]);
+    mockSelectChain.limit.mockResolvedValueOnce([
+      {
+        id: "usr_04",
+        username: "banneduser",
+        roles: "customer",
+        isBanned: true,
+        passwordHash: null,
+      },
+    ]);
 
     const res = await request(app)
       .post("/auth/check-identifier")
@@ -273,9 +347,7 @@ describe("POST /auth/check-identifier", () => {
   });
 
   it("returns non-200 for missing identifier (route or validator rejects)", async () => {
-    const res = await request(app)
-      .post("/auth/check-identifier")
-      .send({});
+    const res = await request(app).post("/auth/check-identifier").send({});
 
     expect(res.status).not.toBe(200);
     expect(res.body.success).toBeFalsy();

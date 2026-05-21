@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { http, HttpResponse } from "msw";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { setupAdminFetcherHandlers } from "@/lib/adminFetcher";
 import { SystemSection } from "@/pages/settings-system";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
+import { beforeEach, describe, expect, it } from "vitest";
 import { server } from "./utils/server";
 
 /**
@@ -15,7 +15,7 @@ import { server } from "./utils/server";
 function wireFetcher(token = "test-access-token") {
   setupAdminFetcherHandlers(
     () => token,
-    async () => token,
+    async () => token
   );
 }
 
@@ -27,24 +27,20 @@ function installDefaultGetHandlers(opts: { backups?: unknown[] } = {}) {
   const backups = opts.backups ?? [];
   server.use(
     http.get("/api/admin/system/stats", () =>
-      HttpResponse.json({ data: { stats: { users: 1, products: 2 } } }),
+      HttpResponse.json({ data: { stats: { users: 1, products: 2 } } })
     ),
-    http.get("/api/admin/system/snapshots", () =>
-      HttpResponse.json({ data: { snapshots: [] } }),
-    ),
-    http.get("/api/admin/system/demo-backups", () =>
-      HttpResponse.json({ data: backups }),
-    ),
+    http.get("/api/admin/system/snapshots", () => HttpResponse.json({ data: { snapshots: [] } })),
+    http.get("/api/admin/system/demo-backups", () => HttpResponse.json({ data: backups })),
     // Mount-time fetches from the maintenance + retention sections of the
     // page. SystemSection renders these collapsibles even when collapsed.
     http.get("/api/admin/system/maintenance-schedule", () =>
       HttpResponse.json({
         data: { scheduledStart: null, scheduledEnd: null, scheduledMsg: "" },
-      }),
+      })
     ),
     http.get("/api/admin/system/retention-policies", () =>
-      HttpResponse.json({ data: { policies: {} } }),
-    ),
+      HttpResponse.json({ data: { policies: {} } })
+    )
   );
 }
 
@@ -57,8 +53,11 @@ describe("Settings save flow (settings-system.tsx)", () => {
     wireFetcher("save-token");
     installDefaultGetHandlers({ backups: [] });
 
-    let savedRequest: { auth: string | null; csrf: string | null; body: any } =
-      { auth: null, csrf: null, body: null };
+    let savedRequest: { auth: string | null; csrf: string | null; body: any } = {
+      auth: null,
+      csrf: null,
+      body: null,
+    };
     let getCalls = 0;
 
     server.use(
@@ -88,7 +87,7 @@ describe("Settings save flow (settings-system.tsx)", () => {
             },
           ],
         });
-      }),
+      })
     );
 
     render(<SystemSection />);
@@ -96,9 +95,7 @@ describe("Settings save flow (settings-system.tsx)", () => {
     // Wait for the empty-state message to render so we know mount-time
     // GETs settled before we interact.
     await waitFor(() =>
-      expect(
-        screen.getByText(/No demo snapshots saved yet/i),
-      ).toBeInTheDocument(),
+      expect(screen.getByText(/No demo snapshots saved yet/i)).toBeInTheDocument()
     );
 
     const user = userEvent.setup();
@@ -114,9 +111,7 @@ describe("Settings save flow (settings-system.tsx)", () => {
     expect(savedRequest.csrf).toBe("csrf-from-test");
 
     // The list refresh should pull in the new snapshot.
-    await waitFor(() =>
-      expect(screen.getByText("Clean Demo State")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("Clean Demo State")).toBeInTheDocument());
 
     // Input is reset after a successful save.
     expect((input as HTMLInputElement).value).toBe("");
@@ -132,14 +127,12 @@ describe("Settings save flow (settings-system.tsx)", () => {
         const body = (await request.json()) as { label: string };
         receivedLabel = body.label;
         return HttpResponse.json({ data: { id: "snap-2" } });
-      }),
+      })
     );
 
     render(<SystemSection />);
     await waitFor(() =>
-      expect(
-        screen.getByText(/No demo snapshots saved yet/i),
-      ).toBeInTheDocument(),
+      expect(screen.getByText(/No demo snapshots saved yet/i)).toBeInTheDocument()
     );
 
     const user = userEvent.setup();
@@ -155,15 +148,13 @@ describe("Settings save flow (settings-system.tsx)", () => {
 
     server.use(
       http.post("/api/admin/system/demo-backups", () =>
-        HttpResponse.json({ error: "Disk full" }, { status: 500 }),
-      ),
+        HttpResponse.json({ error: "Disk full" }, { status: 500 })
+      )
     );
 
     render(<SystemSection />);
     await waitFor(() =>
-      expect(
-        screen.getByText(/No demo snapshots saved yet/i),
-      ).toBeInTheDocument(),
+      expect(screen.getByText(/No demo snapshots saved yet/i)).toBeInTheDocument()
     );
 
     const user = userEvent.setup();
@@ -174,7 +165,7 @@ describe("Settings save flow (settings-system.tsx)", () => {
     // After a failed save the input is preserved (so the user can retry)
     // and the save button is no longer in its loading state.
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Save Snapshot/i })).toBeEnabled(),
+      expect(screen.getByRole("button", { name: /Save Snapshot/i })).toBeEnabled()
     );
     expect((input as HTMLInputElement).value).toBe("My Snapshot");
   });

@@ -8,15 +8,15 @@
  * New additions: generateRecoveryCodes(), verifyRecoveryCode().
  */
 
-import crypto from "crypto";
-import { eq } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
-import { hashPassword, verifyPassword } from "../../services/password.js";
+import crypto from "crypto";
+import { eq } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
 import { logger } from "../../lib/logger.js";
+import { hashPassword, verifyPassword } from "../../services/password.js";
 
-const APP_NAME        = "AJKMart";
+const APP_NAME = "AJKMart";
 const ENCRYPTION_ALGO = "aes-256-gcm";
 const RECOVERY_CODE_COUNT = 8;
 
@@ -27,13 +27,13 @@ function getEncryptionKey(): Buffer {
   if (!raw) {
     throw new Error(
       "TOTP_ENCRYPTION_KEY is not set. Set it in Replit Secrets. " +
-      "Generate with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
+        "Generate with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
     );
   }
   if (!process.env["TOTP_ENCRYPTION_KEY"] && process.env["JWT_SECRET"]) {
     logger.warn(
       "TOTP_ENCRYPTION_KEY not set — using JWT_SECRET as fallback. " +
-      "Set a dedicated TOTP_ENCRYPTION_KEY in production.",
+        "Set a dedicated TOTP_ENCRYPTION_KEY in production."
     );
   }
   return crypto.createHash("sha256").update(raw).digest();
@@ -43,7 +43,7 @@ function getEncryptionKey(): Buffer {
 
 export function encryptTotpSecret(plaintext: string): string {
   const key = getEncryptionKey();
-  const iv  = crypto.randomBytes(12);
+  const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv(ENCRYPTION_ALGO, key, iv);
   let encrypted = cipher.update(plaintext, "utf8", "hex");
   encrypted += cipher.final("hex");
@@ -56,25 +56,21 @@ export function decryptTotpSecret(ciphertext: string): string {
   if (parts.length !== 3) {
     throw new Error(
       "TOTP_DECRYPT_FAILED: Invalid encrypted secret format. " +
-      "Check TOTP_ENCRYPTION_KEY configuration.",
+        "Check TOTP_ENCRYPTION_KEY configuration."
     );
   }
   const [ivHex, tagHex, encrypted] = parts;
   try {
-    const key      = getEncryptionKey();
-    const decipher = crypto.createDecipheriv(
-      ENCRYPTION_ALGO,
-      key,
-      Buffer.from(ivHex!, "hex"),
-    );
+    const key = getEncryptionKey();
+    const decipher = crypto.createDecipheriv(ENCRYPTION_ALGO, key, Buffer.from(ivHex!, "hex"));
     decipher.setAuthTag(Buffer.from(tagHex!, "hex"));
-    let decrypted  = decipher.update(encrypted!, "hex", "utf8");
-    decrypted     += decipher.final("utf8");
+    let decrypted = decipher.update(encrypted!, "hex", "utf8");
+    decrypted += decipher.final("utf8");
     return decrypted;
   } catch (err) {
     throw new Error(
       `TOTP_DECRYPT_FAILED: ${err instanceof Error ? err.message : String(err)}. ` +
-      "Check TOTP_ENCRYPTION_KEY configuration.",
+        "Check TOTP_ENCRYPTION_KEY configuration."
     );
   }
 }
@@ -84,7 +80,9 @@ export function decryptTotpSecret(ciphertext: string): string {
 const BASE32_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 function base32Encode(buf: Buffer): string {
-  let bits = 0, value = 0, output = "";
+  let bits = 0,
+    value = 0,
+    output = "";
   for (let i = 0; i < buf.length; i++) {
     value = (value << 8) | buf[i]!;
     bits += 8;
@@ -99,7 +97,8 @@ function base32Encode(buf: Buffer): string {
 
 function base32Decode(str: string): Buffer {
   const cleaned = str.toUpperCase().replace(/=+$/, "").replace(/\s/g, "");
-  let bits = 0, value = 0;
+  let bits = 0,
+    value = 0;
   const out: number[] = [];
   for (const ch of cleaned) {
     const idx = BASE32_CHARS.indexOf(ch);
@@ -120,13 +119,17 @@ function hotp(secret: string, counter: number): string {
   const key = base32Decode(secret);
   const buf = Buffer.alloc(8);
   let c = counter;
-  for (let i = 7; i >= 0; i--) { buf[i] = c & 0xff; c = Math.floor(c / 256); }
-  const hmac  = crypto.createHmac("sha1", key).update(buf).digest();
+  for (let i = 7; i >= 0; i--) {
+    buf[i] = c & 0xff;
+    c = Math.floor(c / 256);
+  }
+  const hmac = crypto.createHmac("sha1", key).update(buf).digest();
   const offset = hmac[19]! & 0xf;
-  const code   = ((hmac[offset]!     & 0x7f) << 24) |
-                 ((hmac[offset + 1]! & 0xff) << 16) |
-                 ((hmac[offset + 2]! & 0xff) << 8)  |
-                  (hmac[offset + 3]! & 0xff);
+  const code =
+    ((hmac[offset]! & 0x7f) << 24) |
+    ((hmac[offset + 1]! & 0xff) << 16) |
+    ((hmac[offset + 2]! & 0xff) << 8) |
+    (hmac[offset + 3]! & 0xff);
   return String(code % 1_000_000).padStart(6, "0");
 }
 
@@ -137,7 +140,7 @@ function totpCode(secret: string, atMs = Date.now()): string {
 // ─── Public: Secret Generation ────────────────────────────────────────────────
 
 export function generateTotpSecret(): { secret: string; encryptedSecret: string } {
-  const secret          = base32Encode(crypto.randomBytes(20));
+  const secret = base32Encode(crypto.randomBytes(20));
   const encryptedSecret = encryptTotpSecret(secret);
   return { secret, encryptedSecret };
 }
@@ -154,7 +157,7 @@ export function generateTotpSecret(): { secret: string; encryptedSecret: string 
 export function verifyTotpToken(token: string, encryptedSecret: string): boolean {
   try {
     const secret = decryptTotpSecret(encryptedSecret);
-    const now    = Date.now();
+    const now = Date.now();
     for (const offset of [-1, 0, 1]) {
       if (totpCode(secret, now + offset * 30_000) === token.trim()) return true;
     }
@@ -162,7 +165,7 @@ export function verifyTotpToken(token: string, encryptedSecret: string): boolean
   } catch (err) {
     logger.error(
       { error: err instanceof Error ? err.message : String(err) },
-      "[totp] verifyTotpToken failed",
+      "[totp] verifyTotpToken failed"
     );
     return false;
   }
@@ -172,23 +175,26 @@ export function verifyTotpToken(token: string, encryptedSecret: string): boolean
 
 export function getTotpUri(secret: string, accountName: string, issuer = APP_NAME): string {
   const label = encodeURIComponent(`${issuer}:${accountName}`);
-  const iss   = encodeURIComponent(issuer);
+  const iss = encodeURIComponent(issuer);
   return `otpauth://totp/${label}?secret=${secret}&issuer=${iss}&algorithm=SHA1&digits=6&period=30`;
 }
 
 export async function generateQrCodeDataUrl(secret: string, accountName: string): Promise<string> {
-  const uri     = getTotpUri(secret, accountName);
-  const QRCode  = (await import("qrcode")).default;
+  const uri = getTotpUri(secret, accountName);
+  const QRCode = (await import("qrcode")).default;
   return QRCode.toDataURL(uri);
 }
 
 // ─── Public: Pending Setup (temp storage before activation) ───────────────────
 
-export async function savePendingTotpSecret(userId: string, encryptedSecret: string): Promise<void> {
+export async function savePendingTotpSecret(
+  userId: string,
+  encryptedSecret: string
+): Promise<void> {
   // Delete any prior pending entry (idempotent)
   await db.delete(userTotpSetupTable).where(eq(userTotpSetupTable.userId, userId));
   await db.insert(userTotpSetupTable).values({
-    id:              generateId(),
+    id: generateId(),
     userId,
     secret: decryptTotpSecret(encryptedSecret),
     encryptedSecret,
@@ -196,7 +202,7 @@ export async function savePendingTotpSecret(userId: string, encryptedSecret: str
 }
 
 export async function getPendingTotpSecret(
-  userId: string,
+  userId: string
 ): Promise<{ secret: string; encryptedSecret: string } | null> {
   const rows = await db
     .select()
@@ -231,7 +237,7 @@ export async function generateRecoveryCodes(userId: string): Promise<RecoveryCod
   const rows: { id: string; userId: string; codeHash: string }[] = [];
 
   for (let i = 0; i < RECOVERY_CODE_COUNT; i++) {
-    const raw  = crypto.randomBytes(4).toString("hex");   // 8 hex chars
+    const raw = crypto.randomBytes(4).toString("hex"); // 8 hex chars
     plainCodes.push(raw);
     rows.push({ id: generateId(), userId, codeHash: hashPassword(raw) });
   }
@@ -251,7 +257,10 @@ export async function generateRecoveryCodes(userId: string): Promise<RecoveryCod
  * Returns true if valid, false otherwise.
  */
 export async function verifyRecoveryCode(userId: string, code: string): Promise<boolean> {
-  const unused = await db.select().from(totpRecoveryCodesTable).where(eq(totpRecoveryCodesTable.userId, userId));
+  const unused = await db
+    .select()
+    .from(totpRecoveryCodesTable)
+    .where(eq(totpRecoveryCodesTable.userId, userId));
 
   const unusedCodes = unused.filter((row) => row.usedAt === null);
 

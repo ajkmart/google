@@ -1,9 +1,18 @@
-import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomInt, scryptSync, timingSafeEqual } from "crypto";
 import bcrypt from "bcryptjs";
-import { logger } from '../lib/logger.js';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  createHmac,
+  randomBytes,
+  randomInt,
+  scryptSync,
+  timingSafeEqual,
+} from "crypto";
+import { logger } from "../lib/logger.js";
 
 const SALT_LENGTH = 16;
-const KEY_LENGTH  = 64;
+const KEY_LENGTH = 64;
 
 export function hashPassword(password: string): string {
   const salt = randomBytes(SALT_LENGTH).toString("hex");
@@ -20,17 +29,30 @@ export function verifyPassword(password: string, stored: string): boolean {
     if (derived.length !== storedBuf.length) return false;
     return timingSafeEqual(derived, storedBuf);
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return false;
   }
 }
 
 export function validatePasswordStrength(password: string): { ok: boolean; message: string } {
-  if (password.length > 128) return { ok: false, message: "Password must not exceed 128 characters" };
+  if (password.length > 128)
+    return { ok: false, message: "Password must not exceed 128 characters" };
   if (password.length < 8) return { ok: false, message: "Password must be at least 8 characters" };
-  if (!/[A-Z]/.test(password)) return { ok: false, message: "Password must contain at least 1 uppercase letter" };
-  if (!/[0-9]/.test(password)) return { ok: false, message: "Password must contain at least 1 number" };
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) return { ok: false, message: "Password must contain at least 1 special character (e.g. !@#$%^&*)" };
+  if (!/[A-Z]/.test(password))
+    return { ok: false, message: "Password must contain at least 1 uppercase letter" };
+  if (!/[0-9]/.test(password))
+    return { ok: false, message: "Password must contain at least 1 number" };
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password))
+    return {
+      ok: false,
+      message: "Password must contain at least 1 special character (e.g. !@#$%^&*)",
+    };
   return { ok: true, message: "ok" };
 }
 
@@ -66,7 +88,7 @@ function resolveRequiredSecret(envKey: string, fallbackEnvKey?: string): string 
     const keys = fallbackEnvKey ? `${envKey} (or ${fallbackEnvKey})` : envKey;
     throw new Error(
       `[FATAL] ${keys} environment variable is not set. ` +
-      `This secret is required for cryptographic operations. Set it before starting the server.`
+        `This secret is required for cryptographic operations. Set it before starting the server.`
     );
   }
   return val;
@@ -74,7 +96,9 @@ function resolveRequiredSecret(envKey: string, fallbackEnvKey?: string): string 
 
 function warnTokenHashSecretOnce(): void {
   if (!process.env["TOKEN_HASH_SECRET"] && process.env["JWT_SECRET"]) {
-    logger.warn("TOKEN_HASH_SECRET not set — using JWT_SECRET as fallback. Set a dedicated secret in production.");
+    logger.warn(
+      "TOKEN_HASH_SECRET not set — using JWT_SECRET as fallback. Set a dedicated secret in production."
+    );
   }
 }
 warnTokenHashSecretOnce();
@@ -82,7 +106,10 @@ warnTokenHashSecretOnce();
 /* Simple hash for token generation (magic links, email verification) */
 export function makeTokenHash(value: string): string {
   const secret = process.env["TOKEN_HASH_SECRET"] ?? resolveRequiredSecret("JWT_SECRET");
-  return createHash("sha256").update(value + secret).digest("hex").slice(0, 32);
+  return createHash("sha256")
+    .update(value + secret)
+    .digest("hex")
+    .slice(0, 32);
 }
 
 const TOTP_ALGO = "aes-256-gcm" as const;
@@ -106,7 +133,10 @@ export function encryptTotpSecret(plainSecret: string): string {
 export function decryptTotpSecret(encryptedSecret: string): string {
   const parts = encryptedSecret.split(":");
   if (parts.length !== 3) {
-    logger.error({ timestamp: new Date().toISOString() }, "TOTP secret format invalid — expected encrypted 3-part value");
+    logger.error(
+      { timestamp: new Date().toISOString() },
+      "TOTP secret format invalid — expected encrypted 3-part value"
+    );
     throw new Error("TOTP secret format invalid — expected encrypted 3-part value");
   }
   try {
@@ -118,8 +148,16 @@ export function decryptTotpSecret(encryptedSecret: string): string {
     decipher.setAuthTag(tag);
     return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[totp] decryptTotpSecret failed — TOTP misconfiguration or wrong encryption key');
-    throw new Error("TOTP_DECRYPT_FAILED: Unable to decrypt TOTP secret. Check TOTP_ENCRYPTION_KEY configuration.");
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[totp] decryptTotpSecret failed — TOTP misconfiguration or wrong encryption key"
+    );
+    throw new Error(
+      "TOTP_DECRYPT_FAILED: Unable to decrypt TOTP secret. Check TOTP_ENCRYPTION_KEY configuration."
+    );
   }
 }
 
@@ -171,7 +209,13 @@ export function verifyTotpCode(secret: string, code: string): boolean {
     }
     return false;
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return false;
   }
 }

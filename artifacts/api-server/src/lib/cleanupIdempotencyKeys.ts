@@ -18,10 +18,7 @@ export async function purgeExpiredIdempotencyKeys(): Promise<void> {
     .returning({ id: idempotencyKeysTable.id });
 
   if (deleted.length > 0) {
-    logger.info(
-      { count: deleted.length },
-      `[idempotency] purged ${deleted.length} expired key(s)`,
-    );
+    logger.info({ count: deleted.length }, `[idempotency] purged ${deleted.length} expired key(s)`);
   }
 }
 
@@ -34,10 +31,7 @@ export function startIdempotencyKeyCleanup(): ReturnType<typeof setInterval> {
     try {
       await purgeExpiredIdempotencyKeys();
     } catch (e) {
-      logger.warn(
-        { err: (e as Error).message },
-        "[idempotency] cleanup of expired keys failed",
-      );
+      logger.warn({ err: (e as Error).message }, "[idempotency] cleanup of expired keys failed");
     }
   }, CLEANUP_INTERVAL_MS);
 }

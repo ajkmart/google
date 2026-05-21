@@ -13,9 +13,13 @@
  *   pnpm test
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { validateGpsPing, type GpsPing } from "../lib/gps/validation";
-import { checkSufficientBalance, checkPromoStackable, type PromoCode } from "../lib/wallet/validation";
+import {
+  checkPromoStackable,
+  checkSufficientBalance,
+  type PromoCode,
+} from "../lib/wallet/validation";
 
 // ─── 1. IDOR — rider cannot access another rider's ride ────────────────────────
 //
@@ -24,7 +28,7 @@ import { checkSufficientBalance, checkPromoStackable, type PromoCode } from "../
 
 function idorGuard(
   resourceOwnerId: string | null | undefined,
-  requestingUserId: string,
+  requestingUserId: string
 ): { denied: boolean; status: number } {
   if (!resourceOwnerId || resourceOwnerId !== requestingUserId) {
     return { denied: true, status: 403 };
@@ -35,7 +39,7 @@ function idorGuard(
 describe("IDOR — ride ownership enforcement", () => {
   it("blocks a rider from accessing another rider's ride", () => {
     const rideOwnerId = "rider-AAA";
-    const attackerId  = "rider-BBB";
+    const attackerId = "rider-BBB";
     const result = idorGuard(rideOwnerId, attackerId);
     expect(result.denied).toBe(true);
     expect(result.status).toBe(403);
@@ -73,16 +77,16 @@ describe("GPS spoofing — impossible speed rejected", () => {
   });
 
   it("rejects a ping that implies speed above 200 km/h (GPS spoof)", () => {
-    const prev = validPing(0, 33.6844, 73.0479);        // Islamabad
-    const next = validPing(1_000, 24.8607, 67.0011);    // Karachi — ~1,300 km in 1 second
+    const prev = validPing(0, 33.6844, 73.0479); // Islamabad
+    const next = validPing(1_000, 24.8607, 67.0011); // Karachi — ~1,300 km in 1 second
     const result = validateGpsPing(prev, next);
     expect(result.valid).toBe(false);
     expect(result.reason).toMatch(/impossible speed/i);
   });
 
   it("accepts a reasonable speed ping (motorcycle courier ~60 km/h)", () => {
-    const prev = validPing(0,      33.6844, 73.0479);
-    const next = validPing(60_000, 33.6934, 73.0479);   // ~1 km north in 60 s ≈ 60 km/h
+    const prev = validPing(0, 33.6844, 73.0479);
+    const next = validPing(60_000, 33.6934, 73.0479); // ~1 km north in 60 s ≈ 60 km/h
     const result = validateGpsPing(prev, next);
     expect(result.valid).toBe(true);
   });
@@ -104,7 +108,7 @@ describe("GPS spoofing — impossible speed rejected", () => {
       timestamp: new Date().toISOString(),
       latitude: 33.6844,
       longitude: 73.0479,
-      accuracy: 0.5,   // sub-metre accuracy on a phone is a red flag
+      accuracy: 0.5, // sub-metre accuracy on a phone is a red flag
     };
     const result = validateGpsPing(null, suspiciousPing);
     expect(result.valid).toBe(false);

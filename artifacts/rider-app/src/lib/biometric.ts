@@ -14,7 +14,7 @@ import { createLogger } from "@/lib/logger";
 const log = createLogger("[biometric]");
 
 const BIOMETRIC_ENABLED_KEY = "ajkmart_rider_biometric_enabled";
-const BIOMETRIC_TOKEN_KEY   = "ajkmart_rider_biometric_token";
+const BIOMETRIC_TOKEN_KEY = "ajkmart_rider_biometric_token";
 
 /* ── Preferences helpers (independent of api.ts to avoid circular deps) ── */
 
@@ -24,7 +24,11 @@ async function prefSet(key: string, value: string): Promise<void> {
     await Preferences.set({ key, value });
   } catch (err) {
     log.warn("biometric prefSet failed:", err);
-    try { localStorage.setItem(key, value); } catch (err) { console.warn('[artifacts/rider-app/src/lib/biometric.ts]', err); } // eslint-disable-line no-console
+    try {
+      localStorage.setItem(key, value);
+    } catch (err) {
+      console.warn("[artifacts/rider-app/src/lib/biometric.ts]", err);
+    } // eslint-disable-line no-console
   }
 }
 
@@ -35,7 +39,12 @@ async function prefGet(key: string): Promise<string> {
     return value ?? "";
   } catch (err) {
     log.warn("biometric prefGet failed:", err);
-    try { return localStorage.getItem(key) ?? ""; } catch (err) { console.warn('[artifacts/rider-app/src/lib/biometric.ts]', err); return ""; } // eslint-disable-line no-console
+    try {
+      return localStorage.getItem(key) ?? "";
+    } catch (err) {
+      console.warn("[artifacts/rider-app/src/lib/biometric.ts]", err);
+      return "";
+    } // eslint-disable-line no-console
   }
 }
 
@@ -45,7 +54,11 @@ async function prefRemove(key: string): Promise<void> {
     await Preferences.remove({ key });
   } catch (err) {
     log.warn("biometric prefRemove failed:", err);
-    try { localStorage.removeItem(key); } catch (err) { console.warn('[artifacts/rider-app/src/lib/biometric.ts]', err); } // eslint-disable-line no-console
+    try {
+      localStorage.removeItem(key);
+    } catch (err) {
+      console.warn("[artifacts/rider-app/src/lib/biometric.ts]", err);
+    } // eslint-disable-line no-console
   }
 }
 
@@ -55,11 +68,10 @@ function isNative(): boolean {
   try {
     // Capacitor injects window.Capacitor on native platforms at runtime.
     // Using the global avoids require() which is not available in browser ESM.
-    const cap = (
+    const cap =
       typeof window !== "undefined"
         ? (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
-        : undefined
-    );
+        : undefined;
     return cap?.isNativePlatform?.() ?? false;
   } catch {
     return false;
@@ -78,7 +90,10 @@ export async function isBiometricAvailable(): Promise<boolean> {
     const { BiometricAuth } = await import("@aparajita/capacitor-biometric-auth");
     const info = await BiometricAuth.checkBiometry();
     return info.isAvailable;
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/biometric.ts]', err); return false; } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/biometric.ts]", err);
+    return false;
+  } // eslint-disable-line no-console
 }
 
 /**
@@ -125,7 +140,10 @@ export async function verifyBiometric(reason = "Sign in to AJKMart Rider"): Prom
     const { BiometricAuth } = await import("@aparajita/capacitor-biometric-auth");
     await BiometricAuth.authenticate({ reason, cancelTitle: "Cancel" });
     return true;
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/biometric.ts]', err); return false; } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/biometric.ts]", err);
+    return false;
+  } // eslint-disable-line no-console
 }
 
 /**

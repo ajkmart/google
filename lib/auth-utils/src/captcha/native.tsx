@@ -1,12 +1,5 @@
-import React, { useCallback, useRef, useState } from "react";
-import {
-  Modal,
-  View,
-  Text,
-  Pressable,
-  ActivityIndicator,
-  StyleSheet,
-} from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 
 interface CaptchaModalProps {

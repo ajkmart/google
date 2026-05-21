@@ -15,7 +15,7 @@ import { sendError } from "../lib/response.js";
 export function handleOsrmRateLimit(
   upstreamStatus: number,
   getRetryAfterHeader: () => string | null,
-  res: Response,
+  res: Response
 ): boolean {
   if (upstreamStatus !== 429) return false;
 

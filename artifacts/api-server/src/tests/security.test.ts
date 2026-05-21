@@ -11,11 +11,10 @@
  *   pnpm test
  */
 
-import { describe, it, expect, beforeAll, vi, afterEach } from "vitest";
+import type { Express, Response } from "express";
 import supertest from "supertest";
-import type { Express } from "express";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { handleOsrmRateLimit } from "../utils/osrmRateLimit.js";
-import type { Response } from "express";
 
 const FALLBACK_JWT_SECRET = "security_test_secret_placeholder_32chars__";
 const FALLBACK_ADMIN_SECRET = "security_admin_test_placeholder_32chars_";
@@ -27,7 +26,7 @@ beforeAll(async () => {
   process.env["ADMIN_JWT_SECRET"] ??= FALLBACK_ADMIN_SECRET;
 
   const { createServer } = await import("../app.js");
-  app = await createServer() as any;
+  app = (await createServer()) as any;
 }, 30000);
 
 afterEach(() => {
@@ -47,9 +46,7 @@ describe("CORS security – production mode", () => {
     process.env["REPLIT_DEV_DOMAIN"] = "myrepl.repl.co";
 
     try {
-      const res = await supertest(app)
-        .get("/health")
-        .set("Origin", "https://evil-attacker.com");
+      const res = await supertest(app).get("/health").set("Origin", "https://evil-attacker.com");
 
       // CORS middleware calls callback(new Error("Not allowed by CORS"))
       // which Express converts to a 500 (or the preflight yields a non-2xx).
@@ -102,9 +99,17 @@ describe("OSRM rate-limit passthrough", () => {
     let jsonBody: unknown = null;
 
     const mockRes = {
-      setHeader: (k: string, v: string) => { setHeaderCalls.push([k, v]); },
-      status: (s: number) => { statusSet = s; return mockRes; },
-      json: (body: unknown) => { jsonBody = body; return mockRes; },
+      setHeader: (k: string, v: string) => {
+        setHeaderCalls.push([k, v]);
+      },
+      status: (s: number) => {
+        statusSet = s;
+        return mockRes;
+      },
+      json: (body: unknown) => {
+        jsonBody = body;
+        return mockRes;
+      },
     } as unknown as Response;
 
     const handled = handleOsrmRateLimit(429, () => "30", mockRes);
@@ -118,7 +123,9 @@ describe("OSRM rate-limit passthrough", () => {
   it("defaults Retry-After to 60 when the upstream omits the header", () => {
     const setHeaderCalls: [string, string][] = [];
     const mockRes = {
-      setHeader: (k: string, v: string) => { setHeaderCalls.push([k, v]); },
+      setHeader: (k: string, v: string) => {
+        setHeaderCalls.push([k, v]);
+      },
       status: () => mockRes,
       json: () => mockRes,
     } as unknown as Response;

@@ -9,12 +9,12 @@
  */
 
 import { Router } from "express";
-import { logger } from "../lib/logger.js";
-import swaggerUi from "swagger-ui-express";
 import { readFileSync } from "fs";
-import { resolve, dirname } from "path";
+import { dirname, resolve } from "path";
+import swaggerUi from "swagger-ui-express";
 import { fileURLToPath } from "url";
 import { parse as yamlParse } from "yaml";
+import { logger } from "../lib/logger.js";
 import { adminAuth } from "./admin-shared.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -34,7 +34,10 @@ function loadSpec(): Record<string, unknown> {
       logger.info(`[docs] Loaded OpenAPI spec from ${candidate}`);
       return parsed;
     } catch (err) {
-      logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[docs] OpenAPI candidate not found — trying next");
+      logger.debug(
+        { error: err instanceof Error ? err.message : String(err) },
+        "[docs] OpenAPI candidate not found — trying next"
+      );
       // try next candidate
     }
   }

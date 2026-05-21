@@ -1,16 +1,16 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { http, HttpResponse } from "msw";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setupAdminFetcherHandlers } from "@/lib/adminFetcher";
 import Transactions from "@/pages/transactions";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { server } from "./utils/server";
 
 function wireFetcher(token = "csv-test-token") {
   setupAdminFetcherHandlers(
     () => token,
-    async () => token,
+    async () => token
   );
 }
 
@@ -25,12 +25,8 @@ function setCsrfCookie(value: string) {
  */
 function installLanguageHandlers() {
   server.use(
-    http.get("/api/admin/me/language", () =>
-      HttpResponse.json({ data: { language: "en" } }),
-    ),
-    http.get("/api/admin/platform-settings", () =>
-      HttpResponse.json({ data: { settings: [] } }),
-    ),
+    http.get("/api/admin/me/language", () => HttpResponse.json({ data: { language: "en" } })),
+    http.get("/api/admin/platform-settings", () => HttpResponse.json({ data: { settings: [] } }))
   );
 }
 
@@ -47,7 +43,7 @@ function renderTransactions() {
   return render(
     <QueryClientProvider client={queryClient}>
       <Transactions />
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
 }
 
@@ -70,9 +66,7 @@ describe("Transactions CSV export integration", () => {
     URL.revokeObjectURL = revokeObjectURLSpy as unknown as typeof URL.revokeObjectURL;
 
     // Prevent jsdom from navigating when the hidden anchor is clicked.
-    anchorClickSpy = vi
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(() => {});
+    anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -110,16 +104,14 @@ describe("Transactions CSV export integration", () => {
       http.get("/api/admin/transactions-enriched", () =>
         HttpResponse.json({
           data: { transactions, totalCredit: 1500, totalDebit: 250 },
-        }),
-      ),
+        })
+      )
     );
 
     renderTransactions();
 
     // Wait for the rows to land in the table.
-    await waitFor(() =>
-      expect(screen.getByText("Alice Khan")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("Alice Khan")).toBeInTheDocument());
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: /^CSV$/i }));
@@ -129,9 +121,7 @@ describe("Transactions CSV export integration", () => {
     expect(blobArg).toBeInstanceOf(Blob);
     expect(blobArg.type).toBe("text/csv");
     const csvText = await blobArg.text();
-    expect(csvText.split("\n")[0]).toBe(
-      "ID,User,Phone,Type,Amount,Description,Date",
-    );
+    expect(csvText.split("\n")[0]).toBe("ID,User,Phone,Type,Amount,Description,Date");
     expect(csvText).toContain("Alice Khan");
     expect(csvText).toContain("Bilal Ahmed");
     // Commas in descriptions are sanitized to ';' so columns stay aligned.
@@ -175,14 +165,12 @@ describe("Transactions CSV export integration", () => {
       http.get("/api/admin/transactions-enriched", () =>
         HttpResponse.json({
           data: { transactions, totalCredit: 100, totalDebit: 50 },
-        }),
-      ),
+        })
+      )
     );
 
     renderTransactions();
-    await waitFor(() =>
-      expect(screen.getByText("Credit Carol")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("Credit Carol")).toBeInTheDocument());
 
     const user = userEvent.setup();
     // Restrict to credits only.

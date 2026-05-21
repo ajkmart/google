@@ -1,95 +1,49 @@
-import { Router, Request, Response } from "express";
 import { db } from "@workspace/db";
 import {
-  usersTable,
-  walletTransactionsTable,
+  liveLocationsTable,
+  locationHistoryTable,
+  locationLogsTable,
   notificationsTable,
   ordersTable,
-  ridesTable,
-  rideBidsTable,
-  rideServiceTypesTable,
+  parcelBookingsTable,
+  pharmacyOrdersTable,
   popularLocationsTable,
-  schoolRoutesTable,
-  schoolSubscriptionsTable,
-  liveLocationsTable,
+  rideBidsTable,
   rideEventLogsTable,
   rideNotifiedRidersTable,
-  locationLogsTable,
-  locationHistoryTable,
-  vendorProfilesTable,
+  rideServiceTypesTable,
   riderProfilesTable,
-  pharmacyOrdersTable,
-  parcelBookingsTable,
+  ridesTable,
+  schoolRoutesTable,
+  schoolSubscriptionsTable,
+  usersTable,
   vanBookingsTable,
+  vendorProfilesTable,
 } from "@workspace/db/schema";
+import { RIDE_VALID_STATUSES } from "@workspace/service-constants";
+import { and, asc, count, desc, eq, gte, ilike, isNull, lte, or, sql, sum } from "drizzle-orm";
+import { Request, Response, Router } from "express";
 import {
-  eq,
-  desc,
-  count,
-  sum,
-  and,
-  gte,
-  lte,
-  sql,
-  or,
-  ilike,
-  asc,
-  isNull,
-  isNotNull,
-  avg,
-  ne,
-} from "drizzle-orm";
-import {
-  stripUser,
-  generateId,
-  getUserLanguage,
-  t,
-  adminAuth,
-  getAdminSecret,
-  sendUserNotification,
-  logger,
-  ORDER_NOTIF_KEYS,
-  RIDE_NOTIF_KEYS,
-  PHARMACY_NOTIF_KEYS,
-  PARCEL_NOTIF_KEYS,
-  checkAdminLoginLockout,
-  recordAdminLoginFailure,
-  resetAdminLoginAttempts,
-  addAuditEntry,
-  addSecurityEvent,
-  getClientIp,
-  signAdminJwt,
-  verifyAdminJwt,
-  invalidateSettingsCache,
-  getCachedSettings,
-  ADMIN_TOKEN_TTL_HRS,
-  verifyTotpToken,
-  verifyAdminSecret,
-  formatSvc,
-  type AdminRequest,
-} from "../../admin-shared.js";
-import {
-  ensureDefaultRideServices,
-  ensureDefaultLocations,
-} from "../../../lib/seedDefaults.js";
-import { AuditService } from "../../../services/admin-audit.service.js";
-import { FleetService } from "../../../services/admin-fleet.service.js";
-import { emitRideDispatchUpdate, getIO } from "../../../lib/socketio.js";
-import { emitRideUpdate } from "../../../lib/rideEvents.js";
-import {
-  RIDE_VALID_STATUSES,
-  getSocketRoom,
-} from "@workspace/service-constants";
-import {
-  sendSuccess,
   sendCreated,
   sendError,
   sendNotFound,
+  sendSuccess,
   sendValidationError,
 } from "../../../lib/response.js";
+import { ensureDefaultLocations, ensureDefaultRideServices } from "../../../lib/seedDefaults.js";
+import { AuditService } from "../../../services/admin-audit.service.js";
+import { FleetService } from "../../../services/admin-fleet.service.js";
+import {
+  addAuditEntry,
+  formatSvc,
+  generateId,
+  getCachedSettings,
+  getClientIp,
+  logger,
+  type AdminRequest,
+} from "../../admin-shared.js";
 
-type AdminReq = AdminRequest &
-  Request & { adminId?: string; adminName?: string };
+type AdminReq = AdminRequest & Request & { adminId?: string; adminName?: string };
 
 const router = Router();
 router.get("/rides", async (req: Request, res: Response) => {
@@ -123,21 +77,12 @@ router.get("/rides-enriched", async (req: Request, res: Response) => {
   try {
     const result = await FleetService.getRidesEnriched({
       page: Math.max(1, parseInt((req.query["page"] as string) || "1", 10)),
-      limit: Math.min(
-        500,
-        Math.max(1, parseInt((req.query["limit"] as string) || "50", 10)),
-      ),
+      limit: Math.min(500, Math.max(1, parseInt((req.query["limit"] as string) || "50", 10))),
       status: req.query["status"] as string | undefined,
       type: req.query["type"] as string | undefined,
-      search:
-        ((req.query["search"] as string) || "").trim().toLowerCase() ||
-        undefined,
-      customer:
-        ((req.query["customer"] as string) || "").trim().toLowerCase() ||
-        undefined,
-      rider:
-        ((req.query["rider"] as string) || "").trim().toLowerCase() ||
-        undefined,
+      search: ((req.query["search"] as string) || "").trim().toLowerCase() || undefined,
+      customer: ((req.query["customer"] as string) || "").trim().toLowerCase() || undefined,
+      rider: ((req.query["rider"] as string) || "").trim().toLowerCase() || undefined,
       dateFrom: req.query["dateFrom"] as string | undefined,
       dateTo: req.query["dateTo"] as string | undefined,
       sortBy: (req.query["sortBy"] as string) === "fare" ? "fare" : "date",
@@ -156,7 +101,7 @@ router.patch("/rides/:id/status", async (req: Request, res: Response) => {
   if (!status || !(RIDE_VALID_STATUSES as readonly string[]).includes(status)) {
     sendValidationError(
       res,
-      `Invalid ride status "${status}". Valid statuses: ${RIDE_VALID_STATUSES.join(", ")}`,
+      `Invalid ride status "${status}". Valid statuses: ${RIDE_VALID_STATUSES.join(", ")}`
     );
     return;
   }
@@ -179,7 +124,7 @@ router.patch("/rides/:id/status", async (req: Request, res: Response) => {
           riderName,
           riderPhone,
           adminId: adminReq.adminId,
-        }),
+        })
     );
 
     // Audit: record terminal ride status transitions for compliance
@@ -317,10 +262,8 @@ router.patch("/ride-services/:id", async (req: Request, res: Response) => {
     if (baseFare !== undefined) patch["baseFare"] = String(baseFare);
     if (perKm !== undefined) patch["perKm"] = String(perKm);
     if (minFare !== undefined) patch["minFare"] = String(minFare);
-    if (maxPassengers !== undefined)
-      patch["maxPassengers"] = Number(maxPassengers);
-    if (allowBargaining !== undefined)
-      patch["allowBargaining"] = Boolean(allowBargaining);
+    if (maxPassengers !== undefined) patch["maxPassengers"] = Number(maxPassengers);
+    if (allowBargaining !== undefined) patch["allowBargaining"] = Boolean(allowBargaining);
     if (sortOrder !== undefined) patch["sortOrder"] = Number(sortOrder);
     const [updated] = await db
       .update(rideServiceTypesTable)
@@ -347,15 +290,10 @@ router.delete("/ride-services/:id", async (req: Request, res: Response) => {
       return;
     }
     if (!existing.isCustom) {
-      sendValidationError(
-        res,
-        "Built-in services cannot be deleted. Disable them instead.",
-      );
+      sendValidationError(res, "Built-in services cannot be deleted. Disable them instead.");
       return;
     }
-    await db
-      .delete(rideServiceTypesTable)
-      .where(eq(rideServiceTypesTable.id, svcId));
+    await db.delete(rideServiceTypesTable).where(eq(rideServiceTypesTable.id, svcId));
     sendSuccess(res);
   } catch (error: unknown) {
     sendError(res, (error as Error).message || "Failed to delete ride service", 500);
@@ -378,10 +316,7 @@ router.get("/locations", async (_req: Request, res: Response) => {
     const locs = await db
       .select()
       .from(popularLocationsTable)
-      .orderBy(
-        asc(popularLocationsTable.sortOrder),
-        asc(popularLocationsTable.name),
-      );
+      .orderBy(asc(popularLocationsTable.sortOrder), asc(popularLocationsTable.name));
     sendSuccess(res, {
       locations: locs.map((l) => ({
         ...l,
@@ -436,8 +371,7 @@ router.post("/locations", async (req: Request, res: Response) => {
 
 router.patch("/locations/:id", async (req: Request, res: Response) => {
   try {
-    const { name, nameUrdu, lat, lng, category, icon, isActive, sortOrder } =
-      req.body;
+    const { name, nameUrdu, lat, lng, category, icon, isActive, sortOrder } = req.body;
     const patch: Record<string, unknown> = { updatedAt: new Date() };
     if (name !== undefined) patch.name = name;
     if (nameUrdu !== undefined) patch.nameUrdu = nameUrdu || null;
@@ -503,10 +437,8 @@ function fmtRoute(r: Record<string, unknown>) {
     fromLng: r.fromLng ? parseFloat(String(r.fromLng)) : null,
     toLat: r.toLat ? parseFloat(String(r.toLat)) : null,
     toLng: r.toLng ? parseFloat(String(r.toLng)) : null,
-    createdAt:
-      r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
-    updatedAt:
-      r.updatedAt instanceof Date ? r.updatedAt.toISOString() : r.updatedAt,
+    createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
+    updatedAt: r.updatedAt instanceof Date ? r.updatedAt.toISOString() : r.updatedAt,
   };
 }
 
@@ -515,10 +447,7 @@ router.get("/school-routes", async (_req: Request, res: Response) => {
     const routes = await db
       .select()
       .from(schoolRoutesTable)
-      .orderBy(
-        asc(schoolRoutesTable.sortOrder),
-        asc(schoolRoutesTable.schoolName),
-      );
+      .orderBy(asc(schoolRoutesTable.sortOrder), asc(schoolRoutesTable.schoolName));
     sendSuccess(res, { routes: routes.map(fmtRoute) });
   } catch (error: unknown) {
     sendError(res, (error as Error).message || "Failed to fetch school routes", 500);
@@ -547,10 +476,7 @@ router.post("/school-routes", async (req: Request, res: Response) => {
     sortOrder = 0,
   } = req.body;
   if (!routeName || !schoolName || !fromArea || !toAddress || !monthlyPrice) {
-    sendValidationError(
-      res,
-      "routeName, schoolName, fromArea, toAddress, monthlyPrice required",
-    );
+    sendValidationError(res, "routeName, schoolName, fromArea, toAddress, monthlyPrice required");
     return;
   }
   try {
@@ -611,8 +537,7 @@ router.patch("/school-routes/:id", async (req: Request, res: Response) => {
     const patch: Record<string, unknown> = { updatedAt: new Date() };
     if (routeName !== undefined) patch.routeName = routeName;
     if (schoolName !== undefined) patch.schoolName = schoolName;
-    if (schoolNameUrdu !== undefined)
-      patch.schoolNameUrdu = schoolNameUrdu || null;
+    if (schoolNameUrdu !== undefined) patch.schoolNameUrdu = schoolNameUrdu || null;
     if (fromArea !== undefined) patch.fromArea = fromArea;
     if (fromAreaUrdu !== undefined) patch.fromAreaUrdu = fromAreaUrdu || null;
     if (toAddress !== undefined) patch.toAddress = toAddress;
@@ -620,11 +545,9 @@ router.patch("/school-routes/:id", async (req: Request, res: Response) => {
     if (fromLng !== undefined) patch.fromLng = fromLng ? String(fromLng) : null;
     if (toLat !== undefined) patch.toLat = toLat ? String(toLat) : null;
     if (toLng !== undefined) patch.toLng = toLng ? String(toLng) : null;
-    if (monthlyPrice !== undefined)
-      patch.monthlyPrice = String(parseFloat(monthlyPrice));
+    if (monthlyPrice !== undefined) patch.monthlyPrice = String(parseFloat(monthlyPrice));
     if (morningTime !== undefined) patch.morningTime = morningTime;
-    if (afternoonTime !== undefined)
-      patch.afternoonTime = afternoonTime || null;
+    if (afternoonTime !== undefined) patch.afternoonTime = afternoonTime || null;
     if (capacity !== undefined) patch.capacity = Number(capacity);
     if (vehicleType !== undefined) patch.vehicleType = vehicleType;
     if (notes !== undefined) patch.notes = notes || null;
@@ -655,16 +578,12 @@ router.delete("/school-routes/:id", async (req: Request, res: Response) => {
       .where(
         and(
           eq(schoolSubscriptionsTable.routeId, routeId),
-          eq(schoolSubscriptionsTable.status, "active"),
-        ),
+          eq(schoolSubscriptionsTable.status, "active")
+        )
       )
       .limit(1);
     if (activeSub) {
-      sendError(
-        res,
-        "Cannot delete route with active subscriptions. Disable it instead.",
-        409,
-      );
+      sendError(res, "Cannot delete route with active subscriptions. Disable it instead.", 409);
       return;
     }
     const [existing] = await db
@@ -716,28 +635,18 @@ router.get("/school-subscriptions", async (req: Request, res: Response) => {
           userPhone: user?.phone || null,
           routeName: route?.routeName || null,
           schoolName: route?.schoolName || null,
-          startDate:
-            sub.startDate instanceof Date
-              ? sub.startDate.toISOString()
-              : sub.startDate,
+          startDate: sub.startDate instanceof Date ? sub.startDate.toISOString() : sub.startDate,
           nextBillingDate:
             sub.nextBillingDate instanceof Date
               ? sub.nextBillingDate.toISOString()
               : sub.nextBillingDate,
-          createdAt:
-            sub.createdAt instanceof Date
-              ? sub.createdAt.toISOString()
-              : sub.createdAt,
+          createdAt: sub.createdAt instanceof Date ? sub.createdAt.toISOString() : sub.createdAt,
         };
-      }),
+      })
     );
     sendSuccess(res, { subscriptions: enriched, total: enriched.length });
   } catch (error: unknown) {
-    sendError(
-      res,
-      (error as Error).message || "Failed to fetch school subscriptions",
-      500,
-    );
+    sendError(res, (error as Error).message || "Failed to fetch school subscriptions", 500);
   }
 });
 
@@ -750,10 +659,7 @@ router.get("/school-subscriptions", async (req: Request, res: Response) => {
 router.get("/live-riders", async (_req: Request, res: Response) => {
   try {
     const settings = await getCachedSettings();
-    const staleTimeoutSec = parseInt(
-      settings["gps_stale_timeout_sec"] ?? "300",
-      10,
-    );
+    const staleTimeoutSec = parseInt(settings["gps_stale_timeout_sec"] ?? "300", 10);
     const STALE_MS = staleTimeoutSec * 1000;
     const cutoff = new Date(Date.now() - STALE_MS);
 
@@ -778,20 +684,13 @@ router.get("/live-riders", async (_req: Request, res: Response) => {
       })
       .from(liveLocationsTable)
       .leftJoin(usersTable, eq(liveLocationsTable.userId, usersTable.id))
-      .leftJoin(
-        riderProfilesTable,
-        eq(liveLocationsTable.userId, riderProfilesTable.userId),
-      )
+      .leftJoin(riderProfilesTable, eq(liveLocationsTable.userId, riderProfilesTable.userId))
       .where(
-        or(
-          eq(liveLocationsTable.role, "rider"),
-          eq(liveLocationsTable.role, "service_provider"),
-        ),
+        or(eq(liveLocationsTable.role, "rider"), eq(liveLocationsTable.role, "service_provider"))
       );
 
     const enriched = locs.map((loc) => {
-      const updatedAt =
-        loc.updatedAt instanceof Date ? loc.updatedAt : new Date(loc.updatedAt);
+      const updatedAt = loc.updatedAt instanceof Date ? loc.updatedAt : new Date(loc.updatedAt);
       const ageSeconds = Math.floor((Date.now() - updatedAt.getTime()) / 1000);
       const isFresh = updatedAt >= cutoff;
       return {
@@ -804,17 +703,13 @@ router.get("/live-riders", async (_req: Request, res: Response) => {
         role: loc.roles ?? "rider",
         batteryLevel: loc.batteryLevel ?? null,
         lastSeen:
-          loc.lastSeen instanceof Date
-            ? loc.lastSeen.toISOString()
-            : (loc.lastSeen ?? null),
+          loc.lastSeen instanceof Date ? loc.lastSeen.toISOString() : (loc.lastSeen ?? null),
         onlineSince:
           loc.onlineSince instanceof Date
             ? loc.onlineSince.toISOString()
             : (loc.onlineSince ?? null),
         lastActive:
-          loc.lastActive instanceof Date
-            ? loc.lastActive.toISOString()
-            : (loc.lastActive ?? null),
+          loc.lastActive instanceof Date ? loc.lastActive.toISOString() : (loc.lastActive ?? null),
         lat: parseFloat(String(loc.latitude)),
         lng: parseFloat(String(loc.longitude)),
         action: loc.action ?? null,
@@ -871,9 +766,7 @@ router.get("/customer-locations", async (_req: Request, res: Response) => {
 
     const enriched = locs.map((loc) => {
       const updatedAt =
-        loc.updatedAt instanceof Date
-          ? loc.updatedAt
-          : new Date(loc.updatedAt as string);
+        loc.updatedAt instanceof Date ? loc.updatedAt : new Date(loc.updatedAt as string);
       const ageSeconds = Math.floor((Date.now() - updatedAt.getTime()) / 1000);
       const isFresh = updatedAt >= cutoff;
       return {
@@ -926,11 +819,7 @@ router.patch("/riders/:id/online", async (req: Request, res: Response) => {
     });
     sendSuccess(res, { isOnline });
   } catch (error: unknown) {
-    sendError(
-      res,
-      (error as Error).message || "Failed to update rider online status",
-      500,
-    );
+    sendError(res, (error as Error).message || "Failed to update rider online status", 500);
   }
 });
 
@@ -956,8 +845,8 @@ router.get("/revenue-trend", async (_req: Request, res: Response) => {
               eq(ordersTable.status, "delivered"),
               isNull(ordersTable.deletedAt),
               gte(ordersTable.createdAt, from),
-              lte(ordersTable.createdAt, to),
-            ),
+              lte(ordersTable.createdAt, to)
+            )
           ),
         db
           .select({ total: sum(ridesTable.fare) })
@@ -966,8 +855,8 @@ router.get("/revenue-trend", async (_req: Request, res: Response) => {
             and(
               eq(ridesTable.status, "completed"),
               gte(ridesTable.createdAt, from),
-              lte(ridesTable.createdAt, to),
-            ),
+              lte(ridesTable.createdAt, to)
+            )
           ),
         db
           .select({ cnt: count() })
@@ -977,8 +866,8 @@ router.get("/revenue-trend", async (_req: Request, res: Response) => {
               eq(ordersTable.status, "delivered"),
               isNull(ordersTable.deletedAt),
               gte(ordersTable.createdAt, from),
-              lte(ordersTable.createdAt, to),
-            ),
+              lte(ordersTable.createdAt, to)
+            )
           ),
         db
           .select({ cnt: count() })
@@ -987,8 +876,8 @@ router.get("/revenue-trend", async (_req: Request, res: Response) => {
             and(
               eq(ridesTable.status, "completed"),
               gte(ridesTable.createdAt, from),
-              lte(ridesTable.createdAt, to),
-            ),
+              lte(ridesTable.createdAt, to)
+            )
           ),
         /* SOS alerts created on this day (regardless of resolution status) */
         db
@@ -998,8 +887,8 @@ router.get("/revenue-trend", async (_req: Request, res: Response) => {
             and(
               eq(notificationsTable.type, "sos"),
               gte(notificationsTable.createdAt, from),
-              lte(notificationsTable.createdAt, to),
-            ),
+              lte(notificationsTable.createdAt, to)
+            )
           ),
         /* Per-service revenue breakdowns */
         db
@@ -1009,8 +898,8 @@ router.get("/revenue-trend", async (_req: Request, res: Response) => {
             and(
               eq(pharmacyOrdersTable.status, "delivered"),
               gte(pharmacyOrdersTable.createdAt, from),
-              lte(pharmacyOrdersTable.createdAt, to),
-            ),
+              lte(pharmacyOrdersTable.createdAt, to)
+            )
           ),
         db
           .select({ total: sum(parcelBookingsTable.fare) })
@@ -1019,8 +908,8 @@ router.get("/revenue-trend", async (_req: Request, res: Response) => {
             and(
               eq(parcelBookingsTable.status, "delivered"),
               gte(parcelBookingsTable.createdAt, from),
-              lte(parcelBookingsTable.createdAt, to),
-            ),
+              lte(parcelBookingsTable.createdAt, to)
+            )
           ),
         db
           .select({ total: sum(vanBookingsTable.fare) })
@@ -1029,8 +918,8 @@ router.get("/revenue-trend", async (_req: Request, res: Response) => {
             and(
               eq(vanBookingsTable.status, "completed"),
               gte(vanBookingsTable.createdAt, from),
-              lte(vanBookingsTable.createdAt, to),
-            ),
+              lte(vanBookingsTable.createdAt, to)
+            )
           ),
       ]).then(
         ([
@@ -1060,7 +949,7 @@ router.get("/revenue-trend", async (_req: Request, res: Response) => {
             rideCount: rideCnt?.cnt ?? 0,
             sosCount: sosCnt?.cnt ?? 0,
           };
-        },
+        }
       );
     });
     const days = await Promise.all(dayPromises);
@@ -1082,21 +971,16 @@ router.get("/leaderboard", async (_req: Request, res: Response) => {
         totalRevenue: sql<number>`coalesce(sum(${ordersTable.total}),0)`,
       })
       .from(usersTable)
-      .leftJoin(
-        vendorProfilesTable,
-        eq(usersTable.id, vendorProfilesTable.userId),
-      )
+      .leftJoin(vendorProfilesTable, eq(usersTable.id, vendorProfilesTable.userId))
       .leftJoin(
         ordersTable,
         and(
           eq(ordersTable.vendorId, usersTable.id),
           eq(ordersTable.status, "delivered"),
-          isNull(ordersTable.deletedAt),
-        ),
+          isNull(ordersTable.deletedAt)
+        )
       )
-      .where(
-        and(ilike(usersTable.roles, "%vendor%"), isNull(usersTable.deletedAt)),
-      )
+      .where(and(ilike(usersTable.roles, "%vendor%"), isNull(usersTable.deletedAt)))
       .groupBy(usersTable.id, vendorProfilesTable.storeName)
       .orderBy(sql`coalesce(sum(${ordersTable.total}),0) desc`)
       .limit(5);
@@ -1112,14 +996,9 @@ router.get("/leaderboard", async (_req: Request, res: Response) => {
       .from(usersTable)
       .leftJoin(
         ridesTable,
-        and(
-          eq(ridesTable.riderId, usersTable.id),
-          eq(ridesTable.status, "completed"),
-        ),
+        and(eq(ridesTable.riderId, usersTable.id), eq(ridesTable.status, "completed"))
       )
-      .where(
-        and(ilike(usersTable.roles, "%rider%"), isNull(usersTable.deletedAt)),
-      )
+      .where(and(ilike(usersTable.roles, "%rider%"), isNull(usersTable.deletedAt)))
       .groupBy(usersTable.id)
       .orderBy(sql`count(${ridesTable.id}) desc`)
       .limit(5);
@@ -1145,31 +1024,19 @@ router.get("/leaderboard", async (_req: Request, res: Response) => {
 async function dashboardExportHandler(_req: Request, res: Response) {
   try {
     const now = new Date();
-    const [[userCount], [orderCount], [rideCount], [revenue], [rideRev]] =
-      await Promise.all([
-        db
-          .select({ count: count() })
-          .from(usersTable)
-          .where(isNull(usersTable.deletedAt)),
-        db
-          .select({ count: count() })
-          .from(ordersTable)
-          .where(isNull(ordersTable.deletedAt)),
-        db.select({ count: count() }).from(ridesTable),
-        db
-          .select({ total: sum(ordersTable.total) })
-          .from(ordersTable)
-          .where(
-            and(
-              eq(ordersTable.status, "delivered"),
-              isNull(ordersTable.deletedAt),
-            ),
-          ),
-        db
-          .select({ total: sum(ridesTable.fare) })
-          .from(ridesTable)
-          .where(eq(ridesTable.status, "completed")),
-      ]);
+    const [[userCount], [orderCount], [rideCount], [revenue], [rideRev]] = await Promise.all([
+      db.select({ count: count() }).from(usersTable).where(isNull(usersTable.deletedAt)),
+      db.select({ count: count() }).from(ordersTable).where(isNull(ordersTable.deletedAt)),
+      db.select({ count: count() }).from(ridesTable),
+      db
+        .select({ total: sum(ordersTable.total) })
+        .from(ordersTable)
+        .where(and(eq(ordersTable.status, "delivered"), isNull(ordersTable.deletedAt))),
+      db
+        .select({ total: sum(ridesTable.fare) })
+        .from(ridesTable)
+        .where(eq(ridesTable.status, "completed")),
+    ]);
 
     const trendPromises = Array.from({ length: 7 }, (_, idx) => {
       const i = 6 - idx;
@@ -1189,8 +1056,8 @@ async function dashboardExportHandler(_req: Request, res: Response) {
               eq(ordersTable.status, "delivered"),
               isNull(ordersTable.deletedAt),
               gte(ordersTable.createdAt, from),
-              lte(ordersTable.createdAt, to),
-            ),
+              lte(ordersTable.createdAt, to)
+            )
           ),
         db
           .select({ total: sum(ridesTable.fare) })
@@ -1199,8 +1066,8 @@ async function dashboardExportHandler(_req: Request, res: Response) {
             and(
               eq(ridesTable.status, "completed"),
               gte(ridesTable.createdAt, from),
-              lte(ridesTable.createdAt, to),
-            ),
+              lte(ridesTable.createdAt, to)
+            )
           ),
         db
           .select({ cnt: count() })
@@ -1210,8 +1077,8 @@ async function dashboardExportHandler(_req: Request, res: Response) {
               eq(ordersTable.status, "delivered"),
               isNull(ordersTable.deletedAt),
               gte(ordersTable.createdAt, from),
-              lte(ordersTable.createdAt, to),
-            ),
+              lte(ordersTable.createdAt, to)
+            )
           ),
         db
           .select({ cnt: count() })
@@ -1220,8 +1087,8 @@ async function dashboardExportHandler(_req: Request, res: Response) {
             and(
               eq(ridesTable.status, "completed"),
               gte(ridesTable.createdAt, from),
-              lte(ridesTable.createdAt, to),
-            ),
+              lte(ridesTable.createdAt, to)
+            )
           ),
         db
           .select({ cnt: count() })
@@ -1230,8 +1097,8 @@ async function dashboardExportHandler(_req: Request, res: Response) {
             and(
               eq(notificationsTable.type, "sos"),
               gte(notificationsTable.createdAt, from),
-              lte(notificationsTable.createdAt, to),
-            ),
+              lte(notificationsTable.createdAt, to)
+            )
           ),
       ]).then(([[o], [r], [oCnt], [rCnt], [sosCnt]]) => ({
         date: dateStr,
@@ -1248,15 +1115,14 @@ async function dashboardExportHandler(_req: Request, res: Response) {
       users: userCount?.count ?? 0,
       orders: orderCount?.count ?? 0,
       rides: rideCount?.count ?? 0,
-      totalRevenue:
-        parseFloat(revenue?.total ?? "0") + parseFloat(rideRev?.total ?? "0"),
+      totalRevenue: parseFloat(revenue?.total ?? "0") + parseFloat(rideRev?.total ?? "0"),
       orderRevenue: parseFloat(revenue?.total ?? "0"),
       rideRevenue: parseFloat(rideRev?.total ?? "0"),
       trend,
     };
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="dashboard-${now.toISOString().slice(0, 10)}.tson"`,
+      `attachment; filename="dashboard-${now.toISOString().slice(0, 10)}.tson"`
     );
     sendSuccess(res, snapshot);
   } catch (error: unknown) {
@@ -1292,17 +1158,13 @@ router.post("/rides/:id/cancel", async (req: Request, res: Response) => {
           rideId,
           reason,
           adminId: adminReq.adminId,
-        }),
+        })
     );
     sendSuccess(res, result);
   } catch (error: unknown) {
     const errMsg = (error as Error).message || String(error);
     logger.error("Ride cancel error:", errMsg);
-    sendError(
-      res,
-      "Cancellation failed: " + errMsg,
-      errMsg.includes("not found") ? 404 : 400,
-    );
+    sendError(res, "Cancellation failed: " + errMsg, errMsg.includes("not found") ? 404 : 400);
   }
 });
 
@@ -1328,17 +1190,13 @@ router.post("/rides/:id/refund", async (req: Request, res: Response) => {
           amount,
           reason,
           adminId: adminReq.adminId,
-        }),
+        })
     );
     sendSuccess(res, result);
   } catch (error: unknown) {
     const errMsg = (error as Error).message || String(error);
     logger.error("Ride refund error:", errMsg);
-    sendError(
-      res,
-      "Refund failed: " + errMsg,
-      errMsg.includes("not found") ? 404 : 400,
-    );
+    sendError(res, "Refund failed: " + errMsg, errMsg.includes("not found") ? 404 : 400);
   }
 });
 
@@ -1374,7 +1232,7 @@ router.post("/rides/:id/reassign", async (req: Request, res: Response) => {
           riderName,
           riderPhone,
           adminId: adminReq.adminId,
-        }),
+        })
     );
     sendSuccess(res, result);
   } catch (error: unknown) {
@@ -1410,8 +1268,7 @@ router.get("/rides/:id/audit-trail", async (req: Request, res: Response) => {
       ip: null,
       adminId: e.adminId,
       result: "success",
-      timestamp:
-        e.createdAt instanceof Date ? e.createdAt.toISOString() : e.createdAt,
+      timestamp: e.createdAt instanceof Date ? e.createdAt.toISOString() : e.createdAt,
     }));
     sendSuccess(res, { trail, rideId });
   } catch (error: unknown) {
@@ -1422,11 +1279,7 @@ router.get("/rides/:id/audit-trail", async (req: Request, res: Response) => {
 router.get("/rides/:id/detail", async (req: Request, res: Response) => {
   try {
     const rideId = req.params["id"] as string;
-    const [ride] = await db
-      .select()
-      .from(ridesTable)
-      .where(eq(ridesTable.id, rideId))
-      .limit(1);
+    const [ride] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
     if (!ride) {
       sendNotFound(res, "Ride not found");
       return;
@@ -1480,13 +1333,9 @@ router.get("/rides/:id/detail", async (req: Request, res: Response) => {
     const gstEnabled = (s["finance_gst_enabled"] ?? "off") === "on";
     const gstPct = parseFloat(s["finance_gst_pct"] ?? "17");
     const surgeEnabled = (s["ride_surge_enabled"] ?? "off") === "on";
-    const surgeMultiplier = surgeEnabled
-      ? parseFloat(s["ride_surge_multiplier"] ?? "1.5")
-      : 1;
+    const surgeMultiplier = surgeEnabled ? parseFloat(s["ride_surge_multiplier"] ?? "1.5") : 1;
     const fare = parseFloat(ride.fare);
-    const gstAmount = gstEnabled
-      ? parseFloat(((fare * gstPct) / (100 + gstPct)).toFixed(2))
-      : 0;
+    const gstAmount = gstEnabled ? parseFloat(((fare * gstPct) / (100 + gstPct)).toFixed(2)) : 0;
     const baseFare = fare - gstAmount;
 
     sendSuccess(res, {
@@ -1499,9 +1348,7 @@ router.get("/rides/:id/detail", async (req: Request, res: Response) => {
         createdAt: ride.createdAt.toISOString(),
         updatedAt: ride.updatedAt.toISOString(),
         acceptedAt: ride.acceptedAt ? ride.acceptedAt.toISOString() : null,
-        dispatchedAt: ride.dispatchedAt
-          ? ride.dispatchedAt.toISOString()
-          : null,
+        dispatchedAt: ride.dispatchedAt ? ride.dispatchedAt.toISOString() : null,
         arrivedAt: ride.arrivedAt ? ride.arrivedAt.toISOString() : null,
         startedAt: ride.startedAt ? ride.startedAt.toISOString() : null,
         completedAt: ride.completedAt ? ride.completedAt.toISOString() : null,
@@ -1546,12 +1393,7 @@ router.get("/dispatch-monitor", async (_req: Request, res: Response) => {
     const activeRides = await db
       .select()
       .from(ridesTable)
-      .where(
-        or(
-          eq(ridesTable.status, "searching"),
-          eq(ridesTable.status, "bargaining"),
-        ),
-      )
+      .where(or(eq(ridesTable.status, "searching"), eq(ridesTable.status, "bargaining")))
       .orderBy(desc(ridesTable.createdAt));
 
     const rideIds = activeRides.map((r) => r.id);
@@ -1563,18 +1405,15 @@ router.get("/dispatch-monitor", async (_req: Request, res: Response) => {
         .where(
           sql`${rideNotifiedRidersTable.rideId} IN (${sql.join(
             rideIds.map((id) => sql`${id}`),
-            sql`, `,
-          )})`,
+            sql`, `
+          )})`
         )
         .groupBy(rideNotifiedRidersTable.rideId);
-      notifiedCounts = Object.fromEntries(
-        counts.map((c) => [c.rideId, Number(c.cnt)]),
-      );
+      notifiedCounts = Object.fromEntries(counts.map((c) => [c.rideId, Number(c.cnt)]));
     }
 
     const userIds = [...new Set(activeRides.map((r) => r.userId))];
-    let userMap: Record<string, { name: string | null; phone: string | null }> =
-      {};
+    let userMap: Record<string, { name: string | null; phone: string | null }> = {};
     if (userIds.length > 0) {
       const users = await db
         .select({
@@ -1586,12 +1425,10 @@ router.get("/dispatch-monitor", async (_req: Request, res: Response) => {
         .where(
           sql`${usersTable.id} IN (${sql.join(
             userIds.map((id) => sql`${id}`),
-            sql`, `,
-          )})`,
+            sql`, `
+          )})`
         );
-      userMap = Object.fromEntries(
-        users.map((u) => [u.id, { name: u.name, phone: u.phone }]),
-      );
+      userMap = Object.fromEntries(users.map((u) => [u.id, { name: u.name, phone: u.phone }]));
     }
 
     const bidCounts =
@@ -1605,14 +1442,12 @@ router.get("/dispatch-monitor", async (_req: Request, res: Response) => {
             .where(
               sql`${rideBidsTable.rideId} IN (${sql.join(
                 rideIds.map((id) => sql`${id}`),
-                sql`, `,
-              )})`,
+                sql`, `
+              )})`
             )
             .groupBy(rideBidsTable.rideId)
         : [];
-    const bidCountMap = Object.fromEntries(
-      bidCounts.map((b) => [b.rideId, Number(b.total)]),
-    );
+    const bidCountMap = Object.fromEntries(bidCounts.map((b) => [b.rideId, Number(b.total)]));
 
     sendSuccess(res, {
       rides: activeRides.map((r) => ({
@@ -1661,9 +1496,7 @@ router.get("/fleet-analytics", async (req: Request, res: Response) => {
         ? new Date(`${fromParam}T00:00:00.000Z`)
         : defaultFrom;
     const to =
-      toParam && /^\d{4}-\d{2}-\d{2}$/.test(toParam)
-        ? new Date(`${toParam}T23:59:59.999Z`)
-        : now;
+      toParam && /^\d{4}-\d{2}-\d{2}$/.test(toParam) ? new Date(`${toParam}T23:59:59.999Z`) : now;
 
     /* Heatmap data: all rider pings in the date range */
     const heatPoints = await db
@@ -1676,8 +1509,8 @@ router.get("/fleet-analytics", async (req: Request, res: Response) => {
         and(
           eq(locationLogsTable.role, "rider"),
           gte(locationLogsTable.createdAt, from),
-          lte(locationLogsTable.createdAt, to),
-        ),
+          lte(locationLogsTable.createdAt, to)
+        )
       )
       .limit(10000);
 
@@ -1697,8 +1530,8 @@ router.get("/fleet-analytics", async (req: Request, res: Response) => {
         and(
           sql`accepted_at IS NOT NULL`,
           gte(ridesTable.createdAt, from),
-          lte(ridesTable.createdAt, to),
-        ),
+          lte(ridesTable.createdAt, to)
+        )
       );
 
     /* Orders: estimate acceptance time as time between created_at and updated_at
@@ -1714,23 +1547,18 @@ router.get("/fleet-analytics", async (req: Request, res: Response) => {
           gte(ordersTable.createdAt, from),
           lte(ordersTable.createdAt, to),
           /* Filter outliers: ignore if acceptance took >60 min (likely a stale update) */
-          sql`EXTRACT(EPOCH FROM (updated_at - created_at)) < 3600`,
-        ),
+          sql`EXTRACT(EPOCH FROM (updated_at - created_at)) < 3600`
+        )
       );
 
     /* Weighted average: prefer rides (more precise) but blend in orders when available */
-    const ridesAvgMs = ridesResponseRow?.avgMs
-      ? Number(ridesResponseRow.avgMs)
-      : null;
-    const ordersAvgMs = ordersResponseRow?.avgMs
-      ? Number(ordersResponseRow.avgMs)
-      : null;
+    const ridesAvgMs = ridesResponseRow?.avgMs ? Number(ridesResponseRow.avgMs) : null;
+    const ordersAvgMs = ordersResponseRow?.avgMs ? Number(ordersResponseRow.avgMs) : null;
     const blendedMs =
       ridesAvgMs != null && ordersAvgMs != null
         ? (ridesAvgMs + ordersAvgMs) / 2
         : (ridesAvgMs ?? ordersAvgMs);
-    const avgResponseTimeMin =
-      blendedMs != null ? Math.round((blendedMs / 60000) * 10) / 10 : null;
+    const avgResponseTimeMin = blendedMs != null ? Math.round((blendedMs / 60000) * 10) / 10 : null;
 
     /* Per-rider distance estimation from location logs */
     const riderLogs = await db
@@ -1745,8 +1573,8 @@ router.get("/fleet-analytics", async (req: Request, res: Response) => {
         and(
           eq(locationLogsTable.role, "rider"),
           gte(locationLogsTable.createdAt, from),
-          lte(locationLogsTable.createdAt, to),
-        ),
+          lte(locationLogsTable.createdAt, to)
+        )
       )
       .orderBy(asc(locationLogsTable.userId), asc(locationLogsTable.createdAt))
       .limit(50000);
@@ -1768,10 +1596,7 @@ router.get("/fleet-analytics", async (req: Request, res: Response) => {
             Math.cos((lat * Math.PI) / 180) *
             Math.sin(dLng / 2) ** 2;
         const distKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        riderDistanceMap.set(
-          log.userId,
-          (riderDistanceMap.get(log.userId) ?? 0) + distKm,
-        );
+        riderDistanceMap.set(log.userId, (riderDistanceMap.get(log.userId) ?? 0) + distKm);
       }
       prevByRider.set(log.userId, { lat, lng });
     }
@@ -1786,13 +1611,11 @@ router.get("/fleet-analytics", async (req: Request, res: Response) => {
             .where(
               sql`${usersTable.id} = ANY(ARRAY[${sql.join(
                 riderIds.map((id) => sql`${id}`),
-                sql`, `,
-              )}])`,
+                sql`, `
+              )}])`
             )
         : [];
-    const nameMap = new Map(
-      riderNames.map((r) => [r.id, r.name ?? "Unknown"]),
-    );
+    const nameMap = new Map(riderNames.map((r) => [r.id, r.name ?? "Unknown"]));
 
     const riderDistances = [...riderDistanceMap.entries()]
       .map(([userId, distKm]) => ({
@@ -1805,10 +1628,7 @@ router.get("/fleet-analytics", async (req: Request, res: Response) => {
 
     /* Peak zones: bin pings into ~500 m grid cells, return top clusters */
     const GRID_DEG = 0.005; /* ~500 m resolution */
-    const cellCounts = new Map<
-      string,
-      { lat: number; lng: number; count: number }
-    >();
+    const cellCounts = new Map<string, { lat: number; lng: number; count: number }>();
     for (const p of heatmap) {
       const cellLat = Math.round(p.lat / GRID_DEG) * GRID_DEG;
       const cellLng = Math.round(p.lng / GRID_DEG) * GRID_DEG;
@@ -1838,8 +1658,8 @@ router.get("/fleet-analytics", async (req: Request, res: Response) => {
         and(
           eq(ridesTable.status, "completed"),
           gte(ridesTable.createdAt, from),
-          lte(ridesTable.createdAt, to),
-        ),
+          lte(ridesTable.createdAt, to)
+        )
       )
       .groupBy(sql`DATE(${ridesTable.createdAt})`, ridesTable.type)
       .orderBy(sql`DATE(${ridesTable.createdAt}) ASC`);
@@ -1899,32 +1719,14 @@ router.get("/riders/:userId/route", async (req: Request, res: Response) => {
         .from(liveLocationsTable)
         .where(eq(liveLocationsTable.userId, userId))
         .limit(1);
-      const sessionStart = liveLoc?.onlineSince
-        ? new Date(liveLoc.onlineSince)
-        : null;
+      const sessionStart = liveLoc?.onlineSince ? new Date(liveLoc.onlineSince) : null;
       /* Fallback: 8-hour shift window (covers most shifts even without a logged session start) */
       startOfDay = sessionStart ?? new Date(Date.now() - 8 * 60 * 60 * 1000);
       endOfDay = new Date();
     } else {
       const now = new Date();
-      startOfDay = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        0,
-        0,
-        0,
-        0,
-      );
-      endOfDay = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        23,
-        59,
-        59,
-        999,
-      );
+      startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
     }
 
     /* location_history stores smart-filtered waypoints (significant movement only, ≥ threshold metres).
@@ -1936,8 +1738,8 @@ router.get("/riders/:userId/route", async (req: Request, res: Response) => {
         and(
           eq(locationHistoryTable.userId, userId),
           gte(locationHistoryTable.createdAt, startOfDay),
-          lte(locationHistoryTable.createdAt, endOfDay),
-        ),
+          lte(locationHistoryTable.createdAt, endOfDay)
+        )
       )
       .orderBy(asc(locationHistoryTable.createdAt));
 

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PullToRefresh } from "../components/PullToRefresh";
 
 vi.mock("@/lib/adminTiming", () => ({
@@ -54,7 +54,7 @@ describe("Admin PullToRefresh", () => {
     render(
       <PullToRefresh onRefresh={onRefresh}>
         <div data-testid="child-content">Hello World</div>
-      </PullToRefresh>,
+      </PullToRefresh>
     );
     expect(screen.getByTestId("child-content")).toBeInTheDocument();
     expect(screen.getByText("Hello World")).toBeInTheDocument();
@@ -65,7 +65,7 @@ describe("Admin PullToRefresh", () => {
     const { container } = render(
       <PullToRefresh onRefresh={onRefresh}>
         <div>content</div>
-      </PullToRefresh>,
+      </PullToRefresh>
     );
     const wrapper = container.firstChild as Element;
 
@@ -76,8 +76,8 @@ describe("Admin PullToRefresh", () => {
 
     expect(
       screen.queryByText("Pull to refresh") ??
-      screen.queryByText("Release to refresh") ??
-      screen.queryByText("Updating..."),
+        screen.queryByText("Release to refresh") ??
+        screen.queryByText("Updating...")
     ).toBeTruthy();
   });
 
@@ -86,7 +86,7 @@ describe("Admin PullToRefresh", () => {
     const { container } = render(
       <PullToRefresh onRefresh={onRefresh}>
         <div>content</div>
-      </PullToRefresh>,
+      </PullToRefresh>
     );
     const wrapper = container.firstChild as Element;
 
@@ -102,7 +102,7 @@ describe("Admin PullToRefresh", () => {
     const { container } = render(
       <PullToRefresh onRefresh={onRefresh}>
         <div>content</div>
-      </PullToRefresh>,
+      </PullToRefresh>
     );
     const wrapper = container.firstChild as Element;
 
@@ -116,7 +116,7 @@ describe("Admin PullToRefresh", () => {
     const { container } = render(
       <PullToRefresh onRefresh={onRefresh}>
         <div>content</div>
-      </PullToRefresh>,
+      </PullToRefresh>
     );
     const wrapper = container.firstChild as Element;
 
@@ -127,9 +127,7 @@ describe("Admin PullToRefresh", () => {
     });
 
     await waitFor(() => {
-      expect(
-        screen.queryByText(/Updated/i) ?? screen.queryByText(/Just now/i),
-      ).toBeInTheDocument();
+      expect(screen.queryByText(/Updated/i) ?? screen.queryByText(/Just now/i)).toBeInTheDocument();
     });
   });
 
@@ -138,7 +136,7 @@ describe("Admin PullToRefresh", () => {
     const { container } = render(
       <PullToRefresh onRefresh={onRefresh}>
         <div>content</div>
-      </PullToRefresh>,
+      </PullToRefresh>
     );
     const wrapper = container.firstChild as Element;
 

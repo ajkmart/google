@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PullToRefresh } from "../components/PullToRefresh";
 
 vi.mock("@/lib/logger", () => ({
@@ -46,7 +46,7 @@ describe("Vendor PullToRefresh", () => {
     render(
       <PullToRefresh onRefresh={onRefresh}>
         <div data-testid="vendor-child">Vendor Content</div>
-      </PullToRefresh>,
+      </PullToRefresh>
     );
     expect(screen.getByTestId("vendor-child")).toBeInTheDocument();
     expect(screen.getByText("Vendor Content")).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe("Vendor PullToRefresh", () => {
     const { container } = render(
       <PullToRefresh onRefresh={onRefresh}>
         <div>content</div>
-      </PullToRefresh>,
+      </PullToRefresh>
     );
     const wrapper = container.firstChild as Element;
 
@@ -76,7 +76,7 @@ describe("Vendor PullToRefresh", () => {
     const { container } = render(
       <PullToRefresh onRefresh={onRefresh} accentColor="#FF0000">
         <div>content</div>
-      </PullToRefresh>,
+      </PullToRefresh>
     );
     const wrapper = container.firstChild as Element;
 
@@ -95,7 +95,7 @@ describe("Vendor PullToRefresh", () => {
     const { container } = render(
       <PullToRefresh onRefresh={onRefresh}>
         <div>content</div>
-      </PullToRefresh>,
+      </PullToRefresh>
     );
     const wrapper = container.firstChild as Element;
 
@@ -111,7 +111,7 @@ describe("Vendor PullToRefresh", () => {
     const { container } = render(
       <PullToRefresh onRefresh={onRefresh}>
         <div>content</div>
-      </PullToRefresh>,
+      </PullToRefresh>
     );
     const wrapper = container.firstChild as Element;
 
@@ -125,7 +125,7 @@ describe("Vendor PullToRefresh", () => {
     const { container } = render(
       <PullToRefresh onRefresh={onRefresh}>
         <div>content</div>
-      </PullToRefresh>,
+      </PullToRefresh>
     );
     const wrapper = container.firstChild as Element;
 
@@ -136,8 +136,8 @@ describe("Vendor PullToRefresh", () => {
 
     expect(
       screen.queryByText("Pull to refresh") ??
-      screen.queryByText("Release to refresh") ??
-      screen.queryByText("Updating..."),
+        screen.queryByText("Release to refresh") ??
+        screen.queryByText("Updating...")
     ).toBeTruthy();
   });
 
@@ -148,7 +148,7 @@ describe("Vendor PullToRefresh", () => {
     const { container } = render(
       <PullToRefresh onRefresh={onRefresh} onRefreshError={onRefreshError}>
         <div>content</div>
-      </PullToRefresh>,
+      </PullToRefresh>
     );
     const wrapper = container.firstChild as Element;
 

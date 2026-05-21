@@ -6,9 +6,14 @@
  */
 
 import { db } from "@workspace/db";
-import { usersTable, platformSettingsTable, otpBypassAuditTable, whitelistUsersTable } from "@workspace/db/schema";
-import { eq, and, gt, or, isNull } from "drizzle-orm";
+import {
+  otpBypassAuditTable,
+  platformSettingsTable,
+  usersTable,
+  whitelistUsersTable,
+} from "@workspace/db/schema";
 import bcrypt from "bcryptjs";
+import { and, eq, gt, isNull, or } from "drizzle-orm";
 import { generateId } from "../lib/id.js";
 import { logger } from "../lib/logger.js";
 
@@ -51,7 +56,7 @@ export async function checkOTPBypass(phone: string): Promise<OTPBypassStatus> {
     const activeDisable = await db.query.platformSettingsTable.findFirst({
       where: and(
         eq(platformSettingsTable.key, "otp_global_disabled_until"),
-        gt(platformSettingsTable.value, now.toISOString()),
+        gt(platformSettingsTable.value, now.toISOString())
       ),
       columns: { value: true },
     });
@@ -76,10 +81,7 @@ export async function checkOTPBypass(phone: string): Promise<OTPBypassStatus> {
       where: and(
         eq(whitelistUsersTable.identifier, phone),
         eq(whitelistUsersTable.isActive, true),
-        or(
-          isNull(whitelistUsersTable.expiresAt),
-          gt(whitelistUsersTable.expiresAt, now),
-        ),
+        or(isNull(whitelistUsersTable.expiresAt), gt(whitelistUsersTable.expiresAt, now))
       ),
       columns: { id: true, bypassCode: true, expiresAt: true },
     });
@@ -89,8 +91,14 @@ export async function checkOTPBypass(phone: string): Promise<OTPBypassStatus> {
          in production regardless of what is stored in the whitelist table.
          This prevents development test codes from ever being used in a live
          environment, even if they were accidentally committed to the DB. */
-      if (process.env.NODE_ENV === "production" && (whitelisted.bypassCode === "123456" || whitelisted.bypassCode === "000000")) {
-        logger.warn({ phone, code: whitelisted.bypassCode }, "[OTPBypass] Rejected test bypass code in production");
+      if (
+        process.env.NODE_ENV === "production" &&
+        (whitelisted.bypassCode === "123456" || whitelisted.bypassCode === "000000")
+      ) {
+        logger.warn(
+          { phone, code: whitelisted.bypassCode },
+          "[OTPBypass] Rejected test bypass code in production"
+        );
         // Fall through as if this entry does not exist — continue normal OTP flow.
       } else {
         return {
@@ -154,9 +162,7 @@ export async function logOTPBypassEvent(
 export function createBypassResponse(bypassed: OTPBypassStatus) {
   return {
     otpRequired: !bypassed.isBypassed,
-    message: bypassed.isBypassed
-      ? "OTP sent successfully"
-      : "OTP verification required",
+    message: bypassed.isBypassed ? "OTP sent successfully" : "OTP verification required",
     channel: bypassed.reason === "whitelist" ? "whitelist" : "sms",
     fallbackChannels: bypassed.isBypassed ? [] : ["email", "whatsapp"],
     bypass: bypassed.isBypassed

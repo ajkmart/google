@@ -1,8 +1,14 @@
-import { useEffect, useState } from "react";
-import { AlertTriangle } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { AlertTriangle } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -28,7 +34,12 @@ export function ConfirmDialog({
   onClose,
 }: ConfirmDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={o => { if (!o && !busy) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o && !busy) onClose();
+      }}
+    >
       <DialogContent className="w-[95vw] max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2.5">
@@ -41,16 +52,12 @@ export function ConfirmDialog({
           </DialogTitle>
         </DialogHeader>
         {description && (
-          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+          <p className="text-muted-foreground text-sm leading-relaxed whitespace-pre-line">
             {description}
           </p>
         )}
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={busy}
-          >
+          <Button variant="outline" onClick={onClose} disabled={busy}>
             {cancelLabel}
           </Button>
           <Button
@@ -105,34 +112,32 @@ export function PromptDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={o => { if (!o && !busy) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o && !busy) onClose();
+      }}
+    >
       <DialogContent className="w-[95vw] max-w-sm">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          {description && (
-            <p className="text-sm text-muted-foreground">{description}</p>
-          )}
+          {description && <p className="text-muted-foreground text-sm">{description}</p>}
         </DialogHeader>
         <Input
           autoFocus
           value={value}
-          onChange={e => setValue(e.target.value)}
+          onChange={(e) => setValue(e.target.value)}
           placeholder={placeholder}
           className="h-10 rounded-lg"
-          onKeyDown={e => { if (e.key === "Enter") submit(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
         />
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={busy}
-          >
+          <Button variant="outline" onClick={onClose} disabled={busy}>
             {cancelLabel}
           </Button>
-          <Button
-            onClick={submit}
-            disabled={busy || (required && !value.trim())}
-          >
+          <Button onClick={submit} disabled={busy || (required && !value.trim())}>
             {busy ? "Working..." : confirmLabel}
           </Button>
         </DialogFooter>

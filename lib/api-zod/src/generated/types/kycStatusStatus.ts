@@ -6,8 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type KycStatusStatus =
-  (typeof KycStatusStatus)[keyof typeof KycStatusStatus];
+export type KycStatusStatus = (typeof KycStatusStatus)[keyof typeof KycStatusStatus];
 
 export const KycStatusStatus = {
   not_submitted: "not_submitted",

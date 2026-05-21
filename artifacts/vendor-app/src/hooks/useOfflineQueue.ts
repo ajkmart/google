@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 
 interface QueuedStatusUpdate {
@@ -38,20 +38,28 @@ function loadQueue(): QueuedStatusUpdate[] {
   try {
     const raw = localStorage.getItem(QUEUE_KEY);
     return raw ? (JSON.parse(raw) as QueuedStatusUpdate[]) : [];
-  } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]', err); return []; } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]", err);
+    return [];
+  } // eslint-disable-line no-console
 }
 
 function saveQueue(q: QueuedStatusUpdate[]): void {
   try {
     localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
-  } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]", err);
+  } // eslint-disable-line no-console
 }
 
 function loadProductQueue(): QueuedProductAction[] {
   try {
     const raw = localStorage.getItem(PRODUCT_QUEUE_KEY);
     return raw ? (JSON.parse(raw) as QueuedProductAction[]) : [];
-  } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]', err); return []; } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]", err);
+    return [];
+  } // eslint-disable-line no-console
 }
 
 /**
@@ -77,13 +85,18 @@ function loadProductFailures(): ProductQueueError[] {
   try {
     const raw = localStorage.getItem(PRODUCT_FAILURES_KEY);
     return raw ? (JSON.parse(raw) as ProductQueueError[]) : [];
-  } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]', err); return []; } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]", err);
+    return [];
+  } // eslint-disable-line no-console
 }
 
 function saveProductFailures(f: ProductQueueError[]): void {
   try {
     localStorage.setItem(PRODUCT_FAILURES_KEY, JSON.stringify(f));
-  } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]", err);
+  } // eslint-disable-line no-console
 }
 
 /**
@@ -111,15 +124,19 @@ function sanitizePayloadForStorage(payload: Record<string, unknown>): {
 }
 
 function sleep(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export function useOfflineQueue() {
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncToast, setSyncToast] = useState("");
-  const [pendingProductCount, setPendingProductCount] = useState<number>(() => loadProductQueue().length);
-  const [productQueueErrors, setProductQueueErrors] = useState<ProductQueueError[]>(() => loadProductFailures());
+  const [pendingProductCount, setPendingProductCount] = useState<number>(
+    () => loadProductQueue().length
+  );
+  const [productQueueErrors, setProductQueueErrors] = useState<ProductQueueError[]>(() =>
+    loadProductFailures()
+  );
   const qc = useQueryClient();
   const flushingRef = useRef(false);
   const flushingProductsRef = useRef(false);
@@ -144,8 +161,9 @@ export function useOfflineQueue() {
         await api.updateOrder(item.orderId, item.status);
         synced++;
         setSyncToast(`Syncing ${synced} / ${total}…`);
-
-      } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]', err); } // eslint-disable-line no-console
+      } catch (err) {
+        console.warn("[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]", err);
+      } // eslint-disable-line no-console
     }
     saveQueue(failed);
     await qc.invalidateQueries({ queryKey: ["vendor-orders"] });
@@ -155,7 +173,6 @@ export function useOfflineQueue() {
     if (failed.length === 0) {
       showSyncToast(`✅ Synced ${total} update${total > 1 ? "s" : ""}`);
     } else {
-
       showSyncToast(`⚠️ ${failed.length} update${failed.length > 1 ? "s" : ""} failed to sync`);
     }
   }, [qc]);
@@ -178,7 +195,10 @@ export function useOfflineQueue() {
           if (item.action === "create") {
             await api.createProduct(item.payload as Parameters<typeof api.createProduct>[0]);
           } else if (item.action === "update" && item.productId) {
-            await api.updateProduct(item.productId, item.payload as Parameters<typeof api.updateProduct>[1]);
+            await api.updateProduct(
+              item.productId,
+              item.payload as Parameters<typeof api.updateProduct>[1]
+            );
           }
           success = true;
           break;
@@ -204,10 +224,10 @@ export function useOfflineQueue() {
     setPendingProductCount(0);
 
     const existingFailures = loadProductFailures();
-    const existingIds = new Set(existingFailures.map(f => f.id));
+    const existingIds = new Set(existingFailures.map((f) => f.id));
     const mergedFailures = [
       ...existingFailures,
-      ...newFailures.filter(f => !existingIds.has(f.id)),
+      ...newFailures.filter((f) => !existingIds.has(f.id)),
     ];
     saveProductFailures(mergedFailures);
     setProductQueueErrors(mergedFailures);
@@ -225,7 +245,7 @@ export function useOfflineQueue() {
       flushQueue();
       flushProductQueue();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -243,19 +263,27 @@ export function useOfflineQueue() {
     };
   }, [flushQueue, flushProductQueue]);
 
-  const enqueueStatusUpdate = useCallback((orderId: string, status: string): boolean => {
-    if (isOnline) return false;
-    const queue = loadQueue();
-    const existing = queue.findIndex(q => q.orderId === orderId);
-    const item: QueuedStatusUpdate = { id: `${orderId}_${Date.now()}`, orderId, status, queuedAt: Date.now() };
-    if (existing >= 0) {
-      queue[existing] = item;
-    } else {
-      queue.push(item);
-    }
-    saveQueue(queue);
-    return true;
-  }, [isOnline]);
+  const enqueueStatusUpdate = useCallback(
+    (orderId: string, status: string): boolean => {
+      if (isOnline) return false;
+      const queue = loadQueue();
+      const existing = queue.findIndex((q) => q.orderId === orderId);
+      const item: QueuedStatusUpdate = {
+        id: `${orderId}_${Date.now()}`,
+        orderId,
+        status,
+        queuedAt: Date.now(),
+      };
+      if (existing >= 0) {
+        queue[existing] = item;
+      } else {
+        queue.push(item);
+      }
+      saveQueue(queue);
+      return true;
+    },
+    [isOnline]
+  );
 
   /**
    * Enqueue a product create/update for offline replay.
@@ -264,90 +292,99 @@ export function useOfflineQueue() {
    * or a "warn:…" string when the item was saved but the vendor should be
    * notified (e.g. image stripped, entry oversized). The caller surfaces all.
    */
-  const enqueueProductAction = useCallback((
-    action: "create" | "update",
-    payload: Record<string, unknown>,
-    productId?: string,
-  ): string | undefined => {
-    if (isOnline) return undefined;
+  const enqueueProductAction = useCallback(
+    (
+      action: "create" | "update",
+      payload: Record<string, unknown>,
+      productId?: string
+    ): string | undefined => {
+      if (isOnline) return undefined;
 
-    const { sanitized: sanitizedPayload, hadBase64 } = sanitizePayloadForStorage(payload);
+      const { sanitized: sanitizedPayload, hadBase64 } = sanitizePayloadForStorage(payload);
 
-    const item: QueuedProductAction = {
-      id: `product_${action}_${Date.now()}`,
-      action,
-      productId,
-      payload: sanitizedPayload,
-      queuedAt: Date.now(),
-      retries: 0,
-    };
+      const item: QueuedProductAction = {
+        id: `product_${action}_${Date.now()}`,
+        action,
+        productId,
+        payload: sanitizedPayload,
+        queuedAt: Date.now(),
+        retries: 0,
+      };
 
-    const serialized = JSON.stringify(item);
-    const byteSize = new TextEncoder().encode(serialized).length;
+      const serialized = JSON.stringify(item);
+      const byteSize = new TextEncoder().encode(serialized).length;
 
-    const queue = loadProductQueue();
-    queue.push(item);
-    const saveError = saveProductQueue(queue);
+      const queue = loadProductQueue();
+      queue.push(item);
+      const saveError = saveProductQueue(queue);
 
-    if (saveError) {
-      return saveError;
-    }
-
-    setPendingProductCount(queue.length);
-
-    if (hadBase64) {
-      return "warn:📥 Saved offline (image stripped — re-upload the photo when back online)";
-    }
-
-    if (byteSize > ENTRY_SIZE_WARN_BYTES) {
-      return `warn:📥 Saved offline — this change is large (${Math.round(byteSize / 1024)} KB). Sync soon to avoid storage issues.`;
-    }
-
-    return undefined;
-  }, [isOnline]);
-
-  const retryProductQueueItem = useCallback(async (itemId: string) => {
-    const failures = loadProductFailures();
-    const failure = failures.find(f => f.id === itemId);
-    if (!failure) return;
-
-    let success = false;
-    let lastError = "";
-    let attempts = 0;
-
-    while (attempts < MAX_RETRIES) {
-      try {
-        if (failure.action === "create") {
-          await api.createProduct(failure.payload as Parameters<typeof api.createProduct>[0]);
-        } else if (failure.action === "update" && failure.productId) {
-          await api.updateProduct(failure.productId, failure.payload as Parameters<typeof api.updateProduct>[1]);
-        }
-        success = true;
-        break;
-      } catch (e) {
-        lastError = e instanceof Error ? e.message : "Unknown error";
-        attempts++;
-        if (attempts < MAX_RETRIES) await sleep(RETRY_DELAY_MS);
+      if (saveError) {
+        return saveError;
       }
-    }
 
-    if (success) {
-      const updatedFailures = loadProductFailures().filter(f => f.id !== itemId);
-      saveProductFailures(updatedFailures);
-      setProductQueueErrors(updatedFailures);
-      await qc.invalidateQueries({ queryKey: ["vendor-products"] });
-      await qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
-    } else {
-      const updatedFailures = loadProductFailures().map(f =>
-        f.id === itemId ? { ...f, message: lastError || "Failed after maximum retries" } : f
-      );
-      saveProductFailures(updatedFailures);
-      setProductQueueErrors(updatedFailures);
-    }
-  }, [qc]);
+      setPendingProductCount(queue.length);
+
+      if (hadBase64) {
+        return "warn:📥 Saved offline (image stripped — re-upload the photo when back online)";
+      }
+
+      if (byteSize > ENTRY_SIZE_WARN_BYTES) {
+        return `warn:📥 Saved offline — this change is large (${Math.round(byteSize / 1024)} KB). Sync soon to avoid storage issues.`;
+      }
+
+      return undefined;
+    },
+    [isOnline]
+  );
+
+  const retryProductQueueItem = useCallback(
+    async (itemId: string) => {
+      const failures = loadProductFailures();
+      const failure = failures.find((f) => f.id === itemId);
+      if (!failure) return;
+
+      let success = false;
+      let lastError = "";
+      let attempts = 0;
+
+      while (attempts < MAX_RETRIES) {
+        try {
+          if (failure.action === "create") {
+            await api.createProduct(failure.payload as Parameters<typeof api.createProduct>[0]);
+          } else if (failure.action === "update" && failure.productId) {
+            await api.updateProduct(
+              failure.productId,
+              failure.payload as Parameters<typeof api.updateProduct>[1]
+            );
+          }
+          success = true;
+          break;
+        } catch (e) {
+          lastError = e instanceof Error ? e.message : "Unknown error";
+          attempts++;
+          if (attempts < MAX_RETRIES) await sleep(RETRY_DELAY_MS);
+        }
+      }
+
+      if (success) {
+        const updatedFailures = loadProductFailures().filter((f) => f.id !== itemId);
+        saveProductFailures(updatedFailures);
+        setProductQueueErrors(updatedFailures);
+        await qc.invalidateQueries({ queryKey: ["vendor-products"] });
+        await qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
+      } else {
+        const updatedFailures = loadProductFailures().map((f) =>
+          f.id === itemId ? { ...f, message: lastError || "Failed after maximum retries" } : f
+        );
+        saveProductFailures(updatedFailures);
+        setProductQueueErrors(updatedFailures);
+      }
+    },
+    [qc]
+  );
 
   const dismissProductQueueError = useCallback((itemId: string) => {
-    const failures = loadProductFailures().filter(f => f.id !== itemId);
+    const failures = loadProductFailures().filter((f) => f.id !== itemId);
     saveProductFailures(failures);
     setProductQueueErrors(failures);
   }, []);

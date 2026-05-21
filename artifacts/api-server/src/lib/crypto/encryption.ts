@@ -13,11 +13,11 @@
  */
 
 import crypto from "crypto";
-import { logger } from '../logger.js';
+import { logger } from "../logger.js";
 
 const ALGORITHM = "aes-256-gcm";
-const IV_LEN    = 12;  // 96-bit IV — GCM recommended
-const TAG_LEN   = 16;  // 128-bit auth tag
+const IV_LEN = 12; // 96-bit IV — GCM recommended
+const TAG_LEN = 16; // 128-bit auth tag
 const KEY_ITERS = 100_000;
 const SALT = Buffer.from("ajkmart-pii-salt-v1", "utf-8");
 
@@ -30,17 +30,11 @@ function deriveKey(): Buffer {
   if (!masterKey || masterKey.length < 16) {
     throw new Error(
       "[encryption] ENCRYPTION_MASTER_KEY is not set or too short (minimum 16 chars). " +
-      "Add this secret in the Replit Secrets panel."
+        "Add this secret in the Replit Secrets panel."
     );
   }
 
-  _cachedKey = crypto.pbkdf2Sync(
-    Buffer.from(masterKey, "utf-8"),
-    SALT,
-    KEY_ITERS,
-    32,
-    "sha256"
-  );
+  _cachedKey = crypto.pbkdf2Sync(Buffer.from(masterKey, "utf-8"), SALT, KEY_ITERS, 32, "sha256");
   return _cachedKey;
 }
 
@@ -50,13 +44,10 @@ function deriveKey(): Buffer {
  */
 export function encrypt(plaintext: string): string {
   const key = deriveKey();
-  const iv  = crypto.randomBytes(IV_LEN);
+  const iv = crypto.randomBytes(IV_LEN);
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv, { authTagLength: TAG_LEN });
 
-  const encrypted = Buffer.concat([
-    cipher.update(Buffer.from(plaintext, "utf-8")),
-    cipher.final(),
-  ]);
+  const encrypted = Buffer.concat([cipher.update(Buffer.from(plaintext, "utf-8")), cipher.final()]);
   const authTag = cipher.getAuthTag();
 
   return Buffer.concat([iv, authTag, encrypted]).toString("hex");
@@ -74,9 +65,9 @@ export function decrypt(ciphertext: string): string {
     throw new Error("[encryption] Ciphertext is too short — data may be corrupt");
   }
 
-  const iv      = buf.subarray(0, IV_LEN);
+  const iv = buf.subarray(0, IV_LEN);
   const authTag = buf.subarray(IV_LEN, IV_LEN + TAG_LEN);
-  const data    = buf.subarray(IV_LEN + TAG_LEN);
+  const data = buf.subarray(IV_LEN + TAG_LEN);
 
   const decipher = crypto.createDecipheriv(ALGORITHM, key, iv, { authTagLength: TAG_LEN });
   decipher.setAuthTag(authTag);
@@ -91,7 +82,13 @@ export function isEncryptionAvailable(): boolean {
     deriveKey();
     return true;
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return false;
   }
 }

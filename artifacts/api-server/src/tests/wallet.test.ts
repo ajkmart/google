@@ -16,10 +16,10 @@
  *   pnpm test
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import supertest from "supertest";
 import { randomUUID } from "crypto";
 import type { Express } from "express";
+import supertest from "supertest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const TEST_CUSTOMER_ID = "test-wallet-customer-e2e-001";
 const TEST_CUSTOMER_PHONE = "+929990000011";
@@ -36,16 +36,11 @@ beforeAll(async () => {
   const { usersTable } = await import("@workspace/db/schema");
   const { eq } = await import("drizzle-orm");
 
-  app = await createServer() as any;
+  app = (await createServer()) as any;
 
   customerToken = signUserJwt(TEST_CUSTOMER_ID, TEST_CUSTOMER_PHONE, "customer", "customer", 1);
 
-  adminToken = signAccessToken(
-    "test-admin-wallet-e2e",
-    "super",
-    "Wallet Test Admin Bot",
-    [],
-  );
+  adminToken = signAccessToken("test-admin-wallet-e2e", "super", "Wallet Test Admin Bot", []);
 
   await db.delete(usersTable).where(eq(usersTable.id, TEST_CUSTOMER_ID));
   const now = new Date();
@@ -90,7 +85,12 @@ describe("Wallet auth guards — unauthenticated requests return 401", () => {
   it("POST /api/wallet/deposit returns 401 without token", async () => {
     const res = await api()
       .post("/api/wallet/deposit")
-      .send({ amount: 500, paymentMethod: "jazzcash", transactionId: "TX123", idempotencyKey: randomUUID() })
+      .send({
+        amount: 500,
+        paymentMethod: "jazzcash",
+        transactionId: "TX123",
+        idempotencyKey: randomUUID(),
+      })
       .set("Content-Type", "application/json");
     expect(res.status).toBe(401);
     expect(res.body.error).toBeDefined();
@@ -119,9 +119,7 @@ describe("Wallet auth guards — unauthenticated requests return 401", () => {
 
 describe("Wallet balance fetch", () => {
   it("GET /api/wallet returns 200 with balance and transactions for authenticated customer", async () => {
-    const res = await api()
-      .get("/api/wallet")
-      .set("Authorization", `Bearer ${customerToken}`);
+    const res = await api().get("/api/wallet").set("Authorization", `Bearer ${customerToken}`);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(typeof res.body.data?.balance).toBe("number");
@@ -145,7 +143,12 @@ describe("Wallet deposit input validation", () => {
   it("POST /api/wallet/deposit with negative amount returns 400/422", async () => {
     const res = await api()
       .post("/api/wallet/deposit")
-      .send({ amount: -100, paymentMethod: "jazzcash", transactionId: "TX001", idempotencyKey: randomUUID() })
+      .send({
+        amount: -100,
+        paymentMethod: "jazzcash",
+        transactionId: "TX001",
+        idempotencyKey: randomUUID(),
+      })
       .set("Content-Type", "application/json")
       .set("Authorization", `Bearer ${customerToken}`);
     expect([400, 422]).toContain(res.status);
@@ -155,7 +158,12 @@ describe("Wallet deposit input validation", () => {
   it("POST /api/wallet/deposit with non-numeric amount returns 400/422", async () => {
     const res = await api()
       .post("/api/wallet/deposit")
-      .send({ amount: "abc", paymentMethod: "jazzcash", transactionId: "TX002", idempotencyKey: randomUUID() })
+      .send({
+        amount: "abc",
+        paymentMethod: "jazzcash",
+        transactionId: "TX002",
+        idempotencyKey: randomUUID(),
+      })
       .set("Content-Type", "application/json")
       .set("Authorization", `Bearer ${customerToken}`);
     expect([400, 422]).toContain(res.status);
@@ -306,14 +314,22 @@ describe("Wallet rate limit smoke test", () => {
     const requests = Array.from({ length: 35 }, () =>
       api()
         .post("/api/wallet/deposit")
-        .send({ amount: 500, paymentMethod: "jazzcash", transactionId: `TX-rl-${randomUUID()}`, idempotencyKey: randomUUID() })
+        .send({
+          amount: 500,
+          paymentMethod: "jazzcash",
+          transactionId: `TX-rl-${randomUUID()}`,
+          idempotencyKey: randomUUID(),
+        })
         .set("Content-Type", "application/json")
         .set("Authorization", `Bearer ${customerToken}`)
-        .then((res) => res.status),
+        .then((res) => res.status)
     );
 
     const statuses = await Promise.all(requests);
     const has429 = statuses.some((s) => s === 429);
-    expect(has429, `Expected at least one 429 among statuses [${[...new Set(statuses)].join(", ")}]`).toBe(true);
+    expect(
+      has429,
+      `Expected at least one 429 among statuses [${[...new Set(statuses)].join(", ")}]`
+    ).toBe(true);
   }, 20_000);
 });

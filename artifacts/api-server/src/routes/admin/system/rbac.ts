@@ -3,28 +3,30 @@
  * Read access requires `system.audit.view` or super; write access
  * requires `system.roles.manage`.
  */
+import { PERMISSIONS } from "@workspace/auth-utils/permissions";
 import { Router } from "express";
 import { z } from "zod";
 import {
-  PERMISSIONS,
-} from "@workspace/auth-utils/permissions";
-import { listRoles,
-  getRole,
+  sendError,
+  sendNotFound,
+  sendSuccess,
+  sendValidationError,
+} from "../../../lib/response.js";
+import { requireAnyPermission, requirePermission } from "../../../middleware/require-permission.js";
+import {
   createRole,
-  updateRole,
   deleteRole,
-  setRolePermissions,
-  setAdminRoles,
   getAdminRoles,
   getEffectivePermissionsForAdmin,
+  getRole,
+  listRoles,
   resolveAdminPermissions,
   revokeSessionsForRole,
+  setAdminRoles,
+  setRolePermissions,
+  updateRole,
 } from "../../../services/permissions.service.js";
-import { adminAuth, addAuditEntry, type AdminRequest } from "../../admin-shared.js";
-import { requirePermission, requireAnyPermission } from "../../../middleware/require-permission.js";
-import {
-  sendSuccess, sendError, sendNotFound, sendValidationError,
-} from "../../../lib/response.js";
+import { addAuditEntry, adminAuth, type AdminRequest } from "../../admin-shared.js";
 
 const router = Router();
 
@@ -107,7 +109,8 @@ router.delete("/roles/:id", requirePermission("system.roles.manage"), async (req
   const aReq = req as AdminRequest;
   const result = await deleteRole(req.params["id"] as string);
   if (!result.deleted) {
-    if (result.reason === "built_in") return sendError(res, "Built-in roles cannot be deleted", 400);
+    if (result.reason === "built_in")
+      return sendError(res, "Built-in roles cannot be deleted", 400);
     return sendNotFound(res, "Role not found");
   }
   addAuditEntry({
@@ -122,58 +125,54 @@ router.delete("/roles/:id", requirePermission("system.roles.manage"), async (req
 
 const setPermsSchema = z.object({ permissions: z.array(z.string()) });
 
-router.put("/roles/:id/permissions",
-  requirePermission("system.roles.manage"),
-  async (req, res) => {
-    const aReq = req as AdminRequest;
-    try {
-      const { permissions } = setPermsSchema.parse(req.body);
-      const role = await getRole(req.params["id"] as string);
-      if (!role) return sendNotFound(res, "Role not found");
-      const before = role.permissions;
-      const after = await setRolePermissions(role.id, permissions);
-      const added = after.filter((p: string) => !before.includes(p));
-      const removed = before.filter((p: string) => !after.includes(p));
-      // Bumping permissions invalidates active sessions for affected admins
-      const affected = await revokeSessionsForRole(role.id);
-      addAuditEntry({
-        action: "rbac_role_permissions_set",
-        adminId: aReq.adminId,
-        ip: aReq.adminIp || "unknown",
-        details: `roleId=${role.id} +[${added.join(",")}] -[${removed.join(",")}] sessionsRevoked=${affected}`,
-        result: "success",
-      });
-      sendSuccess(res, { permissions: after, added, removed, sessionsRevoked: affected });
-    } catch (err) {
-      if (err instanceof z.ZodError) return sendValidationError(res, err.message);
-      sendError(res, (err as Error).message, 400);
-    }
-  });
+router.put("/roles/:id/permissions", requirePermission("system.roles.manage"), async (req, res) => {
+  const aReq = req as AdminRequest;
+  try {
+    const { permissions } = setPermsSchema.parse(req.body);
+    const role = await getRole(req.params["id"] as string);
+    if (!role) return sendNotFound(res, "Role not found");
+    const before = role.permissions;
+    const after = await setRolePermissions(role.id, permissions);
+    const added = after.filter((p: string) => !before.includes(p));
+    const removed = before.filter((p: string) => !after.includes(p));
+    // Bumping permissions invalidates active sessions for affected admins
+    const affected = await revokeSessionsForRole(role.id);
+    addAuditEntry({
+      action: "rbac_role_permissions_set",
+      adminId: aReq.adminId,
+      ip: aReq.adminIp || "unknown",
+      details: `roleId=${role.id} +[${added.join(",")}] -[${removed.join(",")}] sessionsRevoked=${affected}`,
+      result: "success",
+    });
+    sendSuccess(res, { permissions: after, added, removed, sessionsRevoked: affected });
+  } catch (err) {
+    if (err instanceof z.ZodError) return sendValidationError(res, err.message);
+    sendError(res, (err as Error).message, 400);
+  }
+});
 
 /* ── Admin role assignments ─────────────────────────────────────── */
 const setAdminRolesSchema = z.object({ roleIds: z.array(z.string()) });
 
-router.put("/admins/:adminId/roles",
-  requirePermission("system.roles.manage"),
-  async (req, res) => {
-    const aReq = req as AdminRequest;
-    try {
-      const { roleIds } = setAdminRolesSchema.parse(req.body);
-      await setAdminRoles(req.params["adminId"] as string, roleIds, aReq.adminId ?? null);
-      addAuditEntry({
-        action: "rbac_admin_roles_set",
-        adminId: aReq.adminId,
-        ip: aReq.adminIp || "unknown",
-        details: `targetAdminId=${req.params["adminId"] as string} roles=[${roleIds.join(",")}]`,
-        result: "success",
-      });
-      const roles = await getAdminRoles(req.params["adminId"] as string);
-      sendSuccess(res, { roles });
-    } catch (err) {
-      if (err instanceof z.ZodError) return sendValidationError(res, err.message);
-      sendError(res, (err as Error).message, 400);
-    }
-  });
+router.put("/admins/:adminId/roles", requirePermission("system.roles.manage"), async (req, res) => {
+  const aReq = req as AdminRequest;
+  try {
+    const { roleIds } = setAdminRolesSchema.parse(req.body);
+    await setAdminRoles(req.params["adminId"] as string, roleIds, aReq.adminId ?? null);
+    addAuditEntry({
+      action: "rbac_admin_roles_set",
+      adminId: aReq.adminId,
+      ip: aReq.adminIp || "unknown",
+      details: `targetAdminId=${req.params["adminId"] as string} roles=[${roleIds.join(",")}]`,
+      result: "success",
+    });
+    const roles = await getAdminRoles(req.params["adminId"] as string);
+    sendSuccess(res, { roles });
+  } catch (err) {
+    if (err instanceof z.ZodError) return sendValidationError(res, err.message);
+    sendError(res, (err as Error).message, 400);
+  }
+});
 
 router.get("/admins/:adminId/roles", canRead, async (req, res) => {
   const roles = await getAdminRoles(req.params["adminId"] as string);
@@ -191,10 +190,10 @@ router.get("/admins/:adminId/effective-permissions", canRead, async (req, res) =
 /* ── "Who am I" — current admin's effective permissions ─────────── */
 router.get("/me", async (req, res) => {
   const aReq = req as AdminRequest;
-  const perms = aReq.adminPermissions
-    && aReq.adminPermissions.length
-    ? aReq.adminPermissions
-    : await resolveAdminPermissions(aReq.adminId ?? null, aReq.adminRole);
+  const perms =
+    aReq.adminPermissions && aReq.adminPermissions.length
+      ? aReq.adminPermissions
+      : await resolveAdminPermissions(aReq.adminId ?? null, aReq.adminRole);
   sendSuccess(res, {
     adminId: aReq.adminId,
     role: aReq.adminRole,
@@ -232,8 +231,12 @@ router.get("/verify-bulk", async (req, res) => {
   const aReq = req as AdminRequest;
   const raw = req.query["permissions"] as string | undefined;
   if (!raw) return sendValidationError(res, "permissions query param is required");
-  const requested = raw.split(",").map(p => p.trim()).filter(Boolean);
-  if (requested.length === 0) return sendValidationError(res, "permissions must be a non-empty comma-separated list");
+  const requested = raw
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (requested.length === 0)
+    return sendValidationError(res, "permissions must be a non-empty comma-separated list");
   if (requested.length > 50) return sendValidationError(res, "at most 50 permissions per request");
   const perms: string[] = aReq.adminPermissions?.length
     ? aReq.adminPermissions
@@ -257,26 +260,23 @@ const simulateSchema = z.object({
   adminId: z.string().uuid("adminId must be a valid UUID"),
 });
 
-router.post("/simulate",
-  requirePermission("system.roles.manage"),
-  async (req, res) => {
-    try {
-      const { adminId } = simulateSchema.parse(req.body);
-      const [perms, roles] = await Promise.all([
-        resolveAdminPermissions(adminId, null),
-        getAdminRoles(adminId),
-      ]);
-      sendSuccess(res, {
-        adminId,
-        permissions: perms,
-        roleNames: (roles as { name: string }[]).map(r => r.name),
-        isSuperAdmin: (perms as string[]).includes("*"),
-      });
-    } catch (err) {
-      if (err instanceof z.ZodError) return sendValidationError(res, err.message);
-      sendError(res, (err as Error).message, 400);
-    }
-  },
-);
+router.post("/simulate", requirePermission("system.roles.manage"), async (req, res) => {
+  try {
+    const { adminId } = simulateSchema.parse(req.body);
+    const [perms, roles] = await Promise.all([
+      resolveAdminPermissions(adminId, null),
+      getAdminRoles(adminId),
+    ]);
+    sendSuccess(res, {
+      adminId,
+      permissions: perms,
+      roleNames: (roles as { name: string }[]).map((r) => r.name),
+      isSuperAdmin: (perms as string[]).includes("*"),
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) return sendValidationError(res, err.message);
+    sendError(res, (err as Error).message, 400);
+  }
+});
 
 export default router;

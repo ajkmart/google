@@ -11,7 +11,7 @@
  *    wrong ride owner, wrong status, missing body field, and unauthenticated.
  */
 
-import { vi, describe, it, expect, beforeAll, afterAll } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 // ── Mocks (hoisted before all imports) ────────────────────────────────────────
 
@@ -52,21 +52,21 @@ vi.mock("../../../modules/otp/otp.deliver.js", () => ({
 }));
 
 // ── Imports ────────────────────────────────────────────────────────────────────
-import request from "supertest";
-import { createServer } from "../../../app.js";
 import { db } from "@workspace/db";
 import { ridesTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import request from "supertest";
+import { createServer } from "../../../app.js";
 import { signAccessToken } from "../../../middleware/security.js";
 import {
+  cleanupRideOtpAttempts,
+  createRiderProfile,
+  createTestRide,
   createTestUser,
+  deleteRide,
   deleteTestUser,
   generateTestPhone,
   toCanonicalPhone,
-  createTestRide,
-  createRiderProfile,
-  deleteRide,
-  cleanupRideOtpAttempts,
 } from "../helpers/db-helpers.js";
 
 // ── Test Suite ─────────────────────────────────────────────────────────────────
@@ -106,12 +106,14 @@ describe("POST /api/riders/rides/:id/verify-otp", () => {
 
   /** Create a fresh customer + a ride for that customer. Each test gets its own
    *  customer so the one-active-ride-per-user unique constraint is never violated. */
-  async function seedCustomerAndRide(opts: {
-    tripOtp?: string;
-    otpVerified?: boolean;
-    status?: string;
-    assignRider?: boolean;
-  } = {}) {
+  async function seedCustomerAndRide(
+    opts: {
+      tripOtp?: string;
+      otpVerified?: boolean;
+      status?: string;
+      assignRider?: boolean;
+    } = {}
+  ) {
     const customerPhone = toCanonicalPhone(generateTestPhone());
     const customerId = await createTestUser({
       phone: customerPhone,
@@ -281,7 +283,7 @@ describe("POST /api/riders/rides/:id/verify-otp", () => {
     const res = await request(app)
       .post(`/api/riders/rides/${rideId}/verify-otp`)
       .send({ otp: "2222" });
-      // No Authorization header
+    // No Authorization header
 
     expect(res.status).toBe(401);
   });

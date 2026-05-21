@@ -1,11 +1,24 @@
-import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
-import { useLocation } from "wouter";
+import { createLogger } from "@/lib/logger";
 import { useQueryClient } from "@tanstack/react-query";
-import { AuthProvider as SharedAuthProvider, useAuthContext, useTokenRefresh, type AuthUser as SharedAuthUser } from "@workspace/auth-react";
-import { api, tokenStoreReady, getRiderTokenStorage } from "./api";
+import {
+  AuthProvider as SharedAuthProvider,
+  useAuthContext,
+  useTokenRefresh,
+  type AuthUser as SharedAuthUser,
+} from "@workspace/auth-react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { useLocation } from "wouter";
+import { api, getRiderTokenStorage, tokenStoreReady } from "./api";
 import { getRiderApiBase } from "./envValidation";
 import { executeLogoutSequence } from "./logoutSequence";
-import { createLogger } from "@/lib/logger";
 const log = createLogger("[auth]");
 
 export function normalizeRoles(u: { roles?: unknown; role?: unknown }): string[] {
@@ -28,7 +41,13 @@ export interface AuthUser {
   roles: string[];
   createdAt?: string;
   lastLoginAt?: string;
-  stats: { deliveriesToday: number; earningsToday: number; totalDeliveries: number; totalEarnings: number; rating?: number };
+  stats: {
+    deliveriesToday: number;
+    earningsToday: number;
+    totalDeliveries: number;
+    totalEarnings: number;
+    rating?: number;
+  };
   cnic?: string;
   city?: string;
   address?: string;
@@ -104,7 +123,9 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
     refreshEndpoint: "/auth/refresh",
     leewaySeconds: 60,
     onLogout: handleSdkLogout,
-    onRefresh: (newTok: string) => { setToken(newTok); },
+    onRefresh: (newTok: string) => {
+      setToken(newTok);
+    },
   });
 
   useEffect(() => {
@@ -121,7 +142,10 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
       }
       if (controller.signal.aborted) return;
       const t = api.getToken();
-      if (!t) { setLoading(false); return; }
+      if (!t) {
+        setLoading(false);
+        return;
+      }
       setToken(t);
       try {
         const u = await api.getMe(controller.signal);
@@ -134,17 +158,37 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
           return;
         }
         u.roles = roles;
-        sharedAuth.login({ id: u.id, phone: u.phone, email: u.email, role: "rider" } satisfies SharedAuthUser, t);
+        sharedAuth.login(
+          { id: u.id, phone: u.phone, email: u.email, role: "rider" } satisfies SharedAuthUser,
+          t
+        );
         setUser(u);
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") return;
         const e = err as Record<string, unknown>;
         if (e.code === "APPROVAL_PENDING") {
-          setUser({ id: "", phone: "", isOnline: false, walletBalance: "0", roles: [], approvalStatus: "pending", stats: { deliveriesToday: 0, earningsToday: 0, totalDeliveries: 0, totalEarnings: 0 } });
+          setUser({
+            id: "",
+            phone: "",
+            isOnline: false,
+            walletBalance: "0",
+            roles: [],
+            approvalStatus: "pending",
+            stats: { deliveriesToday: 0, earningsToday: 0, totalDeliveries: 0, totalEarnings: 0 },
+          });
           return;
         }
         if (e.code === "APPROVAL_REJECTED") {
-          setUser({ id: "", phone: "", isOnline: false, walletBalance: "0", roles: [], approvalStatus: "rejected", rejectionReason: (e.rejectionReason as string | undefined) ?? null, stats: { deliveriesToday: 0, earningsToday: 0, totalDeliveries: 0, totalEarnings: 0 } });
+          setUser({
+            id: "",
+            phone: "",
+            isOnline: false,
+            walletBalance: "0",
+            roles: [],
+            approvalStatus: "rejected",
+            rejectionReason: (e.rejectionReason as string | undefined) ?? null,
+            stats: { deliveriesToday: 0, earningsToday: 0, totalDeliveries: 0, totalEarnings: 0 },
+          });
           return;
         }
         api.clearTokens();
@@ -174,18 +218,24 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
 
   const login = (t: string, u: AuthUser, refreshToken?: string) => {
     const roles = normalizeRoles(u);
-    if (roles.length > 0 && !roles.includes("rider")) throw new Error("This app is for riders only");
+    if (roles.length > 0 && !roles.includes("rider"))
+      throw new Error("This app is for riders only");
     u.roles = roles;
     queryClient.clear();
     api.storeTokens(t, refreshToken);
-    sharedAuth.login({ id: u.id, phone: u.phone, email: u.email, role: "rider" } satisfies SharedAuthUser, t);
+    sharedAuth.login(
+      { id: u.id, phone: u.phone, email: u.email, role: "rider" } satisfies SharedAuthUser,
+      t
+    );
     setToken(t);
     setUser(u);
   };
 
   const logout = () => {
     executeLogoutSequence(api, () => {
-      try { sessionStorage.clear(); } catch {}
+      try {
+        sessionStorage.clear();
+      } catch {}
       sharedAuth.logout();
       setToken(null);
       setUser(null);
@@ -221,5 +271,23 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
 
   const clearSessionExpired = useCallback(() => setSessionExpired(false), []);
 
-  return <Ctx.Provider value={{ user, token, loading, storageError, twoFactorPending, setTwoFactorPending, login, logout, refreshUser, sessionExpired, clearSessionExpired }}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider
+      value={{
+        user,
+        token,
+        loading,
+        storageError,
+        twoFactorPending,
+        setTwoFactorPending,
+        login,
+        logout,
+        refreshUser,
+        sessionExpired,
+        clearSessionExpired,
+      }}
+    >
+      {children}
+    </Ctx.Provider>
+  );
 }

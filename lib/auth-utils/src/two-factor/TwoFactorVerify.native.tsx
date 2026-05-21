@@ -1,12 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  StyleSheet,
-  Platform,
-} from "react-native";
+import { useCallback, useState } from "react";
+import { Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import type { TwoFactorVerifyProps } from "./types";
 
 export function TwoFactorVerify({
@@ -74,7 +67,9 @@ export function TwoFactorVerify({
           {digits.map((digit, i) => (
             <TextInput
               key={i}
-              ref={(el) => { inputRefs[i] = el; }}
+              ref={(el) => {
+                inputRefs[i] = el;
+              }}
               style={[styles.digitInput, verifyError ? styles.digitInputError : null]}
               keyboardType="number-pad"
               maxLength={1}
@@ -98,7 +93,10 @@ export function TwoFactorVerify({
           <Pressable
             onPress={handleBackupSubmit}
             disabled={verifyLoading || !backupCode.trim()}
-            style={[styles.verifyBtn, (verifyLoading || !backupCode.trim()) && styles.verifyBtnDisabled]}
+            style={[
+              styles.verifyBtn,
+              (verifyLoading || !backupCode.trim()) && styles.verifyBtnDisabled,
+            ]}
           >
             <Text style={styles.verifyBtnText}>
               {verifyLoading ? "Verifying..." : "Verify Backup Code"}
@@ -111,10 +109,7 @@ export function TwoFactorVerify({
       {verifyLoading && !useBackup && <Text style={styles.loadingText}>Verifying...</Text>}
 
       {showTrustDevice && (
-        <Pressable
-          onPress={() => onTrustDeviceChange?.(!trustDevice)}
-          style={styles.trustRow}
-        >
+        <Pressable onPress={() => onTrustDeviceChange?.(!trustDevice)} style={styles.trustRow}>
           <View style={[styles.checkbox, trustDevice && styles.checkboxChecked]}>
             {trustDevice && <Text style={styles.checkmark}>✓</Text>}
           </View>
@@ -140,23 +135,73 @@ export function TwoFactorVerify({
 
 const styles = StyleSheet.create({
   container: { padding: 20, alignItems: "center" },
-  iconContainer: { width: 56, height: 56, borderRadius: 14, backgroundColor: "#EBF5FF", alignItems: "center", justifyContent: "center", marginBottom: 14 },
+  iconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: "#EBF5FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
   icon: { fontSize: 28 },
   title: { fontSize: 18, fontWeight: "700", color: "#111827", marginBottom: 6 },
   subtitle: { fontSize: 14, color: "#6B7280", textAlign: "center", marginBottom: 20 },
   digitRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
-  digitInput: { width: 44, height: 52, textAlign: "center", fontSize: 22, fontWeight: "700", borderRadius: 10, borderWidth: 2, borderColor: "#D1D5DB", color: "#111827" },
+  digitInput: {
+    width: 44,
+    height: 52,
+    textAlign: "center",
+    fontSize: 22,
+    fontWeight: "700",
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    color: "#111827",
+  },
   digitInputError: { borderColor: "#EF4444" },
   backupForm: { width: "100%", marginBottom: 16 },
-  backupInput: { width: "100%", padding: 12, fontSize: 15, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace", borderRadius: 10, borderWidth: 2, borderColor: "#D1D5DB", textAlign: "center" },
+  backupInput: {
+    width: "100%",
+    padding: 12,
+    fontSize: 15,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    textAlign: "center",
+  },
   backupInputError: { borderColor: "#EF4444" },
-  verifyBtn: { marginTop: 10, padding: 12, borderRadius: 10, backgroundColor: "#1A56DB", alignItems: "center" },
+  verifyBtn: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: "#1A56DB",
+    alignItems: "center",
+  },
   verifyBtnDisabled: { opacity: 0.6 },
   verifyBtnText: { fontSize: 14, fontWeight: "600", color: "#fff" },
   errorText: { fontSize: 13, color: "#EF4444", textAlign: "center", marginBottom: 12 },
   loadingText: { fontSize: 13, color: "#6B7280", textAlign: "center", marginBottom: 12 },
-  trustRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 10, backgroundColor: "#F9FAFB", borderRadius: 8, marginBottom: 16, width: "100%" },
-  checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 2, borderColor: "#D1D5DB", alignItems: "center", justifyContent: "center" },
+  trustRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 10,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 8,
+    marginBottom: 16,
+    width: "100%",
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   checkboxChecked: { backgroundColor: "#1A56DB", borderColor: "#1A56DB" },
   checkmark: { color: "#fff", fontSize: 14, fontWeight: "700" },
   trustText: { fontSize: 13, color: "#374151" },

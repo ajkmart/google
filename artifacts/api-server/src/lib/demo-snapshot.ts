@@ -5,17 +5,30 @@ import { logger } from "./logger.js";
 
 export async function isDemoMode(): Promise<boolean> {
   try {
-    const setting = await db.select().from(platformSettingsTable)
+    const setting = await db
+      .select()
+      .from(platformSettingsTable)
       .where(eq(platformSettingsTable.key, "demo_mode_enabled"))
       .limit(1);
     return setting.length > 0 ? setting[0].value === "true" : false;
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return false;
   }
 }
 
-export interface DemoOrder { id: string; status: string; total: number; type?: string }
+export interface DemoOrder {
+  id: string;
+  status: string;
+  total: number;
+  type?: string;
+}
 export interface DemoSnapshot {
   vendors: Array<Record<string, unknown>>;
   orders: DemoOrder[];
@@ -30,12 +43,15 @@ export async function getDemoSnapshot(): Promise<DemoSnapshot> {
 
 export async function setDemoMode(enabled: boolean) {
   try {
-    const existing = await db.select().from(platformSettingsTable)
+    const existing = await db
+      .select()
+      .from(platformSettingsTable)
       .where(eq(platformSettingsTable.key, "demo_mode_enabled"))
       .limit(1);
-    
+
     if (existing.length) {
-      await db.update(platformSettingsTable)
+      await db
+        .update(platformSettingsTable)
         .set({ value: enabled ? "true" : "false", updatedAt: new Date() })
         .where(eq(platformSettingsTable.key, "demo_mode_enabled"));
     } else {
@@ -52,4 +68,4 @@ export async function setDemoMode(enabled: boolean) {
     return { success: false, error: String(err) };
   }
 }
-export function invalidateDemoSnapshotCache() { }
+export function invalidateDemoSnapshotCache() {}

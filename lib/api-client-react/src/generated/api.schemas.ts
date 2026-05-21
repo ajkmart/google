@@ -50,8 +50,7 @@ export interface CheckIdentifierResponse {
   lockedMinutes?: number;
 }
 
-export type SendOtpRequestRole =
-  (typeof SendOtpRequestRole)[keyof typeof SendOtpRequestRole];
+export type SendOtpRequestRole = (typeof SendOtpRequestRole)[keyof typeof SendOtpRequestRole];
 
 export const SendOtpRequestRole = {
   customer: "customer",
@@ -80,8 +79,7 @@ export interface SendOtpResponse {
   otp?: string;
 }
 
-export type VerifyOtpRequestRole =
-  (typeof VerifyOtpRequestRole)[keyof typeof VerifyOtpRequestRole];
+export type VerifyOtpRequestRole = (typeof VerifyOtpRequestRole)[keyof typeof VerifyOtpRequestRole];
 
 export const VerifyOtpRequestRole = {
   customer: "customer",
@@ -95,8 +93,7 @@ export interface VerifyOtpRequest {
   role?: VerifyOtpRequestRole;
 }
 
-export type RegisterRequestRole =
-  (typeof RegisterRequestRole)[keyof typeof RegisterRequestRole];
+export type RegisterRequestRole = (typeof RegisterRequestRole)[keyof typeof RegisterRequestRole];
 
 export const RegisterRequestRole = {
   customer: "customer",
@@ -117,8 +114,7 @@ export interface RegisterRequest {
   vehiclePlate?: string;
 }
 
-export type LoginRequestRole =
-  (typeof LoginRequestRole)[keyof typeof LoginRequestRole];
+export type LoginRequestRole = (typeof LoginRequestRole)[keyof typeof LoginRequestRole];
 
 export const LoginRequestRole = {
   customer: "customer",
@@ -358,8 +354,7 @@ export const OrderStatus = {
   cancelled: "cancelled",
 } as const;
 
-export type OrderPaymentMethod =
-  (typeof OrderPaymentMethod)[keyof typeof OrderPaymentMethod];
+export type OrderPaymentMethod = (typeof OrderPaymentMethod)[keyof typeof OrderPaymentMethod];
 
 export const OrderPaymentMethod = {
   cash: "cash",
@@ -482,8 +477,7 @@ export interface WalletDepositResult {
   status?: string;
 }
 
-export type WalletDepositStatus =
-  (typeof WalletDepositStatus)[keyof typeof WalletDepositStatus];
+export type WalletDepositStatus = (typeof WalletDepositStatus)[keyof typeof WalletDepositStatus];
 
 export const WalletDepositStatus = {
   pending: "pending",
@@ -615,8 +609,7 @@ export const RideStatus = {
   cancelled: "cancelled",
 } as const;
 
-export type RidePaymentMethod =
-  (typeof RidePaymentMethod)[keyof typeof RidePaymentMethod];
+export type RidePaymentMethod = (typeof RidePaymentMethod)[keyof typeof RidePaymentMethod];
 
 export const RidePaymentMethod = {
   cash: "cash",
@@ -655,8 +648,7 @@ export interface Ride {
   bids?: RideBid[];
 }
 
-export type BookRideRequestType =
-  (typeof BookRideRequestType)[keyof typeof BookRideRequestType];
+export type BookRideRequestType = (typeof BookRideRequestType)[keyof typeof BookRideRequestType];
 
 export const BookRideRequestType = {
   car: "car",
@@ -807,8 +799,7 @@ export interface LoyaltyRedeemRequest {
   points: number;
 }
 
-export type KycStatusStatus =
-  (typeof KycStatusStatus)[keyof typeof KycStatusStatus];
+export type KycStatusStatus = (typeof KycStatusStatus)[keyof typeof KycStatusStatus];
 
 export const KycStatusStatus = {
   not_submitted: "not_submitted",
@@ -854,8 +845,7 @@ export interface SosResponse {
   message: string;
 }
 
-export type SupportMessageType =
-  (typeof SupportMessageType)[keyof typeof SupportMessageType];
+export type SupportMessageType = (typeof SupportMessageType)[keyof typeof SupportMessageType];
 
 export const SupportMessageType = {
   text: "text",
@@ -1055,8 +1045,7 @@ export interface ParcelEstimateResponse {
   weightKg?: number;
 }
 
-export type ParcelBookingStatus =
-  (typeof ParcelBookingStatus)[keyof typeof ParcelBookingStatus];
+export type ParcelBookingStatus = (typeof ParcelBookingStatus)[keyof typeof ParcelBookingStatus];
 
 export const ParcelBookingStatus = {
   pending: "pending",
@@ -1516,8 +1505,7 @@ export type GetProductsParams = {
   sort?: string;
 };
 
-export type GetProductsType =
-  (typeof GetProductsType)[keyof typeof GetProductsType];
+export type GetProductsType = (typeof GetProductsType)[keyof typeof GetProductsType];
 
 export const GetProductsType = {
   mart: "mart",
@@ -1528,8 +1516,7 @@ export type GetCategoriesParams = {
   type?: GetCategoriesType;
 };
 
-export type GetCategoriesType =
-  (typeof GetCategoriesType)[keyof typeof GetCategoriesType];
+export type GetCategoriesType = (typeof GetCategoriesType)[keyof typeof GetCategoriesType];
 
 export const GetCategoriesType = {
   mart: "mart",

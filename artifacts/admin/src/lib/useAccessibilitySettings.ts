@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from "react";
-import { safeLocalGet, safeLocalSet } from "@/lib/safeStorage";
 import { safeJsonParse, safeJsonStringify } from "@/lib/safeJson";
+import { safeLocalGet, safeLocalSet } from "@/lib/safeStorage";
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * useAccessibilitySettings — admin-only WCAG affordances kept on the
@@ -47,7 +47,10 @@ function readPersisted(): AccessibilitySettings {
   return {
     fontScale: isFontScale(parsed.fontScale) ? parsed.fontScale : DEFAULT_ACCESSIBILITY.fontScale,
     contrast: isContrast(parsed.contrast) ? parsed.contrast : DEFAULT_ACCESSIBILITY.contrast,
-    reduceMotion: typeof parsed.reduceMotion === "boolean" ? parsed.reduceMotion : DEFAULT_ACCESSIBILITY.reduceMotion,
+    reduceMotion:
+      typeof parsed.reduceMotion === "boolean"
+        ? parsed.reduceMotion
+        : DEFAULT_ACCESSIBILITY.reduceMotion,
   };
 }
 
@@ -70,15 +73,15 @@ export function useAccessibilitySettings() {
   }, [settings]);
 
   const setFontScale = useCallback((fontScale: AdminFontScale) => {
-    setSettings(prev => ({ ...prev, fontScale }));
+    setSettings((prev) => ({ ...prev, fontScale }));
   }, []);
 
   const setContrast = useCallback((contrast: AdminContrast) => {
-    setSettings(prev => ({ ...prev, contrast }));
+    setSettings((prev) => ({ ...prev, contrast }));
   }, []);
 
   const setReduceMotion = useCallback((reduceMotion: boolean) => {
-    setSettings(prev => ({ ...prev, reduceMotion }));
+    setSettings((prev) => ({ ...prev, reduceMotion }));
   }, []);
 
   const reset = useCallback(() => {

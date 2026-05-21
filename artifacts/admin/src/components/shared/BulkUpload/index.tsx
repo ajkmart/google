@@ -1,8 +1,8 @@
-import { useState, useRef, DragEvent, ChangeEvent } from "react";
-import { Upload, FileText, AlertCircle, CheckCircle2, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { AlertCircle, CheckCircle2, FileText, Loader2, Upload, X } from "lucide-react";
+import { ChangeEvent, DragEvent, useRef, useState } from "react";
 
 export interface BulkUploadProps {
   onUpload: (rows: Record<string, string>[]) => Promise<void>;
@@ -25,7 +25,9 @@ function parseCsv(text: string): Record<string, string>[] {
   return lines.slice(1).map((line) => {
     const values = line.split(",").map((v) => v.trim().replace(/^"|"$/g, ""));
     const row: Record<string, string> = {};
-    headers.forEach((h, i) => { row[h] = values[i] ?? ""; });
+    headers.forEach((h, i) => {
+      row[h] = values[i] ?? "";
+    });
     return row;
   });
 }
@@ -151,8 +153,10 @@ export function BulkUpload({ onUpload, columns, sampleCsvUrl, className }: BulkU
     <div className={cn("space-y-4", className)}>
       <div
         className={cn(
-          "relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 text-center transition-colors cursor-pointer",
-          isDragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/30",
+          "relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 text-center transition-colors",
+          isDragging
+            ? "border-primary bg-primary/5"
+            : "border-border hover:border-primary/50 hover:bg-muted/30",
           rows.length > 0 ? "py-4" : "py-10"
         )}
         onDragOver={onDragOver}
@@ -169,32 +173,33 @@ export function BulkUpload({ onUpload, columns, sampleCsvUrl, className }: BulkU
         />
         {rows.length > 0 ? (
           <div className="flex items-center gap-2 text-sm">
-            <FileText className="h-5 w-5 text-primary shrink-0" />
-            <span className="font-medium truncate max-w-xs">{fileName}</span>
+            <FileText className="text-primary h-5 w-5 shrink-0" />
+            <span className="max-w-xs truncate font-medium">{fileName}</span>
             <span className="text-muted-foreground">({rows.length} rows)</span>
             <button
               type="button"
-              className="ml-2 text-muted-foreground hover:text-destructive transition-colors"
-              onClick={(e) => { e.stopPropagation(); reset(); }}
+              className="text-muted-foreground hover:text-destructive ml-2 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                reset();
+              }}
             >
               <X className="h-4 w-4" />
             </button>
           </div>
         ) : (
           <>
-            <Upload className="h-8 w-8 text-muted-foreground" />
+            <Upload className="text-muted-foreground h-8 w-8" />
             <div>
-              <p className="font-medium text-sm">Drag & drop a CSV file here</p>
-              <p className="text-xs text-muted-foreground mt-1">or click to browse</p>
+              <p className="text-sm font-medium">Drag & drop a CSV file here</p>
+              <p className="text-muted-foreground mt-1 text-xs">or click to browse</p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Required columns: {columns.join(", ")}
-            </p>
+            <p className="text-muted-foreground text-xs">Required columns: {columns.join(", ")}</p>
             {sampleCsvUrl && (
               <a
                 href={sampleCsvUrl}
                 download
-                className="text-xs text-primary underline underline-offset-4 hover:no-underline"
+                className="text-primary text-xs underline underline-offset-4 hover:no-underline"
                 onClick={(e) => e.stopPropagation()}
               >
                 Download sample CSV
@@ -205,10 +210,10 @@ export function BulkUpload({ onUpload, columns, sampleCsvUrl, className }: BulkU
       </div>
 
       {hasErrors && (
-        <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 space-y-1">
+        <div className="bg-destructive/10 border-destructive/20 space-y-1 rounded-lg border p-3">
           {headerErrors.map((e, i) => (
-            <p key={i} className="text-sm text-destructive flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            <p key={i} className="text-destructive flex items-start gap-2 text-sm">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               {e}
             </p>
           ))}
@@ -216,35 +221,39 @@ export function BulkUpload({ onUpload, columns, sampleCsvUrl, className }: BulkU
       )}
 
       {rowErrors.length > 0 && (
-        <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 space-y-1">
-          <p className="text-sm font-medium text-destructive">Upload errors:</p>
+        <div className="bg-destructive/10 border-destructive/20 space-y-1 rounded-lg border p-3">
+          <p className="text-destructive text-sm font-medium">Upload errors:</p>
           {rowErrors.map((e, i) => (
-            <p key={i} className="text-xs text-destructive">
-              {e.row > 0 ? `Row ${e.row}: ` : ""}{e.message}
+            <p key={i} className="text-destructive text-xs">
+              {e.row > 0 ? `Row ${e.row}: ` : ""}
+              {e.message}
             </p>
           ))}
         </div>
       )}
 
       {isSuccess && (
-        <div className="rounded-lg bg-green-50 border border-green-200 p-3 flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+        <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
           <p className="text-sm text-green-700">Upload completed successfully.</p>
         </div>
       )}
 
       {previewRows.length > 0 && !hasErrors && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
             Preview ({Math.min(rows.length, MAX_PREVIEW_ROWS)} of {rows.length} rows)
           </p>
-          <ScrollArea className="h-40 rounded-lg border border-border bg-muted/20">
+          <ScrollArea className="border-border bg-muted/20 h-40 rounded-lg border">
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b bg-muted/40">
+                  <tr className="bg-muted/40 border-b">
                     {headers.map((h) => (
-                      <th key={h} className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap">
+                      <th
+                        key={h}
+                        className="text-muted-foreground px-3 py-2 text-left font-semibold whitespace-nowrap"
+                      >
                         {h}
                       </th>
                     ))}
@@ -254,7 +263,10 @@ export function BulkUpload({ onUpload, columns, sampleCsvUrl, className }: BulkU
                   {previewRows.map((row, i) => (
                     <tr key={i} className="border-b last:border-0">
                       {headers.map((h) => (
-                        <td key={h} className="px-3 py-1.5 whitespace-nowrap truncate max-w-[160px]">
+                        <td
+                          key={h}
+                          className="max-w-[160px] truncate px-3 py-1.5 whitespace-nowrap"
+                        >
                           {row[h]}
                         </td>
                       ))}
@@ -268,11 +280,7 @@ export function BulkUpload({ onUpload, columns, sampleCsvUrl, className }: BulkU
       )}
 
       {rows.length > 0 && !hasErrors && !isSuccess && (
-        <Button
-          onClick={handleUpload}
-          disabled={isPending}
-          className="w-full sm:w-auto"
-        >
+        <Button onClick={handleUpload} disabled={isPending} className="w-full sm:w-auto">
           {isPending ? (
             <span className="flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" />

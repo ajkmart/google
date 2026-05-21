@@ -21,7 +21,7 @@ export function PageHeader({ title, subtitle, actions, mobileContent }: PageHead
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-extrabold text-white">{title}</h1>
-            {subtitle && <p className="text-blue-200 text-sm mt-0.5 opacity-80">{subtitle}</p>}
+            {subtitle && <p className="mt-0.5 text-sm text-blue-200 opacity-80">{subtitle}</p>}
           </div>
           {actions && <div className="flex items-center gap-2">{actions}</div>}
         </div>
@@ -30,7 +30,7 @@ export function PageHeader({ title, subtitle, actions, mobileContent }: PageHead
 
       {/* ── Desktop Header (dark) ── */}
       <div
-        className="hidden md:flex items-center justify-between px-6 py-4 sticky top-0 z-10"
+        className="sticky top-0 z-10 hidden items-center justify-between px-6 py-4 md:flex"
         style={{
           background: "#0D1117",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -39,10 +39,14 @@ export function PageHeader({ title, subtitle, actions, mobileContent }: PageHead
       >
         <div>
           <h1 className="text-xl font-extrabold text-white">{title}</h1>
-          {subtitle && <p className="text-sm mt-0.5" style={{ color: "#6B7280" }}>{subtitle}</p>}
+          {subtitle && (
+            <p className="mt-0.5 text-sm" style={{ color: "#6B7280" }}>
+              {subtitle}
+            </p>
+          )}
         </div>
         {actions && <div className="flex items-center gap-3">{actions}</div>}
-        {mobileContent && <div className="flex-1 max-w-sm ml-6">{mobileContent}</div>}
+        {mobileContent && <div className="ml-6 max-w-sm flex-1">{mobileContent}</div>}
       </div>
     </>
   );

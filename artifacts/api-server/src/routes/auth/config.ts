@@ -1,57 +1,26 @@
-import { Router, type IRouter, type Request, type Response } from "express";
-import rateLimit from "express-rate-limit";
-import crypto, { randomBytes, createHash, randomInt } from "crypto";
-import { z } from "zod";
+import { isAuthMethodEnabled } from "@workspace/auth-utils/server";
 import { db } from "@workspace/db";
-import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
-import { eq, and, sql, lt, or, desc, ilike, isNull } from "drizzle-orm";
-import { generateId } from "../../lib/id.js";
-import { getPlatformSettings } from "../admin.js";
-import { emitWebhookEvent } from "../../lib/webhook-emitter.js";
-import { fireAndForget } from "../../lib/fireAndForget.js";
-import { checkLockout, recordFailedAttempt, resetAttempts, addAuditEntry, addSecurityEvent, getClientIp, getCachedSettings, signUserJwt, signAccessToken, sign2faChallengeToken, verify2faChallengeToken, generateRefreshToken, hashRefreshToken, isRefreshTokenValid, revokeRefreshToken, revokeAllUserRefreshTokens, verifyUserJwt, blacklistJti, writeAuthAuditLog, getRefreshTokenTtlDays, getAccessTokenTtlSec, verifyCaptcha, checkAvailableRateLimit } from "../../middleware/security.js";
-import { sendOtpSMS, isSMSProviderConfigured, isSMSConsoleActive } from "../../services/sms.js";
-import { sendOtpWithFailover, getWhitelistBypass } from "../../services/smsGateway.js";
-import { sendWhatsAppOTP, isWhatsAppProviderConfigured } from "../../services/whatsapp.js";
-import { hashPassword, verifyPassword, validatePasswordStrength, generateSecureOtp } from "../../services/password.js";
-import { generateTotpSecret, verifyTotpToken, generateQRCodeDataURL, getTotpUri, encryptTotpSecret, decryptTotpSecret } from "../../services/totp.js";
-import { sendVerificationEmail, sendPasswordResetEmail, sendMagicLinkEmail, alertNewVendor, isEmailProviderConfigured } from "../../services/email.js";
-import { getUserLanguage, getPlatformDefaultLanguage } from "../../lib/getUserLanguage.js";
-import { t } from "@workspace/i18n";
-import { logger } from "../../lib/logger.js";
-import { sendError, sendErrorWithData, sendUnauthorized, sendForbidden, sendNotFound, sendInternalError, sendTooManyRequests, sendSuccess, sendCreated } from "../../lib/response.js";
-import { clearSpoofHits } from "../rider/index.js";
+import { usersTable } from "@workspace/db/schema";
 import { canonicalizePhone } from "@workspace/phone-utils";
-import { isAuthMethodEnabled, isAuthMethodEnabledStrict } from "@workspace/auth-utils/server";
-import { validateBody as sharedValidateBody } from "../../middleware/validate.js";
-import { authLimiter, loginLimiter, otpLimiter } from "../../middleware/rate-limit.js";
-import { hashOtp, isValidCanonicalPhone, normalizeVehicleTypeForStorage, generateVerificationToken, hashVerificationToken, tryEncrypt, decryptPii, setRiderRefreshCookie, clearRiderRefreshCookie, setVendorRefreshCookie, clearVendorRefreshCookie, RIDER_REFRESH_COOKIE, RIDER_REFRESH_COOKIE_PATH, VENDOR_REFRESH_COOKIE, VENDOR_REFRESH_COOKIE_PATH } from "./helpers.js";
-import { rotateRefreshToken, invalidateTokenFamily } from "../../services/auth/tokenRotation.js";
-import {
-  AUTH_OTP_TTL_MS,
-  CNIC_REGEX,
-  PHONE_REGEX,
-  forgotPasswordSchema,
-  registerSchema,
-  refreshTokenSchema,
-  checkIdentifierSchema,
-  sendOtpSchema,
-  verifyOtpSchema,
-  loginSchema,
-} from "./helpers.js";
+import { eq } from "drizzle-orm";
+import { Router, type IRouter } from "express";
+import { logger } from "../../lib/logger.js";
+import { sendError, sendSuccess } from "../../lib/response.js";
+import { getCachedSettings } from "../../middleware/security.js";
+import { getWhitelistBypass } from "../../services/smsGateway.js";
 
 const router: IRouter = Router();
 
 router.get("/config", async (_req, res) => {
   try {
     const settings = await getCachedSettings();
-    
+
     /* ── Check if OTP bypass is currently active (global) ── */
     const otpGlobalDisabledUntilStr = settings["otp_global_disabled_until"];
     const now = new Date();
     let otpBypassActive = false;
     let otpBypassExpiresAt: string | null = null;
-    
+
     if (otpGlobalDisabledUntilStr) {
       try {
         const disabledUntil = new Date(otpGlobalDisabledUntilStr);
@@ -63,48 +32,47 @@ router.get("/config", async (_req, res) => {
         logger.error({ error: e }, "[/auth/config] Failed to parse OTP bypass timestamp");
       }
     }
-    
+
     const bypassMessage = settings["otp_bypass_message"] ?? null;
-    
+
     /* ── Rider-scoped auth method flags — use role-aware helper so JSON
        per-role maps like { "rider": "on" } are parsed correctly ── */
-    const riderFlag = (key: string): boolean =>
-      isAuthMethodEnabled(settings, key, "rider");
+    const riderFlag = (key: string): boolean => isAuthMethodEnabled(settings, key, "rider");
 
     sendSuccess(res, {
       /* Legacy snake_case fields kept for backward compat */
-      auth_mode:             settings["auth_mode"]             ?? "OTP",
-      firebase_enabled:      settings["firebase_enabled"]      ?? "off",
-      auth_otp_enabled:      settings["auth_otp_enabled"]      ?? "on",
-      auth_email_enabled:    settings["auth_email_enabled"]    ?? "on",
-      auth_google_enabled:   settings["auth_google_enabled"]   ?? "on",
+      auth_mode: settings["auth_mode"] ?? "OTP",
+      firebase_enabled: settings["firebase_enabled"] ?? "off",
+      auth_otp_enabled: settings["auth_otp_enabled"] ?? "on",
+      auth_email_enabled: settings["auth_email_enabled"] ?? "on",
+      auth_google_enabled: settings["auth_google_enabled"] ?? "on",
       auth_facebook_enabled: settings["auth_facebook_enabled"] ?? "off",
       otpBypassActive,
       otpBypassExpiresAt,
       bypassMessage,
       /* Rider-scoped camelCase fields — consumed by AuthConfigContext */
-      phoneOtp:         riderFlag("auth_phone_otp_enabled"),
-      emailOtp:         riderFlag("auth_email_otp_enabled"),
-      google:           riderFlag("auth_google_enabled"),
-      facebook:         riderFlag("auth_facebook_enabled"),
+      phoneOtp: riderFlag("auth_phone_otp_enabled"),
+      emailOtp: riderFlag("auth_email_otp_enabled"),
+      google: riderFlag("auth_google_enabled"),
+      facebook: riderFlag("auth_facebook_enabled"),
       usernamePassword: riderFlag("auth_username_password_enabled"),
-      magicLink:        riderFlag("auth_magic_link_enabled"),
-      totp:             riderFlag("auth_totp_enabled"),
-      captchaEnabled:   riderFlag("auth_captcha_enabled"),
-      captchaSiteKey:   settings["recaptcha_site_key"] ?? null,
-      googleClientId:   settings["google_client_id"]   ?? null,
-      facebookAppId:    settings["facebook_app_id"]    ?? null,
-      otpBypassGlobal:  (settings["security_otp_bypass"] ?? "off") === "on",
-      otpProvider:      settings["otp_provider"]        ?? null,
+      magicLink: riderFlag("auth_magic_link_enabled"),
+      totp: riderFlag("auth_totp_enabled"),
+      captchaEnabled: riderFlag("auth_captcha_enabled"),
+      captchaSiteKey: settings["recaptcha_site_key"] ?? null,
+      googleClientId: settings["google_client_id"] ?? null,
+      facebookAppId: settings["facebook_app_id"] ?? null,
+      otpBypassGlobal: (settings["security_otp_bypass"] ?? "off") === "on",
+      otpProvider: settings["otp_provider"] ?? null,
     });
   } catch (e) {
     logger.error({ error: e }, "[/auth/config] Failed to get config");
-    sendSuccess(res, { 
-      auth_mode: "OTP", 
-      firebase_enabled: "off", 
-      auth_otp_enabled: "on", 
-      auth_email_enabled: "on", 
-      auth_google_enabled: "on", 
+    sendSuccess(res, {
+      auth_mode: "OTP",
+      firebase_enabled: "off",
+      auth_otp_enabled: "on",
+      auth_email_enabled: "on",
+      auth_google_enabled: "on",
       auth_facebook_enabled: "off",
       otpBypassActive: false,
       otpBypassExpiresAt: null,

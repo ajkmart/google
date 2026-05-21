@@ -10,9 +10,9 @@
  *   const data = await fetcher('/some/path', { method: 'GET' });
  */
 
-import { createCircuitBreaker, CircuitOpenError } from "./circuitBreaker";
-import { createApiFetcher, RefreshError } from "./createApiFetcher";
+import { CircuitOpenError, createCircuitBreaker } from "./circuitBreaker";
 import type { CreateApiFetcherConfig } from "./createApiFetcher";
+import { createApiFetcher, RefreshError } from "./createApiFetcher";
 
 export interface ResilientFetcherConfig extends CreateApiFetcherConfig {
   /** Number of 5xx retries before giving up (default: 3). Delays: 1s, 2s, 4s. */
@@ -57,7 +57,7 @@ export function createResilientFetcher(config: ResilientFetcherConfig): Resilien
   async function fetch(
     path: string,
     opts: RequestInit = {},
-    retries: number = maxRetries,
+    retries: number = maxRetries
   ): Promise<unknown> {
     if (retries === maxRetries) {
       try {
@@ -67,7 +67,7 @@ export function createResilientFetcher(config: ResilientFetcherConfig): Resilien
           const retryS = Math.ceil((err as CircuitOpenError).retryAfterMs / 1000);
           throw Object.assign(
             new Error(`Service temporarily unavailable. Please try again in ${retryS}s.`),
-            { status: 503, transient: true, circuitOpen: true },
+            { status: 503, transient: true, circuitOpen: true }
           );
         }
         throw err;
@@ -83,19 +83,16 @@ export function createResilientFetcher(config: ResilientFetcherConfig): Resilien
         if (re.isTransient) {
           throw Object.assign(
             new Error("Connection issue. Please check your network and try again."),
-            { status: 0, transient: true },
+            { status: 0, transient: true }
           );
         }
-        throw Object.assign(
-          new Error("Session expired. Please log in again."),
-          { status: 401 },
-        );
+        throw Object.assign(new Error("Session expired. Please log in again."), { status: 401 });
       }
       if (err instanceof Error && err.name === "AbortError") throw err;
-      throw Object.assign(
-        new Error("Network error. Please check your connection and try again."),
-        { status: 0, transient: true },
-      );
+      throw Object.assign(new Error("Network error. Please check your connection and try again."), {
+        status: 0,
+        transient: true,
+      });
     }
 
     if (res.status >= 500 && retries > 0) {
@@ -119,7 +116,9 @@ export function createResilientFetcher(config: ResilientFetcherConfig): Resilien
     /* Notify the caller about the raw envelope before unwrapping.
        Consumers can use this to capture top-level fields (e.g. csrfToken). */
     if (onRawJson) onRawJson(json);
-    return (json as { data?: unknown }).data !== undefined ? (json as { data: unknown }).data : json;
+    return (json as { data?: unknown }).data !== undefined
+      ? (json as { data: unknown }).data
+      : json;
   }
 
   return { fetch, refresh: _refresh };

@@ -6,8 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type WalletDepositStatus =
-  (typeof WalletDepositStatus)[keyof typeof WalletDepositStatus];
+export type WalletDepositStatus = (typeof WalletDepositStatus)[keyof typeof WalletDepositStatus];
 
 export const WalletDepositStatus = {
   pending: "pending",

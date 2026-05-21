@@ -10,6 +10,6 @@ import { RIDE_VALID_STATUSES } from "@workspace/service-constants";
 
 export type RideStatus = (typeof RideStatus)[keyof typeof RideStatus];
 
-export const RideStatus = Object.fromEntries(
-  RIDE_VALID_STATUSES.map((s) => [s, s]),
-) as { [K in (typeof RIDE_VALID_STATUSES)[number]]: K };
+export const RideStatus = Object.fromEntries(RIDE_VALID_STATUSES.map((s) => [s, s])) as {
+  [K in (typeof RIDE_VALID_STATUSES)[number]]: K;
+};

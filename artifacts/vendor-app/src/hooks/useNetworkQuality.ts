@@ -43,7 +43,11 @@ function effectiveTypeToTier(effectiveType: string): NetworkTier {
   }
 }
 
-export function useNetworkQuality(): { tier: NetworkTier; isSlowNetwork: boolean; isOffline: boolean } {
+export function useNetworkQuality(): {
+  tier: NetworkTier;
+  isSlowNetwork: boolean;
+  isOffline: boolean;
+} {
   const [quality, setQuality] = useState<{ tier: NetworkTier; isOffline: boolean }>({
     tier: "medium",
     isOffline: false,
@@ -77,14 +81,21 @@ export function useNetworkQuality(): { tier: NetworkTier; isSlowNetwork: boolean
     };
   }, []);
 
-  return { tier: quality.tier, isSlowNetwork: quality.tier === "slow", isOffline: quality.isOffline };
+  return {
+    tier: quality.tier,
+    isSlowNetwork: quality.tier === "slow",
+    isOffline: quality.isOffline,
+  };
 }
 
 export function getPollingIntervalForTier(tier: NetworkTier): number {
   switch (tier) {
-    case "slow":   return 10_000;
-    case "medium": return 7_500;
+    case "slow":
+      return 10_000;
+    case "medium":
+      return 7_500;
     case "fast":
-    default:       return 5_000;
+    default:
+      return 5_000;
   }
 }

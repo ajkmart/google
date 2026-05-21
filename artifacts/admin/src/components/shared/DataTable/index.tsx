@@ -1,22 +1,11 @@
-import { ReactNode } from "react";
-import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Pagination,
   PaginationContent,
-  PaginationItem,
-  PaginationPrevious,
-  PaginationNext,
-  PaginationLink,
   PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
 } from "@/components/ui/pagination";
 import {
   Select,
@@ -25,6 +14,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ChevronDown, ChevronsUpDown, ChevronUp } from "lucide-react";
+import { ReactNode } from "react";
 
 export interface DataTableColumn<T> {
   header: string;
@@ -52,11 +52,22 @@ export interface DataTableProps<T> {
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 const SKELETON_ROWS = 5;
 
-function SortIcon({ colKey, sortKey, sortDir }: { colKey: string; sortKey?: string; sortDir?: "asc" | "desc" }) {
-  if (colKey !== sortKey) return <ChevronsUpDown className="inline h-3.5 w-3.5 ml-1 text-muted-foreground/50" />;
-  return sortDir === "asc"
-    ? <ChevronUp className="inline h-3.5 w-3.5 ml-1" />
-    : <ChevronDown className="inline h-3.5 w-3.5 ml-1" />;
+function SortIcon({
+  colKey,
+  sortKey,
+  sortDir,
+}: {
+  colKey: string;
+  sortKey?: string;
+  sortDir?: "asc" | "desc";
+}) {
+  if (colKey !== sortKey)
+    return <ChevronsUpDown className="text-muted-foreground/50 ml-1 inline h-3.5 w-3.5" />;
+  return sortDir === "asc" ? (
+    <ChevronUp className="ml-1 inline h-3.5 w-3.5" />
+  ) : (
+    <ChevronDown className="ml-1 inline h-3.5 w-3.5" />
+  );
 }
 
 /**
@@ -114,14 +125,14 @@ export function DataTable<T>({
 
   return (
     <div className={`space-y-3 ${className ?? ""}`}>
-      <div className="rounded-xl border border-border bg-white overflow-hidden">
+      <div className="border-border overflow-hidden rounded-xl border bg-white">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40">
               {columns.map((col, i) => (
                 <TableHead
                   key={i}
-                  className={`font-semibold text-xs uppercase tracking-wide ${col.className ?? ""} ${col.sortKey && onSort ? "cursor-pointer select-none hover:text-foreground" : ""}`}
+                  className={`text-xs font-semibold tracking-wide uppercase ${col.className ?? ""} ${col.sortKey && onSort ? "hover:text-foreground cursor-pointer select-none" : ""}`}
                   onClick={col.sortKey && onSort ? () => onSort(col.sortKey!) : undefined}
                 >
                   {col.header}
@@ -145,7 +156,10 @@ export function DataTable<T>({
               ))
             ) : data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-32 text-center text-muted-foreground">
+                <TableCell
+                  colSpan={columns.length}
+                  className="text-muted-foreground h-32 text-center"
+                >
                   {emptyMessage}
                 </TableCell>
               </TableRow>
@@ -165,13 +179,10 @@ export function DataTable<T>({
       </div>
 
       {showPagination && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex flex-col items-center justify-between gap-3 px-1 sm:flex-row">
+          <div className="text-muted-foreground flex items-center gap-2 text-sm">
             <span>Rows per page:</span>
-            <Select
-              value={String(pageSize)}
-              onValueChange={(v) => onPageSizeChange?.(Number(v))}
-            >
+            <Select value={String(pageSize)} onValueChange={(v) => onPageSizeChange?.(Number(v))}>
               <SelectTrigger className="h-8 w-[70px]">
                 <SelectValue />
               </SelectTrigger>
@@ -191,12 +202,15 @@ export function DataTable<T>({
           </div>
 
           {totalPages > 1 && (
-            <Pagination className="w-auto mx-0 justify-end">
+            <Pagination className="mx-0 w-auto justify-end">
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious
                     href="#"
-                    onClick={(e) => { e.preventDefault(); if (page > 1) onPageChange?.(page - 1); }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (page > 1) onPageChange?.(page - 1);
+                    }}
                     aria-disabled={page <= 1}
                     className={page <= 1 ? "pointer-events-none opacity-40" : ""}
                   />
@@ -211,7 +225,10 @@ export function DataTable<T>({
                       <PaginationLink
                         href="#"
                         isActive={p === page}
-                        onClick={(e) => { e.preventDefault(); onPageChange?.(p); }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          onPageChange?.(p);
+                        }}
                       >
                         {p}
                       </PaginationLink>
@@ -221,7 +238,10 @@ export function DataTable<T>({
                 <PaginationItem>
                   <PaginationNext
                     href="#"
-                    onClick={(e) => { e.preventDefault(); if (page < totalPages) onPageChange?.(page + 1); }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (page < totalPages) onPageChange?.(page + 1);
+                    }}
                     aria-disabled={page >= totalPages}
                     className={page >= totalPages ? "pointer-events-none opacity-40" : ""}
                   />

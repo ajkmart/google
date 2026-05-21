@@ -1,6 +1,6 @@
-import { randomBytes } from "crypto";
 import { db } from "@workspace/db";
-import { webhookRegistrationsTable, webhookLogsTable } from "@workspace/db/schema";
+import { webhookLogsTable, webhookRegistrationsTable } from "@workspace/db/schema";
+import { randomBytes } from "crypto";
 import { eq } from "drizzle-orm";
 import { logger } from "./logger.js";
 import { isValidWebhookUrl } from "./webhook-url-validator.js";
@@ -11,16 +11,18 @@ const WEBHOOK_CONCURRENCY_LIMIT = 5;
 
 async function runWithConcurrencyLimit<T>(
   tasks: Array<() => Promise<T>>,
-  limit: number,
+  limit: number
 ): Promise<void> {
   const executing: Promise<void>[] = [];
   for (const task of tasks) {
     const p = task().then(
-      () => { executing.splice(executing.indexOf(p), 1); },
+      () => {
+        executing.splice(executing.indexOf(p), 1);
+      },
       (err: Error) => {
         executing.splice(executing.indexOf(p), 1);
         logger.error({ err: err.message }, "[webhook-emitter] concurrency dispatch failed");
-      },
+      }
     );
     executing.push(p);
     if (executing.length >= limit) {
@@ -32,10 +34,12 @@ async function runWithConcurrencyLimit<T>(
 
 export async function emitWebhookEvent(event: string, data: Record<string, unknown>) {
   try {
-    const webhooks = await db.select().from(webhookRegistrationsTable)
+    const webhooks = await db
+      .select()
+      .from(webhookRegistrationsTable)
       .where(eq(webhookRegistrationsTable.isActive, true));
 
-    const matching = webhooks.filter(w => {
+    const matching = webhooks.filter((w) => {
       const events = (w.events as string[]) || [];
       return events.includes(event);
     });
@@ -49,23 +53,29 @@ export async function emitWebhookEvent(event: string, data: Record<string, unkno
     };
 
     await runWithConcurrencyLimit(
-      matching.map(webhook => () => dispatchWebhook(webhook, event, payload)),
-      WEBHOOK_CONCURRENCY_LIMIT,
+      matching.map((webhook) => () => dispatchWebhook(webhook, event, payload)),
+      WEBHOOK_CONCURRENCY_LIMIT
     );
   } catch (err: unknown) {
-    logger.error({ err: (err as Error).message }, `[webhook-emitter] Error emitting event ${event}`);
+    logger.error(
+      { err: (err as Error).message },
+      `[webhook-emitter] Error emitting event ${event}`
+    );
   }
 }
 
 async function dispatchWebhook(
   webhook: { id: string; url: string; secret: string | null },
   event: string,
-  payload: Record<string, unknown>,
+  payload: Record<string, unknown>
 ) {
   // Re-validate the stored URL at send time to block DNS rebinding attacks
   // and any URLs that pre-date stricter registration validation.
-  if (!await isValidWebhookUrl(webhook.url)) {
-    logger.warn({ webhookId: webhook.id, url: webhook.url }, "[webhook-emitter] dispatch blocked — stored URL failed send-time SSRF validation");
+  if (!(await isValidWebhookUrl(webhook.url))) {
+    logger.warn(
+      { webhookId: webhook.id, url: webhook.url },
+      "[webhook-emitter] dispatch blocked — stored URL failed send-time SSRF validation"
+    );
     return;
   }
 
@@ -91,24 +101,38 @@ async function dispatchWebhook(
     clearTimeout(timeout);
 
     if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
-      logger.warn({ webhookId: webhook.id, url: webhook.url, status: response.status }, "[webhook-emitter] dispatch blocked — webhook URL returned a redirect (SSRF guard)");
-      await db.insert(webhookLogsTable).values({
-        id: logId,
-        webhookId: webhook.id,
-        event,
-        url: webhook.url,
-        status: 0,
-        requestBody: payload,
-        success: false,
-        error: "Redirects are not permitted for webhook destinations",
-        durationMs: Date.now() - startTime,
-      }).catch((dbErr: Error) => { logger.error({ err: dbErr.message }, "[webhook-emitter] Failed to write redirect-block log"); });
+      logger.warn(
+        { webhookId: webhook.id, url: webhook.url, status: response.status },
+        "[webhook-emitter] dispatch blocked — webhook URL returned a redirect (SSRF guard)"
+      );
+      await db
+        .insert(webhookLogsTable)
+        .values({
+          id: logId,
+          webhookId: webhook.id,
+          event,
+          url: webhook.url,
+          status: 0,
+          requestBody: payload,
+          success: false,
+          error: "Redirects are not permitted for webhook destinations",
+          durationMs: Date.now() - startTime,
+        })
+        .catch((dbErr: Error) => {
+          logger.error(
+            { err: dbErr.message },
+            "[webhook-emitter] Failed to write redirect-block log"
+          );
+        });
       return;
     }
 
     const durationMs = Date.now() - startTime;
     const responseText = await response.text().catch((err: unknown) => {
-      logger.debug({ err: err instanceof Error ? err.message : String(err), webhookId: webhook.id, event }, "[webhook-emitter] response.text() read failed — using empty body");
+      logger.debug(
+        { err: err instanceof Error ? err.message : String(err), webhookId: webhook.id, event },
+        "[webhook-emitter] response.text() read failed — using empty body"
+      );
       return "";
     });
 
@@ -125,10 +149,16 @@ async function dispatchWebhook(
     });
 
     if (!response.ok) {
-      logger.warn({ webhookId: webhook.id, url: webhook.url, status: response.status }, "[webhook-emitter] Dispatch returned non-2xx, scheduling retry");
+      logger.warn(
+        { webhookId: webhook.id, url: webhook.url, status: response.status },
+        "[webhook-emitter] Dispatch returned non-2xx, scheduling retry"
+      );
       const retryTimeout = setTimeout(() => {
         retryWebhook(webhook, event, payload).catch((retryErr: Error) => {
-          logger.error({ webhookId: webhook.id, url: webhook.url, err: retryErr.message }, "[webhook-emitter] Retry failed");
+          logger.error(
+            { webhookId: webhook.id, url: webhook.url, err: retryErr.message },
+            "[webhook-emitter] Retry failed"
+          );
         });
       }, 5000);
       if (retryTimeout.unref) retryTimeout.unref();
@@ -136,22 +166,33 @@ async function dispatchWebhook(
   } catch (err: unknown) {
     const durationMs = Date.now() - startTime;
     const errMsg = (err as Error).message || "Unknown error";
-    logger.error({ webhookId: webhook.id, url: webhook.url, err: errMsg }, "[webhook-emitter] Dispatch threw error");
-    await db.insert(webhookLogsTable).values({
-      id: logId,
-      webhookId: webhook.id,
-      event,
-      url: webhook.url,
-      status: 0,
-      requestBody: payload,
-      success: false,
-      error: errMsg,
-      durationMs,
-    }).catch((dbErr: Error) => { logger.error({ err: dbErr.message }, "[webhook-emitter] Failed to write error log"); });
+    logger.error(
+      { webhookId: webhook.id, url: webhook.url, err: errMsg },
+      "[webhook-emitter] Dispatch threw error"
+    );
+    await db
+      .insert(webhookLogsTable)
+      .values({
+        id: logId,
+        webhookId: webhook.id,
+        event,
+        url: webhook.url,
+        status: 0,
+        requestBody: payload,
+        success: false,
+        error: errMsg,
+        durationMs,
+      })
+      .catch((dbErr: Error) => {
+        logger.error({ err: dbErr.message }, "[webhook-emitter] Failed to write error log");
+      });
 
     const retryTimeout = setTimeout(() => {
       retryWebhook(webhook, event, payload).catch((retryErr: Error) => {
-        logger.error({ webhookId: webhook.id, url: webhook.url, err: retryErr.message }, "[webhook-emitter] Retry failed");
+        logger.error(
+          { webhookId: webhook.id, url: webhook.url, err: retryErr.message },
+          "[webhook-emitter] Retry failed"
+        );
       });
     }, 5000);
     if (retryTimeout.unref) retryTimeout.unref();
@@ -161,11 +202,14 @@ async function dispatchWebhook(
 async function retryWebhook(
   webhook: { id: string; url: string; secret: string | null },
   event: string,
-  payload: Record<string, unknown>,
+  payload: Record<string, unknown>
 ) {
   // Re-validate the stored URL at retry time as well.
-  if (!await isValidWebhookUrl(webhook.url)) {
-    logger.warn({ webhookId: webhook.id, url: webhook.url }, "[webhook-emitter] retry blocked — stored URL failed send-time SSRF validation");
+  if (!(await isValidWebhookUrl(webhook.url))) {
+    logger.warn(
+      { webhookId: webhook.id, url: webhook.url },
+      "[webhook-emitter] retry blocked — stored URL failed send-time SSRF validation"
+    );
     return;
   }
 
@@ -192,8 +236,74 @@ async function retryWebhook(
     clearTimeout(timeout);
 
     if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
-      logger.warn({ webhookId: webhook.id, url: webhook.url, status: response.status }, "[webhook-emitter] retry blocked — webhook URL returned a redirect (SSRF guard)");
-      await db.insert(webhookLogsTable).values({
+      logger.warn(
+        { webhookId: webhook.id, url: webhook.url, status: response.status },
+        "[webhook-emitter] retry blocked — webhook URL returned a redirect (SSRF guard)"
+      );
+      await db
+        .insert(webhookLogsTable)
+        .values({
+          id: logId,
+          webhookId: webhook.id,
+          event: `${event} (retry)`,
+          url: webhook.url,
+          status: 0,
+          requestBody: payload,
+          success: false,
+          error: "Redirects are not permitted for webhook destinations",
+          durationMs: Date.now() - startTime,
+        })
+        .catch((dbErr: Error) => {
+          logger.error(
+            { err: dbErr.message },
+            "[webhook-emitter] Failed to write redirect-block retry log"
+          );
+        });
+      return;
+    }
+
+    const durationMs = Date.now() - startTime;
+    const responseText = await response.text().catch((err: unknown) => {
+      logger.debug(
+        { err: err instanceof Error ? err.message : String(err), webhookId: webhook.id, event },
+        "[webhook-emitter] retry response.text() read failed — using empty body"
+      );
+      return "";
+    });
+
+    await db
+      .insert(webhookLogsTable)
+      .values({
+        id: logId,
+        webhookId: webhook.id,
+        event: `${event} (retry)`,
+        url: webhook.url,
+        status: response.status,
+        requestBody: payload,
+        responseBody: responseText.slice(0, 2000),
+        success: response.ok,
+        durationMs,
+      })
+      .catch((dbErr: Error) => {
+        logger.error({ err: dbErr.message }, "[webhook-emitter] Failed to write retry log");
+      });
+
+    if (!response.ok) {
+      logger.warn(
+        { webhookId: webhook.id, url: webhook.url, status: response.status },
+        "[webhook-emitter] Retry also returned non-2xx — giving up"
+      );
+    }
+  } catch (err: unknown) {
+    const durationMs = Date.now() - startTime;
+    const errMsg = (err as Error).message || "Unknown error";
+    logger.error(
+      { webhookId: webhook.id, url: webhook.url, err: errMsg },
+      "[webhook-emitter] Retry threw error — giving up"
+    );
+    await db
+      .insert(webhookLogsTable)
+      .values({
         id: logId,
         webhookId: webhook.id,
         event: `${event} (retry)`,
@@ -201,47 +311,11 @@ async function retryWebhook(
         status: 0,
         requestBody: payload,
         success: false,
-        error: "Redirects are not permitted for webhook destinations",
-        durationMs: Date.now() - startTime,
-      }).catch((dbErr: Error) => { logger.error({ err: dbErr.message }, "[webhook-emitter] Failed to write redirect-block retry log"); });
-      return;
-    }
-
-    const durationMs = Date.now() - startTime;
-    const responseText = await response.text().catch((err: unknown) => {
-      logger.debug({ err: err instanceof Error ? err.message : String(err), webhookId: webhook.id, event }, "[webhook-emitter] retry response.text() read failed — using empty body");
-      return "";
-    });
-
-    await db.insert(webhookLogsTable).values({
-      id: logId,
-      webhookId: webhook.id,
-      event: `${event} (retry)`,
-      url: webhook.url,
-      status: response.status,
-      requestBody: payload,
-      responseBody: responseText.slice(0, 2000),
-      success: response.ok,
-      durationMs,
-    }).catch((dbErr: Error) => { logger.error({ err: dbErr.message }, "[webhook-emitter] Failed to write retry log"); });
-
-    if (!response.ok) {
-      logger.warn({ webhookId: webhook.id, url: webhook.url, status: response.status }, "[webhook-emitter] Retry also returned non-2xx — giving up");
-    }
-  } catch (err: unknown) {
-    const durationMs = Date.now() - startTime;
-    const errMsg = (err as Error).message || "Unknown error";
-    logger.error({ webhookId: webhook.id, url: webhook.url, err: errMsg }, "[webhook-emitter] Retry threw error — giving up");
-    await db.insert(webhookLogsTable).values({
-      id: logId,
-      webhookId: webhook.id,
-      event: `${event} (retry)`,
-      url: webhook.url,
-      status: 0,
-      requestBody: payload,
-      success: false,
-      error: errMsg,
-      durationMs,
-    }).catch((dbErr: Error) => { logger.error({ err: dbErr.message }, "[webhook-emitter] Failed to write retry error log"); });
+        error: errMsg,
+        durationMs,
+      })
+      .catch((dbErr: Error) => {
+        logger.error({ err: dbErr.message }, "[webhook-emitter] Failed to write retry error log");
+      });
   }
 }

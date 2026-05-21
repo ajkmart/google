@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireAndForget } from "../../lib/fireAndForget.js";
 
 type LogArgs = Record<string, unknown>;
@@ -24,7 +24,11 @@ describe("fireAndForget", () => {
       executed = true;
     })();
 
-    fireAndForget(promise, "test:execute", logger as unknown as Parameters<typeof fireAndForget>[2]);
+    fireAndForget(
+      promise,
+      "test:execute",
+      logger as unknown as Parameters<typeof fireAndForget>[2]
+    );
     // caller should continue immediately
     expect(executed).toBe(false);
     await new Promise((r) => setTimeout(r, 30));
@@ -36,18 +40,28 @@ describe("fireAndForget", () => {
     const err = new Error("boom");
     const promise = Promise.reject(err);
 
-    fireAndForget(promise, "test:non-fatal", logger as unknown as Parameters<typeof fireAndForget>[2]);
+    fireAndForget(
+      promise,
+      "test:non-fatal",
+      logger as unknown as Parameters<typeof fireAndForget>[2]
+    );
     await new Promise((r) => setTimeout(r, 20));
 
     expect(logger.warn).toHaveBeenCalledTimes(1);
-    expect(() => fireAndForget(promise, "", logger as unknown as Parameters<typeof fireAndForget>[2])).not.toThrow();
+    expect(() =>
+      fireAndForget(promise, "", logger as unknown as Parameters<typeof fireAndForget>[2])
+    ).not.toThrow();
   });
 
   it("logs error with correct label and code", async () => {
     const err = Object.assign(new Error("connection refused"), { code: "ECONNREFUSED" });
     const promise = Promise.reject(err);
 
-    fireAndForget(promise, "webhook:order_delivered", logger as unknown as Parameters<typeof fireAndForget>[2]);
+    fireAndForget(
+      promise,
+      "webhook:order_delivered",
+      logger as unknown as Parameters<typeof fireAndForget>[2]
+    );
     await new Promise((r) => setTimeout(r, 20));
 
     expect(logger.warn).toHaveBeenCalledOnce();
@@ -69,11 +83,16 @@ describe("fireAndForget", () => {
   it("includes correlationId and extra meta in log", async () => {
     const promise = Promise.reject(new Error("oops"));
 
-    fireAndForget(promise, "otp-cleanup", logger as unknown as Parameters<typeof fireAndForget>[2], {
-      userId: "u-123",
-      correlationId: "corr-abc",
-      extra: "field",
-    });
+    fireAndForget(
+      promise,
+      "otp-cleanup",
+      logger as unknown as Parameters<typeof fireAndForget>[2],
+      {
+        userId: "u-123",
+        correlationId: "corr-abc",
+        extra: "field",
+      }
+    );
     await new Promise((r) => setTimeout(r, 20));
 
     const args = logger.warn.mock.calls[0] as [LogArgs, string];

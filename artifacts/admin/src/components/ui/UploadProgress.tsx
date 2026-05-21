@@ -1,5 +1,5 @@
-import { Loader2, X, AlertCircle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AlertCircle, CheckCircle2, Loader2, X } from "lucide-react";
 
 /**
  * UploadProgress — canonical upload feedback component shared by every
@@ -43,31 +43,23 @@ export function UploadProgress({
     status === "error"
       ? "border-red-200 bg-red-50 text-red-900"
       : status === "success"
-      ? "border-green-200 bg-green-50 text-green-900"
-      : "border-indigo-200 bg-indigo-50 text-indigo-900";
+        ? "border-green-200 bg-green-50 text-green-900"
+        : "border-indigo-200 bg-indigo-50 text-indigo-900";
 
-  const Icon =
-    status === "error" ? AlertCircle : status === "success" ? CheckCircle2 : Loader2;
+  const Icon = status === "error" ? AlertCircle : status === "success" ? CheckCircle2 : Loader2;
 
   return (
     <div
       role="status"
       aria-live="polite"
       data-testid="upload-progress"
-      className={cn(
-        "flex items-center gap-3 rounded-lg border px-3 py-2 text-sm",
-        tone,
-        className,
-      )}
+      className={cn("flex items-center gap-3 rounded-lg border px-3 py-2 text-sm", tone, className)}
     >
       <Icon
-        className={cn(
-          "h-4 w-4 shrink-0",
-          status === "uploading" && "animate-spin",
-        )}
+        className={cn("h-4 w-4 shrink-0", status === "uploading" && "animate-spin")}
         aria-hidden="true"
       />
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <span className="truncate font-medium">{fileName ?? "Upload"}</span>
           {status === "uploading" && (

@@ -94,7 +94,7 @@ export interface CookieOptions {
 export function safeCookieSet(
   name: string,
   value: string,
-  opts: CookieOptions = {},
+  opts: CookieOptions = {}
 ): SafeStorageResult {
   try {
     if (typeof document === "undefined") {

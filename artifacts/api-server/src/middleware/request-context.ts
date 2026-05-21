@@ -19,16 +19,16 @@
  */
 
 import { AsyncLocalStorage } from "async_hooks";
-import type { Request, Response, NextFunction } from "express";
+import type { NextFunction, Request, Response } from "express";
 
 export interface RequestContext {
   requestId: string;
-  userId?:   string;
-  role?:     string;
-  ip:        string;
-  path:      string;
-  method:    string;
-  startMs:   number;
+  userId?: string;
+  role?: string;
+  ip: string;
+  path: string;
+  method: string;
+  startMs: number;
 }
 
 export const requestContext = new AsyncLocalStorage<RequestContext>();
@@ -47,11 +47,7 @@ function extractClientIp(req: Request): string {
  *
  * Mount AFTER pinoHttp (so genReqId has already fired) and BEFORE all routes.
  */
-export function requestContextMiddleware(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void {
+export function requestContextMiddleware(req: Request, res: Response, next: NextFunction): void {
   // pino-http attaches the generated ID to req as a non-standard property;
   // fall back to the response header it set, then generate a fresh one.
   const pinoId = (req as Request & { id?: string }).id;
@@ -63,9 +59,9 @@ export function requestContextMiddleware(
 
   const ctx: RequestContext = {
     requestId,
-    ip:      extractClientIp(req),
-    path:    req.path,
-    method:  req.method,
+    ip: extractClientIp(req),
+    path: req.path,
+    method: req.method,
     startMs: Date.now(),
   };
 
@@ -81,6 +77,6 @@ export function setRequestUser(userId: string, role: string): void {
   const ctx = requestContext.getStore();
   if (ctx) {
     ctx.userId = userId;
-    ctx.role   = role;
+    ctx.role = role;
   }
 }

@@ -9,7 +9,7 @@
  *    invalid input, disabled payment method, and idempotency replay.
  */
 
-import { vi, describe, it, expect, beforeAll, afterAll } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 // ── Mocks (hoisted before all imports) ────────────────────────────────────────
 vi.mock("../../../services/sms.js", () => ({
@@ -42,21 +42,21 @@ vi.mock("../../../modules/otp/otp.deliver.js", () => ({
 }));
 
 // ── Imports ────────────────────────────────────────────────────────────────────
-import request from "supertest";
-import { randomUUID } from "crypto";
-import { createServer } from "../../../app.js";
 import { db } from "@workspace/db";
 import { walletTransactionsTable } from "@workspace/db/schema";
+import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
-import { signAccessToken, invalidateSettingsCache } from "../../../middleware/security.js";
+import request from "supertest";
+import { createServer } from "../../../app.js";
+import { invalidateSettingsCache, signAccessToken } from "../../../middleware/security.js";
 import {
   createTestUser,
-  deleteTestUser,
-  generateTestPhone,
-  toCanonicalPhone,
-  seedPlatformSetting,
   deletePlatformSetting,
+  deleteTestUser,
   freezeWallet,
+  generateTestPhone,
+  seedPlatformSetting,
+  toCanonicalPhone,
 } from "../helpers/db-helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -142,7 +142,7 @@ describe("POST /api/wallet/deposit", () => {
       .where(eq(walletTransactionsTable.userId, userId));
 
     expect(txns.length).toBeGreaterThan(0);
-    const tx = txns.find(t => t.reference?.includes("pending:"));
+    const tx = txns.find((t) => t.reference?.includes("pending:"));
     expect(tx).toBeDefined();
     expect(tx!.type).toBe("credit");
     expect(parseFloat(tx!.amount)).toBe(500);
@@ -244,9 +244,7 @@ describe("POST /api/wallet/deposit", () => {
   });
 
   it("returns 401 for unauthenticated requests", async () => {
-    const res = await request(app)
-      .post("/api/wallet/deposit")
-      .send(makeDepositBody());
+    const res = await request(app).post("/api/wallet/deposit").send(makeDepositBody());
 
     expect(res.status).toBe(401);
   });

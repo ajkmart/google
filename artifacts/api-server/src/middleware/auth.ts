@@ -1,10 +1,16 @@
-import type { Request, Response, NextFunction } from "express";
-import crypto from "crypto";
 import { db } from "@workspace/db";
 import { refreshTokensTable } from "@workspace/db/schema";
+import crypto from "crypto";
 import { eq } from "drizzle-orm";
+import type { NextFunction, Request, Response } from "express";
 import { logger } from "../lib/logger.js";
-import { addSecurityEvent, getClientIp, verifyUserJwt, writeAuthAuditLog, isSessionHashBlacklisted } from "./security.js";
+import {
+  addSecurityEvent,
+  getClientIp,
+  isSessionHashBlacklisted,
+  verifyUserJwt,
+  writeAuthAuditLog,
+} from "./security.js";
 
 /** Extended JWT payload shape that includes custom claims added at sign-time. */
 interface JwtPayloadExtended {
@@ -26,13 +32,20 @@ interface JwtPayloadExtended {
  * Fail-open: if Redis is unavailable, the request passes through so a Redis
  * outage never blocks legitimate users.
  */
-export async function checkSessionRevocation(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function checkSessionRevocation(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const authHeader = req.headers["authorization"] as string | undefined;
     const tokenHeader = req.headers["x-auth-token"] as string | undefined;
     const raw = tokenHeader || authHeader?.replace(/^Bearer\s+/i, "");
 
-    if (!raw) { next(); return; }
+    if (!raw) {
+      next();
+      return;
+    }
 
     const tokenHash = crypto.createHash("sha256").update(raw).digest("hex");
     const revoked = await isSessionHashBlacklisted(tokenHash);
@@ -41,16 +54,25 @@ export async function checkSessionRevocation(req: Request, res: Response, next: 
       const payload = verifyUserJwt(raw);
       const ip = getClientIp(req);
       logger.warn(
-        { userId: payload?.userId ?? "unknown", tokenHashPrefix: tokenHash.slice(0, 8), ip, url: req.url },
-        "[SECURITY] Revoked session access attempt blocked.",
+        {
+          userId: payload?.userId ?? "unknown",
+          tokenHashPrefix: tokenHash.slice(0, 8),
+          ip,
+          url: req.url,
+        },
+        "[SECURITY] Revoked session access attempt blocked."
       );
       writeAuthAuditLog("revoked_session_access_attempt", {
         userId: payload?.userId ?? "unknown",
         ip,
         metadata: { tokenHashPrefix: tokenHash.slice(0, 8), url: req.url },
-      }).catch((err) => { logger.warn({ err }, "[auth] writeAuthAuditLog failed — non-fatal"); });
+      }).catch((err) => {
+        logger.warn({ err }, "[auth] writeAuthAuditLog failed — non-fatal");
+      });
 
-      res.status(401).json({ success: false, error: "Session has been revoked. Please log in again." });
+      res
+        .status(401)
+        .json({ success: false, error: "Session has been revoked. Please log in again." });
       return;
     }
 
@@ -73,7 +95,11 @@ export async function checkSessionRevocation(req: Request, res: Response, next: 
  * If the check fails (DB error, missing claims) → passes through to not
  * block legitimate users when the feature is degraded.
  */
-export async function verifyTokenFamily(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function verifyTokenFamily(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const authHeader = req.headers["authorization"] as string | undefined;
     const tokenHeader = req.headers["x-auth-token"] as string | undefined;
@@ -102,13 +128,13 @@ export async function verifyTokenFamily(req: Request, res: Response, next: NextF
       .from(refreshTokensTable)
       .where(eq(refreshTokensTable.tokenFamilyId, tokenFamilyId));
 
-    const breachedMember = familyMembers.find(m => m.revokedReason === "FAMILY_BREACH_DETECTED");
+    const breachedMember = familyMembers.find((m) => m.revokedReason === "FAMILY_BREACH_DETECTED");
     if (breachedMember) {
       const ip = getClientIp(req);
 
       logger.warn(
         { userId: payload.userId, tokenFamilyId, ip },
-        "[SECURITY] Revoked-family access attempt blocked.",
+        "[SECURITY] Revoked-family access attempt blocked."
       );
 
       addSecurityEvent({
@@ -126,7 +152,7 @@ export async function verifyTokenFamily(req: Request, res: Response, next: NextF
       }).catch((err: unknown) => {
         logger.warn(
           { err: err instanceof Error ? err.message : String(err), userId: payload.userId },
-          "[auth] writeAuthAuditLog for revoked_family_access_attempt failed",
+          "[auth] writeAuthAuditLog for revoked_family_access_attempt failed"
         );
       });
 

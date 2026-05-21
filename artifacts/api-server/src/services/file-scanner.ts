@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { logger } from '../lib/logger.js';
+import { logger } from "../lib/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -71,14 +71,17 @@ const RULES: Rule[] = [
     name: "todo-fixme-hack",
     severity: "minor",
     message: "TODO/FIXME/HACK comment needs resolution",
-    test: (line) => /\/\/.*\b(TODO|FIXME|HACK|XXX)\b/i.test(line) || /\/\*.*\b(TODO|FIXME|HACK|XXX)\b/i.test(line),
+    test: (line) =>
+      /\/\/.*\b(TODO|FIXME|HACK|XXX)\b/i.test(line) ||
+      /\/\*.*\b(TODO|FIXME|HACK|XXX)\b/i.test(line),
   },
   {
     name: "async-no-trycatch",
     severity: "medium",
     message: "async function without surrounding try/catch — unhandled rejections possible",
     test: (line, i, lines) => {
-      if (!/^\s*(export\s+)?(async\s+function|const\s+\w+\s*=\s*async\s*\()/.test(line)) return false;
+      if (!/^\s*(export\s+)?(async\s+function|const\s+\w+\s*=\s*async\s*\()/.test(line))
+        return false;
       const next5 = lines.slice(i + 1, i + 6).join("\n");
       return !/try\s*\{/.test(next5);
     },
@@ -99,8 +102,10 @@ const RULES: Rule[] = [
     message: "Potential null/undefined access without optional chaining",
     test: (line) => {
       if (/\?\.[a-zA-Z_$]/.test(line)) return false;
-      return /\breq\.(body|params|query)\.[a-zA-Z_$]+\.[a-zA-Z_$]+/.test(line) ||
-             /\bres\.locals\.[a-zA-Z_$]+\.[a-zA-Z_$]+/.test(line);
+      return (
+        /\breq\.(body|params|query)\.[a-zA-Z_$]+\.[a-zA-Z_$]+/.test(line) ||
+        /\bres\.locals\.[a-zA-Z_$]+\.[a-zA-Z_$]+/.test(line)
+      );
     },
   },
   {
@@ -109,7 +114,8 @@ const RULES: Rule[] = [
     message: "Promise-returning call without await, .then(), or .catch()",
     test: (line) => {
       if (/^\s*(\/\/|\/\*)/.test(line)) return false;
-      if (/\bawait\b/.test(line) || /\.then\s*\(/.test(line) || /\.catch\s*\(/.test(line)) return false;
+      if (/\bawait\b/.test(line) || /\.then\s*\(/.test(line) || /\.catch\s*\(/.test(line))
+        return false;
       return /\b(fetch|axios|got|superagent|request)\s*\(/.test(line);
     },
   },
@@ -120,11 +126,11 @@ const RULES: Rule[] = [
     test: (line, i, lines) => {
       if (!/\bcatch\s*[\({]/.test(line)) return false;
       const nextLines = lines.slice(i + 1, i + 4);
-      const nonEmpty = nextLines.filter(l => {
+      const nonEmpty = nextLines.filter((l) => {
         const t = l.trim();
         return t.length > 0 && t !== "}";
       });
-      return nonEmpty.length > 0 && nonEmpty.every(l => /^\s*(\/\/|\/\*)/.test(l));
+      return nonEmpty.length > 0 && nonEmpty.every((l) => /^\s*(\/\/|\/\*)/.test(l));
     },
   },
 ];
@@ -134,11 +140,23 @@ function walkDir(dir: string, results: string[]): void {
   try {
     entries = fs.readdirSync(dir, { withFileTypes: true });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return;
   }
   for (const entry of entries) {
-    if (entry.name.startsWith(".") || entry.name === "node_modules" || entry.name === "dist" || entry.name === "build") continue;
+    if (
+      entry.name.startsWith(".") ||
+      entry.name === "node_modules" ||
+      entry.name === "dist" ||
+      entry.name === "build"
+    )
+      continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       walkDir(full, results);
@@ -155,18 +173,30 @@ function scanFile(filePath: string, relPath: string): FileScanFinding[] {
   try {
     const stat = fs.statSync(filePath);
     if (stat.size > FILE_SIZE_LIMIT_BYTES) {
-      logger.warn({ filePath: relPath, sizeBytes: stat.size }, "[file-scanner] skipping oversized file");
+      logger.warn(
+        { filePath: relPath, sizeBytes: stat.size },
+        "[file-scanner] skipping oversized file"
+      );
       return findings;
     }
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), filePath: relPath }, "[file-scanner] stat failed");
+    logger.error(
+      { error: err instanceof Error ? err.message : String(err), filePath: relPath },
+      "[file-scanner] stat failed"
+    );
     return findings;
   }
   let content: string;
   try {
     content = fs.readFileSync(filePath, "utf8");
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return findings;
   }
   const lines = content.split("\n");
@@ -185,7 +215,10 @@ function scanFile(filePath: string, relPath: string): FileScanFinding[] {
           });
         }
       } catch (err) {
-        logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] rule error — skip`);
+        logger.debug(
+          { error: err instanceof Error ? err.message : String(err) },
+          `[fn] rule error — skip`
+        );
       }
     }
   }

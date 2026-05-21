@@ -5,10 +5,10 @@
  * swaggerUi.setup() or serve it as JSON.  The router is NOT exported here —
  * mounting decisions live in routes/index.ts.
  */
-import swaggerJsdoc from "swagger-jsdoc";
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
 import { createRequire } from "module";
+import { dirname, resolve } from "path";
+import swaggerJsdoc from "swagger-jsdoc";
+import { fileURLToPath } from "url";
 import { logger } from "../lib/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -20,17 +20,24 @@ const pkgVersion: string = (() => {
   try {
     /* Works whether running from src/ (dev) or dist/ (prod) */
     const candidates = [
-      resolve(__dirname, "..", "..", "package.json"),     // src/docs -> root
-      resolve(__dirname, "..", "package.json"),           // dist -> root
+      resolve(__dirname, "..", "..", "package.json"), // src/docs -> root
+      resolve(__dirname, "..", "package.json"), // dist -> root
       resolve(process.cwd(), "package.json"),
     ];
     for (const c of candidates) {
       try {
         const pkg = _require(c) as { version?: string };
         if (pkg.version) return pkg.version;
-      } catch (err) { logger.warn({ err }, "[swagger] Could not read version from package candidate — trying next"); }
+      } catch (err) {
+        logger.warn(
+          { err },
+          "[swagger] Could not read version from package candidate — trying next"
+        );
+      }
     }
-  } catch (err) { logger.warn({ err }, "[swagger] Could not resolve package version — falling back to 1.0.0"); }
+  } catch (err) {
+    logger.warn({ err }, "[swagger] Could not resolve package version — falling back to 1.0.0");
+  }
   return "1.0.0";
 })();
 
@@ -57,10 +64,7 @@ const options: swaggerJsdoc.Options = {
     },
     servers: [
       {
-        url:
-          process.env["APP_BASE_URL"]
-            ? `${process.env["APP_BASE_URL"]}/api`
-            : `/api`,
+        url: process.env["APP_BASE_URL"] ? `${process.env["APP_BASE_URL"]}/api` : `/api`,
         description: "Current environment",
       },
     ],
@@ -113,12 +117,12 @@ const options: swaggerJsdoc.Options = {
   },
   apis: [
     /* Auth endpoints — the five required + extras that are already annotated */
-    resolve(srcRoutesDir, "auth", `otp${ext}`),           /* POST /auth/send-otp, /auth/verify-otp */
-    resolve(srcRoutesDir, "auth", `password${ext}`),      /* POST /auth/login */
-    resolve(srcRoutesDir, "auth", `register${ext}`),      /* POST /auth/register */
-    resolve(srcRoutesDir, "auth", `refresh${ext}`),       /* POST /auth/refresh, /auth/logout */
-    resolve(srcRoutesDir, "auth", `sessions${ext}`),      /* POST /auth/sessions/revoke */
-    resolve(srcRoutesDir, "auth", `misc${ext}`),          /* POST /auth/recovery/reset-password */
+    resolve(srcRoutesDir, "auth", `otp${ext}`) /* POST /auth/send-otp, /auth/verify-otp */,
+    resolve(srcRoutesDir, "auth", `password${ext}`) /* POST /auth/login */,
+    resolve(srcRoutesDir, "auth", `register${ext}`) /* POST /auth/register */,
+    resolve(srcRoutesDir, "auth", `refresh${ext}`) /* POST /auth/refresh, /auth/logout */,
+    resolve(srcRoutesDir, "auth", `sessions${ext}`) /* POST /auth/sessions/revoke */,
+    resolve(srcRoutesDir, "auth", `misc${ext}`) /* POST /auth/recovery/reset-password */,
     resolve(srcRoutesDir, "auth", `two-factor${ext}`),
     resolve(srcRoutesDir, "auth", `magic-link${ext}`),
     resolve(srcRoutesDir, "auth", `social${ext}`),

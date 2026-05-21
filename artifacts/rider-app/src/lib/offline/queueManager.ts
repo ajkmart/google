@@ -8,7 +8,6 @@ export type ActionType =
   | "complete_trip"
   | "board_passenger";
 
-
 export interface QueuedAction {
   id: string;
   type: ActionType;
@@ -43,12 +42,27 @@ function openDB(): Promise<IDBDatabase> {
     };
     req.onsuccess = () => {
       const db = req.result;
-      db.onclose = () => { _dbPromise = null; };
-      db.onversionchange = () => { try { db.close(); } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); } _dbPromise = null; }; // eslint-disable-line no-console
+      db.onclose = () => {
+        _dbPromise = null;
+      };
+      db.onversionchange = () => {
+        try {
+          db.close();
+        } catch (err) {
+          console.warn("[artifacts/rider-app/src/lib/offline/queueManager.ts]", err);
+        }
+        _dbPromise = null;
+      }; // eslint-disable-line no-console
       resolve(db);
     };
-    req.onerror = () => { _dbPromise = null; reject(req.error); };
-  }).catch(err => { _dbPromise = null; throw err; });
+    req.onerror = () => {
+      _dbPromise = null;
+      reject(req.error);
+    };
+  }).catch((err) => {
+    _dbPromise = null;
+    throw err;
+  });
   return _dbPromise;
 }
 
@@ -60,7 +74,7 @@ function generateId(): string {
 export async function enqueueAction(
   type: ActionType,
   entityId: string,
-  payload: Record<string, unknown>,
+  payload: Record<string, unknown>
 ): Promise<string> {
   const action: QueuedAction = {
     id: generateId(),
@@ -79,7 +93,9 @@ export async function enqueueAction(
       tx.onerror = () => reject(tx.error);
     });
     notifyListeners();
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/offline/queueManager.ts]", err);
+  } // eslint-disable-line no-console
   return action.id;
 }
 
@@ -95,7 +111,10 @@ async function getAll(): Promise<QueuedAction[]> {
     /* Sort strictly FIFO by creation time so status transitions replay in the
        correct order (e.g. accepted → in_transit → completed, never reversed). */
     return all.sort((a, b) => a.createdAt - b.createdAt);
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); return []; } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/offline/queueManager.ts]", err);
+    return [];
+  } // eslint-disable-line no-console
 }
 
 async function removeAction(id: string): Promise<void> {
@@ -107,7 +126,9 @@ async function removeAction(id: string): Promise<void> {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/offline/queueManager.ts]", err);
+  } // eslint-disable-line no-console
 }
 
 async function bumpRetryCount(action: QueuedAction): Promise<void> {
@@ -120,7 +141,9 @@ async function bumpRetryCount(action: QueuedAction): Promise<void> {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/offline/queueManager.ts]", err);
+  } // eslint-disable-line no-console
 }
 
 /* ── PermanentQueueError ───────────────────────────────────────────────────────
@@ -139,7 +162,7 @@ export class PermanentQueueError extends Error {
   readonly permanent = true as const;
   constructor(
     public readonly reason: string,
-    public readonly httpStatus?: number,
+    public readonly httpStatus?: number
   ) {
     super(reason);
     this.name = "PermanentQueueError";
@@ -179,7 +202,9 @@ async function pushDeadLetter(action: QueuedAction, err: PermanentQueueError): P
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/offline/queueManager.ts]", err);
+  } // eslint-disable-line no-console
 }
 
 export async function getDeadLetterQueue(): Promise<DeadLetterEntry[]> {
@@ -192,7 +217,10 @@ export async function getDeadLetterQueue(): Promise<DeadLetterEntry[]> {
       req.onsuccess = () => resolve((req.result ?? []) as DeadLetterEntry[]);
       req.onerror = () => reject(req.error);
     });
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); return []; } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/offline/queueManager.ts]", err);
+    return [];
+  } // eslint-disable-line no-console
 }
 
 export async function clearDeadLetterEntry(id: string): Promise<void> {
@@ -205,7 +233,9 @@ export async function clearDeadLetterEntry(id: string): Promise<void> {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/offline/queueManager.ts]", err);
+  } // eslint-disable-line no-console
 }
 
 type ActionExecutor = (action: QueuedAction) => Promise<void>;
@@ -232,11 +262,19 @@ const _successCallbacks = new Map<ActionType, Set<ActionSuccessCallback>>();
 export function subscribeActionSuccess(type: ActionType, fn: ActionSuccessCallback): () => void {
   if (!_successCallbacks.has(type)) _successCallbacks.set(type, new Set());
   _successCallbacks.get(type)!.add(fn);
-  return () => { _successCallbacks.get(type)?.delete(fn); };
+  return () => {
+    _successCallbacks.get(type)?.delete(fn);
+  };
 }
 
 function notifyActionSuccess(action: QueuedAction): void {
-  _successCallbacks.get(action.type)?.forEach(fn => { try { fn(action); } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); } }); // eslint-disable-line no-console
+  _successCallbacks.get(action.type)?.forEach((fn) => {
+    try {
+      fn(action);
+    } catch (err) {
+      console.warn("[artifacts/rider-app/src/lib/offline/queueManager.ts]", err);
+    }
+  }); // eslint-disable-line no-console
 }
 
 export async function syncQueue(): Promise<void> {
@@ -256,29 +294,37 @@ export async function syncQueue(): Promise<void> {
          forever. Under normal operation the executor throws PermanentQueueError
          for any 4xx so this branch is only hit by unexpected error shapes. */
       if (action.retryCount >= MAX_RETRIES) {
-        await pushDeadLetter(action, new PermanentQueueError(
-          `Exceeded max retries (${MAX_RETRIES}) without a permanent error classification`,
-        ));
-        await removeAction(action.id).catch((err) => { console.warn("[queueManager] removeAction failed after dead-letter push:", err); }); // eslint-disable-line no-console
+        await pushDeadLetter(
+          action,
+          new PermanentQueueError(
+            `Exceeded max retries (${MAX_RETRIES}) without a permanent error classification`
+          )
+        );
+        await removeAction(action.id).catch((err) => {
+          console.warn("[queueManager] removeAction failed after dead-letter push:", err);
+        }); // eslint-disable-line no-console
         continue;
       }
       try {
         await _executor(action);
         await removeAction(action.id);
         notifyActionSuccess(action);
-
       } catch (err) {
         if (err instanceof PermanentQueueError) {
           /* Permanent server-side rejection (e.g. 4xx): move to dead-letter
              immediately and continue draining subsequent actions. */
           await pushDeadLetter(action, err);
-          await removeAction(action.id).catch((removeErr) => { console.warn("[queueManager] removeAction failed after permanent error:", removeErr); }); // eslint-disable-line no-console
+          await removeAction(action.id).catch((removeErr) => {
+            console.warn("[queueManager] removeAction failed after permanent error:", removeErr);
+          }); // eslint-disable-line no-console
           continue;
         }
         /* Transient failure (network unreachable, 5xx, 429): bump retry count
            and halt the drain. The ordering invariant requires that later actions
            (e.g. update_ride) only run after the predecessor succeeds. */
-        await bumpRetryCount(action).catch((err) => { console.warn("[queueManager] bumpRetryCount failed:", err); }); // eslint-disable-line no-console
+        await bumpRetryCount(action).catch((err) => {
+          console.warn("[queueManager] bumpRetryCount failed:", err);
+        }); // eslint-disable-line no-console
         break;
       }
     }
@@ -293,7 +339,7 @@ type Listener = () => void;
 const _listeners = new Set<Listener>();
 
 function notifyListeners() {
-  _listeners.forEach(fn => fn());
+  _listeners.forEach((fn) => fn());
 }
 
 export function subscribeQueueStatus(fn: Listener): () => void {
@@ -323,18 +369,28 @@ export function useQueueStatus() {
     };
     refresh();
     const unsub = subscribeQueueStatus(refresh);
-    return () => { mounted = false; unsub(); };
+    return () => {
+      mounted = false;
+      unsub();
+    };
   }, []);
 
   return { pendingCount, lastSync, syncing };
 }
 
 if (typeof window !== "undefined") {
-  window.addEventListener("online", () => { syncQueue().catch((err) => { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); }); }); // eslint-disable-line no-console
+  window.addEventListener("online", () => {
+    syncQueue().catch((err) => {
+      console.warn("[artifacts/rider-app/src/lib/offline/queueManager.ts]", err);
+    });
+  }); // eslint-disable-line no-console
   /* Periodic retry every 30 seconds — covers Android WebViews that skip the
      `online` event, and any OS where the event fires unreliably after roaming. */
   setInterval(() => {
-    if (navigator.onLine) { syncQueue().catch((err) => { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); }); } // eslint-disable-line no-console
+    if (navigator.onLine) {
+      syncQueue().catch((err) => {
+        console.warn("[artifacts/rider-app/src/lib/offline/queueManager.ts]", err);
+      });
+    } // eslint-disable-line no-console
   }, 30_000);
-
 }

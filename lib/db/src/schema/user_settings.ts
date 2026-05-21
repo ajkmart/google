@@ -7,7 +7,10 @@ export const languageEnum = pgEnum("language_mode", ["en", "ur", "roman"]);
 
 export const userSettingsTable = pgTable("user_settings", {
   id: text("id").primaryKey(),
-  userId: text("user_id").notNull().unique().references(() => usersTable.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .unique()
+    .references(() => usersTable.id, { onDelete: "cascade" }),
   notifOrders: boolean("notif_orders").notNull().default(true),
   notifWallet: boolean("notif_wallet").notNull().default(true),
   notifDeals: boolean("notif_deals").notNull().default(true),
@@ -20,6 +23,8 @@ export const userSettingsTable = pgTable("user_settings", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export const insertUserSettingsSchema = createInsertSchema(userSettingsTable).omit({ updatedAt: true });
+export const insertUserSettingsSchema = createInsertSchema(userSettingsTable).omit({
+  updatedAt: true,
+});
 export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
 export type UserSettings = typeof userSettingsTable.$inferSelect;

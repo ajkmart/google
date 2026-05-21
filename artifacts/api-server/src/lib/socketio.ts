@@ -1,11 +1,22 @@
-import { Server as SocketIOServer } from "socket.io";
+import { db } from "@workspace/db";
+import {
+  callLogsTable,
+  conversationsTable,
+  liveLocationsTable,
+  ordersTable,
+  parcelBookingsTable,
+  pharmacyOrdersTable,
+  ridesTable,
+  usersTable,
+  vanBookingsTable,
+  vanSchedulesTable,
+} from "@workspace/db/schema";
+import { and, eq, or, sql } from "drizzle-orm";
 import type { Server as HttpServer } from "http";
-import { logger } from "./logger.js";
+import { Server as SocketIOServer } from "socket.io";
 import { verifyUserJwt } from "../middleware/security.js";
 import { verifyAccessToken } from "../utils/admin-jwt.js";
-import { db } from "@workspace/db";
-import { ridesTable, ordersTable, parcelBookingsTable, pharmacyOrdersTable, liveLocationsTable, usersTable, locationHistoryTable, callLogsTable, conversationsTable, chatMessagesTable, vanBookingsTable, vanSchedulesTable } from "@workspace/db/schema";
-import { eq, or, and, sql, lt, lte } from "drizzle-orm";
+import { logger } from "./logger.js";
 
 /* ── Server-side GPS broadcast throttle: max 1 emit per rider per 1500ms ── */
 const RIDER_LOC_THROTTLE_MS = 1500;
@@ -57,7 +68,7 @@ function extractBearerToken(header: string | string[] | undefined): string | nul
 
 function getTokenFromHandshake(
   headers: Record<string, string | string[] | undefined>,
-  auth: Record<string, unknown>,
+  auth: Record<string, unknown>
 ): string | null {
   return (
     extractBearerToken(headers["authorization"]) ??
@@ -70,20 +81,34 @@ function getTokenFromHandshake(
 function isAuthorizedForAdminFleet(
   headers: Record<string, string | string[] | undefined>,
   query: Record<string, unknown>,
-  auth: Record<string, unknown>,
+  auth: Record<string, unknown>
 ): boolean {
   const candidates: Array<string | undefined> = [
     query["adminToken"] as string | undefined,
     auth["adminToken"] as string | undefined,
     auth["token"] as string | undefined,
-    Array.isArray(headers["x-admin-token"]) ? headers["x-admin-token"][0] : headers["x-admin-token"] as string | undefined,
+    Array.isArray(headers["x-admin-token"])
+      ? headers["x-admin-token"][0]
+      : (headers["x-admin-token"] as string | undefined),
   ];
   for (const token of candidates) {
     if (!token) continue;
     try {
       const payload = verifyAccessToken(token);
-      if (payload && (payload.role === "super" || payload.role === "manager" || payload.role === "support" || payload.role === "admin")) return true;
-    } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] not a valid v2 admin token`); }
+      if (
+        payload &&
+        (payload.role === "super" ||
+          payload.role === "manager" ||
+          payload.role === "support" ||
+          payload.role === "admin")
+      )
+        return true;
+    } catch (err) {
+      logger.debug(
+        { error: err instanceof Error ? err.message : String(err) },
+        `[route] not a valid v2 admin token`
+      );
+    }
   }
   const bearer = extractBearerToken(headers["authorization"]);
   if (bearer) {
@@ -91,8 +116,14 @@ function isAuthorizedForAdminFleet(
     if (payload && (payload.role === "admin" || payload.roles?.includes("admin"))) return true;
     try {
       const v2 = verifyAccessToken(bearer);
-      if (v2 && (v2.role === "super" || v2.role === "manager" || v2.role === "support")) return true;
-    } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] not a v2 token`); }
+      if (v2 && (v2.role === "super" || v2.role === "manager" || v2.role === "support"))
+        return true;
+    } catch (err) {
+      logger.debug(
+        { error: err instanceof Error ? err.message : String(err) },
+        `[route] not a v2 token`
+      );
+    }
   }
   return false;
 }
@@ -101,7 +132,7 @@ function isAuthorizedForVendorRoom(
   vendorId: string,
   socketId: string,
   headers: Record<string, string | string[] | undefined>,
-  auth: Record<string, unknown>,
+  auth: Record<string, unknown>
 ): boolean {
   const bearer = getTokenFromHandshake(headers, auth);
   const session = getCachedSession(socketId, bearer);
@@ -113,7 +144,7 @@ function isAuthorizedForVendorRoom(
 async function isAuthorizedForOrderRoom(
   orderId: string,
   headers: Record<string, string | string[] | undefined>,
-  auth: Record<string, unknown>,
+  auth: Record<string, unknown>
 ): Promise<boolean> {
   const bearer = getTokenFromHandshake(headers, auth);
   if (!bearer) return false;
@@ -146,7 +177,10 @@ async function isAuthorizedForOrderRoom(
       .limit(1);
     if (pharmacy && (pharmacy.userId === userId || pharmacy.riderId === userId)) return true;
   } catch (err) {
-    logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] DB failure → deny`);
+    logger.debug(
+      { error: err instanceof Error ? err.message : String(err) },
+      `[fn] DB failure → deny`
+    );
   }
 
   return false;
@@ -156,7 +190,7 @@ async function isAuthorizedForOrderRoom(
 async function isAuthorizedForRideRoom(
   rideId: string,
   headers: Record<string, string | string[] | undefined>,
-  auth: Record<string, unknown>,
+  auth: Record<string, unknown>
 ): Promise<boolean> {
   const bearer = getTokenFromHandshake(headers, auth);
   if (!bearer) return false;
@@ -180,18 +214,20 @@ async function isAuthorizedForRideRoom(
     const [order] = await db
       .select({ riderId: ordersTable.riderId, vendorId: ordersTable.vendorId })
       .from(ordersTable)
-      .where(and(
-        eq(ordersTable.id, rideId),
-        or(
-          eq(ordersTable.riderId, userId),
-          eq(ordersTable.vendorId, userId),
-        ),
-      ))
+      .where(
+        and(
+          eq(ordersTable.id, rideId),
+          or(eq(ordersTable.riderId, userId), eq(ordersTable.vendorId, userId))
+        )
+      )
       .limit(1);
 
     if (order) return true;
   } catch (err) {
-    logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] DB failure → deny`);
+    logger.debug(
+      { error: err instanceof Error ? err.message : String(err) },
+      `[fn] DB failure → deny`
+    );
   }
 
   return false;
@@ -214,16 +250,24 @@ async function isAuthorizedForVanRoom(room: string, userId: string): Promise<boo
     const [bookingMatch] = await db
       .select({ id: vanBookingsTable.id })
       .from(vanBookingsTable)
-      .where(and(
-        eq(vanBookingsTable.scheduleId, scheduleId),
-        eq(vanBookingsTable.travelDate, date),
-        eq(vanBookingsTable.userId, userId),
-        sql`${vanBookingsTable.status} NOT IN ('cancelled')`,
-      ))
+      .where(
+        and(
+          eq(vanBookingsTable.scheduleId, scheduleId),
+          eq(vanBookingsTable.travelDate, date),
+          eq(vanBookingsTable.userId, userId),
+          sql`${vanBookingsTable.status} NOT IN ('cancelled')`
+        )
+      )
       .limit(1);
     return !!bookingMatch;
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return false;
   }
 }
@@ -238,7 +282,13 @@ async function isAuthorizedForConversationRoom(convId: string, userId: string): 
     if (!conv) return false;
     return conv.p1 === userId || conv.p2 === userId;
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return false;
   }
 }
@@ -251,7 +301,7 @@ function buildAllowedOrigins(): string | string[] {
      Falls back to REPLIT_DOMAINS for Replit-hosted environments. */
   const domainSrc = process.env.ALLOWED_DOMAINS ?? process.env.REPLIT_DOMAINS ?? "";
   const domains = domainSrc.split(",").filter(Boolean);
-  const origins = domains.flatMap(d => [`https://${d.trim()}`, `http://${d.trim()}`]);
+  const origins = domains.flatMap((d) => [`https://${d.trim()}`, `http://${d.trim()}`]);
   return origins.length > 0 ? origins : "*";
 }
 
@@ -276,7 +326,10 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
     /* Auto-join non-ride rooms from the connection query string (synchronous auth) */
     const rooms = query["rooms"] as string | undefined;
     if (rooms) {
-      const roomList = rooms.split(",").map(r => r.trim()).filter(Boolean);
+      const roomList = rooms
+        .split(",")
+        .map((r) => r.trim())
+        .filter(Boolean);
       for (const room of roomList) {
         if (room === "admin-fleet") {
           if (isAuthorizedForAdminFleet(headers, query, auth)) {
@@ -296,46 +349,81 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
           const rideId = room.slice("ride:".length);
           const key = bufferKey(socket.id, room);
           _pendingRideJoins.set(key, []);
-          isAuthorizedForRideRoom(rideId, headers, auth).then(ok => {
-            const buffered = _pendingRideJoins.get(key) ?? [];
-            _pendingRideJoins.delete(key);
-            if (ok) {
-              socket.join(room);
-              for (const payload of buffered) {
-                socket.emit("rider:location", payload);
+          isAuthorizedForRideRoom(rideId, headers, auth)
+            .then((ok) => {
+              const buffered = _pendingRideJoins.get(key) ?? [];
+              _pendingRideJoins.delete(key);
+              if (ok) {
+                socket.join(room);
+                for (const payload of buffered) {
+                  socket.emit("rider:location", payload);
+                }
+              } else {
+                logger.debug(
+                  { socketId: socket.id, room },
+                  "Socket denied ride room (not a participant)"
+                );
               }
-            } else {
-              logger.debug({ socketId: socket.id, room }, "Socket denied ride room (not a participant)");
-            }
-          }).catch((e: Error) => { _pendingRideJoins.delete(key); logger.warn({ socketId: socket.id, room, err: e.message }, "[socketio] handshake ride room auth check failed"); });
+            })
+            .catch((e: Error) => {
+              _pendingRideJoins.delete(key);
+              logger.warn(
+                { socketId: socket.id, room, err: e.message },
+                "[socketio] handshake ride room auth check failed"
+              );
+            });
         } else if (room.startsWith("order:")) {
           const orderId = room.slice("order:".length);
-          isAuthorizedForOrderRoom(orderId, headers, auth).then(ok => {
-            if (ok) {
-              socket.join(room);
-            } else {
-              logger.debug({ socketId: socket.id, room }, "Socket denied order room (not a participant)");
-            }
-          }).catch((e: Error) => logger.warn({ socketId: socket.id, room, err: e.message }, "[socketio] order room auth check failed"));
+          isAuthorizedForOrderRoom(orderId, headers, auth)
+            .then((ok) => {
+              if (ok) {
+                socket.join(room);
+              } else {
+                logger.debug(
+                  { socketId: socket.id, room },
+                  "Socket denied order room (not a participant)"
+                );
+              }
+            })
+            .catch((e: Error) =>
+              logger.warn(
+                { socketId: socket.id, room, err: e.message },
+                "[socketio] order room auth check failed"
+              )
+            );
         } else if (room.startsWith("conversation:")) {
           const convId = room.slice("conversation:".length);
           const bearer2 = getTokenFromHandshake(headers, auth);
           const sess2 = getCachedSession(socket.id, bearer2);
           if (sess2?.userId) {
-            isAuthorizedForConversationRoom(convId, sess2.userId).then(ok => {
-              if (ok) socket.join(room);
-            }).catch((e: Error) => logger.warn({ socketId: socket.id, room, err: e.message }, "[socketio] conversation room auth check failed"));
+            isAuthorizedForConversationRoom(convId, sess2.userId)
+              .then((ok) => {
+                if (ok) socket.join(room);
+              })
+              .catch((e: Error) =>
+                logger.warn(
+                  { socketId: socket.id, room, err: e.message },
+                  "[socketio] conversation room auth check failed"
+                )
+              );
           }
         } else if (room.startsWith("van:")) {
           const vanBearer = getTokenFromHandshake(headers, auth);
           const vanSess = getCachedSession(socket.id, vanBearer);
           if (vanSess?.userId) {
-            isAuthorizedForVanRoom(room, vanSess.userId).then(ok => {
-              if (ok) {
-                socket.join(room);
-                logger.debug({ socketId: socket.id, room }, "Socket joined van room");
-              }
-            }).catch((e: Error) => logger.warn({ socketId: socket.id, room, err: e.message }, "[socketio] van room auth check failed"));
+            isAuthorizedForVanRoom(room, vanSess.userId)
+              .then((ok) => {
+                if (ok) {
+                  socket.join(room);
+                  logger.debug({ socketId: socket.id, room }, "Socket joined van room");
+                }
+              })
+              .catch((e: Error) =>
+                logger.warn(
+                  { socketId: socket.id, room, err: e.message },
+                  "[socketio] van room auth check failed"
+                )
+              );
           }
         }
       }
@@ -353,63 +441,88 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
     /* Heartbeat: rider sends rider:heartbeat with batteryLevel, coordinates, isOnline status.
        Server relays the heartbeat to admin-fleet AND persists batteryLevel, lastSeen, lastActive,
        coordinates, and isOnline to DB — all fire-and-forget so the socket never blocks. */
-    socket.on("rider:heartbeat", (payload: { batteryLevel?: number; isOnline?: boolean; latitude?: number; longitude?: number }) => {
-      const riderPay = cachedSession;
-      if (!riderPay?.userId || riderPay.role !== "rider") return;
-      const batteryLevel = typeof payload?.batteryLevel === "number" ? payload.batteryLevel : null;
-      const isOnline = payload?.isOnline !== false;
-      const now = new Date();
+    socket.on(
+      "rider:heartbeat",
+      (payload: {
+        batteryLevel?: number;
+        isOnline?: boolean;
+        latitude?: number;
+        longitude?: number;
+      }) => {
+        const riderPay = cachedSession;
+        if (!riderPay?.userId || riderPay.role !== "rider") return;
+        const batteryLevel =
+          typeof payload?.batteryLevel === "number" ? payload.batteryLevel : null;
+        const isOnline = payload?.isOnline !== false;
+        const now = new Date();
 
-      const hasCoords = typeof payload?.latitude === "number" && typeof payload?.longitude === "number"
-        && isFinite(payload.latitude) && isFinite(payload.longitude);
+        const hasCoords =
+          typeof payload?.latitude === "number" &&
+          typeof payload?.longitude === "number" &&
+          isFinite(payload.latitude) &&
+          isFinite(payload.longitude);
 
-      /* 1. Update live_locations: battery level + lastSeen timestamp + coordinates when available */
-      const liveLocationUpdate: Record<string, unknown> = {
-        batteryLevel: batteryLevel ?? undefined,
-        lastSeen: now,
-        updatedAt: now,
-      };
-      if (hasCoords) {
-        liveLocationUpdate.latitude = String(payload!.latitude);
-        liveLocationUpdate.longitude = String(payload!.longitude);
-      }
-      db.update(liveLocationsTable)
-        .set(liveLocationUpdate)
-        .where(eq(liveLocationsTable.userId, riderPay.userId))
-        .catch((e: Error) => logger.warn({ riderId: riderPay.userId, err: e.message }, "[socketio/heartbeat] live_locations update failed"));
+        /* 1. Update live_locations: battery level + lastSeen timestamp + coordinates when available */
+        const liveLocationUpdate: Record<string, unknown> = {
+          batteryLevel: batteryLevel ?? undefined,
+          lastSeen: now,
+          updatedAt: now,
+        };
+        if (hasCoords) {
+          liveLocationUpdate.latitude = String(payload!.latitude);
+          liveLocationUpdate.longitude = String(payload!.longitude);
+        }
+        db.update(liveLocationsTable)
+          .set(liveLocationUpdate)
+          .where(eq(liveLocationsTable.userId, riderPay.userId))
+          .catch((e: Error) =>
+            logger.warn(
+              { riderId: riderPay.userId, err: e.message },
+              "[socketio/heartbeat] live_locations update failed"
+            )
+          );
 
-      /* 2. Update users: isOnline flag + lastActive timestamp so the ghost-rider
+        /* 2. Update users: isOnline flag + lastActive timestamp so the ghost-rider
             cleanup timer correctly uses lastActive as the freshness signal. */
-      db.update(usersTable)
-        .set({ isOnline, lastActive: now, updatedAt: now })
-        .where(eq(usersTable.id, riderPay.userId))
-        .catch((e: Error) => logger.warn({ riderId: riderPay.userId, err: e.message }, "[socketio/heartbeat] users isOnline update failed"));
+        db.update(usersTable)
+          .set({ isOnline, lastActive: now, updatedAt: now })
+          .where(eq(usersTable.id, riderPay.userId))
+          .catch((e: Error) =>
+            logger.warn(
+              { riderId: riderPay.userId, err: e.message },
+              "[socketio/heartbeat] users isOnline update failed"
+            )
+          );
 
-      _io!.to("admin-fleet").emit("rider:heartbeat", {
-        userId: riderPay.userId,
-        batteryLevel,
-        isOnline,
-        sentAt: now.toISOString(),
-        ...(hasCoords ? { latitude: payload!.latitude, longitude: payload!.longitude } : {}),
-      });
-    });
+        _io!.to("admin-fleet").emit("rider:heartbeat", {
+          userId: riderPay.userId,
+          batteryLevel,
+          isOnline,
+          sentAt: now.toISOString(),
+          ...(hasCoords ? { latitude: payload!.latitude, longitude: payload!.longitude } : {}),
+        });
+      }
+    );
 
     /* SOS relay: rider sends rider:sos event, server broadcasts to admin-fleet */
-    socket.on("rider:sos", (payload: { latitude?: number; longitude?: number; rideId?: string | null }) => {
-      /* Use cached session — no redundant JWT verification */
-      if (!cachedSession?.userId || cachedSession.role !== "rider") return;
-      if (typeof payload?.latitude !== "number" || typeof payload?.longitude !== "number") return;
-      /* Rebroadcast to admin-fleet with enriched payload */
-      _io!.to("admin-fleet").emit("rider:sos", {
-        userId: cachedSession.userId,
-        name: "Rider",
-        phone: null,
-        latitude: payload.latitude,
-        longitude: payload.longitude,
-        rideId: payload.rideId ?? null,
-        sentAt: new Date().toISOString(),
-      });
-    });
+    socket.on(
+      "rider:sos",
+      (payload: { latitude?: number; longitude?: number; rideId?: string | null }) => {
+        /* Use cached session — no redundant JWT verification */
+        if (!cachedSession?.userId || cachedSession.role !== "rider") return;
+        if (typeof payload?.latitude !== "number" || typeof payload?.longitude !== "number") return;
+        /* Rebroadcast to admin-fleet with enriched payload */
+        _io!.to("admin-fleet").emit("rider:sos", {
+          userId: cachedSession.userId,
+          name: "Rider",
+          phone: null,
+          latitude: payload.latitude,
+          longitude: payload.longitude,
+          rideId: payload.rideId ?? null,
+          sentAt: new Date().toISOString(),
+        });
+      }
+    );
 
     /* Admin chat relay: admin sends message to specific rider */
     socket.on("admin:chat", (payload: { riderId: string; message: string }) => {
@@ -437,7 +550,6 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
       });
     });
 
-
     /* Join event: client can request additional rooms after connect */
     socket.on("join", (room: string) => {
       if (typeof room !== "string") return;
@@ -447,7 +559,10 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
           socket.join(room);
           logger.debug({ socketId: socket.id, room }, "Socket joined admin-fleet");
         } else {
-          logger.debug({ socketId: socket.id, room }, "Socket join denied admin-fleet (unauthorized)");
+          logger.debug(
+            { socketId: socket.id, room },
+            "Socket join denied admin-fleet (unauthorized)"
+          );
         }
       } else if (room.startsWith("vendor:")) {
         const vendorId = room.slice("vendor:".length);
@@ -455,92 +570,231 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
           socket.join(room);
           logger.debug({ socketId: socket.id, room }, "Socket joined vendor room");
         } else {
-          logger.debug({ socketId: socket.id, room }, "Socket join denied vendor room (unauthorized)");
+          logger.debug(
+            { socketId: socket.id, room },
+            "Socket join denied vendor room (unauthorized)"
+          );
         }
       } else if (room.startsWith("ride:")) {
         const rideId = room.slice("ride:".length);
         const key = bufferKey(socket.id, room);
         _pendingRideJoins.set(key, []);
-        isAuthorizedForRideRoom(rideId, headers, auth).then(ok => {
-          const buffered = _pendingRideJoins.get(key) ?? [];
-          _pendingRideJoins.delete(key);
-          if (ok) {
-            socket.join(room);
-            for (const payload of buffered) {
-              socket.emit("rider:location", payload);
+        isAuthorizedForRideRoom(rideId, headers, auth)
+          .then((ok) => {
+            const buffered = _pendingRideJoins.get(key) ?? [];
+            _pendingRideJoins.delete(key);
+            if (ok) {
+              socket.join(room);
+              for (const payload of buffered) {
+                socket.emit("rider:location", payload);
+              }
+              logger.debug({ socketId: socket.id, room }, "Socket joined ride room");
+            } else {
+              logger.debug(
+                { socketId: socket.id, room },
+                "Socket join denied ride room (not a participant)"
+              );
             }
-            logger.debug({ socketId: socket.id, room }, "Socket joined ride room");
-          } else {
-            logger.debug({ socketId: socket.id, room }, "Socket join denied ride room (not a participant)");
-          }
-        }).catch((e: Error) => { _pendingRideJoins.delete(key); logger.warn({ socketId: socket.id, room, err: e.message }, "[socketio] ride room auth check failed"); });
+          })
+          .catch((e: Error) => {
+            _pendingRideJoins.delete(key);
+            logger.warn(
+              { socketId: socket.id, room, err: e.message },
+              "[socketio] ride room auth check failed"
+            );
+          });
       } else if (room.startsWith("order:")) {
         const orderId = room.slice("order:".length);
-        isAuthorizedForOrderRoom(orderId, headers, auth).then(ok => {
-          if (ok) {
-            socket.join(room);
-            logger.debug({ socketId: socket.id, room }, "Socket joined order room");
-          } else {
-            logger.debug({ socketId: socket.id, room }, "Socket join denied order room (not a participant)");
-          }
-        }).catch((e: Error) => logger.warn({ socketId: socket.id, room, err: e.message }, "[socketio] order room join auth check failed"));
+        isAuthorizedForOrderRoom(orderId, headers, auth)
+          .then((ok) => {
+            if (ok) {
+              socket.join(room);
+              logger.debug({ socketId: socket.id, room }, "Socket joined order room");
+            } else {
+              logger.debug(
+                { socketId: socket.id, room },
+                "Socket join denied order room (not a participant)"
+              );
+            }
+          })
+          .catch((e: Error) =>
+            logger.warn(
+              { socketId: socket.id, room, err: e.message },
+              "[socketio] order room join auth check failed"
+            )
+          );
       } else if (room.startsWith("conversation:")) {
         const convId = room.slice("conversation:".length);
         if (cachedSession?.userId) {
-          isAuthorizedForConversationRoom(convId, cachedSession.userId).then(ok => {
-            if (ok) socket.join(room);
-          }).catch((e: Error) => logger.warn({ socketId: socket.id, room, err: e.message }, "[socketio] conversation room join auth check failed"));
+          isAuthorizedForConversationRoom(convId, cachedSession.userId)
+            .then((ok) => {
+              if (ok) socket.join(room);
+            })
+            .catch((e: Error) =>
+              logger.warn(
+                { socketId: socket.id, room, err: e.message },
+                "[socketio] conversation room join auth check failed"
+              )
+            );
         }
       }
     });
 
     /* ── Communication system events ── */
     socket.on("comm:typing:start", async (payload: { conversationId: string; userId: string }) => {
-      if (!cachedSession?.userId || cachedSession.userId !== payload?.userId || !payload?.conversationId) return;
-      const ok = await isAuthorizedForConversationRoom(payload.conversationId, cachedSession.userId).catch((err: unknown) => {
-        logger.warn({ err: err instanceof Error ? err.message : String(err), conversationId: payload.conversationId, userId: cachedSession.userId }, "[socketio] typing:start auth check failed — treating as unauthorized");
+      if (
+        !cachedSession?.userId ||
+        cachedSession.userId !== payload?.userId ||
+        !payload?.conversationId
+      )
+        return;
+      const ok = await isAuthorizedForConversationRoom(
+        payload.conversationId,
+        cachedSession.userId
+      ).catch((err: unknown) => {
+        logger.warn(
+          {
+            err: err instanceof Error ? err.message : String(err),
+            conversationId: payload.conversationId,
+            userId: cachedSession.userId,
+          },
+          "[socketio] typing:start auth check failed — treating as unauthorized"
+        );
         return false;
       });
       if (!ok) return;
-      socket.to(`conversation:${payload.conversationId}`).emit("comm:typing:start", { userId: payload.userId, conversationId: payload.conversationId });
+      socket.to(`conversation:${payload.conversationId}`).emit("comm:typing:start", {
+        userId: payload.userId,
+        conversationId: payload.conversationId,
+      });
     });
 
     socket.on("comm:typing:stop", async (payload: { conversationId: string; userId: string }) => {
-      if (!cachedSession?.userId || cachedSession.userId !== payload?.userId || !payload?.conversationId) return;
-      const ok = await isAuthorizedForConversationRoom(payload.conversationId, cachedSession.userId).catch((err: unknown) => {
-        logger.warn({ err: err instanceof Error ? err.message : String(err), conversationId: payload.conversationId, userId: cachedSession.userId }, "[socketio] typing:stop auth check failed — treating as unauthorized");
+      if (
+        !cachedSession?.userId ||
+        cachedSession.userId !== payload?.userId ||
+        !payload?.conversationId
+      )
+        return;
+      const ok = await isAuthorizedForConversationRoom(
+        payload.conversationId,
+        cachedSession.userId
+      ).catch((err: unknown) => {
+        logger.warn(
+          {
+            err: err instanceof Error ? err.message : String(err),
+            conversationId: payload.conversationId,
+            userId: cachedSession.userId,
+          },
+          "[socketio] typing:stop auth check failed — treating as unauthorized"
+        );
         return false;
       });
       if (!ok) return;
-      socket.to(`conversation:${payload.conversationId}`).emit("comm:typing:stop", { userId: payload.userId, conversationId: payload.conversationId });
+      socket.to(`conversation:${payload.conversationId}`).emit("comm:typing:stop", {
+        userId: payload.userId,
+        conversationId: payload.conversationId,
+      });
     });
 
-    socket.on("comm:call:offer", async (payload: { callId: string; targetUserId: string; sdp: unknown }) => {
-      if (!cachedSession?.userId || !payload?.callId || !payload?.targetUserId) return;
-      try {
-        const [call] = await db.select().from(callLogsTable).where(and(eq(callLogsTable.id, payload.callId), or(eq(callLogsTable.callerId, cachedSession.userId), eq(callLogsTable.calleeId, cachedSession.userId)))).limit(1);
-        if (!call) return;
-      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] early return on error"); return; }
-      _io!.to(`user:${payload.targetUserId}`).emit("comm:call:offer", { callId: payload.callId, sdp: payload.sdp, callerId: cachedSession.userId });
-    });
+    socket.on(
+      "comm:call:offer",
+      async (payload: { callId: string; targetUserId: string; sdp: unknown }) => {
+        if (!cachedSession?.userId || !payload?.callId || !payload?.targetUserId) return;
+        try {
+          const [call] = await db
+            .select()
+            .from(callLogsTable)
+            .where(
+              and(
+                eq(callLogsTable.id, payload.callId),
+                or(
+                  eq(callLogsTable.callerId, cachedSession.userId),
+                  eq(callLogsTable.calleeId, cachedSession.userId)
+                )
+              )
+            )
+            .limit(1);
+          if (!call) return;
+        } catch (err) {
+          logger.debug(
+            { error: err instanceof Error ? err.message : String(err) },
+            "[fn] early return on error"
+          );
+          return;
+        }
+        _io!.to(`user:${payload.targetUserId}`).emit("comm:call:offer", {
+          callId: payload.callId,
+          sdp: payload.sdp,
+          callerId: cachedSession.userId,
+        });
+      }
+    );
 
-    socket.on("comm:call:answer", async (payload: { callId: string; targetUserId: string; sdp: unknown }) => {
-      if (!cachedSession?.userId || !payload?.callId || !payload?.targetUserId) return;
-      try {
-        const [call] = await db.select().from(callLogsTable).where(and(eq(callLogsTable.id, payload.callId), or(eq(callLogsTable.callerId, cachedSession.userId), eq(callLogsTable.calleeId, cachedSession.userId)))).limit(1);
-        if (!call) return;
-      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] early return on error"); return; }
-      _io!.to(`user:${payload.targetUserId}`).emit("comm:call:answer", { callId: payload.callId, sdp: payload.sdp });
-    });
+    socket.on(
+      "comm:call:answer",
+      async (payload: { callId: string; targetUserId: string; sdp: unknown }) => {
+        if (!cachedSession?.userId || !payload?.callId || !payload?.targetUserId) return;
+        try {
+          const [call] = await db
+            .select()
+            .from(callLogsTable)
+            .where(
+              and(
+                eq(callLogsTable.id, payload.callId),
+                or(
+                  eq(callLogsTable.callerId, cachedSession.userId),
+                  eq(callLogsTable.calleeId, cachedSession.userId)
+                )
+              )
+            )
+            .limit(1);
+          if (!call) return;
+        } catch (err) {
+          logger.debug(
+            { error: err instanceof Error ? err.message : String(err) },
+            "[fn] early return on error"
+          );
+          return;
+        }
+        _io!
+          .to(`user:${payload.targetUserId}`)
+          .emit("comm:call:answer", { callId: payload.callId, sdp: payload.sdp });
+      }
+    );
 
-    socket.on("comm:call:ice-candidate", async (payload: { callId: string; targetUserId: string; candidate: unknown }) => {
-      if (!cachedSession?.userId || !payload?.callId || !payload?.targetUserId) return;
-      try {
-        const [call] = await db.select().from(callLogsTable).where(and(eq(callLogsTable.id, payload.callId), or(eq(callLogsTable.callerId, cachedSession.userId), eq(callLogsTable.calleeId, cachedSession.userId)))).limit(1);
-        if (!call) return;
-      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] early return on error"); return; }
-      _io!.to(`user:${payload.targetUserId}`).emit("comm:call:ice-candidate", { callId: payload.callId, candidate: payload.candidate });
-    });
+    socket.on(
+      "comm:call:ice-candidate",
+      async (payload: { callId: string; targetUserId: string; candidate: unknown }) => {
+        if (!cachedSession?.userId || !payload?.callId || !payload?.targetUserId) return;
+        try {
+          const [call] = await db
+            .select()
+            .from(callLogsTable)
+            .where(
+              and(
+                eq(callLogsTable.id, payload.callId),
+                or(
+                  eq(callLogsTable.callerId, cachedSession.userId),
+                  eq(callLogsTable.calleeId, cachedSession.userId)
+                )
+              )
+            )
+            .limit(1);
+          if (!call) return;
+        } catch (err) {
+          logger.debug(
+            { error: err instanceof Error ? err.message : String(err) },
+            "[fn] early return on error"
+          );
+          return;
+        }
+        _io!.to(`user:${payload.targetUserId}`).emit("comm:call:ice-candidate", {
+          callId: payload.callId,
+          candidate: payload.candidate,
+        });
+      }
+    );
 
     socket.on("comm:call:reject", (payload: { callId: string; targetUserId: string }) => {
       if (!cachedSession?.userId || !payload?.callId || !payload?.targetUserId) return;
@@ -609,7 +863,9 @@ export function emitRiderLocation(payload: {
   if (now - lastEmit < RIDER_LOC_THROTTLE_MS) {
     /* Throttled: buffer if this rider is currently joining a ride room */
     if (payload.rideId) {
-      const rooms = Array.from(_pendingRideJoins.keys()).filter(k => k.endsWith(`::ride:${payload.rideId}`));
+      const rooms = Array.from(_pendingRideJoins.keys()).filter((k) =>
+        k.endsWith(`::ride:${payload.rideId}`)
+      );
       for (const key of rooms) {
         _pendingRideJoins.get(key)?.push(payload);
       }
@@ -657,7 +913,10 @@ export function emitRiderForVendor(vendorId: string, payload: any) {
 }
 
 /** Emit new ride request to all online/available riders */
-export function emitRiderNewRequest(riderId: string, payload: { type: 'ride' | 'order' | 'parcel'; requestId: string; summary: string }) {
+export function emitRiderNewRequest(
+  riderId: string,
+  payload: { type: "ride" | "order" | "parcel"; requestId: string; summary: string }
+) {
   if (!_io) return;
   _io.to(`rider:${riderId}`).emit("rider:new_request", payload);
 }
@@ -669,14 +928,24 @@ export function emitChatMessage(conversationId: string, message: any) {
 }
 
 /** Emit ride dispatch update to the relevant ride room and admin-fleet dashboard */
-export function emitRideDispatchUpdate(payload: { rideId: string; action: string; status: string; [key: string]: any }) {
+export function emitRideDispatchUpdate(payload: {
+  rideId: string;
+  action: string;
+  status: string;
+  [key: string]: any;
+}) {
   if (!_io) return;
   _io.to(`ride:${payload.rideId}`).emit("ride:dispatch_update", payload);
   _io.to("admin-fleet").emit("ride:dispatch_update", payload);
 }
 
 /** Emit rider online/offline status to admin-fleet */
-export function emitRiderStatus(payload: { userId: string; isOnline: boolean; name?: string; updatedAt: string }) {
+export function emitRiderStatus(payload: {
+  userId: string;
+  isOnline: boolean;
+  name?: string;
+  updatedAt: string;
+}) {
   if (!_io) return;
   _io.to("admin-fleet").emit("rider:status", payload);
 }
@@ -755,7 +1024,13 @@ export function emitRiderSOS(payload: {
 export function emitVanLocation(
   scheduleId: string,
   date: string,
-  payload: { latitude: number; longitude: number; speed?: number; heading?: number; updatedAt: string },
+  payload: {
+    latitude: number;
+    longitude: number;
+    speed?: number;
+    heading?: number;
+    updatedAt: string;
+  }
 ) {
   if (!_io) return;
   const room = `van:${scheduleId}:${date}`;
@@ -767,7 +1042,7 @@ export function emitVanLocation(
 export function emitVanTripUpdate(
   scheduleId: string,
   date: string,
-  payload: { event: string; data?: unknown },
+  payload: { event: string; data?: unknown }
 ) {
   if (!_io) return;
   const room = `van:${scheduleId}:${date}`;

@@ -1,20 +1,21 @@
-import { Router } from "express";
 import { db } from "@workspace/db";
-import { usersTable, platformSettingsTable, authAuditLogTable, otpBypassAuditTable, whitelistUsersTable, ridesTable, otpAttemptsTable } from "@workspace/db/schema";
-import { eq, desc, and, sql, inArray, type SQL } from "drizzle-orm";
 import {
-  addAuditEntry, getClientIp, getPlatformSettings, invalidateSettingsCache,
-  type AdminRequest,
-} from "../admin-shared.js";
-import { sendSuccess, sendNotFound, sendValidationError } from "../../lib/response.js";
-import { generateSecureOtp } from "../../services/password.js";
+  otpBypassAuditTable,
+  ridesTable,
+  usersTable,
+  whitelistUsersTable,
+} from "@workspace/db/schema";
+import { randomBytes } from "crypto";
+import { desc, eq } from "drizzle-orm";
+import { Router } from "express";
 import { generateId } from "../../lib/id.js";
-import { createHash, randomBytes } from "crypto";
+import { logger } from "../../lib/logger.js";
+import { sendNotFound, sendSuccess, sendValidationError } from "../../lib/response.js";
 import { writeAuthAuditLog } from "../../middleware/security.js";
 import { AuditService } from "../../services/admin-audit.service.js";
-import { UserService } from "../../services/admin-user.service.js";
-import { logger } from "../../lib/logger.js";
 import { NotificationService } from "../../services/admin-notification.service.js";
+import { UserService } from "../../services/admin-user.service.js";
+import { getClientIp, getPlatformSettings, type AdminRequest } from "../admin-shared.js";
 
 const router = Router();
 
@@ -62,11 +63,7 @@ function safeUserAgent(req: { headers: { "user-agent"?: string | string[] } }): 
  * surface raw DB messages (table/column names, constraint details) to
  * the browser — they leak schema and aid attackers.
  */
-function sendServerError(
-  res: import("express").Response,
-  error: unknown,
-  context: string,
-): void {
+function sendServerError(res: import("express").Response, error: unknown, context: string): void {
   logger.error({ err: error, context }, `[admin/otp] ${context}`);
   res.status(500).json({
     success: false,
@@ -87,9 +84,10 @@ router.get("/otp/status", async (_req, res) => {
 /* ─── POST /admin/otp/disable ─────────────────────────────────────────────── */
 router.post("/otp/disable", async (req, res) => {
   const minutes = Number(req.body?.minutes);
-  const reason: string | undefined = typeof req.body?.reason === "string" && req.body.reason.trim()
-    ? req.body.reason.trim()
-    : undefined;
+  const reason: string | undefined =
+    typeof req.body?.reason === "string" && req.body.reason.trim()
+      ? req.body.reason.trim()
+      : undefined;
   const adminReq = req as AdminRequest;
 
   try {
@@ -113,7 +111,13 @@ router.post("/otp/disable", async (req, res) => {
     writeAuthAuditLog("admin_otp_global_disable", {
       ip: getClientIp(req),
       userAgent: req.headers["user-agent"] ?? undefined,
-      metadata: { adminId: adminReq.adminId, minutes, disabledUntil: result.disabledUntil, reason: reason ?? null, result: "success" },
+      metadata: {
+        adminId: adminReq.adminId,
+        minutes,
+        disabledUntil: result.disabledUntil,
+        reason: reason ?? null,
+        result: "success",
+      },
     });
 
     /* Fire internal admin notification via NotificationService so all admins are aware */
@@ -515,7 +519,9 @@ router.post("/whitelist", async (req, res) => {
 /* ─── PATCH /admin/whitelist/:id ──────────────────────────────────────────────*/
 router.patch("/whitelist/:id", async (req, res) => {
   const id = req.params["id"] as string;
-  const updates = (req.body ?? {}) as Partial<WhitelistUpdate> & { expiresAt?: string | Date | null };
+  const updates = (req.body ?? {}) as Partial<WhitelistUpdate> & {
+    expiresAt?: string | Date | null;
+  };
   const adminReq = req as AdminRequest;
 
   try {
@@ -548,14 +554,13 @@ router.patch("/whitelist/:id", async (req, res) => {
 
     if (updates.expiresAt !== undefined) {
       updateData.expiresAt = updates.expiresAt
-        ? (updates.expiresAt instanceof Date ? updates.expiresAt : new Date(updates.expiresAt))
+        ? updates.expiresAt instanceof Date
+          ? updates.expiresAt
+          : new Date(updates.expiresAt)
         : null;
     }
 
-    await db
-      .update(whitelistUsersTable)
-      .set(updateData)
-      .where(eq(whitelistUsersTable.id, id));
+    await db.update(whitelistUsersTable).set(updateData).where(eq(whitelistUsersTable.id, id));
 
     await AuditService.executeWithAudit(
       {
@@ -642,7 +647,7 @@ router.get("/otp/delivery-otp/:rideId", async (req, res) => {
       otpStatus = "Used";
     } else if (
       TERMINAL_CANCELLED_STATUSES.includes(ride.status) ||
-      (Date.now() - new Date(ride.createdAt).getTime() > OTP_EXPIRY_MS)
+      Date.now() - new Date(ride.createdAt).getTime() > OTP_EXPIRY_MS
     ) {
       otpStatus = "Expired";
     } else {

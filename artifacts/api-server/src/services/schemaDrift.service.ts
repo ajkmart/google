@@ -1,12 +1,12 @@
-import { getTableName, getTableColumns, is, sql } from "drizzle-orm";
-import { PgTable } from "drizzle-orm/pg-core";
 import * as allSchema from "@workspace/db";
 import { db } from "@workspace/db";
+import { getTableColumns, getTableName, is, sql } from "drizzle-orm";
+import { PgTable } from "drizzle-orm/pg-core";
 
 export interface ColumnDiff {
   table: string;
-  missingInDb: string[];   // in schema, absent from DB
-  extraInDb: string[];     // in DB, absent from schema (informational)
+  missingInDb: string[]; // in schema, absent from DB
+  extraInDb: string[]; // in DB, absent from schema (informational)
 }
 
 export interface SchemaDriftReport {
@@ -14,8 +14,8 @@ export interface SchemaDriftReport {
   checkedAt: string;
   totalSchemaTables: number;
   totalDbTables: number;
-  missingTables: string[];   // defined in schema, absent from DB
-  extraTables: string[];     // exist in DB only (informational, not a crash risk)
+  missingTables: string[]; // defined in schema, absent from DB
+  extraTables: string[]; // exist in DB only (informational, not a crash risk)
   columnDrift: ColumnDiff[]; // tables present in both but with column gaps
 }
 
@@ -38,9 +38,7 @@ function buildSchemaMap(): Map<string, Set<string>> {
     if (!is(exported as object, PgTable)) continue;
     const tableName = getTableName(exported as Parameters<typeof getTableName>[0]);
     const cols = getTableColumns(exported as Parameters<typeof getTableColumns>[0]);
-    const colNames = new Set(
-      Object.values(cols).map((c: { name: string }) => c.name),
-    );
+    const colNames = new Set(Object.values(cols).map((c: { name: string }) => c.name));
     if (map.has(tableName)) {
       for (const c of colNames) map.get(tableName)!.add(c);
     } else {
@@ -68,10 +66,7 @@ async function buildDbMap(): Promise<Map<string, Set<string>>> {
 
 /** Compare schema definition against live DB and return a drift report. */
 export async function checkSchemaDrift(): Promise<SchemaDriftReport> {
-  const [schemaMap, dbMap] = await Promise.all([
-    Promise.resolve(buildSchemaMap()),
-    buildDbMap(),
-  ]);
+  const [schemaMap, dbMap] = await Promise.all([Promise.resolve(buildSchemaMap()), buildDbMap()]);
 
   const ignoredDbTables = new Set(["_schema_migrations"]);
 
@@ -94,14 +89,15 @@ export async function checkSchemaDrift(): Promise<SchemaDriftReport> {
     if (!dbColumns) continue;
 
     const missingInDb = [...schemaColumns].filter((c) => !dbColumns.has(c));
-    const extraInDb   = [...dbColumns].filter((c) => !schemaColumns.has(c));
+    const extraInDb = [...dbColumns].filter((c) => !schemaColumns.has(c));
 
     if (missingInDb.length > 0 || extraInDb.length > 0) {
       columnDrift.push({ table, missingInDb, extraInDb });
     }
   }
 
-  const ok = missingTables.length === 0 && columnDrift.filter((d) => d.missingInDb.length > 0).length === 0;
+  const ok =
+    missingTables.length === 0 && columnDrift.filter((d) => d.missingInDb.length > 0).length === 0;
 
   const report: SchemaDriftReport = {
     ok,

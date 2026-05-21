@@ -7,13 +7,13 @@ import { logger } from "../lib/logger.js";
  * They are converted to E.164 (+92xxxxxxxxx) before sending.
  */
 
-import { t } from "@workspace/i18n";
 import type { Language } from "@workspace/i18n";
+import { t } from "@workspace/i18n";
 
 function toE164Pakistan(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   if (digits.startsWith("92")) return `+${digits}`;
-  if (digits.startsWith("0"))  return `+92${digits.slice(1)}`;
+  if (digits.startsWith("0")) return `+92${digits.slice(1)}`;
   return `+92${digits}`;
 }
 
@@ -33,9 +33,13 @@ export interface SMSResult {
   error?: string;
 }
 
-async function dispatchSMS(phone: string, message: string, settings: Record<string, string>): Promise<SMSResult> {
+async function dispatchSMS(
+  phone: string,
+  message: string,
+  settings: Record<string, string>
+): Promise<SMSResult> {
   const integrationOn = settings["integration_sms"] === "on";
-  const provider      = settings["sms_provider"] ?? "console";
+  const provider = settings["sms_provider"] ?? "console";
 
   if (!integrationOn || provider === "console") {
     logger.info(`[SMS:console] To: ${phone} | ${message}`);
@@ -47,12 +51,17 @@ async function dispatchSMS(phone: string, message: string, settings: Record<stri
   /* ── Twilio ── */
   if (provider === "twilio") {
     const accountSid = settings["sms_account_sid"]?.trim();
-    const authToken  = settings["sms_api_key"]?.trim();
-    const from       = settings["sms_sender_id"]?.trim();
+    const authToken = settings["sms_api_key"]?.trim();
+    const from = settings["sms_sender_id"]?.trim();
 
     if (!accountSid || !authToken || !from) {
       logger.info(`[SMS:twilio] Credentials not configured — logging: ${message}`);
-      return { sent: false, provider: "twilio", error: "Twilio credentials not configured. Set sms_account_sid, sms_api_key, sms_sender_id in Integrations." };
+      return {
+        sent: false,
+        provider: "twilio",
+        error:
+          "Twilio credentials not configured. Set sms_account_sid, sms_api_key, sms_sender_id in Integrations.",
+      };
     }
 
     try {
@@ -69,16 +78,22 @@ async function dispatchSMS(phone: string, message: string, settings: Record<stri
 
   /* ── MSG91 ── */
   if (provider === "msg91") {
-    const authKey    = settings["sms_msg91_key"]?.trim();
-    const senderId   = (settings["sms_sender_id"] ?? "AJKMAT").trim();
+    const authKey = settings["sms_msg91_key"]?.trim();
+    const senderId = (settings["sms_sender_id"] ?? "AJKMAT").trim();
 
     if (!authKey) {
       logger.info(`[SMS:msg91] Auth key not configured — logging: ${message}`);
-      return { sent: false, provider: "msg91", error: "MSG91 auth key not configured. Set sms_msg91_key in Integrations." };
+      return {
+        sent: false,
+        provider: "msg91",
+        error: "MSG91 auth key not configured. Set sms_msg91_key in Integrations.",
+      };
     }
 
     try {
-      const resp = await fetch(`https://api.msg91.com/api/sendhttp.php?country=92&sender=${senderId}&route=4&mobiles=${e164.replace("+", "")}&authkey=${authKey}&sms=${encodeURIComponent(message)}`);
+      const resp = await fetch(
+        `https://api.msg91.com/api/sendhttp.php?country=92&sender=${senderId}&route=4&mobiles=${e164.replace("+", "")}&authkey=${authKey}&sms=${encodeURIComponent(message)}`
+      );
       const body = await resp.text();
       if (body.includes("success") || resp.ok) {
         return { sent: true, provider: "msg91" };
@@ -92,12 +107,16 @@ async function dispatchSMS(phone: string, message: string, settings: Record<stri
 
   /* ── Zong / CM.com Pakistan ── */
   if (provider === "zong") {
-    const apiKey   = settings["sms_api_key"]?.trim();
+    const apiKey = settings["sms_api_key"]?.trim();
     const senderId = (settings["sms_sender_id"] ?? "AJKMart").trim();
 
     if (!apiKey) {
       logger.info(`[SMS:zong] API key not configured — logging: ${message}`);
-      return { sent: false, provider: "zong", error: "Zong API key not configured. Set sms_api_key in Integrations." };
+      return {
+        sent: false,
+        provider: "zong",
+        error: "Zong API key not configured. Set sms_api_key in Integrations.",
+      };
     }
 
     try {
@@ -110,11 +129,13 @@ async function dispatchSMS(phone: string, message: string, settings: Record<stri
         body: JSON.stringify({
           messages: {
             authentication: { producttoken: apiKey },
-            msg: [{
-              from: senderId,
-              to: [{ number: e164 }],
-              body: { type: "AUTO", content: message },
-            }],
+            msg: [
+              {
+                from: senderId,
+                to: [{ number: e164 }],
+                body: { type: "AUTO", content: message },
+              },
+            ],
           },
         }),
       });
@@ -124,7 +145,16 @@ async function dispatchSMS(phone: string, message: string, settings: Record<stri
         return { sent: true, provider: "zong" };
       }
       const errText = await resp.text().catch((textErr: unknown) => {
-        logger.warn({ error: textErr instanceof Error ? textErr.message : String(textErr), code: "SMS_BODY_PARSE_FAILED", timestamp: new Date().toISOString(), provider: "zong", status: resp.status }, "[SMS:zong] failed to read error response body");
+        logger.warn(
+          {
+            error: textErr instanceof Error ? textErr.message : String(textErr),
+            code: "SMS_BODY_PARSE_FAILED",
+            timestamp: new Date().toISOString(),
+            provider: "zong",
+            status: resp.status,
+          },
+          "[SMS:zong] failed to read error response body"
+        );
         return `HTTP ${resp.status}`;
       });
       return { sent: false, provider: "zong", error: errText };
@@ -153,8 +183,8 @@ export function isSMSProviderConfigured(settings: Record<string, string>): boole
       settings["sms_sender_id"]?.trim()
     );
   }
-  if (provider === "msg91") return !!(settings["sms_msg91_key"]?.trim());
-  if (provider === "zong")   return !!(settings["sms_api_key"]?.trim());
+  if (provider === "msg91") return !!settings["sms_msg91_key"]?.trim();
+  if (provider === "zong") return !!settings["sms_api_key"]?.trim();
   return false;
 }
 
@@ -164,8 +194,9 @@ export function isSMSProviderConfigured(settings: Record<string, string>): boole
  * the user (dev/staging scenario), so this counts as an "active" channel.
  */
 export function isSMSConsoleActive(settings: Record<string, string>): boolean {
-  return settings["integration_sms"] === "on" &&
-         (settings["sms_provider"] ?? "console") === "console";
+  return (
+    settings["integration_sms"] === "on" && (settings["sms_provider"] ?? "console") === "console"
+  );
 }
 
 export async function sendOtpSMS(
@@ -201,7 +232,7 @@ export async function sendApprovalSMS(
   phone: string,
   name: string | null | undefined,
   role: string,
-  settings: Record<string, string>,
+  settings: Record<string, string>
 ): Promise<SMSResult> {
   const appName = settings["app_name"]?.trim() || "AJKMart";
   const roleName = role === "rider" ? "Rider" : role === "vendor" ? "Vendor" : "Account";
@@ -215,7 +246,7 @@ export async function sendRejectionSMS(
   name: string | null | undefined,
   role: string,
   reason: string,
-  settings: Record<string, string>,
+  settings: Record<string, string>
 ): Promise<SMSResult> {
   const appName = settings["app_name"]?.trim() || "AJKMart";
   const roleName = role === "rider" ? "Rider" : role === "vendor" ? "Vendor" : "Account";
@@ -226,9 +257,11 @@ export async function sendRejectionSMS(
 }
 
 /* ── Generic dispatch wrapper for NotificationService ── */
-export async function sendSms(
-  input: { to: string; message: string; templateId?: string }
-): Promise<{ messageId?: string } & SMSResult> {
+export async function sendSms(input: {
+  to: string;
+  message: string;
+  templateId?: string;
+}): Promise<{ messageId?: string } & SMSResult> {
   const { getCachedSettings } = await import("../middleware/security.js");
   const settings = await getCachedSettings();
   const result = await dispatchSMS(input.to, input.message, settings);
@@ -243,7 +276,7 @@ export async function sendSms(
  */
 export async function dispatchFallbackSms(
   phone: string,
-  settings: Record<string, string>,
+  settings: Record<string, string>
 ): Promise<SMSResult> {
   const appName = settings["app_name"]?.trim() || "AJKMart";
   const message = `[${appName}] We tried to reach you on WhatsApp but delivery failed. Please check the app for your latest update.`;

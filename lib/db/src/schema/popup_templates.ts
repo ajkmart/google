@@ -23,6 +23,9 @@ export const popupTemplatesTable = pgTable("popup_templates", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export const insertPopupTemplateSchema = createInsertSchema(popupTemplatesTable).omit({ createdAt: true, updatedAt: true });
+export const insertPopupTemplateSchema = createInsertSchema(popupTemplatesTable).omit({
+  createdAt: true,
+  updatedAt: true,
+});
 export type InsertPopupTemplate = z.infer<typeof insertPopupTemplateSchema>;
 export type PopupTemplate = typeof popupTemplatesTable.$inferSelect;

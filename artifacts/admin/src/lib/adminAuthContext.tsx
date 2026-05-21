@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { toast } from '@/hooks/use-toast';
-import { ToastAction } from '@/components/ui/toast';
+import { ToastAction } from "@/components/ui/toast";
+import { toast } from "@/hooks/use-toast";
 import { createLogger } from "@/lib/logger";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 const log = createLogger("[adminAuthContext]");
 
 export interface AdminUser {
@@ -95,12 +95,12 @@ const INITIAL_STATE: AuthState = {
  */
 function getJwtExpiry(token: string): number | null {
   try {
-    const parts = token.split('.');
+    const parts = token.split(".");
     if (parts.length !== 3) return null; // Token must have 3 parts: header.payload.signature
     const payload = parts[1];
     if (!payload) return null;
-    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
-    return typeof decoded.exp === 'number' ? decoded.exp * 1000 : null;
+    const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    return typeof decoded.exp === "number" ? decoded.exp * 1000 : null;
   } catch {
     return null;
   }
@@ -132,7 +132,10 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   /** Schedule a warning toast 60s before the access token expires. */
   const scheduleExpiryWarning = useCallback((token: string, refreshFn: () => Promise<string>) => {
     if (timerTokenRef.current === token) return; // already scheduled for this token
-    if (expiryTimerRef.current) { clearTimeout(expiryTimerRef.current); expiryTimerRef.current = null; }
+    if (expiryTimerRef.current) {
+      clearTimeout(expiryTimerRef.current);
+      expiryTimerRef.current = null;
+    }
     timerTokenRef.current = token;
 
     const expiresAt = getJwtExpiry(token);
@@ -147,11 +150,18 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       if (expiryToastShownRef.current) return;
       expiryToastShownRef.current = true;
       toast({
-        title: 'Your session expires in 1 minute',
+        title: "Your session expires in 1 minute",
         description: 'Click "Stay logged in" to continue without interruption.',
         duration: 55_000,
         action: (
-          <ToastAction altText="Stay logged in" onClick={() => { refreshFn().catch((err) => { log.warn("[adminAuth] Session refresh failed:", err); }); }}>
+          <ToastAction
+            altText="Stay logged in"
+            onClick={() => {
+              refreshFn().catch((err) => {
+                log.warn("[adminAuth] Session refresh failed:", err);
+              });
+            }}
+          >
             Stay logged in
           </ToastAction>
         ),
@@ -161,7 +171,10 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   /** Cancel the expiry warning timer (called on logout or successful refresh). */
   const cancelExpiryWarning = useCallback(() => {
-    if (expiryTimerRef.current) { clearTimeout(expiryTimerRef.current); expiryTimerRef.current = null; }
+    if (expiryTimerRef.current) {
+      clearTimeout(expiryTimerRef.current);
+      expiryTimerRef.current = null;
+    }
     timerTokenRef.current = null;
   }, []);
 
@@ -177,11 +190,11 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
     refreshPromiseRef.current = (async () => {
       try {
-        const response = await fetch('/api/admin/auth/refresh', {
-          method: 'POST',
-          credentials: 'include', // Include cookies (refresh_token, csrf_token)
+        const response = await fetch("/api/admin/auth/refresh", {
+          method: "POST",
+          credentials: "include", // Include cookies (refresh_token, csrf_token)
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         });
 
@@ -189,10 +202,14 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           if (response.status === 401) {
             // Refresh token expired or invalid - clear auth
             cancelExpiryWarning();
-            setState({ ...INITIAL_STATE, isLoading: false, error: 'Session expired. Please log in again.' });
-            throw new Error('Session expired');
+            setState({
+              ...INITIAL_STATE,
+              isLoading: false,
+              error: "Session expired. Please log in again.",
+            });
+            throw new Error("Session expired");
           }
-          throw new Error('Failed to refresh token');
+          throw new Error("Failed to refresh token");
         }
 
         const data = await response.json();
@@ -201,7 +218,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           accessToken: data.accessToken,
           user: data.user
             ? {
-                ...(prev.user ?? { id: '', name: '', email: '', role: '' }),
+                ...(prev.user ?? { id: "", name: "", email: "", role: "" }),
                 ...data.user,
               }
             : prev.user,
@@ -213,7 +230,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
         return data.accessToken;
       } catch (err) {
-        log.error('Token refresh failed:', err);
+        log.error("Token refresh failed:", err);
         throw err;
       } finally {
         refreshPromiseRef.current = null;
@@ -230,7 +247,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       cancelExpiryWarning();
     }
-    
+
     return () => cancelExpiryWarning(); // Cleanup on unmount to prevent race conditions
   }, [state.accessToken, scheduleExpiryWarning, cancelExpiryWarning, refreshAccessToken]);
 
@@ -278,7 +295,13 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
    * Supports both password-only and MFA flow
    */
   const login = useCallback(
-    async (username: string, password: string, totp?: string, tempToken?: string, deviceMeta?: Record<string, unknown>) => {
+    async (
+      username: string,
+      password: string,
+      totp?: string,
+      tempToken?: string,
+      deviceMeta?: Record<string, unknown>
+    ) => {
       setState((prev) => ({
         ...prev,
         isLoading: true,
@@ -288,11 +311,11 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       try {
         // If TOTP is provided, use the 2FA endpoint
         if (totp && tempToken) {
-          const response = await fetch('/api/admin/auth/2fa', {
-            method: 'POST',
-            credentials: 'include',
+          const response = await fetch("/api/admin/auth/2fa", {
+            method: "POST",
+            credentials: "include",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
             body: JSON.stringify({
               tempToken,
@@ -302,7 +325,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
           if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || 'MFA verification failed');
+            throw new Error(error.error || "MFA verification failed");
           }
 
           const data = await response.json();
@@ -320,11 +343,11 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Initial login with username/password
-        const response = await fetch('/api/admin/auth/login', {
-          method: 'POST',
-          credentials: 'include',
+        const response = await fetch("/api/admin/auth/login", {
+          method: "POST",
+          credentials: "include",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             username,
@@ -335,17 +358,17 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
         if (!response.ok) {
           const error = await response.json();
-          throw new Error(error.error || 'Login failed');
+          throw new Error(error.error || "Login failed");
         }
 
         const data = await response.json();
 
         // If MFA is required, throw a special error that includes the tempToken
         if (data.requiresMfa) {
-          throw Object.assign(
-            new Error(data.message || 'MFA required'),
-            { requiresMfa: true as const, tempToken: data.tempToken as string | undefined },
-          );
+          throw Object.assign(new Error(data.message || "MFA required"), {
+            requiresMfa: true as const,
+            tempToken: data.tempToken as string | undefined,
+          });
         }
 
         // Login successful
@@ -359,7 +382,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           defaultCredentialsDismissed: false,
         });
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Login failed';
+        const errorMessage = err instanceof Error ? err.message : "Login failed";
         setState((prev) => ({
           ...prev,
           isLoading: false,
@@ -379,8 +402,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     // Clear sidebar UI state to prevent scroll/selection bleed between admin sessions
     try {
       Object.keys(localStorage)
-        .filter(k => k.startsWith('admin_sidebar_') || k.startsWith('admin_nav_'))
-        .forEach(k => localStorage.removeItem(k));
+        .filter((k) => k.startsWith("admin_sidebar_") || k.startsWith("admin_nav_"))
+        .forEach((k) => localStorage.removeItem(k));
     } catch {}
     // Immediately null user + token so the authenticated layout is hidden
     // before the logout API call completes (prevents content flash).
@@ -394,15 +417,15 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     try {
       if (state.accessToken) {
         // Try to notify backend of logout
-        const csrfToken = readCsrfFromCookie() || ''; // Fallback if cookie is cleared or malformed
+        const csrfToken = readCsrfFromCookie() || ""; // Fallback if cookie is cleared or malformed
         // eslint-disable-next-line ajk-local/no-silent-catch -- logout notification to server is best-effort; local auth state is cleared regardless
-        await fetch('/api/admin/auth/logout', {
-          method: 'POST',
-          credentials: 'include',
+        await fetch("/api/admin/auth/logout", {
+          method: "POST",
+          credentials: "include",
           headers: {
-            'Authorization': `Bearer ${state.accessToken}`,
-            'X-CSRF-Token': csrfToken,
-            'Content-Type': 'application/json',
+            Authorization: `Bearer ${state.accessToken}`,
+            "X-CSRF-Token": csrfToken,
+            "Content-Type": "application/json",
           },
         }).catch(() => {
           // Logout failure is acceptable - cookies will be cleared anyway
@@ -411,7 +434,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
       setState({ ...INITIAL_STATE, isLoading: false });
     } catch (err) {
-      log.error('Logout error:', err);
+      log.error("Logout error:", err);
       // Clear state anyway
       setState({ ...INITIAL_STATE, isLoading: false });
     }
@@ -424,21 +447,24 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
    */
   const changePassword = useCallback(
     async (currentPassword: string, newPassword: string): Promise<string> => {
-      if (!state.accessToken) throw new Error('Not authenticated');
-      const response = await fetch('/api/admin/auth/change-password', {
-        method: 'POST',
-        credentials: 'include',
+      if (!state.accessToken) throw new Error("Not authenticated");
+      const response = await fetch("/api/admin/auth/change-password", {
+        method: "POST",
+        credentials: "include",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${state.accessToken}`,
-          'X-CSRF-Token': readCsrfFromCookie(),
+          "X-CSRF-Token": readCsrfFromCookie(),
         },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
 
       if (!response.ok) {
-        const error = await response.json().catch((parseErr) => { log.debug("[adminAuth] Failed to parse error response:", parseErr); return {}; });
-        throw new Error(error.error || 'Failed to change password');
+        const error = await response.json().catch((parseErr) => {
+          log.debug("[adminAuth] Failed to parse error response:", parseErr);
+          return {};
+        });
+        throw new Error(error.error || "Failed to change password");
       }
 
       const data = await response.json();
@@ -447,7 +473,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         accessToken: nextToken,
         user: data.user
-          ? { ...(prev.user ?? { id: '', name: '', email: '', role: '' }), ...data.user }
+          ? { ...(prev.user ?? { id: "", name: "", email: "", role: "" }), ...data.user }
           : prev.user,
         mustChangePassword: false,
         usingDefaultCredentials: false,
@@ -455,7 +481,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       }));
       return nextToken;
     },
-    [state.accessToken],
+    [state.accessToken]
   );
 
   const dismissDefaultCredentialsPrompt = useCallback(() => {
@@ -474,42 +500,45 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       if (!adminId) {
         setState((prev) => ({
           ...prev,
-          error: 'Not authenticated',
+          error: "Not authenticated",
         }));
-        throw new Error('Not authenticated');
+        throw new Error("Not authenticated");
       }
       if (!state.accessToken) {
         setState((prev) => ({
           ...prev,
-          error: 'Not authenticated',
+          error: "Not authenticated",
         }));
-        throw new Error('Not authenticated');
+        throw new Error("Not authenticated");
       }
 
       const response = await fetch(`/api/admin/system/admin-accounts/${adminId}`, {
-        method: 'PATCH',
-        credentials: 'include',
+        method: "PATCH",
+        credentials: "include",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${state.accessToken}`,
-          'X-CSRF-Token': readCsrfFromCookie(),
+          "X-CSRF-Token": readCsrfFromCookie(),
         },
         body: JSON.stringify(input),
       });
 
       if (!response.ok) {
-        const error = await response.json().catch((parseErr) => { log.debug("[adminAuth] Failed to parse error response:", parseErr); return {}; });
-        throw new Error(error.error || 'Failed to update profile');
+        const error = await response.json().catch((parseErr) => {
+          log.debug("[adminAuth] Failed to parse error response:", parseErr);
+          return {};
+        });
+        throw new Error(error.error || "Failed to update profile");
       }
 
       const data = await response.json();
       const updated = data?.account ?? data;
-      
+
       // Validate response data is not completely empty
       if (!updated) {
-        throw new Error('Server returned empty response when updating profile');
+        throw new Error("Server returned empty response when updating profile");
       }
-      
+
       setState((prev) => ({
         ...prev,
         user: prev.user
@@ -522,7 +551,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         usingDefaultCredentials: false,
       }));
     },
-    [state.user?.id, state.accessToken],
+    [state.user?.id, state.accessToken]
   );
 
   const clearError = useCallback(() => {
@@ -556,7 +585,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 export function useAdminAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAdminAuth must be used within AdminAuthProvider');
+    throw new Error("useAdminAuth must be used within AdminAuthProvider");
   }
   return context;
 }
@@ -570,14 +599,14 @@ export function useAdminAuth(): AuthContextType {
 export function readCsrfFromCookie(): string {
   if (typeof document === "undefined" || !document.cookie) return "";
   try {
-    const cookies = document.cookie.split(';');
+    const cookies = document.cookie.split(";");
     for (const cookie of cookies) {
       const trimmed = cookie.trim();
-      const eqIdx = trimmed.indexOf('=');
+      const eqIdx = trimmed.indexOf("=");
       if (eqIdx === -1) continue;
       const key = trimmed.slice(0, eqIdx);
       const rawValue = trimmed.slice(eqIdx + 1);
-      if (key === 'csrf_token') {
+      if (key === "csrf_token") {
         try {
           return decodeURIComponent(rawValue);
         } catch {
@@ -585,11 +614,11 @@ export function readCsrfFromCookie(): string {
         }
       }
     }
-  // eslint-disable-next-line ajk-local/no-silent-catch -- cookie parse failure is expected for malformed cookies; falls through to empty string
+    // eslint-disable-next-line ajk-local/no-silent-catch -- cookie parse failure is expected for malformed cookies; falls through to empty string
   } catch {
     /* ignore - fall through to empty string */
   }
-  return '';
+  return "";
 }
 
 /* ─────────────────────────────────────────────────────────────────

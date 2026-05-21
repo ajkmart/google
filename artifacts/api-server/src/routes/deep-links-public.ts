@@ -1,14 +1,16 @@
-import { Router } from "express";
 import { db } from "@workspace/db";
 import { deepLinksTable } from "@workspace/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { Router } from "express";
 
 const router = Router();
 
 router.get("/:code", async (req, res) => {
   try {
     const code = req.params["code"] as string;
-    const [link] = await db.select().from(deepLinksTable)
+    const [link] = await db
+      .select()
+      .from(deepLinksTable)
       .where(eq(deepLinksTable.shortCode, code))
       .limit(1);
 
@@ -17,12 +19,15 @@ router.get("/:code", async (req, res) => {
       return;
     }
 
-    await db.update(deepLinksTable)
+    await db
+      .update(deepLinksTable)
       .set({ clickCount: sql`${deepLinksTable.clickCount} + 1` })
       .where(eq(deepLinksTable.id, link.id));
 
     const params = link.params as Record<string, string>;
-    const queryParts = Object.entries(params).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+    const queryParts = Object.entries(params).map(
+      ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`
+    );
     const query = queryParts.length ? `?${queryParts.join("&")}` : "";
 
     const appScheme = `ajkmart://${link.targetScreen}${query}`;

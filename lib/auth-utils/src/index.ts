@@ -1,38 +1,34 @@
 export { executeCaptcha, isRecaptchaLoaded } from "./captcha/index";
-export { canonicalizePhone, formatPhoneForApi, isValidPhone } from "./phone";
 export { decodeJwt, isTokenExpired } from "./jwt";
 export type { JwtPayload } from "./jwt";
-export {
-  GoogleOAuthProvider,
-  useGoogleLogin,
-  useFacebookLogin,
-  initFacebookSDK,
-  loadGoogleGSIToken,
-  loadFacebookAccessToken,
-  decodeGoogleJwtPayload,
-  type OAuthResult,
-  type OAuthError,
-} from "./oauth/index";
-export { TwoFactorSetup, TwoFactorVerify } from "./two-factor/index";
-export type { TwoFactorSetupProps, TwoFactorVerifyProps } from "./two-factor/types";
 export { MagicLinkSender } from "./magic-link/index";
 export type { MagicLinkSenderProps } from "./magic-link/types";
-export { useAuthConfig, invalidateAuthConfigCache } from "./useAuthConfig";
+export {
+  GoogleOAuthProvider,
+  decodeGoogleJwtPayload,
+  initFacebookSDK,
+  loadFacebookAccessToken,
+  loadGoogleGSIToken,
+  useFacebookLogin,
+  useGoogleLogin,
+  type OAuthError,
+  type OAuthResult,
+} from "./oauth/index";
+export { canonicalizePhone, formatPhoneForApi, isValidPhone } from "./phone";
+export { TwoFactorSetup, TwoFactorVerify } from "./two-factor/index";
+export type { TwoFactorSetupProps, TwoFactorVerifyProps } from "./two-factor/types";
+export { invalidateAuthConfigCache, useAuthConfig } from "./useAuthConfig";
 export type { AuthConfig } from "./useAuthConfig";
 
 // Permissions / RBAC catalog
 export {
+  DEFAULT_ROLE_PERMISSIONS,
   PERMISSIONS,
   PERMISSION_IDS,
-  DEFAULT_ROLE_PERMISSIONS,
   assertPermissionId,
-  isPermissionId,
-  permissionsByCategory,
   compactPermissions,
   hasPermission,
+  isPermissionId,
+  permissionsByCategory,
 } from "./permissions";
-export type {
-  PermissionId,
-  PermissionCategory,
-  PermissionDef,
-} from "./permissions";
+export type { PermissionCategory, PermissionDef, PermissionId } from "./permissions";

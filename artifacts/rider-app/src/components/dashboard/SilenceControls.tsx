@@ -1,8 +1,5 @@
-import { VolumeX, Volume2 } from "lucide-react";
-import {
-  silenceFor,
-  unsilence,
-} from "../../lib/notificationSound";
+import { Volume2, VolumeX } from "lucide-react";
+import { silenceFor, unsilence } from "../../lib/notificationSound";
 
 interface SilenceControlsProps {
   silenced: boolean;
@@ -27,17 +24,19 @@ export function SilenceControls({
   const displayMin = Math.max(1, silenceRemaining);
 
   return (
-    <div className="flex items-center gap-2 mt-3">
+    <div className="mt-3 flex items-center gap-2">
       <button
         onClick={() => onSetShowSilenceMenu(!showSilenceMenu)}
-        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border ${silenced ? "bg-red-500/15 border-red-500/30 text-red-400" : "bg-white/[0.06] border-white/[0.06] text-white/50 hover:text-white/70"}`}
-        aria-label={silenced ? `Sound muted, ${displayMin} minutes remaining` : "Timed mute options"}
+        className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${silenced ? "border-red-500/30 bg-red-500/15 text-red-400" : "border-white/[0.06] bg-white/[0.06] text-white/50 hover:text-white/70"}`}
+        aria-label={
+          silenced ? `Sound muted, ${displayMin} minutes remaining` : "Timed mute options"
+        }
       >
         {silenced ? <VolumeX size={13} /> : <Volume2 size={13} />}
         {silenced ? `Muted ${displayMin}m` : "Sound"}
       </button>
       {showSilenceMenu && (
-        <div className="flex items-center gap-1.5 animate-[slideUp_0.2s_ease-out]">
+        <div className="flex animate-[slideUp_0.2s_ease-out] items-center gap-1.5">
           {silenced ? (
             <button
               onClick={() => {
@@ -46,7 +45,7 @@ export function SilenceControls({
                 onSetShowSilenceMenu(false);
                 showToast("Sound unmuted", "success");
               }}
-              className="bg-green-500/20 border border-green-500/30 text-green-400 text-[10px] font-bold px-2.5 py-1.5 rounded-lg"
+              className="rounded-lg border border-green-500/30 bg-green-500/20 px-2.5 py-1.5 text-[10px] font-bold text-green-400"
             >
               Unmute
             </button>
@@ -62,7 +61,7 @@ export function SilenceControls({
                     onSetShowSilenceMenu(false);
                     showToast(`Sound muted for ${m}min`, "success");
                   }}
-                  className="bg-white/[0.08] border border-white/[0.08] text-white/60 text-[10px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-white/[0.12] transition-colors"
+                  className="rounded-lg border border-white/[0.08] bg-white/[0.08] px-2.5 py-1.5 text-[10px] font-bold text-white/60 transition-colors hover:bg-white/[0.12]"
                 >
                   {m}m
                 </button>

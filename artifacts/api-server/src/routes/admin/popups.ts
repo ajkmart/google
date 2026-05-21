@@ -1,13 +1,17 @@
+import { db } from "@workspace/db";
+import {
+  popupCampaignsTable,
+  popupImpressionsTable,
+  popupTemplatesTable,
+} from "@workspace/db/schema";
+import { desc, eq, sql } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
-import { db } from "@workspace/db";
-import { popupCampaignsTable, popupTemplatesTable, popupImpressionsTable } from "@workspace/db/schema";
-import { eq, sql, desc } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
-import { sendSuccess, sendError, sendNotFound, sendValidationError } from "../../lib/response.js";
-import { type AdminRequest } from "../admin-shared.js";
-import { generateAIContent } from "../../services/communicationAI.js";
 import { logger } from "../../lib/logger.js";
+import { sendError, sendNotFound, sendSuccess, sendValidationError } from "../../lib/response.js";
+import { generateAIContent } from "../../services/communicationAI.js";
+import { type AdminRequest } from "../admin-shared.js";
 
 const router = Router();
 
@@ -45,9 +49,9 @@ router.get("/popups", async (_req, res) => {
       .from(popupImpressionsTable)
       .groupBy(popupImpressionsTable.popupId);
 
-    const analyticsMap = new Map(impressionCounts.map(r => [r.popupId, r]));
+    const analyticsMap = new Map(impressionCounts.map((r) => [r.popupId, r]));
 
-    const enriched = campaigns.map(c => {
+    const enriched = campaigns.map((c) => {
       const analytics = analyticsMap.get(c.id);
       const views = analytics?.views ?? 0;
       const clicks = analytics?.clicks ?? 0;
@@ -81,15 +85,15 @@ router.get("/popups/templates", async (_req, res) => {
 
 router.post("/popups/ai-generate", async (req, res) => {
   try {
-  const parsed = aiGenerateSchema.safeParse(req.body);
-  if (!parsed.success) {
-    sendValidationError(res, parsed.error.errors.map(e => e.message).join("; "));
-    return;
-  }
+    const parsed = aiGenerateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      sendValidationError(res, parsed.error.errors.map((e) => e.message).join("; "));
+      return;
+    }
 
-  const { targetAudience, goal, tone, platform } = parsed.data;
+    const { targetAudience, goal, tone, platform } = parsed.data;
 
-  const prompt = `You are a marketing expert for AJKMart, a Pakistani super-app for e-commerce, food delivery, and rides. Generate a compelling ${platform} popup campaign.
+    const prompt = `You are a marketing expert for AJKMart, a Pakistani super-app for e-commerce, food delivery, and rides. Generate a compelling ${platform} popup campaign.
 
 Goal: ${goal}
 Target Audience: ${targetAudience}
@@ -108,52 +112,68 @@ Respond ONLY with a valid JSON object (no markdown, no extra text):
   "animation": "fade|slide|bounce|zoom"
 }`;
 
-  try {
-    const aiResult = await generateAIContent(prompt);
-    let popupData: Record<string, unknown>;
-
     try {
-      const cleaned = aiResult.content
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-      popupData = JSON.parse(cleaned) as Record<string, unknown>;
+      const aiResult = await generateAIContent(prompt);
+      let popupData: Record<string, unknown>;
+
+      try {
+        const cleaned = aiResult.content
+          .replace(/```json\n?/g, "")
+          .replace(/```\n?/g, "")
+          .trim();
+        popupData = JSON.parse(cleaned) as Record<string, unknown>;
+      } catch (err) {
+        logger.error(
+          {
+            error: err instanceof Error ? err.message : String(err),
+            timestamp: new Date().toISOString(),
+          },
+          "[route] unhandled error"
+        );
+        popupData = generateFallbackPopup(goal, tone);
+      }
+
+      const suggestedColors = (
+        typeof popupData.suggestedColors === "object" && popupData.suggestedColors
+          ? popupData.suggestedColors
+          : { colorFrom: "#7C3AED", colorTo: "#4F46E5" }
+      ) as { colorFrom?: string; colorTo?: string };
+
+      const validHex = (v: unknown) => /^#[0-9A-Fa-f]{6}$/.test(String(v ?? ""));
+
+      sendSuccess(res, {
+        title: String(popupData.title ?? ""),
+        body: String(popupData.body ?? ""),
+        ctaText: String(popupData.ctaText ?? ""),
+        suggestedType: ["modal", "bottom_sheet", "top_banner", "floating_card"].includes(
+          String(popupData.suggestedType)
+        )
+          ? popupData.suggestedType
+          : "modal",
+        suggestedColors: {
+          colorFrom: validHex(suggestedColors.colorFrom)
+            ? String(suggestedColors.colorFrom)
+            : "#7C3AED",
+          colorTo: validHex(suggestedColors.colorTo) ? String(suggestedColors.colorTo) : "#4F46E5",
+        },
+        animation: ["fade", "slide", "bounce", "zoom"].includes(String(popupData.animation))
+          ? popupData.animation
+          : "fade",
+        source: aiResult.source,
+      });
     } catch (err) {
-      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-      popupData = generateFallbackPopup(goal, tone);
+      logger.error({ err }, "[admin/popups/ai-generate] error");
+      const fallback = generateFallbackPopup(goal, tone);
+      sendSuccess(res, { ...fallback, source: "template_fallback" });
     }
-
-    const suggestedColors = (
-      typeof popupData.suggestedColors === "object" && popupData.suggestedColors
-        ? popupData.suggestedColors
-        : { colorFrom: "#7C3AED", colorTo: "#4F46E5" }
-    ) as { colorFrom?: string; colorTo?: string };
-
-    const validHex = (v: unknown) => /^#[0-9A-Fa-f]{6}$/.test(String(v ?? ""));
-
-    sendSuccess(res, {
-      title: String(popupData.title ?? ""),
-      body: String(popupData.body ?? ""),
-      ctaText: String(popupData.ctaText ?? ""),
-      suggestedType: ["modal", "bottom_sheet", "top_banner", "floating_card"].includes(String(popupData.suggestedType))
-        ? popupData.suggestedType
-        : "modal",
-      suggestedColors: {
-        colorFrom: validHex(suggestedColors.colorFrom) ? String(suggestedColors.colorFrom) : "#7C3AED",
-        colorTo: validHex(suggestedColors.colorTo) ? String(suggestedColors.colorTo) : "#4F46E5",
+  } catch (err) {
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
       },
-      animation: ["fade", "slide", "bounce", "zoom"].includes(String(popupData.animation))
-        ? popupData.animation
-        : "fade",
-      source: aiResult.source,
-    });
-  } catch (err) {
-    logger.error({ err }, "[admin/popups/ai-generate] error");
-    const fallback = generateFallbackPopup(goal, tone);
-    sendSuccess(res, { ...fallback, source: "template_fallback" });
-  }
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -162,8 +182,8 @@ function generateFallbackPopup(goal: string, tone: string): Record<string, unkno
   const lowerGoal = goal.toLowerCase();
 
   const toneColors: Record<string, { colorFrom: string; colorTo: string }> = {
-    urgent:   { colorFrom: "#DC2626", colorTo: "#991B1B" },
-    luxury:   { colorFrom: "#1C1917", colorTo: "#44403C" },
+    urgent: { colorFrom: "#DC2626", colorTo: "#991B1B" },
+    luxury: { colorFrom: "#1C1917", colorTo: "#44403C" },
     friendly: { colorFrom: "#7C3AED", colorTo: "#4F46E5" },
   };
 
@@ -180,7 +200,11 @@ function generateFallbackPopup(goal: string, tone: string): Record<string, unkno
     };
   }
 
-  if (lowerGoal.includes("promo") || lowerGoal.includes("discount") || lowerGoal.includes("offer")) {
+  if (
+    lowerGoal.includes("promo") ||
+    lowerGoal.includes("discount") ||
+    lowerGoal.includes("offer")
+  ) {
     return {
       title: "Exclusive Offer Inside!",
       body: "Special discount just for you. Limited time only.",
@@ -204,14 +228,20 @@ function generateFallbackPopup(goal: string, tone: string): Record<string, unkno
 router.post("/popups", async (req: AdminRequest, res) => {
   try {
     const { title, ...rest } = req.body ?? {};
-    if (!title?.trim()) { sendValidationError(res, "Title is required"); return; }
+    if (!title?.trim()) {
+      sendValidationError(res, "Title is required");
+      return;
+    }
 
-    const [created] = await db.insert(popupCampaignsTable).values({
-      id: generateId(),
-      title: String(title).trim(),
-      ...rest,
-      createdBy: req.adminPayload?.adminId ?? "admin",
-    }).returning();
+    const [created] = await db
+      .insert(popupCampaignsTable)
+      .values({
+        id: generateId(),
+        title: String(title).trim(),
+        ...rest,
+        createdBy: req.adminPayload?.adminId ?? "admin",
+      })
+      .returning();
 
     sendSuccess(res, { campaign: { ...created, computedStatus: computeStatus(created) } });
   } catch (err) {
@@ -228,7 +258,10 @@ router.patch("/popups/:id", async (req, res) => {
       .from(popupCampaignsTable)
       .where(eq(popupCampaignsTable.id, id))
       .limit(1);
-    if (!existing) { sendNotFound(res, "Campaign not found"); return; }
+    if (!existing) {
+      sendNotFound(res, "Campaign not found");
+      return;
+    }
 
     const [updated] = await db
       .update(popupCampaignsTable)
@@ -251,7 +284,10 @@ router.delete("/popups/:id", async (req, res) => {
       .from(popupCampaignsTable)
       .where(eq(popupCampaignsTable.id, id))
       .limit(1);
-    if (!existing) { sendNotFound(res, "Campaign not found"); return; }
+    if (!existing) {
+      sendNotFound(res, "Campaign not found");
+      return;
+    }
 
     await db.delete(popupCampaignsTable).where(eq(popupCampaignsTable.id, id));
     sendSuccess(res, { success: true });
@@ -265,18 +301,28 @@ router.delete("/popups/:id", async (req, res) => {
 router.post("/popups/clone/:id", async (req, res) => {
   try {
     const { id } = req.params as Record<string, string>;
-    const [existing] = await db.select().from(popupCampaignsTable).where(eq(popupCampaignsTable.id, id)).limit(1);
-    if (!existing) { sendNotFound(res, "Campaign not found"); return; }
+    const [existing] = await db
+      .select()
+      .from(popupCampaignsTable)
+      .where(eq(popupCampaignsTable.id, id))
+      .limit(1);
+    if (!existing) {
+      sendNotFound(res, "Campaign not found");
+      return;
+    }
 
     const { id: _id, createdAt: _ca, updatedAt: _ua, ...rest } = existing;
-    const [cloned] = await db.insert(popupCampaignsTable).values({
-      ...rest,
-      id: generateId(),
-      title: `${existing.title} (Copy)`,
-      status: "draft",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }).returning();
+    const [cloned] = await db
+      .insert(popupCampaignsTable)
+      .values({
+        ...rest,
+        id: generateId(),
+        title: `${existing.title} (Copy)`,
+        status: "draft",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
 
     sendSuccess(res, { campaign: { ...cloned, computedStatus: computeStatus(cloned) } });
   } catch (err) {
@@ -298,12 +344,14 @@ router.get("/popups/:id/analytics", async (req, res) => {
       .where(eq(popupImpressionsTable.popupId, id))
       .groupBy(popupImpressionsTable.action);
 
-    const views  = rows.find(r => r.action === "view")?.count  ?? 0;
-    const clicks = rows.find(r => r.action === "click")?.count ?? 0;
-    const closes = rows.find(r => r.action === "close")?.count ?? 0;
+    const views = rows.find((r) => r.action === "view")?.count ?? 0;
+    const clicks = rows.find((r) => r.action === "click")?.count ?? 0;
+    const closes = rows.find((r) => r.action === "close")?.count ?? 0;
 
     sendSuccess(res, {
-      views, clicks, closes,
+      views,
+      clicks,
+      closes,
       ctr: views > 0 ? Math.round((clicks / views) * 100) : 0,
     });
   } catch (err) {
@@ -315,25 +363,45 @@ router.get("/popups/:id/analytics", async (req, res) => {
 /* ── Template CRUD (PATCH / DELETE) ── */
 router.post("/popups/templates", async (req, res) => {
   try {
-    const { name, description, category, popupType, defaultTitle, defaultBody, defaultCtaText, colorFrom, colorTo, textColor, animation, stylePreset, previewImageUrl } = req.body ?? {};
-    if (!name) { sendValidationError(res, "name is required"); return; }
-    const [tpl] = await db.insert(popupTemplatesTable).values({
-      id: generateId(),
-      name: String(name),
-      description: description ?? null,
-      category: category ?? "general",
-      popupType: popupType ?? "modal",
-      defaultTitle: defaultTitle ?? null,
-      defaultBody: defaultBody ?? null,
-      defaultCtaText: defaultCtaText ?? null,
-      colorFrom: colorFrom ?? "#7C3AED",
-      colorTo: colorTo ?? "#4F46E5",
-      textColor: textColor ?? "#FFFFFF",
-      animation: animation ?? "fade",
-      stylePreset: stylePreset ?? "default",
-      previewImageUrl: previewImageUrl ?? null,
-      isActive: true,
-    }).returning();
+    const {
+      name,
+      description,
+      category,
+      popupType,
+      defaultTitle,
+      defaultBody,
+      defaultCtaText,
+      colorFrom,
+      colorTo,
+      textColor,
+      animation,
+      stylePreset,
+      previewImageUrl,
+    } = req.body ?? {};
+    if (!name) {
+      sendValidationError(res, "name is required");
+      return;
+    }
+    const [tpl] = await db
+      .insert(popupTemplatesTable)
+      .values({
+        id: generateId(),
+        name: String(name),
+        description: description ?? null,
+        category: category ?? "general",
+        popupType: popupType ?? "modal",
+        defaultTitle: defaultTitle ?? null,
+        defaultBody: defaultBody ?? null,
+        defaultCtaText: defaultCtaText ?? null,
+        colorFrom: colorFrom ?? "#7C3AED",
+        colorTo: colorTo ?? "#4F46E5",
+        textColor: textColor ?? "#FFFFFF",
+        animation: animation ?? "fade",
+        stylePreset: stylePreset ?? "default",
+        previewImageUrl: previewImageUrl ?? null,
+        isActive: true,
+      })
+      .returning();
     sendSuccess(res, { template: tpl });
   } catch (err) {
     logger.error({ err }, "[admin/popups/templates] create error");
@@ -344,9 +412,17 @@ router.post("/popups/templates", async (req, res) => {
 router.patch("/popups/templates/:id", async (req, res) => {
   try {
     const { id } = req.params as Record<string, string>;
-    const [existing] = await db.select().from(popupTemplatesTable).where(eq(popupTemplatesTable.id, id)).limit(1);
-    if (!existing) { sendNotFound(res, "Template not found"); return; }
-    const [updated] = await db.update(popupTemplatesTable)
+    const [existing] = await db
+      .select()
+      .from(popupTemplatesTable)
+      .where(eq(popupTemplatesTable.id, id))
+      .limit(1);
+    if (!existing) {
+      sendNotFound(res, "Template not found");
+      return;
+    }
+    const [updated] = await db
+      .update(popupTemplatesTable)
       .set({ ...req.body, updatedAt: new Date() })
       .where(eq(popupTemplatesTable.id, id))
       .returning();

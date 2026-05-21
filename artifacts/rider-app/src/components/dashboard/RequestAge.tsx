@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
 import { Timer } from "lucide-react";
+import { useEffect, useState } from "react";
 import { timeAgo } from "./helpers";
 
 export function RequestAge({ createdAt }: { createdAt: string }) {
@@ -26,7 +26,7 @@ export function RequestAge({ createdAt }: { createdAt: string }) {
   const urgent = diffSec > 90;
   return (
     <span
-      className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${urgent ? "bg-red-100 text-red-600 animate-pulse" : "bg-gray-100 text-gray-500"}`}
+      className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${urgent ? "animate-pulse bg-red-100 text-red-600" : "bg-gray-100 text-gray-500"}`}
     >
       <Timer size={9} /> {label}
     </span>

@@ -1,31 +1,37 @@
-import { useState } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PageHeader } from "@/components/shared";
-import { Bell, RefreshCw, Filter } from "lucide-react";
-import { useAllNotifications } from "@/hooks/use-admin";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { useAllNotifications } from "@/hooks/use-admin";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { Bell, Filter, RefreshCw } from "lucide-react";
+import { useState } from "react";
 
 function fd(d: string | Date) {
-  return new Date(d).toLocaleString("en-PK", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return new Date(d).toLocaleString("en-PK", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function roleColor(role: string) {
   if (role === "vendor") return "bg-orange-100 text-orange-700";
-  if (role === "rider")  return "bg-green-100 text-green-700";
-  if (role === "admin")  return "bg-purple-100 text-purple-700";
+  if (role === "rider") return "bg-green-100 text-green-700";
+  if (role === "admin") return "bg-purple-100 text-purple-700";
   return "bg-blue-100 text-blue-700";
 }
 
 function typeIcon(type: string) {
-  if (type === "order")  return "📦";
+  if (type === "order") return "📦";
   if (type === "wallet") return "💰";
-  if (type === "ride")   return "🏍️";
+  if (type === "ride") return "🏍️";
   if (type === "system") return "⚙️";
-  if (type === "alert")  return "⚠️";
+  if (type === "alert") return "⚠️";
   return "🔔";
 }
 
@@ -38,78 +44,109 @@ export default function Notifications() {
   const notifications: any[] = nData?.notifications || [];
 
   return (
-    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Notifications page crashed. Please reload.</div>}>
-    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
-      <PageHeader
-        icon={Bell}
-        title={T("systemNotifications")}
-        subtitle="All platform notifications across users, riders, and vendors"
-        iconBgClass="bg-blue-100"
-        iconColorClass="text-blue-600"
-        actions={
-          <Button variant="outline" size="sm" onClick={() => refetch()} className="self-start sm:self-auto">
-            <RefreshCw className="w-4 h-4 mr-2" /> {T("refresh")}
-          </Button>
-        }
-      />
+    <ErrorBoundary
+      fallback={
+        <div className="p-8 text-center text-sm text-red-500">
+          Notifications page crashed. Please reload.
+        </div>
+      }
+    >
+      <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-6">
+        <PageHeader
+          icon={Bell}
+          title={T("systemNotifications")}
+          subtitle="All platform notifications across users, riders, and vendors"
+          iconBgClass="bg-blue-100"
+          iconColorClass="text-blue-600"
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              className="self-start sm:self-auto"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" /> {T("refresh")}
+            </Button>
+          }
+        />
 
-      {/* Role Filter */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Filter className="w-4 h-4 text-gray-400"/>
-        <span className="text-sm text-gray-500 font-medium">Filter by role:</span>
-        {["", "customer", "vendor", "rider"].map(r => (
-          <button key={r} onClick={() => setRoleFilter(r)}
-            className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-colors ${roleFilter === r ? "bg-primary text-white border-primary" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
-            {r === "" ? T("allTypes") : r.charAt(0).toUpperCase() + r.slice(1)}
-          </button>
-        ))}
-        <span className="text-xs text-gray-400 ml-2">{notifications.length} records</span>
-      </div>
+        {/* Role Filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Filter className="h-4 w-4 text-gray-400" />
+          <span className="text-sm font-medium text-gray-500">Filter by role:</span>
+          {["", "customer", "vendor", "rider"].map((r) => (
+            <button
+              key={r}
+              onClick={() => setRoleFilter(r)}
+              className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors ${roleFilter === r ? "bg-primary border-primary text-white" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}
+            >
+              {r === "" ? T("allTypes") : r.charAt(0).toUpperCase() + r.slice(1)}
+            </button>
+          ))}
+          <span className="ml-2 text-xs text-gray-400">{notifications.length} records</span>
+        </div>
 
-      {isLoading ? (
-        <div className="space-y-3">{[1,2,3,4].map(i => <div key={i} className="h-20 bg-gray-100 rounded-2xl animate-pulse"/>)}</div>
-      ) : notifications.length === 0 ? (
-        <Card className="border-0 shadow-sm">
-          <CardContent className="p-12 text-center">
-            <p className="text-4xl mb-3">🔔</p>
-            <p className="font-bold text-gray-700">{T("noNotificationsFound")}</p>
-            <p className="text-sm text-gray-400 mt-1">{T("notificationsSubtitle")}</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="border-0 shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-            <p className="text-sm font-bold text-gray-700">{T("recentNotifications")}</p>
-            <span className="text-xs text-gray-400">{notifications.length} records</span>
-          </div>
-          <div className="divide-y divide-gray-50 max-h-[600px] overflow-y-auto">
-            {notifications.map((n: any) => (
-              <div key={n.id} className="px-4 py-3.5 flex items-start gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl ${n.isRead ? "bg-gray-100" : "bg-blue-50"}`}>
-                  {typeIcon(n.type)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-bold text-gray-800 leading-snug">{n.title}</p>
-                    {n.user?.roles?.[0] && (
-                      <Badge className={`text-[9px] font-bold ${roleColor(n.user.roles[0])}`} variant="outline">
-                        {n.user.roles[0]}
-                      </Badge>
-                    )}
-                    {!n.isRead && <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"/>}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{n.body}</p>
-                  <div className="flex items-center gap-3 mt-1">
-                    <p className="text-[10px] text-gray-400">{fd(n.createdAt)}</p>
-                    {n.user && <p className="text-[10px] text-gray-400 truncate">{n.user.name} · {n.user.phone}</p>}
-                  </div>
-                </div>
-              </div>
+        {isLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-20 animate-pulse rounded-2xl bg-gray-100" />
             ))}
           </div>
-        </Card>
-      )}
-    </div>
+        ) : notifications.length === 0 ? (
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-12 text-center">
+              <p className="mb-3 text-4xl">🔔</p>
+              <p className="font-bold text-gray-700">{T("noNotificationsFound")}</p>
+              <p className="mt-1 text-sm text-gray-400">{T("notificationsSubtitle")}</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="overflow-hidden border-0 shadow-sm">
+            <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-3">
+              <p className="text-sm font-bold text-gray-700">{T("recentNotifications")}</p>
+              <span className="text-xs text-gray-400">{notifications.length} records</span>
+            </div>
+            <div className="max-h-[600px] divide-y divide-gray-50 overflow-y-auto">
+              {notifications.map((n: any) => (
+                <div key={n.id} className="flex items-start gap-3 px-4 py-3.5">
+                  <div
+                    className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-xl ${n.isRead ? "bg-gray-100" : "bg-blue-50"}`}
+                  >
+                    {typeIcon(n.type)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm leading-snug font-bold text-gray-800">{n.title}</p>
+                      {n.user?.roles?.[0] && (
+                        <Badge
+                          className={`text-[9px] font-bold ${roleColor(n.user.roles[0])}`}
+                          variant="outline"
+                        >
+                          {n.user.roles[0]}
+                        </Badge>
+                      )}
+                      {!n.isRead && (
+                        <div className="h-2 w-2 flex-shrink-0 rounded-full bg-blue-500" />
+                      )}
+                    </div>
+                    <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-gray-500">
+                      {n.body}
+                    </p>
+                    <div className="mt-1 flex items-center gap-3">
+                      <p className="text-[10px] text-gray-400">{fd(n.createdAt)}</p>
+                      {n.user && (
+                        <p className="truncate text-[10px] text-gray-400">
+                          {n.user.name} · {n.user.phone}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+      </div>
     </ErrorBoundary>
   );
 }

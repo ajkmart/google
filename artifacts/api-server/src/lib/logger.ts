@@ -66,7 +66,7 @@ export function getLogger(): AppLogger {
   return logger.child({
     requestId: ctx.requestId,
     ...(ctx.userId && { userId: ctx.userId }),
-    ...(ctx.role   && { role:   ctx.role }),
+    ...(ctx.role && { role: ctx.role }),
     ip: ctx.ip,
   }) as AppLogger;
 }

@@ -1,11 +1,11 @@
-import crypto from 'crypto';
+import crypto from "crypto";
 
 /**
  * Hash a token for secure storage in database
  * Never store raw tokens in the database
  */
 export function hashToken(token: string): string {
-  return crypto.createHash('sha256').update(token).digest('hex');
+  return crypto.createHash("sha256").update(token).digest("hex");
 }
 
 /**
@@ -21,5 +21,5 @@ export function verifyTokenHash(token: string, hash: string): boolean {
  * Generate a secure random bytes string
  */
 export function generateSecureRandom(length: number = 32): string {
-  return crypto.randomBytes(length).toString('hex');
+  return crypto.randomBytes(length).toString("hex");
 }

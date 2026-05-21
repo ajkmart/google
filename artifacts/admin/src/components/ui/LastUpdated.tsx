@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
-import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
 
 function timeAgo(ts: number): string {
   if (!ts) return "";
@@ -21,18 +21,23 @@ interface LastUpdatedProps {
   className?: string;
 }
 
-export function LastUpdated({ dataUpdatedAt, onRefresh, isRefreshing, className }: LastUpdatedProps) {
+export function LastUpdated({
+  dataUpdatedAt,
+  onRefresh,
+  isRefreshing,
+  className,
+}: LastUpdatedProps) {
   const [, setTick] = useState(0);
 
   useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 15_000);
+    const id = setInterval(() => setTick((t) => t + 1), 15_000);
     return () => clearInterval(id);
   }, []);
 
   if (!dataUpdatedAt) return null;
 
   return (
-    <div className={cn("flex items-center gap-1.5 text-xs text-muted-foreground", className)}>
+    <div className={cn("text-muted-foreground flex items-center gap-1.5 text-xs", className)}>
       <span>Updated {timeAgo(dataUpdatedAt)}</span>
       {onRefresh && (
         <button
@@ -40,10 +45,10 @@ export function LastUpdated({ dataUpdatedAt, onRefresh, isRefreshing, className 
           onClick={onRefresh}
           disabled={isRefreshing}
           title="Refresh data"
-          className="p-0.5 rounded hover:text-foreground transition-colors disabled:opacity-50"
+          className="hover:text-foreground rounded p-0.5 transition-colors disabled:opacity-50"
           aria-label="Refresh"
         >
-          <RefreshCw className={cn("w-3 h-3", isRefreshing && "animate-spin")} />
+          <RefreshCw className={cn("h-3 w-3", isRefreshing && "animate-spin")} />
         </button>
       )}
     </div>

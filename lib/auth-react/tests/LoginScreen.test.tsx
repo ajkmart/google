@@ -1,9 +1,9 @@
-import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { LoginScreen } from "../src/components/LoginScreen";
+import React from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../src/AuthProvider";
+import { LoginScreen } from "../src/components/LoginScreen";
 
 vi.mock("../src/hooks/useLoginFlow", () => ({
   useLoginFlow: vi.fn().mockReturnValue({
@@ -22,11 +22,7 @@ vi.mock("../src/hooks/useLoginFlow", () => ({
 import { useLoginFlow } from "../src/hooks/useLoginFlow";
 
 function renderWithProvider(ui: React.ReactElement) {
-  return render(
-    <AuthProvider storageType="memory">
-      {ui}
-    </AuthProvider>
-  );
+  return render(<AuthProvider storageType="memory">{ui}</AuthProvider>);
 }
 
 describe("LoginScreen", () => {

@@ -1,6 +1,6 @@
 /**
  * NotificationService - Admin Notifications Management
- * 
+ *
  * Centralized business logic for:
  * - SMS notifications (Twilio, MSG91)
  * - Email notifications
@@ -10,16 +10,13 @@
  */
 
 import { db } from "@workspace/db";
-import {
-  usersTable,
-  notificationsTable,
-} from "@workspace/db/schema";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { notificationsTable, usersTable } from "@workspace/db/schema";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { generateId } from "../lib/id.js";
 import { logger } from "../lib/logger.js";
-import { sendSms } from "./sms.js";
-import { sendEmail, sendAdminAlert } from "./email.js";
 import { sendPushToUser } from "../lib/webpush.js";
+import { sendAdminAlert, sendEmail } from "./email.js";
+import { sendSms } from "./sms.js";
 import { sendWhatsappMessage } from "./whatsapp.js";
 
 export interface SendSmsInput {
@@ -91,20 +88,14 @@ export class NotificationService {
         templateId: input.templateId,
       });
 
-      logger.info(
-        { userId: input.userId, phone: phoneNumber },
-        "[NotificationService] SMS sent"
-      );
+      logger.info({ userId: input.userId, phone: phoneNumber }, "[NotificationService] SMS sent");
 
       return {
         success: true,
         messageId: result?.messageId || generateId(),
       };
     } catch (error) {
-      logger.error(
-        { userId: input.userId, error },
-        "[NotificationService] SMS send failed"
-      );
+      logger.error({ userId: input.userId, error }, "[NotificationService] SMS send failed");
       throw new Error(`Failed to send SMS: ${error}`);
     }
   }
@@ -145,10 +136,7 @@ export class NotificationService {
         messageId: generateId(),
       };
     } catch (error) {
-      logger.error(
-        { userId: input.userId, error },
-        "[NotificationService] Email send failed"
-      );
+      logger.error({ userId: input.userId, error }, "[NotificationService] Email send failed");
       throw new Error(`Failed to send email: ${error}`);
     }
   }
@@ -240,10 +228,7 @@ export class NotificationService {
         messageId: result?.messageId || generateId(),
       };
     } catch (error) {
-      logger.error(
-        { userId: input.userId, error },
-        "[NotificationService] WhatsApp send failed"
-      );
+      logger.error({ userId: input.userId, error }, "[NotificationService] WhatsApp send failed");
       throw new Error(`Failed to send WhatsApp message: ${error}`);
     }
   }
@@ -278,16 +263,13 @@ export class NotificationService {
         const roleConditions = input.userFilter.roles.map(
           (role) => sql`${usersTable.roles} LIKE ${"%" + role + "%"}`
         );
-        roleCondition = roleConditions.length === 1
-          ? roleConditions[0]!
-          : sql`(${sql.join(roleConditions, sql` OR `)})`;
+        roleCondition =
+          roleConditions.length === 1
+            ? roleConditions[0]!
+            : sql`(${sql.join(roleConditions, sql` OR `)})`;
       }
 
-      const users = await db
-        .select()
-        .from(usersTable)
-        .where(roleCondition)
-        .limit(10000);
+      const users = await db.select().from(usersTable).where(roleCondition).limit(10000);
 
       const results = {
         sent: 0,
@@ -354,10 +336,7 @@ export class NotificationService {
 
       return results;
     } catch (error) {
-      logger.error(
-        { error },
-        "[NotificationService] Broadcast failed"
-      );
+      logger.error({ error }, "[NotificationService] Broadcast failed");
       throw new Error(`Broadcast failed: ${error}`);
     }
   }
@@ -384,22 +363,17 @@ export class NotificationService {
     const htmlBody = `
       <h3 style="color:#dc2626;margin:0 0 12px;">${escape(opts.headline)}</h3>
       ${opts.paragraphs
-        .map(
-          (p) =>
-            `<p style="color:#374151;margin:0 0 12px;">${escape(p)}</p>`,
-        )
+        .map((p) => `<p style="color:#374151;margin:0 0 12px;">${escape(p)}</p>`)
         .join("")}
       <p style="color:#6b7280;font-size:12px;margin:0;">
         This is an automated security alert from the AJKMart OTP Control Center.
       </p>
     `;
 
-    const result = await sendAdminAlert(
-      "health_critical",
-      opts.subject,
-      htmlBody,
-      { ...opts.settings, email_alert_health_critical: "on" },
-    );
+    const result = await sendAdminAlert("health_critical", opts.subject, htmlBody, {
+      ...opts.settings,
+      email_alert_health_critical: "on",
+    });
 
     if (result.sent) {
       logger.info({ subject: opts.subject }, "[NotificationService] security alert email sent");
@@ -427,12 +401,7 @@ export class NotificationService {
     const notifications = await db
       .select()
       .from(notificationsTable)
-      .where(
-        and(
-          eq(notificationsTable.userId, userId),
-          eq(notificationsTable.isRead, false),
-        )
-      );
+      .where(and(eq(notificationsTable.userId, userId), eq(notificationsTable.isRead, false)));
 
     return { unreadCount: notifications.length };
   }

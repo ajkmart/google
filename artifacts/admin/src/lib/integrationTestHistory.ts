@@ -9,8 +9,8 @@
  * an empty map, never throws into the React tree.
  */
 
-import { safeLocalGet, safeLocalSet } from "@/lib/safeStorage";
 import { safeJsonParse, safeJsonStringify } from "@/lib/safeJson";
+import { safeLocalGet, safeLocalSet } from "@/lib/safeStorage";
 
 export const INTEGRATION_TEST_HISTORY_KEY = "admin.integrationTestHistory.v1";
 
@@ -47,9 +47,7 @@ export function loadIntegrationTestHistory(): IntegrationTestHistory {
 }
 
 /** Convenience getter — returns null if the id has no recorded result. */
-export function getIntegrationTestResult(
-  id: string,
-): IntegrationTestHistoryEntry | null {
+export function getIntegrationTestResult(id: string): IntegrationTestHistoryEntry | null {
   const history = loadIntegrationTestHistory();
   return history[id] ?? null;
 }
@@ -57,7 +55,7 @@ export function getIntegrationTestResult(
 /** Persist a single result; merges into the existing map. */
 export function recordIntegrationTestResult(
   id: string,
-  result: { ok: boolean; msg: string },
+  result: { ok: boolean; msg: string }
 ): void {
   const history = loadIntegrationTestHistory();
   history[id] = { ok: result.ok, msg: result.msg, at: Date.now() };

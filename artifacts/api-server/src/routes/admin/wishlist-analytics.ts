@@ -1,8 +1,8 @@
-import { Router } from "express";
 import { db } from "@workspace/db";
-import { wishlistTable, productsTable } from "@workspace/db/schema";
-import { eq, desc, count, sql, gte } from "drizzle-orm";
-import { sendSuccess, sendError } from "../../lib/response.js";
+import { productsTable, wishlistTable } from "@workspace/db/schema";
+import { count, desc, eq, gte, sql } from "drizzle-orm";
+import { Router } from "express";
+import { sendError, sendSuccess } from "../../lib/response.js";
 
 const router = Router();
 
@@ -29,7 +29,7 @@ router.get("/wishlist-analytics", async (_req, res) => {
         productsTable.category,
         productsTable.price,
         productsTable.inStock,
-        productsTable.vendorName,
+        productsTable.vendorName
       )
       .orderBy(desc(count()));
 

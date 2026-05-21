@@ -20,29 +20,45 @@
     "lint:fix": "eslint . --fix",
     "lint:api": "eslint artifacts/api-server/src",
     "lint:admin": "eslint artifacts/admin/src",
-    "lint:check": "eslint . --max-warnings 0"
+    "lint:check": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "format:api": "prettier --write artifacts/api-server/src",
+    "format:admin": "prettier --write artifacts/admin/src"
   },
   "lint-staged": {
     "artifacts/api-server/src/**/*.ts": [
-      "node_modules/.bin/tsc -p artifacts/api-server/tsconfig.json --noEmit",
-      "node_modules/.bin/eslint --max-warnings 0"
+      "prettier --write",
+      "eslint --fix",
+      "node_modules/.bin/tsc -p artifacts/api-server/tsconfig.json --noEmit"
     ],
     "artifacts/admin/src/**/*.{ts,tsx}": [
-      "node_modules/.bin/tsc -p artifacts/admin/tsconfig.json --noEmit",
-      "node_modules/.bin/eslint --max-warnings 0"
+      "prettier --write",
+      "eslint --fix",
+      "node_modules/.bin/tsc -p artifacts/admin/tsconfig.json --noEmit"
     ],
     "artifacts/rider-app/src/**/*.{ts,tsx}": [
-      "node_modules/.bin/tsc -p artifacts/rider-app/tsconfig.json --noEmit",
-      "node_modules/.bin/eslint --max-warnings 0"
+      "prettier --write",
+      "eslint --fix",
+      "node_modules/.bin/tsc -p artifacts/rider-app/tsconfig.json --noEmit"
     ],
     "artifacts/vendor-app/src/**/*.{ts,tsx}": [
-      "node_modules/.bin/tsc -p artifacts/vendor-app/tsconfig.json --noEmit",
-      "node_modules/.bin/eslint --max-warnings 0"
+      "prettier --write",
+      "eslint --fix",
+      "node_modules/.bin/tsc -p artifacts/vendor-app/tsconfig.json --noEmit"
     ],
     "lib/**/*.{ts,tsx}": [
-      "node_modules/.bin/eslint --max-warnings 0"
+      "prettier --write",
+      "eslint --fix"
     ],
-    "**/*.{json,md}": [
+    "**/*.{ts,tsx,js,jsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "**/*.{json,yaml,yml}": [
+      "prettier --write"
+    ],
+    "**/*.md": [
       "prettier --write"
     ]
   },
@@ -61,6 +77,8 @@
     "husky": "^9.1.7",
     "lint-staged": "^15.5.1",
     "prettier": "^3.8.1",
+    "prettier-plugin-organize-imports": "^4.1.0",
+    "prettier-plugin-tailwindcss": "^0.6.0",
     "typescript": "~5.9.2"
   },
   "dependencies": {

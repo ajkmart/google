@@ -32,7 +32,9 @@ function _initGa4(id: string, debug: boolean): void {
   script.src = `https://www.googletagmanager.com/gtag/js?id=${id}`;
   document.head.appendChild(script);
   window.dataLayer = window.dataLayer || [];
-  window.gtag = function (...args: unknown[]) { window.dataLayer.push(args); };
+  window.gtag = function (...args: unknown[]) {
+    window.dataLayer.push(args);
+  };
   window.gtag("js", new Date());
   window.gtag("config", id, { debug_mode: debug, send_page_view: true });
 }
@@ -41,7 +43,9 @@ function _initMixpanel(token: string, debug: boolean): void {
   const script = document.createElement("script");
   script.async = true;
   script.src = "https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js";
-  script.onload = () => { window.mixpanel?.init(token, { debug }); };
+  script.onload = () => {
+    window.mixpanel?.init(token, { debug });
+  };
   document.head.appendChild(script);
 }
 

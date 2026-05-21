@@ -1,12 +1,18 @@
+import { createLogger } from "@/lib/logger";
 import { Component, type ReactNode } from "react";
 import { reportError } from "../lib/error-reporter";
-import { createLogger } from "@/lib/logger";
 const log = createLogger("[ErrorBoundary]");
 
 type FallbackFn = (reset: () => void, error: Error | null) => ReactNode;
 
-interface Props { children: ReactNode; fallback?: ReactNode | FallbackFn; }
-interface State { hasError: boolean; error: Error | null; }
+interface Props {
+  children: ReactNode;
+  fallback?: ReactNode | FallbackFn;
+}
+interface State {
+  hasError: boolean;
+  error: Error | null;
+}
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
@@ -44,28 +50,30 @@ export class ErrorBoundary extends Component<Props, State> {
         <div
           role="alert"
           aria-live="assertive"
-          className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center bg-white"
+          className="flex min-h-[60vh] flex-col items-center justify-center bg-white p-6 text-center"
         >
-          <div className="max-w-sm w-full">
-            <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl" aria-hidden="true">⚠️</span>
+          <div className="w-full max-w-sm">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50">
+              <span className="text-3xl" aria-hidden="true">
+                ⚠️
+              </span>
             </div>
-            <h1 className="text-lg font-bold text-gray-900 mb-2">
+            <h1 className="mb-2 text-lg font-bold text-gray-900">
               Kuch galat ho gaya / Something went wrong
             </h1>
-            <p className="text-gray-500 text-sm mb-6 leading-relaxed">
+            <p className="mb-6 text-sm leading-relaxed text-gray-500">
               {this.state.error?.message || "An unexpected error occurred. Please try again."}
             </p>
             <div className="flex flex-col gap-2">
               <button
                 onClick={this.reset}
-                className="w-full px-5 py-3 bg-blue-700 text-white rounded-xl text-sm font-semibold hover:bg-blue-800 active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600"
+                className="w-full rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600 active:scale-[0.98]"
               >
                 Dobara koshish karein / Retry
               </button>
               <button
                 onClick={() => window.location.reload()}
-                className="w-full px-5 py-3 bg-gray-100 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-200 active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400"
+                className="w-full rounded-xl bg-gray-100 px-5 py-3 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 active:scale-[0.98]"
               >
                 Reload Page
               </button>

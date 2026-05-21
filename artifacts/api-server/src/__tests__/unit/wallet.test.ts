@@ -6,9 +6,9 @@
  * integration tests in src/__tests__/integration/wallet/.
  */
 
-import { describe, it, expect } from "vitest";
-import { depositSchema, sendSchema, withdrawSchema } from "../../routes/wallet.js";
 import { randomUUID } from "crypto";
+import { describe, expect, it } from "vitest";
+import { depositSchema, sendSchema, withdrawSchema } from "../../routes/wallet.js";
 
 // ── depositSchema ─────────────────────────────────────────────────────────────
 
@@ -171,7 +171,7 @@ describe("sendSchema", () => {
   it("accepts string amount and coerces to number", () => {
     const result = sendSchema.safeParse({ ...validWithPhone, amount: "150.50" });
     expect(result.success).toBe(true);
-    if (result.success) expect(result.data.amount).toBe(150.50);
+    if (result.success) expect(result.data.amount).toBe(150.5);
   });
 });
 

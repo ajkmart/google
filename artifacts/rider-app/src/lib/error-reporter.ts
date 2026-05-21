@@ -1,28 +1,29 @@
 /* eslint-disable no-console */
-import { getApiBase, api } from "./api";
+import { api, getApiBase } from "./api";
 
 const SOURCE_APP = "rider";
 let _initialized = false;
 let _queue: Array<Record<string, unknown>> = [];
 let _flushing = false;
-let _flushTimer: ReturnType<typeof setTimeout> | null = null; /* PF7: Single debounced flush (COMPLETED) */
+let _flushTimer: ReturnType<typeof setTimeout> | null =
+  null; /* PF7: Single debounced flush (COMPLETED) */
 
 /* PF1 / PF2 / S-Sec5: Filter benign rejections + redact tokens before send.
    The console-error monkeypatch (initErrorReporter below) and the
    unhandledrejection listener both go through these helpers. */
 const BENIGN_REJECTION_NAMES = new Set([
-  "AbortError",            /* fetch aborted on cancel/route swap */
-  "NotAllowedError",        /* audio.play() before user gesture (C5) */
-  "NotSupportedError",      /* navigator.share, etc. */
-  "DOMException",            /* generic — many benign DOM ops */
+  "AbortError" /* fetch aborted on cancel/route swap */,
+  "NotAllowedError" /* audio.play() before user gesture (C5) */,
+  "NotSupportedError" /* navigator.share, etc. */,
+  "DOMException" /* generic — many benign DOM ops */,
 ]);
 const BENIGN_REJECTION_SUBSTRINGS = [
   "the play() request was interrupted",
   "play() failed because the user didn't interact",
   "request signal is aborted",
   "the user aborted a request",
-  "load failed",                /* iOS Safari fetch when offline — handled by offline UI */
-  "networkerror when attempting", /* Firefox network noise during reconnect */
+  "load failed" /* iOS Safari fetch when offline — handled by offline UI */,
+  "networkerror when attempting" /* Firefox network noise during reconnect */,
 ];
 
 /* S-Sec5: Redact JWT-shaped substrings, query-string tokens, and bearer
@@ -45,8 +46,10 @@ function isBenignRejection(err: unknown): boolean {
   if (!err) return true;
   const name = (err as { name?: unknown }).name;
   if (typeof name === "string" && BENIGN_REJECTION_NAMES.has(name)) return true;
-  const msg = ((err as { message?: unknown }).message ?? String(err) ?? "").toString().toLowerCase();
-  return BENIGN_REJECTION_SUBSTRINGS.some(s => msg.includes(s));
+  const msg = ((err as { message?: unknown }).message ?? String(err) ?? "")
+    .toString()
+    .toLowerCase();
+  return BENIGN_REJECTION_SUBSTRINGS.some((s) => msg.includes(s));
 }
 
 /* S-Sec4: Authenticate error reports with the rider's JWT session token.
@@ -65,7 +68,9 @@ async function sendReport(report: Record<string, unknown>): Promise<void> {
       headers,
       body,
     });
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/error-reporter.ts]', err); }
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/error-reporter.ts]", err);
+  }
 }
 
 async function flushQueue(): Promise<void> {
@@ -100,7 +105,8 @@ export function reportError(opts: {
   statusCode?: number;
 }): void {
   /* S-Sec5: Redact sensitive substrings from message + stack before queueing. */
-  const safeMsg = redactSensitive((opts.errorMessage || "Unknown error").slice(0, 5000)) ?? "Unknown error";
+  const safeMsg =
+    redactSensitive((opts.errorMessage || "Unknown error").slice(0, 5000)) ?? "Unknown error";
   const safeStack = redactSensitive(opts.stackTrace?.slice(0, 50000));
   enqueue({
     sourceApp: SOURCE_APP,
@@ -150,11 +156,18 @@ export function initErrorReporter(): void {
     const errInstance = args.find((a): a is Error => a instanceof Error);
     if (!errInstance) return;
 
-    const msg = args.map(a => {
-      if (a instanceof Error) return a.message;
-      if (typeof a === "string") return a;
-      try { return JSON.stringify(a); } catch (err) { console.warn('[artifacts/rider-app/src/lib/error-reporter.ts]', err); return ""; }
-    }).join(" ");
+    const msg = args
+      .map((a) => {
+        if (a instanceof Error) return a.message;
+        if (typeof a === "string") return a;
+        try {
+          return JSON.stringify(a);
+        } catch (err) {
+          console.warn("[artifacts/rider-app/src/lib/error-reporter.ts]", err);
+          return "";
+        }
+      })
+      .join(" ");
 
     if (msg.includes("[ErrorReporter]") || msg.includes("error-reports")) return;
 
@@ -164,8 +177,10 @@ export function initErrorReporter(): void {
     const stackSig = (() => {
       const stack = errInstance.stack || "";
       /* Pull the first 3 frames, strip line/column to make the signature stable. */
-      const frames = stack.split("\n").slice(0, 4)
-        .map(l => l.replace(/:\d+:\d+\)?$/, ")").trim())
+      const frames = stack
+        .split("\n")
+        .slice(0, 4)
+        .map((l) => l.replace(/:\d+:\d+\)?$/, ")").trim())
         .filter(Boolean);
       return frames.join("|") || msg.slice(0, 200);
     })();

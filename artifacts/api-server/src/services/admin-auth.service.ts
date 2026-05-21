@@ -1,24 +1,24 @@
-import { db } from '@workspace/db';
+import { db } from "@workspace/db";
 import {
   adminAccountsTable,
   adminSessionsTable,
-  type AdminSession,
   type AdminAccount,
-} from '@workspace/db/schema';
-import { eq, and, isNull, or } from 'drizzle-orm';
-import { verifyAdminSecret } from './password.js';
-import { generateId } from '../lib/id.js';
+  type AdminSession,
+} from "@workspace/db/schema";
+import { and, eq, isNull, or } from "drizzle-orm";
+import { generateId } from "../lib/id.js";
+import { logger } from "../lib/logger.js";
+import { createCsrfCookie } from "../utils/admin-csrf.js";
+import { hashToken, verifyTokenHash } from "../utils/admin-hash.js";
 import {
+  sign2faChallengeToken,
   signAccessToken,
   signRefreshToken,
   verifyRefreshToken,
-  sign2faChallengeToken,
-} from '../utils/admin-jwt.js';
-import { createCsrfCookie, verifyCsrfToken } from '../utils/admin-csrf.js';
-import { hashToken, verifyTokenHash } from '../utils/admin-hash.js';
-import { verifyTotpToken } from './totp.js';
-import { resolveAdminPermissions } from './permissions.service.js';
-import { logger } from '../lib/logger.js';
+} from "../utils/admin-jwt.js";
+import { verifyAdminSecret } from "./password.js";
+import { resolveAdminPermissions } from "./permissions.service.js";
+import { verifyTotpToken } from "./totp.js";
 
 /**
  * Admin login service
@@ -48,21 +48,21 @@ export async function adminLogin(
         eq(adminAccountsTable.isActive, true),
         or(
           eq(adminAccountsTable.username, username),
-          eq(adminAccountsTable.username, lowerUsername),
-        ),
-      ),
+          eq(adminAccountsTable.username, lowerUsername)
+        )
+      )
     );
 
   const admin = admins[0] ?? null;
 
   if (!admin) {
-    return { success: false, error: 'Invalid username or password' };
+    return { success: false, error: "Invalid username or password" };
   }
 
   // Verify password — accepts bcrypt (preferred) and legacy scrypt hashes.
   const passwordValid = verifyAdminSecret(password, admin.secret);
   if (!passwordValid) {
-    return { success: false, error: 'Invalid username or password' };
+    return { success: false, error: "Invalid username or password" };
   }
 
   // Check if MFA is enabled for this admin
@@ -101,12 +101,12 @@ export async function verify2fa(
     .then((rows) => rows[0]);
 
   if (!admin || !admin.totpSecret) {
-    return { success: false, error: 'Admin not found or MFA not configured' };
+    return { success: false, error: "Admin not found or MFA not configured" };
   }
 
   const totpValid = verifyTotpToken(totp, admin.totpSecret);
   if (!totpValid) {
-    return { success: false, error: 'Invalid TOTP code' };
+    return { success: false, error: "Invalid TOTP code" };
   }
 
   return { success: true, admin };
@@ -137,14 +137,7 @@ export async function createAdminSession(
   // `admin.defaultCredentials`, and no route is gated on a forced
   // rotation.
   const perms = await resolveAdminPermissions(admin.id, admin.role);
-  const accessToken = signAccessToken(
-    admin.id,
-    admin.role,
-    admin.name,
-    perms,
-    0,
-    false,
-  );
+  const accessToken = signAccessToken(admin.id, admin.role, admin.name, perms, 0, false);
   const refreshToken = signRefreshToken(admin.id, sessionId);
   const csrfToken = createCsrfCookie(sessionId);
 
@@ -212,20 +205,26 @@ export async function refreshAdminSession(
       .then((rows) => rows[0]);
 
     if (!session) {
-      return { success: false, error: 'Session not found or revoked' };
+      return { success: false, error: "Session not found or revoked" };
     }
 
     // Verify refresh token hash matches
     try {
       verifyTokenHash(refreshToken, session.refreshTokenHash);
     } catch (err) {
-      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-      return { success: false, error: 'Invalid refresh token' };
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
+      return { success: false, error: "Invalid refresh token" };
     }
 
     // Check session expiry
     if (session.expiresAt < new Date()) {
-      return { success: false, error: 'Session expired' };
+      return { success: false, error: "Session expired" };
     }
 
     // Get admin account
@@ -236,7 +235,7 @@ export async function refreshAdminSession(
       .then((rows) => rows[0]);
 
     if (!admin || !admin.isActive) {
-      return { success: false, error: 'Admin account not found or inactive' };
+      return { success: false, error: "Admin account not found or inactive" };
     }
 
     // Generate new tokens with rotation; recompute permissions so role/perm
@@ -245,14 +244,7 @@ export async function refreshAdminSession(
     // SPA-driven via the `defaultCredentials` flag returned alongside the
     // refreshed token, so no route is locked behind a forced rotation.
     const perms = await resolveAdminPermissions(admin.id, admin.role);
-    const newAccessToken = signAccessToken(
-      admin.id,
-      admin.role,
-      admin.name,
-      perms,
-      0,
-      false,
-    );
+    const newAccessToken = signAccessToken(admin.id, admin.role, admin.name, perms, 0, false);
     const newRefreshToken = signRefreshToken(admin.id, session.id);
     const newRefreshTokenHash = hashToken(newRefreshToken);
     const newCsrfToken = createCsrfCookie(session.id);
@@ -276,7 +268,7 @@ export async function refreshAdminSession(
       admin,
     };
   } catch (err) {
-    return { success: false, error: 'Invalid refresh token' };
+    return { success: false, error: "Invalid refresh token" };
   }
 }
 
@@ -307,10 +299,5 @@ export async function getAdminActiveSessions(adminId: string): Promise<AdminSess
   return db
     .select()
     .from(adminSessionsTable)
-    .where(
-      and(
-        eq(adminSessionsTable.adminId, adminId),
-        isNull(adminSessionsTable.revokedAt)
-      )
-    );
+    .where(and(eq(adminSessionsTable.adminId, adminId), isNull(adminSessionsTable.revokedAt)));
 }

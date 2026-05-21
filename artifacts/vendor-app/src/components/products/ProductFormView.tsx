@@ -1,6 +1,6 @@
 import { type TranslationKey } from "@workspace/i18n";
-import { ImageUploader } from "../ImageUploader";
 import { BTN_PRIMARY, BTN_SECONDARY } from "../../lib/ui";
+import { ImageUploader } from "../ImageUploader";
 import { ProductFormFields } from "./ProductFormFields";
 import { ProductImageUploader } from "./ProductImageUploader";
 
@@ -26,7 +26,9 @@ interface ProductFormViewProps {
   formErrors: { name?: string; price?: string; category?: string };
   validateForm: () => boolean;
   catList: string[];
-  config: { uploads?: { allowedVideoFormats?: string[]; maxVideoMb?: number; maxVideoDurationSec?: number } };
+  config: {
+    uploads?: { allowedVideoFormats?: string[]; maxVideoMb?: number; maxVideoDurationSec?: number };
+  };
   videoUploading: boolean;
   handleVideoUpload: (file: File) => void;
   allowedVideoFormats: string[];
@@ -45,10 +47,28 @@ interface ProductFormViewProps {
 }
 
 export function ProductFormView({
-  editProd, form, f, formErrors, validateForm, catList, config,
-  videoUploading, handleVideoUpload, allowedVideoFormats, maxVideoMb, maxVideoDurationSec,
-  editThreshold, setEditThreshold, lowStockThreshold,
-  createMut, updateMut, closeForm, Toast, T, PageHeader, TYPES,
+  editProd,
+  form,
+  f,
+  formErrors,
+  validateForm,
+  catList,
+  config,
+  videoUploading,
+  handleVideoUpload,
+  allowedVideoFormats,
+  maxVideoMb,
+  maxVideoDurationSec,
+  editThreshold,
+  setEditThreshold,
+  lowStockThreshold,
+  createMut,
+  updateMut,
+  closeForm,
+  Toast,
+  T,
+  PageHeader,
+  TYPES,
 }: ProductFormViewProps) {
   const uploadFormatLabels = config.uploads?.allowedVideoFormats ?? ["mp4", "mov", "webm"];
 
@@ -60,7 +80,7 @@ export function ProductFormView({
         actions={
           <button
             onClick={closeForm}
-            className="h-10 px-4 bg-white/20 md:bg-gray-100 md:text-gray-700 text-white font-bold rounded-xl text-sm android-press min-h-0"
+            className="android-press h-10 min-h-0 rounded-xl bg-white/20 px-4 text-sm font-bold text-white md:bg-gray-100 md:text-gray-700"
           >
             ✕ {T("cancel")}
           </button>
@@ -68,7 +88,7 @@ export function ProductFormView({
       />
 
       <div className="px-4 py-4 md:px-0 md:py-4">
-        <div className="md:grid md:grid-cols-2 md:gap-6 space-y-4 md:space-y-0">
+        <div className="space-y-4 md:grid md:grid-cols-2 md:gap-6 md:space-y-0">
           {/* ── Left column: form fields ── */}
           <ProductFormFields
             form={form}
@@ -85,13 +105,18 @@ export function ProductFormView({
 
           {/* ── Right column: image + video ── */}
           <div className="space-y-4">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-              <ImageUploader value={form.image} onChange={url => f("image", url)} label={T("imageUrlLabel")} placeholder="https://..."/>
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+              <ImageUploader
+                value={form.image}
+                onChange={(url) => f("image", url)}
+                label={T("imageUrlLabel")}
+                placeholder="https://..."
+              />
             </div>
 
             <ProductImageUploader
               videoUrl={form.videoUrl}
-              onVideoChange={url => f("videoUrl", url)}
+              onVideoChange={(url) => f("videoUrl", url)}
               videoUploading={videoUploading}
               onVideoUpload={handleVideoUpload}
               allowedVideoFormats={allowedVideoFormats}
@@ -101,7 +126,9 @@ export function ProductFormView({
             />
 
             <div className="flex gap-3">
-              <button onClick={closeForm} className={BTN_SECONDARY}>Cancel</button>
+              <button onClick={closeForm} className={BTN_SECONDARY}>
+                Cancel
+              </button>
               <button
                 onClick={() => {
                   if (!validateForm()) return;

@@ -1,7 +1,7 @@
 import { pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
-import { adminAccountsTable } from "./admin_accounts";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { adminAccountsTable } from "./admin_accounts";
 
 /**
  * Admin sessions table
@@ -47,9 +47,9 @@ export const adminAuditLogTable = pgTable("admin_audit_log", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertAdminAuditLogSchema = createInsertSchema(
-  adminAuditLogTable
-).omit({ createdAt: true });
+export const insertAdminAuditLogSchema = createInsertSchema(adminAuditLogTable).omit({
+  createdAt: true,
+});
 
 export type InsertAdminAuditLog = z.infer<typeof insertAdminAuditLogSchema>;
 export type AdminAuditLog = typeof adminAuditLogTable.$inferSelect;

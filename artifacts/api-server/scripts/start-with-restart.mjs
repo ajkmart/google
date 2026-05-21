@@ -11,9 +11,9 @@
  */
 
 import { spawn } from "child_process";
-import { fileURLToPath } from "url";
-import { readFileSync, existsSync, readdirSync } from "fs";
+import { existsSync, readdirSync, readFileSync } from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 
 // Load root .env before spawning tsx so secrets (JWT_SECRET, etc.) are available
 function loadRootEnv() {
@@ -27,7 +27,10 @@ function loadRootEnv() {
     const i = trimmed.indexOf("=");
     if (i === -1) continue;
     const key = trimmed.slice(0, i).trim();
-    const value = trimmed.slice(i + 1).trim().replace(/^["']|["']$/g, "");
+    const value = trimmed
+      .slice(i + 1)
+      .trim()
+      .replace(/^["']|["']$/g, "");
     if (!process.env[key]) process.env[key] = value;
   }
 }
@@ -69,7 +72,9 @@ function findTsx() {
   }
 
   // 3. Last resort: hope tsx is on PATH
-  console.warn("[restart-wrapper] tsx not found in node_modules — falling back to PATH. Run pnpm install if server fails to start.");
+  console.warn(
+    "[restart-wrapper] tsx not found in node_modules — falling back to PATH. Run pnpm install if server fails to start."
+  );
   return { cmd: "tsx", args: [] };
 }
 
@@ -83,19 +88,15 @@ function startServer() {
 
   const { cmd: tsxCmd, args: tsxPrefixArgs } = findTsx();
 
-  child = spawn(
-    tsxCmd,
-    [...tsxPrefixArgs, "--enable-source-maps", "./src/index.ts"],
-    {
-      stdio: "inherit",
-      cwd: PKG_ROOT,
-      env: {
-        ...process.env,
-        NODE_ENV: process.env.NODE_ENV ?? "development",
-        NODE_OPTIONS: process.env.NODE_OPTIONS ?? "--max-old-space-size=512",
-      },
-    }
-  );
+  child = spawn(tsxCmd, [...tsxPrefixArgs, "--enable-source-maps", "./src/index.ts"], {
+    stdio: "inherit",
+    cwd: PKG_ROOT,
+    env: {
+      ...process.env,
+      NODE_ENV: process.env.NODE_ENV ?? "development",
+      NODE_OPTIONS: process.env.NODE_OPTIONS ?? "--max-old-space-size=512",
+    },
+  });
 
   child.on("exit", (code, signal) => {
     child = null;

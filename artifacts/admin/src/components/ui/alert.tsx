@@ -1,1 +1,1 @@
-export { Alert, AlertTitle, AlertDescription } from "@workspace/ui/components/ui/alert";
+export { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/ui/alert";

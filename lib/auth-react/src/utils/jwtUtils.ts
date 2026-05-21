@@ -6,8 +6,8 @@
  * all web apps and the shared SDK. auth-react re-exports for backward compat
  * so existing imports inside this package continue to work unchanged.
  */
-export type { JwtPayload } from "@workspace/auth-utils";
 export { decodeJwt, isTokenExpired } from "@workspace/auth-utils";
+export type { JwtPayload } from "@workspace/auth-utils";
 
 import { decodeJwt } from "@workspace/auth-utils";
 

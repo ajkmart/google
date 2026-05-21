@@ -2,13 +2,13 @@
  * Admin routes for SMS Gateway management.
  * Mounted at /api/admin/sms-gateways
  */
-import { Router } from "express";
 import { db } from "@workspace/db";
 import { smsGatewaysTable } from "@workspace/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
+import { Router } from "express";
 import { generateId } from "../../lib/id.js";
+import { sendError, sendNotFound, sendSuccess } from "../../lib/response.js";
 import { adminAuth } from "../admin-shared.js";
-import { sendSuccess, sendError, sendNotFound } from "../../lib/response.js";
 
 const router = Router();
 router.use(adminAuth);
@@ -16,13 +16,10 @@ router.use(adminAuth);
 /* GET /api/admin/sms-gateways — list all gateways */
 router.get("/", async (_req, res) => {
   try {
-    const rows = await db
-      .select()
-      .from(smsGatewaysTable)
-      .orderBy(asc(smsGatewaysTable.priority));
+    const rows = await db.select().from(smsGatewaysTable).orderBy(asc(smsGatewaysTable.priority));
 
     res.json({
-      gateways: rows.map(g => ({
+      gateways: rows.map((g) => ({
         id: g.id,
         name: g.name,
         provider: g.provider,
@@ -43,7 +40,19 @@ router.get("/", async (_req, res) => {
 /* POST /api/admin/sms-gateways — create gateway */
 router.post("/", async (req, res) => {
   try {
-    const { name, provider, priority, isActive, accountSid, authToken, fromNumber, msg91Key, senderId, apiKey, apiUrl } = req.body;
+    const {
+      name,
+      provider,
+      priority,
+      isActive,
+      accountSid,
+      authToken,
+      fromNumber,
+      msg91Key,
+      senderId,
+      apiKey,
+      apiUrl,
+    } = req.body;
 
     if (!name || !provider) {
       sendError(res, "name and provider are required");
@@ -51,18 +60,23 @@ router.post("/", async (req, res) => {
     }
 
     const id = generateId();
-    const [row] = await db.insert(smsGatewaysTable).values({
-      id, name, provider,
-      priority: priority ?? 10,
-      isActive: isActive ?? true,
-      accountSid: accountSid || null,
-      authToken: authToken || null,
-      fromNumber: fromNumber || null,
-      msg91Key: msg91Key || null,
-      senderId: senderId || null,
-      apiKey: apiKey || null,
-      apiUrl: apiUrl || null,
-    }).returning();
+    const [row] = await db
+      .insert(smsGatewaysTable)
+      .values({
+        id,
+        name,
+        provider,
+        priority: priority ?? 10,
+        isActive: isActive ?? true,
+        accountSid: accountSid || null,
+        authToken: authToken || null,
+        fromNumber: fromNumber || null,
+        msg91Key: msg91Key || null,
+        senderId: senderId || null,
+        apiKey: apiKey || null,
+        apiUrl: apiUrl || null,
+      })
+      .returning();
 
     sendSuccess(res, { gateway: row });
   } catch (err) {
@@ -74,25 +88,48 @@ router.post("/", async (req, res) => {
 router.patch("/:id", async (req, res) => {
   try {
     const { id } = req.params as Record<string, string>;
-    const { name, provider, priority, isActive, accountSid, authToken, fromNumber, msg91Key, senderId, apiKey, apiUrl } = req.body;
+    const {
+      name,
+      provider,
+      priority,
+      isActive,
+      accountSid,
+      authToken,
+      fromNumber,
+      msg91Key,
+      senderId,
+      apiKey,
+      apiUrl,
+    } = req.body;
 
-    const [existing] = await db.select({ id: smsGatewaysTable.id }).from(smsGatewaysTable).where(eq(smsGatewaysTable.id, id!)).limit(1);
-    if (!existing) { sendNotFound(res, "Gateway"); return; }
+    const [existing] = await db
+      .select({ id: smsGatewaysTable.id })
+      .from(smsGatewaysTable)
+      .where(eq(smsGatewaysTable.id, id!))
+      .limit(1);
+    if (!existing) {
+      sendNotFound(res, "Gateway");
+      return;
+    }
 
     const updates: Partial<typeof smsGatewaysTable.$inferInsert> = { updatedAt: new Date() };
-    if (name        !== undefined) updates.name       = name;
-    if (provider    !== undefined) updates.provider   = provider;
-    if (priority    !== undefined) updates.priority   = priority;
-    if (isActive    !== undefined) updates.isActive   = isActive;
-    if (accountSid  !== undefined) updates.accountSid = accountSid || null;
-    if (authToken   !== undefined) updates.authToken  = authToken || null;
-    if (fromNumber  !== undefined) updates.fromNumber = fromNumber || null;
-    if (msg91Key    !== undefined) updates.msg91Key   = msg91Key || null;
-    if (senderId    !== undefined) updates.senderId   = senderId || null;
-    if (apiKey      !== undefined) updates.apiKey     = apiKey || null;
-    if (apiUrl      !== undefined) updates.apiUrl     = apiUrl || null;
+    if (name !== undefined) updates.name = name;
+    if (provider !== undefined) updates.provider = provider;
+    if (priority !== undefined) updates.priority = priority;
+    if (isActive !== undefined) updates.isActive = isActive;
+    if (accountSid !== undefined) updates.accountSid = accountSid || null;
+    if (authToken !== undefined) updates.authToken = authToken || null;
+    if (fromNumber !== undefined) updates.fromNumber = fromNumber || null;
+    if (msg91Key !== undefined) updates.msg91Key = msg91Key || null;
+    if (senderId !== undefined) updates.senderId = senderId || null;
+    if (apiKey !== undefined) updates.apiKey = apiKey || null;
+    if (apiUrl !== undefined) updates.apiUrl = apiUrl || null;
 
-    const [updated] = await db.update(smsGatewaysTable).set(updates).where(eq(smsGatewaysTable.id, id!)).returning();
+    const [updated] = await db
+      .update(smsGatewaysTable)
+      .set(updates)
+      .where(eq(smsGatewaysTable.id, id!))
+      .returning();
     sendSuccess(res, { gateway: updated });
   } catch (err) {
     sendError(res, "Internal server error", 500);
@@ -118,9 +155,17 @@ router.delete("/:id", async (req, res) => {
 router.patch("/:id/toggle", async (req, res) => {
   try {
     const { id } = req.params as Record<string, string>;
-    const [gw] = await db.select().from(smsGatewaysTable).where(eq(smsGatewaysTable.id, id!)).limit(1);
-    if (!gw) { sendNotFound(res, "Gateway"); return; }
-    const [updated] = await db.update(smsGatewaysTable)
+    const [gw] = await db
+      .select()
+      .from(smsGatewaysTable)
+      .where(eq(smsGatewaysTable.id, id!))
+      .limit(1);
+    if (!gw) {
+      sendNotFound(res, "Gateway");
+      return;
+    }
+    const [updated] = await db
+      .update(smsGatewaysTable)
       .set({ isActive: !gw.isActive, updatedAt: new Date() })
       .where(eq(smsGatewaysTable.id, id!))
       .returning();

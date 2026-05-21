@@ -25,7 +25,8 @@ export function escapeHtml(input: unknown): string {
  *   - basic CSS color keywords (letters only, optional `var(--name)`)
  */
 const HEX_RE = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
-const RGB_HSL_RE = /^(?:rgb|rgba|hsl|hsla)\(\s*-?\d+(?:\.\d+)?(?:%|deg)?\s*(?:,\s*-?\d+(?:\.\d+)?(?:%|deg)?\s*){2,3}\)$/;
+const RGB_HSL_RE =
+  /^(?:rgb|rgba|hsl|hsla)\(\s*-?\d+(?:\.\d+)?(?:%|deg)?\s*(?:,\s*-?\d+(?:\.\d+)?(?:%|deg)?\s*){2,3}\)$/;
 const KEYWORD_RE = /^[a-zA-Z]+$/;
 const CSS_VAR_RE = /^var\(--[a-zA-Z0-9_-]+\)$/;
 
@@ -33,12 +34,7 @@ export function isSafeCssColor(value: unknown): value is string {
   if (typeof value !== "string") return false;
   const v = value.trim();
   if (!v) return false;
-  return (
-    HEX_RE.test(v) ||
-    RGB_HSL_RE.test(v) ||
-    KEYWORD_RE.test(v) ||
-    CSS_VAR_RE.test(v)
-  );
+  return HEX_RE.test(v) || RGB_HSL_RE.test(v) || KEYWORD_RE.test(v) || CSS_VAR_RE.test(v);
 }
 
 /** Identifier safe for use as a CSS custom property name suffix. */

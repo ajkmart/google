@@ -114,7 +114,13 @@ export async function getFirebaseUserByPhone(phone: string): Promise<{ uid: stri
     const user = await admin.auth().getUserByPhoneNumber(phone);
     return { uid: user.uid };
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return null;
   }
 }

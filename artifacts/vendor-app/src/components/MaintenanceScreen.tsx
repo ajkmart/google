@@ -1,5 +1,5 @@
-import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
+import { useLanguage } from "../lib/useLanguage";
 
 interface Props {
   message: string;
@@ -11,18 +11,22 @@ export function MaintenanceScreen({ message, appName = "AJKMart" }: Props) {
   const T = (key: TranslationKey) => tDual(key, language);
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center z-[9999] p-6 pointer-events-auto">
-      <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center">
-        <div className="text-6xl mb-4">🔧</div>
-        <h1 className="text-2xl font-extrabold text-gray-900 mb-2">{appName} {T("maintenanceTitle")}</h1>
-        <div className="w-16 h-1 bg-blue-500 rounded-full mx-auto mb-4" />
-        <p className="text-gray-600 text-sm leading-relaxed mb-6">
+    <div className="pointer-events-auto fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-blue-600 to-blue-700 p-6">
+      <div className="w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-2xl">
+        <div className="mb-4 text-6xl">🔧</div>
+        <h1 className="mb-2 text-2xl font-extrabold text-gray-900">
+          {appName} {T("maintenanceTitle")}
+        </h1>
+        <div className="mx-auto mb-4 h-1 w-16 rounded-full bg-blue-500" />
+        <p className="mb-6 text-sm leading-relaxed text-gray-600">
           {message || T("maintenanceDefaultMsg")}
         </p>
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 text-xs text-blue-700 font-medium">
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-3 text-xs font-medium text-blue-700">
           ⏱ {T("maintenanceBack")}
         </div>
-        <p className="text-xs text-gray-400 mt-4">{T("vendorPortal")} · {appName}</p>
+        <p className="mt-4 text-xs text-gray-400">
+          {T("vendorPortal")} · {appName}
+        </p>
       </div>
     </div>
   );

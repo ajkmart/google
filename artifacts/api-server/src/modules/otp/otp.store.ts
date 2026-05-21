@@ -1,6 +1,6 @@
-import { and, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { otpAttemptsTable, otpTokensTable } from "@workspace/db/schema";
+import { and, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger.js";
 import { OTP_CONFIG } from "./otp.config.js";
 import type { OtpAttemptStatus, OtpChannel, OtpIdentifierType, OtpType } from "./otp.types.js";
@@ -42,8 +42,8 @@ export async function saveOtpToken(options: {
         eq(otpTokensTable.identifier, identifier),
         eq(otpTokensTable.identifierType, identifierType),
         eq(otpTokensTable.otpType, otpType),
-        isNull(otpTokensTable.usedAt),
-      ),
+        isNull(otpTokensTable.usedAt)
+      )
     );
 
   await db.insert(otpTokensTable).values({
@@ -61,7 +61,7 @@ export async function saveOtpToken(options: {
 
   logger.info(
     { identifier: maskIdentifier(identifier), identifierType, otpType, channel },
-    "[otp:store] Token saved",
+    "[otp:store] Token saved"
   );
 
   return id;
@@ -86,8 +86,8 @@ export async function getActiveOtpToken(options: {
         eq(otpTokensTable.identifierType, identifierType),
         eq(otpTokensTable.otpType, otpType),
         isNull(otpTokensTable.usedAt),
-        gt(otpTokensTable.expiresAt, now),
-      ),
+        gt(otpTokensTable.expiresAt, now)
+      )
     )
     .orderBy(sql`${otpTokensTable.createdAt} DESC`)
     .limit(1);
@@ -101,12 +101,7 @@ export async function markOtpUsed(tokenId: string): Promise<void> {
   await db
     .update(otpTokensTable)
     .set({ usedAt: new Date() })
-    .where(
-      and(
-        eq(otpTokensTable.id, tokenId),
-        isNull(otpTokensTable.usedAt),
-      ),
-    );
+    .where(and(eq(otpTokensTable.id, tokenId), isNull(otpTokensTable.usedAt)));
 }
 
 // ─── Rate Limit: Count Recent Sends ───────────────────────────────────────────
@@ -114,7 +109,7 @@ export async function markOtpUsed(tokenId: string): Promise<void> {
 export async function countRecentSends(
   identifier: string,
   identifierType: OtpIdentifierType,
-  windowMs: number,
+  windowMs: number
 ): Promise<number> {
   const since = new Date(Date.now() - windowMs);
 
@@ -125,8 +120,8 @@ export async function countRecentSends(
       and(
         eq(otpTokensTable.identifier, identifier),
         eq(otpTokensTable.identifierType, identifierType),
-        gt(otpTokensTable.createdAt, since),
-      ),
+        gt(otpTokensTable.createdAt, since)
+      )
     );
 
   return result[0]?.count ?? 0;
@@ -137,7 +132,7 @@ export async function countRecentSends(
 export async function getLastSentAt(
   identifier: string,
   identifierType: OtpIdentifierType,
-  otpType: OtpType,
+  otpType: OtpType
 ): Promise<Date | null> {
   const rows = await db
     .select({ createdAt: otpTokensTable.createdAt })
@@ -146,8 +141,8 @@ export async function getLastSentAt(
       and(
         eq(otpTokensTable.identifier, identifier),
         eq(otpTokensTable.identifierType, identifierType),
-        eq(otpTokensTable.otpType, otpType),
-      ),
+        eq(otpTokensTable.otpType, otpType)
+      )
     )
     .orderBy(sql`${otpTokensTable.createdAt} DESC`)
     .limit(1);
@@ -163,12 +158,7 @@ export async function getAttemptStatus(identifier: string): Promise<OtpAttemptSt
   const rows = await db
     .select()
     .from(otpAttemptsTable)
-    .where(
-      and(
-        eq(otpAttemptsTable.key, identifier),
-        gt(otpAttemptsTable.expiresAt, now),
-      ),
-    )
+    .where(and(eq(otpAttemptsTable.key, identifier), gt(otpAttemptsTable.expiresAt, now)))
     .limit(1);
 
   const row = rows[0];
@@ -184,7 +174,7 @@ export async function getAttemptStatus(identifier: string): Promise<OtpAttemptSt
 
 export async function recordAttempt(
   identifier: string,
-  success: boolean,
+  success: boolean
 ): Promise<OtpAttemptStatus> {
   if (success) {
     await db.delete(otpAttemptsTable).where(eq(otpAttemptsTable.key, identifier));
@@ -229,12 +219,10 @@ export async function cleanupExpiredTokens(): Promise<number> {
   const now = new Date();
   const usedCutoff = new Date(now.getTime() - OTP_CONFIG.CLEANUP_USED_AFTER_MS);
 
-  const result = await db
-    .delete(otpTokensTable)
-    .where(
-      sql`(${otpTokensTable.usedAt} IS NULL AND ${otpTokensTable.expiresAt} < ${now})
-       OR (${otpTokensTable.usedAt} IS NOT NULL AND ${otpTokensTable.usedAt} < ${usedCutoff})`,
-    );
+  const result = await db.delete(otpTokensTable).where(
+    sql`(${otpTokensTable.usedAt} IS NULL AND ${otpTokensTable.expiresAt} < ${now})
+       OR (${otpTokensTable.usedAt} IS NOT NULL AND ${otpTokensTable.usedAt} < ${usedCutoff})`
+  );
 
   const deleted = (result as unknown as { rowCount?: number }).rowCount ?? 0;
 
@@ -243,9 +231,7 @@ export async function cleanupExpiredTokens(): Promise<number> {
   }
 
   // Also clean up expired attempt records
-  await db
-    .delete(otpAttemptsTable)
-    .where(lt(otpAttemptsTable.expiresAt, now));
+  await db.delete(otpAttemptsTable).where(lt(otpAttemptsTable.expiresAt, now));
 
   return deleted;
 }

@@ -5,33 +5,33 @@
  * verifyOtp() → validate + consume atomically (with brute-force guard)
  */
 
-import { logger } from "../../lib/logger.js";
 import { checkOTPBypass, logOTPBypassEvent } from "../../lib/auth-otp-bypass.js";
+import { logger } from "../../lib/logger.js";
 import { getCachedSettings } from "../../middleware/security.js";
-import { getAvailableChannels, deliverOtp } from "./otp.deliver.js";
+import { OTP_CONFIG } from "./otp.config.js";
+import { deliverOtp, getAvailableChannels } from "./otp.deliver.js";
 import { generateOtpCode, hashOtpCode, verifyOtpHash } from "./otp.generate.js";
 import {
-  saveOtpToken,
-  getActiveOtpToken,
-  markOtpUsed,
   countRecentSends,
-  getLastSentAt,
+  getActiveOtpToken,
   getAttemptStatus,
+  getLastSentAt,
+  markOtpUsed,
   recordAttempt,
+  saveOtpToken,
 } from "./otp.store.js";
-import { OTP_CONFIG } from "./otp.config.js";
-import {
-  OtpRateLimitError,
-  OtpBlockedError,
-  OtpInvalidError,
-  OtpExpiredError,
-} from "./otp.types.js";
 import type {
+  OtpChannel,
   OtpSendOptions,
   OtpSendResult,
   OtpVerifyOptions,
   OtpVerifyResult,
-  OtpChannel,
+} from "./otp.types.js";
+import {
+  OtpBlockedError,
+  OtpExpiredError,
+  OtpInvalidError,
+  OtpRateLimitError,
 } from "./otp.types.js";
 
 // ─── Send OTP ──────────────────────────────────────────────────────────────────
@@ -54,11 +54,11 @@ export async function sendOtp(options: OtpSendOptions): Promise<OtpSendResult> {
   if (attemptStatus.blocked) {
     logger.warn(
       { identifier: maskId(identifier), unlocksAt: attemptStatus.unlocksAt },
-      "[otp:send] Identifier is locked out",
+      "[otp:send] Identifier is locked out"
     );
     throw new OtpBlockedError(
       `Too many attempts. Try again after ${attemptStatus.unlocksAt?.toLocaleTimeString() ?? "some time"}.`,
-      attemptStatus.unlocksAt ?? new Date(Date.now() + OTP_CONFIG.LOCKOUT_DURATION_MS),
+      attemptStatus.unlocksAt ?? new Date(Date.now() + OTP_CONFIG.LOCKOUT_DURATION_MS)
     );
   }
 
@@ -67,11 +67,11 @@ export async function sendOtp(options: OtpSendOptions): Promise<OtpSendResult> {
   if (recentCount >= OTP_CONFIG.MAX_SEND_PER_HOUR) {
     logger.warn(
       { identifier: maskId(identifier), recentCount },
-      "[otp:send] Hourly send limit reached",
+      "[otp:send] Hourly send limit reached"
     );
     throw new OtpRateLimitError(
       "Too many OTP requests. Please wait before requesting another.",
-      60 * 60 * 1000,
+      60 * 60 * 1000
     );
   }
 
@@ -83,7 +83,7 @@ export async function sendOtp(options: OtpSendOptions): Promise<OtpSendResult> {
       const retryAfterMs = OTP_CONFIG.RESEND_COOLDOWN_MS - msSinceLast;
       throw new OtpRateLimitError(
         `Please wait ${Math.ceil(retryAfterMs / 1000)} seconds before resending.`,
-        retryAfterMs,
+        retryAfterMs
       );
     }
   }
@@ -95,7 +95,7 @@ export async function sendOtp(options: OtpSendOptions): Promise<OtpSendResult> {
     if (bypass.isBypassed) {
       logger.info(
         { identifier: maskId(identifier), reason: bypass.reason },
-        "[otp:send] OTP bypassed",
+        "[otp:send] OTP bypassed"
       );
 
       await logOTPBypassEvent(
@@ -104,7 +104,7 @@ export async function sendOtp(options: OtpSendOptions): Promise<OtpSendResult> {
         identifier,
         ipAddress ?? "unknown",
         bypass.reason ?? "unknown",
-        { otpType },
+        { otpType }
       );
 
       return {
@@ -112,8 +112,7 @@ export async function sendOtp(options: OtpSendOptions): Promise<OtpSendResult> {
         otpRequired: false,
         channel: undefined,
         expiresAt: bypass.expiresAt ?? undefined,
-        ...(bypass.bypassCode &&
-          isDevMode() && { devCode: bypass.bypassCode }),
+        ...(bypass.bypassCode && isDevMode() && { devCode: bypass.bypassCode }),
       };
     }
   }
@@ -157,7 +156,7 @@ export async function sendOtp(options: OtpSendOptions): Promise<OtpSendResult> {
       channel: delivery.usedChannel,
       provider: delivery.provider,
     },
-    "[otp:send] OTP sent",
+    "[otp:send] OTP sent"
   );
 
   return {
@@ -183,7 +182,7 @@ export async function verifyOtp(options: OtpVerifyOptions): Promise<OtpVerifyRes
   if (status.blocked) {
     throw new OtpBlockedError(
       `Too many incorrect attempts. Try again after ${status.unlocksAt?.toLocaleTimeString() ?? "some time"}.`,
-      status.unlocksAt ?? new Date(Date.now() + OTP_CONFIG.LOCKOUT_DURATION_MS),
+      status.unlocksAt ?? new Date(Date.now() + OTP_CONFIG.LOCKOUT_DURATION_MS)
     );
   }
 
@@ -204,13 +203,13 @@ export async function verifyOtp(options: OtpVerifyOptions): Promise<OtpVerifyRes
     const after = await recordAttempt(identifier, false);
     logger.warn(
       { identifier: maskId(identifier), attemptsLeft: after.attemptsLeft },
-      "[otp:verify] Invalid code",
+      "[otp:verify] Invalid code"
     );
     throw new OtpInvalidError(
       after.blocked
         ? "Too many incorrect attempts. Account temporarily locked."
         : `Incorrect code. ${after.attemptsLeft} attempt${after.attemptsLeft === 1 ? "" : "s"} remaining.`,
-      after.attemptsLeft,
+      after.attemptsLeft
     );
   }
 
@@ -222,7 +221,7 @@ export async function verifyOtp(options: OtpVerifyOptions): Promise<OtpVerifyRes
 
   logger.info(
     { identifier: maskId(identifier), identifierType, otpType, tokenId: token.id },
-    "[otp:verify] OTP verified successfully",
+    "[otp:verify] OTP verified successfully"
   );
 
   return {
@@ -245,10 +244,7 @@ function normalizeIdentifier(raw: string, type: "phone" | "email"): string {
   return raw.trim(); // already normalized or international
 }
 
-function resolveChannel(
-  preferred: OtpChannel | undefined,
-  available: OtpChannel[],
-): OtpChannel {
+function resolveChannel(preferred: OtpChannel | undefined, available: OtpChannel[]): OtpChannel {
   if (preferred && available.includes(preferred)) return preferred;
   // Use first available from priority order
   for (const ch of OTP_CONFIG.CHANNEL_PRIORITY) {
@@ -269,8 +265,5 @@ function maskId(identifier: string): string {
 }
 
 function isDevMode(): boolean {
-  return (
-    process.env["NODE_ENV"] !== "production" &&
-    process.env["ALLOW_DEV_OTP"] === "true"
-  );
+  return process.env["NODE_ENV"] !== "production" && process.env["ALLOW_DEV_OTP"] === "true";
 }

@@ -4,20 +4,22 @@ import { usersTable } from "./users";
 export const otpTokensTable = pgTable(
   "otp_tokens",
   {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
 
-    identifier:     text("identifier").notNull(),
+    identifier: text("identifier").notNull(),
     identifierType: text("identifier_type").notNull(),
-    otpType:        text("otp_type").notNull(),
+    otpType: text("otp_type").notNull(),
 
-    otpHash:  text("otp_hash").notNull(),
+    otpHash: text("otp_hash").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    usedAt:    timestamp("used_at",    { withTimezone: true }),
+    usedAt: timestamp("used_at", { withTimezone: true }),
 
     userId: text("user_id").references(() => usersTable.id, { onDelete: "set null" }),
 
-    channel:           text("channel").notNull(),
-    ipAddress:         text("ip_address"),
+    channel: text("channel").notNull(),
+    ipAddress: text("ip_address"),
     deviceFingerprint: text("device_fingerprint"),
 
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -31,14 +33,14 @@ export const otpTokensTable = pgTable(
       table.identifierType,
       table.otpType,
       table.usedAt,
-      table.expiresAt,
+      table.expiresAt
     ),
-  ],
+  ]
 );
 
-export type OtpToken    = typeof otpTokensTable.$inferSelect;
+export type OtpToken = typeof otpTokensTable.$inferSelect;
 export type NewOtpToken = typeof otpTokensTable.$inferInsert;
 
-export type OtpChannel        = "sms" | "whatsapp" | "email" | "console";
-export type OtpType           = "login" | "register" | "reset" | "merge" | "trip";
+export type OtpChannel = "sms" | "whatsapp" | "email" | "console";
+export type OtpType = "login" | "register" | "reset" | "merge" | "trip";
 export type OtpIdentifierType = "phone" | "email";

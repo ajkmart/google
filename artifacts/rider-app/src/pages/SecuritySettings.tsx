@@ -1,17 +1,27 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { TwoFactorSetup, TwoFactorVerify } from "@workspace/auth-utils";
+import { tDual, type TranslationKey } from "@workspace/i18n";
+import {
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  Loader2,
+  Lock,
+  Shield,
+  ShieldCheck,
+  ShieldOff,
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "../components/ui/accordion";
 import { api, apiFetch } from "../lib/api";
+import { useAuth } from "../lib/rider-auth";
 import { usePlatformConfig } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
-import { useAuth } from "../lib/rider-auth";
-import { tDual, type TranslationKey } from "@workspace/i18n";
-import { TwoFactorSetup, TwoFactorVerify } from "@workspace/auth-utils";
-import {
-  ArrowLeft, Shield, ShieldCheck, ShieldOff, Loader2, Lock, Eye, EyeOff,
-} from "lucide-react";
-import {
-  Accordion, AccordionItem, AccordionTrigger, AccordionContent,
-} from "../components/ui/accordion";
 
 function getPasswordStrength(pw: string): { level: number; label: TranslationKey; color: string } {
   if (!pw) return { level: 0, label: "passwordWeak", color: "" };
@@ -27,7 +37,13 @@ function getPasswordStrength(pw: string): { level: number; label: TranslationKey
   return { level: 4, label: "passwordStrong", color: "bg-green-500" };
 }
 
-function PasswordChangeSection({ showToastFn, T }: { showToastFn: (msg: string) => void; T: (key: TranslationKey) => string }) {
+function PasswordChangeSection({
+  showToastFn,
+  T,
+}: {
+  showToastFn: (msg: string) => void;
+  T: (key: TranslationKey) => string;
+}) {
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -40,15 +56,23 @@ function PasswordChangeSection({ showToastFn, T }: { showToastFn: (msg: string) 
 
   const handleChangePassword = async () => {
     setPwError("");
-    if (!newPw || newPw.length < 8) { setPwError("Password must be at least 8 characters"); return; }
-    if (newPw !== confirmPw) { setPwError("Passwords do not match"); return; }
+    if (!newPw || newPw.length < 8) {
+      setPwError("Password must be at least 8 characters");
+      return;
+    }
+    if (newPw !== confirmPw) {
+      setPwError("Passwords do not match");
+      return;
+    }
     setPwLoading(true);
     try {
       await apiFetch("/auth/set-password", {
         method: "POST",
         body: JSON.stringify({ password: newPw, currentPassword: currentPw || undefined }),
       });
-      setCurrentPw(""); setNewPw(""); setConfirmPw("");
+      setCurrentPw("");
+      setNewPw("");
+      setConfirmPw("");
       showToastFn("Password updated successfully");
     } catch (e: unknown) {
       setPwError(e instanceof Error ? e.message : "Failed to change password");
@@ -60,45 +84,82 @@ function PasswordChangeSection({ showToastFn, T }: { showToastFn: (msg: string) 
     <div className="px-5 pb-1">
       <div className="space-y-3">
         <div className="relative">
-          <input type={showCurrent ? "text" : "password"} value={currentPw} onChange={e => setCurrentPw(e.target.value)}
-            placeholder="Current password (if set)" className="w-full h-11 px-4 pr-10 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:bg-white transition-all" />
-          <button type="button" onClick={() => setShowCurrent(!showCurrent)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+          <input
+            type={showCurrent ? "text" : "password"}
+            value={currentPw}
+            onChange={(e) => setCurrentPw(e.target.value)}
+            placeholder="Current password (if set)"
+            className="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 pr-10 text-sm transition-all focus:bg-white focus:ring-2 focus:ring-gray-900 focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => setShowCurrent(!showCurrent)}
+            className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400"
+          >
             {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
         <div>
           <div className="relative">
-            <input type={showNew ? "text" : "password"} value={newPw} onChange={e => setNewPw(e.target.value)}
-              placeholder="New password" className="w-full h-11 px-4 pr-10 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:bg-white transition-all" />
-            <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <input
+              type={showNew ? "text" : "password"}
+              value={newPw}
+              onChange={(e) => setNewPw(e.target.value)}
+              placeholder="New password"
+              className="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 pr-10 text-sm transition-all focus:bg-white focus:ring-2 focus:ring-gray-900 focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => setShowNew(!showNew)}
+              className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400"
+            >
               {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
           {newPw && (
             <div className="mt-1.5">
-              <div className="flex gap-1 mb-1">
-                {[1,2,3,4].map(i => (
-                  <div key={i} className={`flex-1 h-1 rounded-full transition-all duration-300 ${i <= strength.level ? strength.color : "bg-gray-100"}`} />
+              <div className="mb-1 flex gap-1">
+                {[1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className={`h-1 flex-1 rounded-full transition-all duration-300 ${i <= strength.level ? strength.color : "bg-gray-100"}`}
+                  />
                 ))}
               </div>
-              <p className={`text-[10px] font-bold ${strength.level <= 1 ? "text-red-500" : strength.level <= 2 ? "text-amber-500" : strength.level <= 3 ? "text-yellow-600" : "text-green-600"}`}>
+              <p
+                className={`text-[10px] font-bold ${strength.level <= 1 ? "text-red-500" : strength.level <= 2 ? "text-amber-500" : strength.level <= 3 ? "text-yellow-600" : "text-green-600"}`}
+              >
                 {T(strength.label)}
               </p>
             </div>
           )}
         </div>
         <div className="relative">
-          <input type={showConfirm ? "text" : "password"} value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
-            placeholder="Confirm new password" className="w-full h-11 px-4 pr-10 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:bg-white transition-all" />
-          <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+          <input
+            type={showConfirm ? "text" : "password"}
+            value={confirmPw}
+            onChange={(e) => setConfirmPw(e.target.value)}
+            placeholder="Confirm new password"
+            className="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 pr-10 text-sm transition-all focus:bg-white focus:ring-2 focus:ring-gray-900 focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => setShowConfirm(!showConfirm)}
+            className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400"
+          >
             {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
 
-        {pwError && <p className="text-red-500 text-xs bg-red-50 rounded-lg px-3 py-2">{pwError}</p>}
+        {pwError && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-500">{pwError}</p>
+        )}
 
-        <button onClick={handleChangePassword} disabled={pwLoading || !newPw}
-          className="w-full h-11 bg-gray-900 hover:bg-gray-800 text-white font-bold rounded-xl transition-colors text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+        <button
+          onClick={handleChangePassword}
+          disabled={pwLoading || !newPw}
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gray-900 text-sm font-bold text-white transition-colors hover:bg-gray-800 disabled:opacity-60"
+        >
           {pwLoading ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
           {pwLoading ? T("pleaseWait") : "Update Password"}
         </button>
@@ -167,58 +228,70 @@ export default function SecuritySettings() {
     }
   };
 
-  const handleSetupVerify = useCallback(async (code: string) => {
-    setVerifyLoading(true);
-    setVerifyError("");
-    try {
-      const res = await api.twoFactorEnable({ code });
-      if (res.backupCodes && setupData) {
-        setSetupData({ ...setupData, backupCodes: res.backupCodes });
+  const handleSetupVerify = useCallback(
+    async (code: string) => {
+      setVerifyLoading(true);
+      setVerifyError("");
+      try {
+        const res = await api.twoFactorEnable({ code });
+        if (res.backupCodes && setupData) {
+          setSetupData({ ...setupData, backupCodes: res.backupCodes });
+        }
+        setIs2faEnabled(true);
+        await refreshUser();
+        showToast(T("twoFactorEnableSuccess"));
+        if (!res.backupCodes || res.backupCodes.length === 0) {
+          setView("main");
+        }
+        /* If backup codes are present, stay on setup screen until rider clicks Done */
+      } catch (e: unknown) {
+        setVerifyError(e instanceof Error ? e.message : T("verificationFailed"));
       }
-      setIs2faEnabled(true);
-      await refreshUser();
-      showToast(T("twoFactorEnableSuccess"));
-      if (!res.backupCodes || res.backupCodes.length === 0) {
+      setVerifyLoading(false);
+    },
+    [T, setupData, refreshUser]
+  );
+
+  const handleDisableVerify = useCallback(
+    async (code: string) => {
+      setVerifyLoading(true);
+      setVerifyError("");
+      try {
+        await api.twoFactorDisable({ code });
+        setIs2faEnabled(false);
+        await refreshUser();
         setView("main");
+        showToast(T("twoFactorDisableSuccess"));
+      } catch (e: unknown) {
+        setVerifyError(e instanceof Error ? e.message : T("verificationFailed"));
       }
-      /* If backup codes are present, stay on setup screen until rider clicks Done */
-    } catch (e: unknown) {
-      setVerifyError(e instanceof Error ? e.message : T("verificationFailed"));
-    }
-    setVerifyLoading(false);
-  }, [T, setupData, refreshUser]);
-
-  const handleDisableVerify = useCallback(async (code: string) => {
-    setVerifyLoading(true);
-    setVerifyError("");
-    try {
-      await api.twoFactorDisable({ code });
-      setIs2faEnabled(false);
-      await refreshUser();
-      setView("main");
-      showToast(T("twoFactorDisableSuccess"));
-    } catch (e: unknown) {
-      setVerifyError(e instanceof Error ? e.message : T("verificationFailed"));
-    }
-    setVerifyLoading(false);
-  }, [T, refreshUser]);
-
+      setVerifyLoading(false);
+    },
+    [T, refreshUser]
+  );
 
   if (view === "setup" && setupData) {
     const hasBackupCodes = setupData.backupCodes && setupData.backupCodes.length > 0;
     return (
       <div className="min-h-screen bg-[#F5F6F8]">
-        <div className="bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 px-5 pb-8 rounded-b-[2rem] relative overflow-hidden"
-          style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}>
-          <div className="absolute top-[-30%] right-[-15%] w-64 h-64 rounded-full bg-white/[0.02]" />
-          <div className="absolute bottom-[-20%] left-[-10%] w-48 h-48 rounded-full bg-green-500/[0.04]" />
-          <button onClick={() => setView("main")} className="text-white/60 text-sm font-semibold mb-3 flex items-center gap-1 relative z-10">
+        <div
+          className="relative overflow-hidden rounded-b-[2rem] bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 px-5 pb-8"
+          style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}
+        >
+          <div className="absolute top-[-30%] right-[-15%] h-64 w-64 rounded-full bg-white/[0.02]" />
+          <div className="absolute bottom-[-20%] left-[-10%] h-48 w-48 rounded-full bg-green-500/[0.04]" />
+          <button
+            onClick={() => setView("main")}
+            className="relative z-10 mb-3 flex items-center gap-1 text-sm font-semibold text-white/60"
+          >
             <ArrowLeft size={14} /> {T("back")}
           </button>
-          <h1 className="text-xl font-bold text-white relative z-10">{T("twoFactorAuthentication")}</h1>
+          <h1 className="relative z-10 text-xl font-bold text-white">
+            {T("twoFactorAuthentication")}
+          </h1>
         </div>
-        <div className="px-4 -mt-4 relative z-10 space-y-3">
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+        <div className="relative z-10 -mt-4 space-y-3 px-4">
+          <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
             <TwoFactorSetup
               qrCodeDataUrl={setupData.qrCodeDataUrl}
               secret={setupData.secret}
@@ -230,23 +303,28 @@ export default function SecuritySettings() {
             />
           </div>
           {is2faEnabled && hasBackupCodes && (
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 space-y-3">
-              <p className="text-xs text-gray-500 leading-relaxed">
-                2FA is now enabled. Make sure you have saved your backup codes above before continuing.
+            <div className="space-y-3 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+              <p className="text-xs leading-relaxed text-gray-500">
+                2FA is now enabled. Make sure you have saved your backup codes above before
+                continuing.
               </p>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
                   checked={backupCodesSaved}
-                  onChange={e => setBackupCodesSaved(e.target.checked)}
-                  className="w-4 h-4 rounded accent-gray-900"
+                  onChange={(e) => setBackupCodesSaved(e.target.checked)}
+                  className="h-4 w-4 rounded accent-gray-900"
                 />
-                <span className="text-sm font-semibold text-gray-700">I've saved my backup codes</span>
+                <span className="text-sm font-semibold text-gray-700">
+                  I've saved my backup codes
+                </span>
               </label>
               <button
-                onClick={() => { if (backupCodesSaved) setView("main"); }}
+                onClick={() => {
+                  if (backupCodesSaved) setView("main");
+                }}
                 disabled={!backupCodesSaved}
-                className="w-full h-11 bg-gray-900 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gray-900 text-sm font-bold text-white transition-all disabled:opacity-40"
               >
                 <ShieldCheck size={16} /> Done — Return to Security Settings
               </button>
@@ -260,17 +338,24 @@ export default function SecuritySettings() {
   if (view === "verify-disable") {
     return (
       <div className="min-h-screen bg-[#F5F6F8]">
-        <div className="bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 px-5 pb-8 rounded-b-[2rem] relative overflow-hidden"
-          style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}>
-          <div className="absolute top-[-30%] right-[-15%] w-64 h-64 rounded-full bg-white/[0.02]" />
-          <div className="absolute bottom-[-20%] left-[-10%] w-48 h-48 rounded-full bg-green-500/[0.04]" />
-          <button onClick={() => setView("main")} className="text-white/60 text-sm font-semibold mb-3 flex items-center gap-1 relative z-10">
+        <div
+          className="relative overflow-hidden rounded-b-[2rem] bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 px-5 pb-8"
+          style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}
+        >
+          <div className="absolute top-[-30%] right-[-15%] h-64 w-64 rounded-full bg-white/[0.02]" />
+          <div className="absolute bottom-[-20%] left-[-10%] h-48 w-48 rounded-full bg-green-500/[0.04]" />
+          <button
+            onClick={() => setView("main")}
+            className="relative z-10 mb-3 flex items-center gap-1 text-sm font-semibold text-white/60"
+          >
             <ArrowLeft size={14} /> {T("back")}
           </button>
-          <h1 className="text-xl font-bold text-white relative z-10">{T("twoFactorVerification")}</h1>
+          <h1 className="relative z-10 text-xl font-bold text-white">
+            {T("twoFactorVerification")}
+          </h1>
         </div>
-        <div className="px-4 -mt-4 relative z-10">
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+        <div className="relative z-10 -mt-4 px-4">
+          <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
             <TwoFactorVerify
               onVerify={handleDisableVerify}
               verifyLoading={verifyLoading}
@@ -285,28 +370,33 @@ export default function SecuritySettings() {
 
   return (
     <div className="min-h-screen bg-[#F5F6F8]">
-      <div className="bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 px-5 pb-8 rounded-b-[2rem] relative overflow-hidden"
-        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}>
-        <div className="absolute top-[-30%] right-[-15%] w-64 h-64 rounded-full bg-white/[0.02]" />
-        <div className="absolute bottom-[-20%] left-[-10%] w-48 h-48 rounded-full bg-green-500/[0.04]" />
-        <div className="flex items-center gap-3 mb-2 relative z-10">
-          <Link href="/profile" className="text-white/60 hover:text-white transition-colors">
+      <div
+        className="relative overflow-hidden rounded-b-[2rem] bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 px-5 pb-8"
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}
+      >
+        <div className="absolute top-[-30%] right-[-15%] h-64 w-64 rounded-full bg-white/[0.02]" />
+        <div className="absolute bottom-[-20%] left-[-10%] h-48 w-48 rounded-full bg-green-500/[0.04]" />
+        <div className="relative z-10 mb-2 flex items-center gap-3">
+          <Link href="/profile" className="text-white/60 transition-colors hover:text-white">
             <ArrowLeft size={20} />
           </Link>
           <h1 className="text-xl font-bold text-white">{T("securitySettings")}</h1>
         </div>
       </div>
 
-      <div className="px-4 mt-4 space-y-4 max-w-md mx-auto">
+      <div className="mx-auto mt-4 max-w-md space-y-4 px-4">
         <Accordion type="multiple" defaultValue={["password", "2fa"]}>
-          <AccordionItem value="password" className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+          <AccordionItem
+            value="password"
+            className="mb-4 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm"
+          >
             <AccordionTrigger className="px-5 py-4 hover:no-underline">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-100">
                   <Lock size={20} className="text-blue-600" />
                 </div>
                 <div className="text-left">
-                  <span className="text-[15px] font-bold text-gray-900 block">{T("password")}</span>
+                  <span className="block text-[15px] font-bold text-gray-900">{T("password")}</span>
                   <span className="text-xs text-gray-500">Change your account password</span>
                 </div>
               </div>
@@ -316,15 +406,28 @@ export default function SecuritySettings() {
             </AccordionContent>
           </AccordionItem>
 
-          <AccordionItem value="2fa" className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+          <AccordionItem
+            value="2fa"
+            className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm"
+          >
             <AccordionTrigger className="px-5 py-4 hover:no-underline">
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${is2faEnabled ? "bg-green-100" : "bg-gray-100"}`}>
-                  {is2faEnabled ? <ShieldCheck size={20} className="text-green-600" /> : <Shield size={20} className="text-gray-400" />}
+                <div
+                  className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${is2faEnabled ? "bg-green-100" : "bg-gray-100"}`}
+                >
+                  {is2faEnabled ? (
+                    <ShieldCheck size={20} className="text-green-600" />
+                  ) : (
+                    <Shield size={20} className="text-gray-400" />
+                  )}
                 </div>
                 <div className="text-left">
-                  <span className="text-[15px] font-bold text-gray-900 block">{T("twoFactorAuthentication")}</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${is2faEnabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                  <span className="block text-[15px] font-bold text-gray-900">
+                    {T("twoFactorAuthentication")}
+                  </span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-bold ${is2faEnabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
+                  >
                     {is2faEnabled ? T("twoFactorEnabled") : T("twoFactorDisabled")}
                   </span>
                 </div>
@@ -332,16 +435,30 @@ export default function SecuritySettings() {
             </AccordionTrigger>
             <AccordionContent>
               <div className="px-5 pb-1">
-                <p className="text-xs text-gray-500 leading-relaxed mb-4">{T("twoFactorDesc")}</p>
-                <button onClick={handleToggle2fa} disabled={loading}
-                  className={`w-full h-11 font-bold rounded-xl transition-colors text-sm flex items-center justify-center gap-2 disabled:opacity-60 ${is2faEnabled
+                <p className="mb-4 text-xs leading-relaxed text-gray-500">{T("twoFactorDesc")}</p>
+                <button
+                  onClick={handleToggle2fa}
+                  disabled={loading}
+                  className={`flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold transition-colors disabled:opacity-60 ${
+                    is2faEnabled
                       ? "border-2 border-red-200 text-red-500 hover:bg-red-50"
-                      : "bg-gray-900 hover:bg-gray-800 text-white"
-                    }`}>
-                  {loading ? <Loader2 size={16} className="animate-spin" /> : is2faEnabled ? <ShieldOff size={16} /> : <ShieldCheck size={16} />}
+                      : "bg-gray-900 text-white hover:bg-gray-800"
+                  }`}
+                >
+                  {loading ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : is2faEnabled ? (
+                    <ShieldOff size={16} />
+                  ) : (
+                    <ShieldCheck size={16} />
+                  )}
                   {loading ? T("pleaseWait") : is2faEnabled ? T("disable2fa") : T("enable2fa")}
                 </button>
-                {error && <p className="text-red-500 text-sm mt-3 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+                {error && (
+                  <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-500">
+                    {error}
+                  </p>
+                )}
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -349,9 +466,17 @@ export default function SecuritySettings() {
       </div>
 
       {toast && (
-        <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none"
-          style={{ paddingTop: "calc(env(safe-area-inset-top,0px) + 12px)", paddingLeft: "16px", paddingRight: "16px" }}>
-          <div className="bg-gray-900 text-white text-sm font-semibold px-5 py-3 rounded-2xl shadow-2xl max-w-sm w-full text-center pointer-events-auto">{toast}</div>
+        <div
+          className="pointer-events-none fixed top-0 right-0 left-0 z-50 flex justify-center"
+          style={{
+            paddingTop: "calc(env(safe-area-inset-top,0px) + 12px)",
+            paddingLeft: "16px",
+            paddingRight: "16px",
+          }}
+        >
+          <div className="pointer-events-auto w-full max-w-sm rounded-2xl bg-gray-900 px-5 py-3 text-center text-sm font-semibold text-white shadow-2xl">
+            {toast}
+          </div>
         </div>
       )}
     </div>

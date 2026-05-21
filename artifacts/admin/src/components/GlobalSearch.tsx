@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useLocation } from "wouter";
-import { Search, X, User, ShoppingBag, Bike, Loader2 } from "lucide-react";
 import { adminFetch } from "@/lib/adminFetcher";
 import { cn } from "@/lib/utils";
+import { Bike, Loader2, Search, ShoppingBag, User, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation } from "wouter";
 
 interface SearchResult {
   id: string;
@@ -49,13 +49,13 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 const TYPE_CONFIG = {
-  user:  { icon: User,        label: "Users",  color: "text-blue-600",  bg: "bg-blue-50" },
+  user: { icon: User, label: "Users", color: "text-blue-600", bg: "bg-blue-50" },
   order: { icon: ShoppingBag, label: "Orders", color: "text-amber-600", bg: "bg-amber-50" },
-  rider: { icon: Bike,        label: "Riders", color: "text-green-600", bg: "bg-green-50" },
+  rider: { icon: Bike, label: "Riders", color: "text-green-600", bg: "bg-green-50" },
 };
 
 const SEE_ALL_PATHS: Record<"user" | "order" | "rider", string> = {
-  user:  "/users",
+  user: "/users",
   order: "/orders",
   rider: "/riders",
 };
@@ -79,14 +79,24 @@ export function GlobalSearch({ inputRef: externalRef, onClose }: GlobalSearchPro
   const debouncedQuery = useDebounce(query, 300);
 
   const doSearch = useCallback(async (q: string) => {
-    if (!q || q.length < 2) { setResults([]); setLoading(false); return; }
+    if (!q || q.length < 2) {
+      setResults([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const encoded = encodeURIComponent(q);
       const [usersRaw, ordersRaw, ridersRaw] = await Promise.allSettled([
-        adminFetch(`/users?search=${encoded}&limit=3`) as Promise<AdminListResponse<AdminUserRecord>>,
-        adminFetch(`/orders?search=${encoded}&limit=3`) as Promise<AdminListResponse<AdminOrderRecord>>,
-        adminFetch(`/riders?search=${encoded}&limit=3`) as Promise<AdminListResponse<AdminRiderRecord>>,
+        adminFetch(`/users?search=${encoded}&limit=3`) as Promise<
+          AdminListResponse<AdminUserRecord>
+        >,
+        adminFetch(`/orders?search=${encoded}&limit=3`) as Promise<
+          AdminListResponse<AdminOrderRecord>
+        >,
+        adminFetch(`/riders?search=${encoded}&limit=3`) as Promise<
+          AdminListResponse<AdminRiderRecord>
+        >,
       ]);
 
       const mapped: SearchResult[] = [];
@@ -94,19 +104,37 @@ export function GlobalSearch({ inputRef: externalRef, onClose }: GlobalSearchPro
       if (usersRaw.status === "fulfilled") {
         const users = usersRaw.value?.users ?? usersRaw.value?.data ?? [];
         for (const u of users.slice(0, 3)) {
-          mapped.push({ id: u.id, type: "user", label: u.name || u.phone || u.id, sub: u.phone ?? u.email, href: `/users?highlight=${u.id}` });
+          mapped.push({
+            id: u.id,
+            type: "user",
+            label: u.name || u.phone || u.id,
+            sub: u.phone ?? u.email,
+            href: `/users?highlight=${u.id}`,
+          });
         }
       }
       if (ordersRaw.status === "fulfilled") {
         const orders = ordersRaw.value?.orders ?? ordersRaw.value?.data ?? [];
         for (const o of orders.slice(0, 3)) {
-          mapped.push({ id: o.id, type: "order", label: `Order #${o.id.slice(-8)}`, sub: o.status ?? o.type, href: `/orders?highlight=${o.id}` });
+          mapped.push({
+            id: o.id,
+            type: "order",
+            label: `Order #${o.id.slice(-8)}`,
+            sub: o.status ?? o.type,
+            href: `/orders?highlight=${o.id}`,
+          });
         }
       }
       if (ridersRaw.status === "fulfilled") {
         const riders = ridersRaw.value?.riders ?? ridersRaw.value?.data ?? [];
         for (const r of riders.slice(0, 3)) {
-          mapped.push({ id: r.id, type: "rider", label: r.name || r.phone || r.id, sub: r.phone ?? r.status, href: `/riders?highlight=${r.id}` });
+          mapped.push({
+            id: r.id,
+            type: "rider",
+            label: r.name || r.phone || r.id,
+            sub: r.phone ?? r.status,
+            href: `/riders?highlight=${r.id}`,
+          });
         }
       }
       setResults(mapped);
@@ -144,19 +172,31 @@ export function GlobalSearch({ inputRef: externalRef, onClose }: GlobalSearchPro
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!open || results.length === 0) return;
-    if (e.key === "ArrowDown") { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, results.length - 1)); }
-    if (e.key === "ArrowUp")   { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, -1)); }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIdx((i) => Math.min(i + 1, results.length - 1));
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIdx((i) => Math.max(i - 1, -1));
+    }
     if (e.key === "Enter" && activeIdx >= 0) {
       const item = results[activeIdx];
-      if (item) { navigate(item.href); close(); }
+      if (item) {
+        navigate(item.href);
+        close();
+      }
     }
-    if (e.key === "Escape") { close(); inputRef.current?.blur(); }
+    if (e.key === "Escape") {
+      close();
+      inputRef.current?.blur();
+    }
   };
 
   const grouped: Record<"user" | "order" | "rider", SearchResult[]> = {
-    user:  results.filter(r => r.type === "user"),
-    order: results.filter(r => r.type === "order"),
-    rider: results.filter(r => r.type === "rider"),
+    user: results.filter((r) => r.type === "user"),
+    order: results.filter((r) => r.type === "order"),
+    rider: results.filter((r) => r.type === "rider"),
   };
 
   const hasResults = results.length > 0;
@@ -164,16 +204,18 @@ export function GlobalSearch({ inputRef: externalRef, onClose }: GlobalSearchPro
   return (
     <div ref={containerRef} className="relative w-full max-w-xs lg:max-w-sm">
       <div className="relative flex items-center">
-        <Search className="absolute left-3 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <Search className="text-muted-foreground pointer-events-none absolute left-3 h-4 w-4" />
         <input
           ref={inputRef}
           type="text"
           value={query}
-          onChange={e => setQuery(e.target.value)}
-          onFocus={() => { if (query) setOpen(true); }}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => {
+            if (query) setOpen(true);
+          }}
           onKeyDown={handleKeyDown}
           placeholder="Search orders, users, riders…"
-          className="w-full h-9 pl-9 pr-8 rounded-lg border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-colors"
+          className="border-border bg-background placeholder:text-muted-foreground focus:ring-primary/30 focus:border-primary/50 h-9 w-full rounded-lg border pr-8 pl-9 text-sm transition-colors focus:ring-2 focus:outline-none"
           aria-label="Global search"
           aria-autocomplete="list"
           aria-expanded={open}
@@ -182,43 +224,47 @@ export function GlobalSearch({ inputRef: externalRef, onClose }: GlobalSearchPro
           <button
             type="button"
             onClick={() => close()}
-            className="absolute right-2 p-0.5 rounded hover:bg-muted transition-colors"
+            className="hover:bg-muted absolute right-2 rounded p-0.5 transition-colors"
             aria-label="Clear search"
           >
-            <X className="w-3.5 h-3.5 text-muted-foreground" />
+            <X className="text-muted-foreground h-3.5 w-3.5" />
           </button>
         )}
         {loading && (
-          <Loader2 className="absolute right-2 w-3.5 h-3.5 text-muted-foreground animate-spin pointer-events-none" />
+          <Loader2 className="text-muted-foreground pointer-events-none absolute right-2 h-3.5 w-3.5 animate-spin" />
         )}
       </div>
 
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 rounded-xl border border-border bg-white shadow-xl z-50 overflow-hidden max-h-80 overflow-y-auto">
+        <div className="border-border absolute top-full right-0 left-0 z-50 mt-1.5 max-h-80 overflow-hidden overflow-y-auto rounded-xl border bg-white shadow-xl">
           {!loading && !hasResults && debouncedQuery.length >= 2 && (
-            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+            <div className="text-muted-foreground px-4 py-6 text-center text-sm">
               No results for "{debouncedQuery}"
             </div>
           )}
           {!loading && debouncedQuery.length < 2 && (
-            <div className="px-4 py-3 text-xs text-muted-foreground">
+            <div className="text-muted-foreground px-4 py-3 text-xs">
               Type at least 2 characters to search
             </div>
           )}
           {hasResults && (
             <div className="py-1">
-              {(["user", "order", "rider"] as const).map(type => {
+              {(["user", "order", "rider"] as const).map((type) => {
                 const items = grouped[type];
                 if (!items.length) return null;
                 const cfg = TYPE_CONFIG[type];
                 const Icon = cfg.icon;
                 return (
                   <div key={type}>
-                    <div className="px-3 py-1.5 flex items-center gap-1.5">
-                      <Icon className={cn("w-3 h-3", cfg.color)} />
-                      <span className={cn("text-[10px] font-bold uppercase tracking-wide", cfg.color)}>{cfg.label}</span>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5">
+                      <Icon className={cn("h-3 w-3", cfg.color)} />
+                      <span
+                        className={cn("text-[10px] font-bold tracking-wide uppercase", cfg.color)}
+                      >
+                        {cfg.label}
+                      </span>
                     </div>
-                    {items.map(item => {
+                    {items.map((item) => {
                       const globalIdx = results.indexOf(item);
                       const isActive = globalIdx === activeIdx;
                       return (
@@ -226,26 +272,47 @@ export function GlobalSearch({ inputRef: externalRef, onClose }: GlobalSearchPro
                           key={item.id}
                           type="button"
                           className={cn(
-                            "w-full flex items-center gap-3 px-3 py-2 text-left transition-colors",
-                            isActive ? "bg-muted" : "hover:bg-muted/50",
+                            "flex w-full items-center gap-3 px-3 py-2 text-left transition-colors",
+                            isActive ? "bg-muted" : "hover:bg-muted/50"
                           )}
                           onMouseEnter={() => setActiveIdx(globalIdx)}
-                          onClick={() => { navigate(item.href); close(); }}
+                          onClick={() => {
+                            navigate(item.href);
+                            close();
+                          }}
                         >
-                          <div className={cn("w-6 h-6 rounded-full flex items-center justify-center shrink-0", cfg.bg)}>
-                            <Icon className={cn("w-3 h-3", cfg.color)} />
+                          <div
+                            className={cn(
+                              "flex h-6 w-6 shrink-0 items-center justify-center rounded-full",
+                              cfg.bg
+                            )}
+                          >
+                            <Icon className={cn("h-3 w-3", cfg.color)} />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-foreground truncate">{item.label}</p>
-                            {item.sub && <p className="text-xs text-muted-foreground truncate">{item.sub}</p>}
+                            <p className="text-foreground truncate text-sm font-medium">
+                              {item.label}
+                            </p>
+                            {item.sub && (
+                              <p className="text-muted-foreground truncate text-xs">{item.sub}</p>
+                            )}
                           </div>
                         </button>
                       );
                     })}
                     <button
                       type="button"
-                      className={cn("w-full text-left px-3 py-1.5 text-xs transition-colors flex items-center gap-1", cfg.color, "hover:underline opacity-70 hover:opacity-100")}
-                      onClick={() => { navigate(`${SEE_ALL_PATHS[type]}?search=${encodeURIComponent(debouncedQuery)}`); close(); }}
+                      className={cn(
+                        "flex w-full items-center gap-1 px-3 py-1.5 text-left text-xs transition-colors",
+                        cfg.color,
+                        "opacity-70 hover:underline hover:opacity-100"
+                      )}
+                      onClick={() => {
+                        navigate(
+                          `${SEE_ALL_PATHS[type]}?search=${encodeURIComponent(debouncedQuery)}`
+                        );
+                        close();
+                      }}
                     >
                       See all results →
                     </button>
@@ -254,10 +321,17 @@ export function GlobalSearch({ inputRef: externalRef, onClose }: GlobalSearchPro
               })}
             </div>
           )}
-          <div className="border-t border-border/50 px-3 py-1.5 flex items-center gap-3 text-[10px] text-muted-foreground bg-muted/30">
-            <span><kbd className="font-mono bg-white border border-border rounded px-1">↑↓</kbd> navigate</span>
-            <span><kbd className="font-mono bg-white border border-border rounded px-1">↵</kbd> open</span>
-            <span><kbd className="font-mono bg-white border border-border rounded px-1">Esc</kbd> close</span>
+          <div className="border-border/50 text-muted-foreground bg-muted/30 flex items-center gap-3 border-t px-3 py-1.5 text-[10px]">
+            <span>
+              <kbd className="border-border rounded border bg-white px-1 font-mono">↑↓</kbd>{" "}
+              navigate
+            </span>
+            <span>
+              <kbd className="border-border rounded border bg-white px-1 font-mono">↵</kbd> open
+            </span>
+            <span>
+              <kbd className="border-border rounded border bg-white px-1 font-mono">Esc</kbd> close
+            </span>
           </div>
         </div>
       )}

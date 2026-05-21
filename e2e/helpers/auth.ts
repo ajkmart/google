@@ -7,10 +7,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? process.env.ADMIN_SEED_PASS
  * Log in to the Admin panel with username + password.
  * Navigates to /admin, fills the credential form, and waits for the dashboard.
  */
-export async function loginAdmin(
-  page: Page,
-  opts: { username?: string; password?: string } = {},
-) {
+export async function loginAdmin(page: Page, opts: { username?: string; password?: string } = {}) {
   const username = opts.username ?? ADMIN_USERNAME;
   const password = opts.password ?? ADMIN_PASSWORD;
 
@@ -41,12 +38,9 @@ export async function loginAdmin(
  * Navigates to /vendor, switches to Phone tab, enters phone, then OTP.
  * Requires ALLOW_DEV_OTP=true on the API server to work end-to-end.
  */
-export async function loginVendor(
-  page: Page,
-  opts: { phone: string; otp: string },
-) {
+export async function loginVendor(page: Page, opts: { phone: string; otp: string }) {
   await page.goto("/vendor/login");
-  await page.waitForSelector('text=AJKMart Vendor', { timeout: 15_000 });
+  await page.waitForSelector("text=AJKMart Vendor", { timeout: 15_000 });
 
   const phoneTab = page.locator("button", { hasText: "Phone" }).first();
   await phoneTab.click();
@@ -54,7 +48,7 @@ export async function loginVendor(
   await page.fill('input[placeholder="03XXXXXXXXX"]', opts.phone);
   await page.click('button:has-text("Send OTP")');
 
-  await page.waitForSelector('text=Verify & Sign In', { timeout: 10_000 });
+  await page.waitForSelector("text=Verify & Sign In", { timeout: 10_000 });
 
   for (let i = 0; i < opts.otp.length; i++) {
     const box = page.locator(`input[data-index="${i}"], input.otp-box`).nth(i);
@@ -70,12 +64,9 @@ export async function loginVendor(
  * Navigates to /rider/login, enters phone, then OTP.
  * Requires ALLOW_DEV_OTP=true on the API server to work end-to-end.
  */
-export async function loginRider(
-  page: Page,
-  opts: { phone: string; otp: string },
-) {
+export async function loginRider(page: Page, opts: { phone: string; otp: string }) {
   await page.goto("/rider/login");
-  await page.waitForSelector('text=Deliver with AJKMart', { timeout: 15_000 });
+  await page.waitForSelector("text=Deliver with AJKMart", { timeout: 15_000 });
 
   const phoneTab = page.locator("button", { hasText: "Phone" }).first();
   await phoneTab.click();
@@ -83,7 +74,7 @@ export async function loginRider(
   await page.fill('input[placeholder="03XXXXXXXXX"]', opts.phone);
   await page.click('button:has-text("Send OTP")');
 
-  await page.waitForSelector('text=Verify & Sign In', { timeout: 10_000 });
+  await page.waitForSelector("text=Verify & Sign In", { timeout: 10_000 });
 
   for (let i = 0; i < opts.otp.length; i++) {
     const box = page.locator(`input[data-index="${i}"], input.otp-box`).nth(i);

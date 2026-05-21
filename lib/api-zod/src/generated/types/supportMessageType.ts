@@ -6,8 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type SupportMessageType =
-  (typeof SupportMessageType)[keyof typeof SupportMessageType];
+export type SupportMessageType = (typeof SupportMessageType)[keyof typeof SupportMessageType];
 
 export const SupportMessageType = {
   text: "text",

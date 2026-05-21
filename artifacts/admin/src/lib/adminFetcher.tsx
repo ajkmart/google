@@ -1,11 +1,10 @@
-import React from 'react';
-import { readCsrfFromCookie } from './adminAuthContext';
+import { ToastAction } from "@/components/ui/toast";
+import { toast } from "@/hooks/use-toast";
 import { createLogger } from "@/lib/logger";
+import { createApiFetcher, FetchTimeoutError, RefreshError } from "@workspace/api-client-react";
+import { readCsrfFromCookie } from "./adminAuthContext";
+import { safeSessionSet } from "./safeStorage";
 const log = createLogger("[adminFetcher]");
-import { safeSessionSet } from './safeStorage';
-import { toast } from '@/hooks/use-toast';
-import { ToastAction } from '@/components/ui/toast';
-import { createApiFetcher, RefreshError, FetchTimeoutError } from '@workspace/api-client-react';
 
 /**
  * Typed Error for non-2xx admin fetcher responses. Replaces the previous
@@ -16,7 +15,7 @@ export class AdminFetchError extends Error {
   readonly status: number;
   constructor(message: string, status: number) {
     super(message);
-    this.name = 'AdminFetchError';
+    this.name = "AdminFetchError";
     this.status = status;
   }
 }
@@ -26,9 +25,9 @@ export class AdminFetchError extends Error {
  * Callers can `instanceof TimeoutError` to show specific UX.
  */
 export class TimeoutError extends Error {
-  constructor(message = 'Request timed out') {
+  constructor(message = "Request timed out") {
     super(message);
-    this.name = 'TimeoutError';
+    this.name = "TimeoutError";
   }
 }
 
@@ -52,7 +51,7 @@ function timeoutSignal(ms: number, externalSignal?: AbortSignal): AbortSignal {
   const internalAbortListener = () => {
     if (timerId !== null) clearTimeout(timerId);
   };
-  controller.signal.addEventListener('abort', internalAbortListener, { once: true });
+  controller.signal.addEventListener("abort", internalAbortListener, { once: true });
 
   // Merge with external signal if provided
   if (externalSignal) {
@@ -72,7 +71,7 @@ function timeoutSignal(ms: number, externalSignal?: AbortSignal): AbortSignal {
         }
         controller.abort(externalSignal.reason);
       };
-      externalSignal.addEventListener('abort', externalAbortListener, { once: true });
+      externalSignal.addEventListener("abort", externalAbortListener, { once: true });
     }
   }
 
@@ -88,12 +87,14 @@ function timeoutSignal(ms: number, externalSignal?: AbortSignal): AbortSignal {
 function handleTimeoutError(err: unknown, retry?: () => void): void {
   if (!(err instanceof TimeoutError)) return;
   toast({
-    title: 'Request timed out',
-    description: 'The server took too long to respond. Check your connection and try again.',
-    variant: 'destructive',
-    action: retry
-      ? <ToastAction altText="Retry" onClick={retry}>Retry</ToastAction>
-      : undefined,
+    title: "Request timed out",
+    description: "The server took too long to respond. Check your connection and try again.",
+    variant: "destructive",
+    action: retry ? (
+      <ToastAction altText="Retry" onClick={retry}>
+        Retry
+      </ToastAction>
+    ) : undefined,
   });
 }
 
@@ -115,11 +116,11 @@ export function setupAdminFetcherHandlers(
 
 // ── Shared onRefreshFailed handler ──────────────────────────────────────────
 function onAdminRefreshFailed(_isTransient: boolean): void {
-  safeSessionSet('admin_session_expired', 'Your session has expired. Please log in again.');
+  safeSessionSet("admin_session_expired", "Your session has expired. Please log in again.");
   // Dispatch a custom event so the React router can navigate softly without
   // a full page reload (which loses unsaved form state). The event is handled
   // by GlobalAuthRedirect inside the WouterRouter context in App.tsx.
-  window.dispatchEvent(new CustomEvent('admin:force-redirect-to-login'));
+  window.dispatchEvent(new CustomEvent("admin:force-redirect-to-login"));
 }
 
 // ── Factory instances ────────────────────────────────────────────────────────
@@ -127,37 +128,41 @@ function onAdminRefreshFailed(_isTransient: boolean): void {
 // always use the latest handlers set by setupAdminFetcherHandlers.
 
 const [_adminScopedFetcher] = createApiFetcher({
-  baseUrl: '/api/admin',
+  baseUrl: "/api/admin",
   getToken: () => getAccessToken?.() ?? null,
-  setToken: () => { /* no-op: refreshFn (auth context) manages in-memory state */ },
+  setToken: () => {
+    /* no-op: refreshFn (auth context) manages in-memory state */
+  },
   onRefreshFailed: onAdminRefreshFailed,
   refreshFn: () => {
-    if (!refreshToken) throw new Error('Admin fetcher not initialized');
+    if (!refreshToken) throw new Error("Admin fetcher not initialized");
     return refreshToken();
   },
   extraHeaders: () => ({
-    'Content-Type': 'application/json',
-    'X-CSRF-Token': readCsrfFromCookie(),
+    "Content-Type": "application/json",
+    "X-CSRF-Token": readCsrfFromCookie(),
   }),
   timeoutMs: FETCH_TIMEOUT_MS,
-  credentialsMode: 'include',
+  credentialsMode: "include",
 });
 
 const [_adminAbsoluteFetcher] = createApiFetcher({
-  baseUrl: '',
+  baseUrl: "",
   getToken: () => getAccessToken?.() ?? null,
-  setToken: () => { /* no-op: refreshFn (auth context) manages in-memory state */ },
+  setToken: () => {
+    /* no-op: refreshFn (auth context) manages in-memory state */
+  },
   onRefreshFailed: onAdminRefreshFailed,
   refreshFn: () => {
-    if (!refreshToken) throw new Error('Admin fetcher not initialized');
+    if (!refreshToken) throw new Error("Admin fetcher not initialized");
     return refreshToken();
   },
   extraHeaders: () => ({
-    'Content-Type': 'application/json',
-    'X-CSRF-Token': readCsrfFromCookie(),
+    "Content-Type": "application/json",
+    "X-CSRF-Token": readCsrfFromCookie(),
   }),
   timeoutMs: FETCH_TIMEOUT_MS,
-  credentialsMode: 'include',
+  credentialsMode: "include",
 });
 
 // ── Internal helper ──────────────────────────────────────────────────────────
@@ -173,10 +178,10 @@ async function ensureToken(context: string): Promise<void> {
     await refreshToken!();
   } catch (err) {
     log.error(`Token refresh failed (no token, ${context}):`, err);
-    safeSessionSet('admin_session_expired', 'Your session has expired. Please log in again.');
+    safeSessionSet("admin_session_expired", "Your session has expired. Please log in again.");
     /* Use the same soft-navigation event as onAdminRefreshFailed so the React
        router handles the redirect — no hard page reload, no unsaved state loss. */
-    window.dispatchEvent(new CustomEvent('admin:force-redirect-to-login'));
+    window.dispatchEvent(new CustomEvent("admin:force-redirect-to-login"));
     throw err;
   }
 }
@@ -187,27 +192,27 @@ async function ensureToken(context: string): Promise<void> {
  * Admin API fetcher scoped to `/api/admin/*`.
  * Handles: Bearer token, CSRF, 30-second timeout (with toast), auto-refresh.
  */
-export async function fetchAdmin(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<any> {
+export async function fetchAdmin(endpoint: string, options: RequestInit = {}): Promise<any> {
   if (!getAccessToken || !refreshToken) {
-    throw new Error('Admin fetcher not initialized. Call setupAdminFetcherHandlers first.');
+    throw new Error("Admin fetcher not initialized. Call setupAdminFetcherHandlers first.");
   }
 
-  await ensureToken('fetchAdmin');
+  await ensureToken("fetchAdmin");
 
   const signal = timeoutSignal(FETCH_TIMEOUT_MS, options.signal as AbortSignal | undefined);
   try {
     const res = await _adminScopedFetcher(endpoint, { ...options, signal });
     if (!res.ok) {
-      const errorData = await res.json().catch((parseErr: unknown) => { log.debug("[adminFetcher] Failed to parse error response:", parseErr); return {}; });
+      const errorData = await res.json().catch((parseErr: unknown) => {
+        log.debug("[adminFetcher] Failed to parse error response:", parseErr);
+        return {};
+      });
       throw new AdminFetchError(errorData.error || `HTTP ${res.status}`, res.status);
     }
     return res.json();
   } catch (err) {
     if (err instanceof RefreshError) {
-      throw new Error('Session expired. Please log in again.');
+      throw new Error("Session expired. Please log in again.");
     }
     const reason = (signal as AbortSignal & { reason?: unknown }).reason;
     // FetchTimeoutError = factory's own timer fired (retry or parallel race).
@@ -217,7 +222,11 @@ export async function fetchAdmin(
       err instanceof FetchTimeoutError ||
       reason instanceof TimeoutError;
     if (isTimeout) {
-      handleTimeoutError(new TimeoutError(), () => { fetchAdmin(endpoint, options).catch((retryErr) => { log.warn("[adminFetcher] timeout retry failed:", retryErr); }); });
+      handleTimeoutError(new TimeoutError(), () => {
+        fetchAdmin(endpoint, options).catch((retryErr) => {
+          log.warn("[adminFetcher] timeout retry failed:", retryErr);
+        });
+      });
       throw new TimeoutError();
     }
     throw err;
@@ -229,30 +238,30 @@ export async function fetchAdmin(
  * `/api/payments/…`) instead of being scoped to `/api/admin`.
  * Use this for admin-authenticated routes that live outside `/api/admin/*`.
  */
-export async function fetchAdminAbsolute(
-  path: string,
-  options: RequestInit = {}
-): Promise<any> {
+export async function fetchAdminAbsolute(path: string, options: RequestInit = {}): Promise<any> {
   if (!getAccessToken || !refreshToken) {
-    throw new Error('Admin fetcher not initialized. Call setupAdminFetcherHandlers first.');
+    throw new Error("Admin fetcher not initialized. Call setupAdminFetcherHandlers first.");
   }
-  if (!path.startsWith('/')) {
+  if (!path.startsWith("/")) {
     throw new Error(`fetchAdminAbsolute requires an absolute path starting with "/", got: ${path}`);
   }
 
-  await ensureToken('fetchAdminAbsolute');
+  await ensureToken("fetchAdminAbsolute");
 
   const signal = timeoutSignal(FETCH_TIMEOUT_MS, options.signal as AbortSignal | undefined);
   try {
     const res = await _adminAbsoluteFetcher(path, { ...options, signal });
     if (!res.ok) {
-      const errorData = await res.json().catch((parseErr: unknown) => { log.debug("[adminFetcher] Failed to parse error response:", parseErr); return {}; });
+      const errorData = await res.json().catch((parseErr: unknown) => {
+        log.debug("[adminFetcher] Failed to parse error response:", parseErr);
+        return {};
+      });
       throw new AdminFetchError(errorData.error || `HTTP ${res.status}`, res.status);
     }
     return res.json();
   } catch (err) {
     if (err instanceof RefreshError) {
-      throw new Error('Session expired. Please log in again.');
+      throw new Error("Session expired. Please log in again.");
     }
     const reason = (signal as AbortSignal & { reason?: unknown }).reason;
     const isTimeout =
@@ -260,7 +269,11 @@ export async function fetchAdminAbsolute(
       err instanceof FetchTimeoutError ||
       reason instanceof TimeoutError;
     if (isTimeout) {
-      handleTimeoutError(new TimeoutError(), () => { fetchAdminAbsolute(path, options).catch((retryErr) => { log.warn("[adminFetcher] absolute timeout retry failed:", retryErr); }); });
+      handleTimeoutError(new TimeoutError(), () => {
+        fetchAdminAbsolute(path, options).catch((retryErr) => {
+          log.warn("[adminFetcher] absolute timeout retry failed:", retryErr);
+        });
+      });
       throw new TimeoutError();
     }
     throw err;
@@ -277,20 +290,22 @@ export async function fetchAdminAbsoluteResponse(
   options: RequestInit = {}
 ): Promise<Response> {
   if (!getAccessToken || !refreshToken) {
-    throw new Error('Admin fetcher not initialized. Call setupAdminFetcherHandlers first.');
+    throw new Error("Admin fetcher not initialized. Call setupAdminFetcherHandlers first.");
   }
-  if (!path.startsWith('/')) {
-    throw new Error(`fetchAdminAbsoluteResponse requires an absolute path starting with "/", got: ${path}`);
+  if (!path.startsWith("/")) {
+    throw new Error(
+      `fetchAdminAbsoluteResponse requires an absolute path starting with "/", got: ${path}`
+    );
   }
 
-  await ensureToken('fetchAdminAbsoluteResponse');
+  await ensureToken("fetchAdminAbsoluteResponse");
 
   const signal = timeoutSignal(FETCH_TIMEOUT_MS, options.signal as AbortSignal | undefined);
   try {
     return await _adminAbsoluteFetcher(path, { ...options, signal });
   } catch (err) {
     if (err instanceof RefreshError) {
-      throw new Error('Session expired. Please log in again.');
+      throw new Error("Session expired. Please log in again.");
     }
     const reason = (signal as AbortSignal & { reason?: unknown }).reason;
     const isTimeout =
@@ -298,7 +313,11 @@ export async function fetchAdminAbsoluteResponse(
       err instanceof FetchTimeoutError ||
       reason instanceof TimeoutError;
     if (isTimeout) {
-      handleTimeoutError(new TimeoutError(), () => { fetchAdminAbsoluteResponse(path, options).catch((retryErr) => { log.warn("[adminFetcher] response timeout retry failed:", retryErr); }); });
+      handleTimeoutError(new TimeoutError(), () => {
+        fetchAdminAbsoluteResponse(path, options).catch((retryErr) => {
+          log.warn("[adminFetcher] response timeout retry failed:", retryErr);
+        });
+      });
       throw new TimeoutError();
     }
     throw err;
@@ -341,30 +360,36 @@ export async function adminAbsoluteFetch(path: string, options: RequestInit = {}
  * Convenience methods for common HTTP verbs
  */
 export async function adminGet(endpoint: string): Promise<any> {
-  return fetchAdmin(endpoint, { method: 'GET' });
+  return fetchAdmin(endpoint, { method: "GET" });
 }
 
-export async function adminPost(endpoint: string, data?: Record<string, unknown>): Promise<unknown> {
+export async function adminPost(
+  endpoint: string,
+  data?: Record<string, unknown>
+): Promise<unknown> {
   return fetchAdmin(endpoint, {
-    method: 'POST',
+    method: "POST",
     body: data ? JSON.stringify(data) : undefined,
   });
 }
 
 export async function adminPut(endpoint: string, data?: Record<string, unknown>): Promise<unknown> {
   return fetchAdmin(endpoint, {
-    method: 'PUT',
+    method: "PUT",
     body: data ? JSON.stringify(data) : undefined,
   });
 }
 
 export async function adminDelete(endpoint: string): Promise<unknown> {
-  return fetchAdmin(endpoint, { method: 'DELETE' });
+  return fetchAdmin(endpoint, { method: "DELETE" });
 }
 
-export async function adminPatch(endpoint: string, data?: Record<string, unknown>): Promise<unknown> {
+export async function adminPatch(
+  endpoint: string,
+  data?: Record<string, unknown>
+): Promise<unknown> {
   return fetchAdmin(endpoint, {
-    method: 'PATCH',
+    method: "PATCH",
     body: data ? JSON.stringify(data) : undefined,
   });
 }

@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { ChevronRight } from "lucide-react";
+import type { ReactNode } from "react";
 import { Link } from "wouter";
 
 /**
@@ -50,27 +50,29 @@ export function PageHeader({
 }: PageHeaderProps) {
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-start gap-3 min-w-0">
+      <div className="flex min-w-0 items-start gap-3">
         {Icon && (
           <div
-            className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBgClass} ${iconColorClass}`}
+            className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl sm:h-12 sm:w-12 ${iconBgClass} ${iconColorClass}`}
           >
-            <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+            <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
         )}
         <div className="min-w-0">
           {breadcrumbs && breadcrumbs.length > 0 && (
             <nav
               aria-label="Breadcrumb"
-              className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground mb-0.5 flex-wrap"
+              className="text-muted-foreground mb-0.5 flex flex-wrap items-center gap-1 text-[11px] font-medium"
             >
               {breadcrumbs.map((crumb, i) => (
                 <span key={`${crumb.label}-${i}`} className="flex items-center gap-1">
-                  {i > 0 && <ChevronRight className="w-3 h-3 text-muted-foreground/50" aria-hidden="true" />}
+                  {i > 0 && (
+                    <ChevronRight className="text-muted-foreground/50 h-3 w-3" aria-hidden="true" />
+                  )}
                   {crumb.href ? (
                     <Link
                       href={crumb.href}
-                      className="hover:text-foreground admin-transition rounded-sm admin-focus-ring"
+                      className="hover:text-foreground admin-transition admin-focus-ring rounded-sm"
                     >
                       {crumb.label}
                     </Link>
@@ -81,16 +83,16 @@ export function PageHeader({
               ))}
             </nav>
           )}
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-display font-bold tracking-tight text-foreground truncate">
+          <h1 className="font-display text-foreground truncate text-xl font-bold tracking-tight sm:text-2xl lg:text-3xl">
             {title}
           </h1>
           {subtitle && (
-            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">{subtitle}</p>
+            <p className="text-muted-foreground mt-0.5 text-xs sm:text-sm">{subtitle}</p>
           )}
         </div>
       </div>
       {actions && (
-        <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-end shrink-0">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-end">
           {actions}
         </div>
       )}

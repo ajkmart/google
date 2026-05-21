@@ -4,7 +4,7 @@
  * Fetches platform-wide maintenance status via direct fetch (admin doesn't
  * have a usePlatformConfig hook). Admin only shows maintenance overlay.
  */
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export interface AppStatus {
   maintenance: boolean;
@@ -40,7 +40,9 @@ export function useAppStatus(): AppStatus {
       .catch(() => {
         if (!cancelled) setStatus({ maintenance: false, isLoading: false });
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return status;

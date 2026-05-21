@@ -21,7 +21,8 @@ export interface AdminLoginData {
 }
 
 function networkError(err: unknown): string {
-  if (err instanceof Error && err.message.includes("fetch")) return "No internet connection. Please check your network.";
+  if (err instanceof Error && err.message.includes("fetch"))
+    return "No internet connection. Please check your network.";
   return err instanceof Error ? err.message : "An unexpected error occurred.";
 }
 
@@ -32,7 +33,7 @@ export function useAuth() {
     username: string,
     password: string,
     totp?: string,
-    tempToken?: string | null,
+    tempToken?: string | null
   ): Promise<AuthResult<AdminLoginData>> {
     try {
       clearError();
@@ -41,14 +42,22 @@ export function useAuth() {
     } catch (err: unknown) {
       if (err && typeof err === "object" && "requiresMfa" in err) {
         const e = err as { requiresMfa: boolean; tempToken?: string };
-        return { success: false, error: "mfa_required", data: { requiresMfa: true, tempToken: e.tempToken } };
+        return {
+          success: false,
+          error: "mfa_required",
+          data: { requiresMfa: true, tempToken: e.tempToken },
+        };
       }
       const errObj = err as Record<string, unknown> | null;
       const status = errObj?.status as number | undefined;
       if (status === 429) {
         const rd = errObj?.responseData as Record<string, unknown> | undefined;
         const retryAfter = typeof rd?.retryAfter === "number" ? rd.retryAfter : 60;
-        return { success: false, error: "Too many attempts. Please wait before trying again.", retryAfter };
+        return {
+          success: false,
+          error: "Too many attempts. Please wait before trying again.",
+          retryAfter,
+        };
       }
       return { success: false, error: networkError(err) };
     }

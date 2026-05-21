@@ -1,11 +1,11 @@
-import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { productsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
-import { customerAuth } from "../middleware/security.js";
+import { Router, type IRouter } from "express";
 import { checkDeliveryEligibility, checkUserOnlyEligibility } from "../lib/delivery-access.js";
-import { sendSuccess } from "../lib/response.js";
 import { logger } from "../lib/logger.js";
+import { sendSuccess } from "../lib/response.js";
+import { customerAuth } from "../middleware/security.js";
 
 const router: IRouter = Router();
 
@@ -18,13 +18,17 @@ router.get("/", customerAuth, async (req, res) => {
 
     if (!vendorId && productId) {
       try {
-        const [prod] = await db.select({ vendorId: productsTable.vendorId })
+        const [prod] = await db
+          .select({ vendorId: productsTable.vendorId })
           .from(productsTable)
           .where(eq(productsTable.id, productId))
           .limit(1);
         vendorId = prod?.vendorId ?? undefined;
       } catch (err) {
-        logger.warn({ productId, err: err instanceof Error ? err.message : String(err) }, "[delivery-eligibility] vendor lookup failed — proceeding without vendor context");
+        logger.warn(
+          { productId, err: err instanceof Error ? err.message : String(err) },
+          "[delivery-eligibility] vendor lookup failed — proceeding without vendor context"
+        );
       }
     }
 

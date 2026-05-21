@@ -25,12 +25,21 @@ import Redis from "ioredis";
 import { logger } from "./logger.js";
 
 function sanitizeRedisUrl(raw: string): string | null {
-  const value = raw.trim().replace(/^["']|["']$/g, "").trim();
+  const value = raw
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .trim();
   const decoded = (() => {
     try {
       return decodeURIComponent(value).trim();
     } catch (err) {
-      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
       return value;
     }
   })();
@@ -42,7 +51,13 @@ function sanitizeRedisUrl(raw: string): string | null {
     if (!parsed.hostname) return null;
     return normalized;
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return null;
   }
 }
@@ -75,13 +90,13 @@ if (rawUrl) {
       logger.fatal(
         { rawUrl: rawUrl.slice(0, 40) + "…" },
         "[redis] FATAL — REDIS_URL is set but could not be parsed as a valid Redis URL in production. " +
-        "Check the value in the Replit Secrets panel (must start with redis:// or rediss://)."
+          "Check the value in the Replit Secrets panel (must start with redis:// or rediss://)."
       );
       process.exit(1);
     }
     logger.warn(
       "[redis] REDIS_URL is set but is malformed — Redis is DISABLED. " +
-      "JWT token blacklisting and distributed rate limiting are unavailable."
+        "JWT token blacklisting and distributed rate limiting are unavailable."
     );
   } else {
     try {
@@ -91,10 +106,12 @@ if (rawUrl) {
         connectTimeout: 8000,
         retryStrategy: (times) => {
           if (times >= 4) {
-            logger.error("[redis] Max reconnect attempts reached — rate limits will use in-memory store");
+            logger.error(
+              "[redis] Max reconnect attempts reached — rate limits will use in-memory store"
+            );
             logger.warn(
               "[redis] Redis connection failed — JWT token blacklisting is DISABLED. " +
-              "Logged-out access tokens will remain valid until they expire naturally."
+                "Logged-out access tokens will remain valid until they expire naturally."
             );
             return null; // stop retrying; RedisStore will throw and express-rate-limit falls back
           }
@@ -103,18 +120,21 @@ if (rawUrl) {
       });
 
       redisClient.on("connect", () => logger.info("[redis] Connected to Redis"));
-      redisClient.on("ready",   () => logger.info("[redis] Ready"));
-      redisClient.on("error",   (err: Error) => logger.error({ err: err.message }, "[redis] Error"));
-      redisClient.on("close",   () => logger.warn("[redis] Connection closed"));
+      redisClient.on("ready", () => logger.info("[redis] Ready"));
+      redisClient.on("error", (err: Error) => logger.error({ err: err.message }, "[redis] Error"));
+      redisClient.on("close", () => logger.warn("[redis] Connection closed"));
     } catch (err) {
       if (isProduction) {
-        logger.fatal({ err: (err as Error).message }, "[redis] FATAL — Failed to initialise Redis client in production.");
+        logger.fatal(
+          { err: (err as Error).message },
+          "[redis] FATAL — Failed to initialise Redis client in production."
+        );
         process.exit(1);
       }
       logger.error({ err: (err as Error).message }, "[redis] Failed to initialise client");
       logger.warn(
         "[redis] Redis init failed — JWT token blacklisting is DISABLED. " +
-        "Logged-out access tokens will remain valid until they expire naturally."
+          "Logged-out access tokens will remain valid until they expire naturally."
       );
       redisClient = null;
     }
@@ -168,8 +188,8 @@ export async function waitForRedisReady(): Promise<void> {
       logger.fatal(
         { err: message },
         "[redis] FATAL — Redis is unreachable at startup in production. " +
-        "JWT token blacklisting and distributed rate limiting require a live Redis connection. " +
-        "Verify REDIS_URL is correct and the Redis instance is reachable, then restart."
+          "JWT token blacklisting and distributed rate limiting require a live Redis connection. " +
+          "Verify REDIS_URL is correct and the Redis instance is reachable, then restart."
       );
       process.exit(1);
     }
@@ -185,8 +205,8 @@ export async function waitForRedisReady(): Promise<void> {
     logger.warn(
       { err: message },
       "[redis] Redis unreachable at startup — running in degraded mode in development. " +
-      "JWT token blacklisting and distributed rate limiting are DISABLED. " +
-      "Rate limiters will fall back to in-memory once the Redis connection closes."
+        "JWT token blacklisting and distributed rate limiting are DISABLED. " +
+        "Rate limiters will fall back to in-memory once the Redis connection closes."
     );
   }
 }

@@ -19,24 +19,24 @@ export { OTP_CONFIG } from "./otp.config.js";
 
 // ── All types ──
 export type {
+  OtpAttemptStatus,
   OtpChannel,
-  OtpType,
   OtpIdentifierType,
   OtpSendOptions,
-  OtpVerifyOptions,
   OtpSendResult,
+  OtpType,
+  OtpVerifyOptions,
   OtpVerifyResult,
-  OtpAttemptStatus,
 } from "./otp.types.js";
 
 // ── Typed errors (for route-level catch blocks) ──
 export {
-  OtpDeliveryError,
-  OtpRateLimitError,
-  OtpBlockedError,
-  OtpInvalidError,
-  OtpExpiredError,
   OtpAlreadyUsedError,
+  OtpBlockedError,
+  OtpDeliveryError,
+  OtpExpiredError,
+  OtpInvalidError,
+  OtpRateLimitError,
 } from "./otp.types.js";
 
 // ── Channel availability (used by admin/settings) ──
@@ -47,18 +47,18 @@ export { cleanupExpiredTokens } from "./otp.store.js";
 
 // ── TOTP / 2FA ──
 export {
-  generateTotpSecret,
-  encryptTotpSecret,
-  decryptTotpSecret,
-  verifyTotpToken,
-  getTotpUri,
-  generateQrCodeDataUrl,
-  savePendingTotpSecret,
-  getPendingTotpSecret,
-  deletePendingTotpSecret,
-  generateRecoveryCodes,
-  verifyRecoveryCode,
   countUnusedRecoveryCodes,
+  decryptTotpSecret,
+  deletePendingTotpSecret,
+  encryptTotpSecret,
+  generateQrCodeDataUrl,
+  generateRecoveryCodes,
+  generateTotpSecret,
+  getPendingTotpSecret,
+  getTotpUri,
+  savePendingTotpSecret,
+  verifyRecoveryCode,
+  verifyTotpToken,
 } from "./otp.totp.js";
 
 export type { RecoveryCodeSet } from "./otp.totp.js";

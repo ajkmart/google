@@ -5,24 +5,23 @@
 
 import { db } from "@workspace/db";
 import {
-  usersTable,
-  otpTokensTable,
-  otpAttemptsTable,
-  magicLinkTokensTable,
-  platformSettingsTable,
-  riderProfilesTable,
-  vendorProfilesTable,
-  refreshTokensTable,
-  ridesTable,
-  walletTransactionsTable,
   idempotencyKeysTable,
+  magicLinkTokensTable,
+  otpAttemptsTable,
+  otpTokensTable,
+  platformSettingsTable,
+  refreshTokensTable,
+  riderProfilesTable,
+  ridesTable,
+  usersTable,
+  walletTransactionsTable,
 } from "@workspace/db/schema";
-import { eq, and, isNull } from "drizzle-orm";
+import { canonicalizePhone } from "@workspace/phone-utils";
 import { randomInt } from "crypto";
+import { eq } from "drizzle-orm";
 import { hashOtpCode } from "../../../modules/otp/otp.generate.js";
 import { saveOtpToken } from "../../../modules/otp/otp.store.js";
-import type { OtpType, OtpIdentifierType } from "../../../modules/otp/otp.types.js";
-import { canonicalizePhone } from "@workspace/phone-utils";
+import type { OtpIdentifierType, OtpType } from "../../../modules/otp/otp.types.js";
 
 // ─── ID / AJK-ID generators ────────────────────────────────────────────────────
 
@@ -148,10 +147,7 @@ export async function seedOtpToken(options: {
 
 /** Mark an OTP token as used (for replay-attack tests). */
 export async function markOtpTokenUsed(tokenId: string): Promise<void> {
-  await db
-    .update(otpTokensTable)
-    .set({ usedAt: new Date() })
-    .where(eq(otpTokensTable.id, tokenId));
+  await db.update(otpTokensTable).set({ usedAt: new Date() }).where(eq(otpTokensTable.id, tokenId));
 }
 
 /** Immediately expire an OTP token (for expiry tests). */
@@ -164,24 +160,18 @@ export async function expireOtpToken(tokenId: string): Promise<void> {
 
 /** Clean up all OTP tokens for an identifier. */
 export async function cleanupOtpTokens(identifier: string): Promise<void> {
-  await db
-    .delete(otpTokensTable)
-    .where(eq(otpTokensTable.identifier, identifier));
+  await db.delete(otpTokensTable).where(eq(otpTokensTable.identifier, identifier));
 }
 
 /** Clean up all OTP attempt records for an identifier. */
 export async function cleanupOtpAttempts(identifier: string): Promise<void> {
-  await db
-    .delete(otpAttemptsTable)
-    .where(eq(otpAttemptsTable.key, identifier));
+  await db.delete(otpAttemptsTable).where(eq(otpAttemptsTable.key, identifier));
 }
 
 // ─── Magic Link Helpers ────────────────────────────────────────────────────────
 
 export async function cleanupMagicLinkTokens(userId: string): Promise<void> {
-  await db
-    .delete(magicLinkTokensTable)
-    .where(eq(magicLinkTokensTable.userId, userId));
+  await db.delete(magicLinkTokensTable).where(eq(magicLinkTokensTable.userId, userId));
 }
 
 // ─── Platform Settings Helpers ─────────────────────────────────────────────────
@@ -190,7 +180,7 @@ export async function seedPlatformSetting(
   key: string,
   value: string,
   label = "Test Setting",
-  category = "auth",
+  category = "auth"
 ): Promise<void> {
   await db
     .insert(platformSettingsTable)
@@ -208,9 +198,7 @@ export async function deletePlatformSetting(key: string): Promise<void> {
 // ─── Refresh Token Helpers ─────────────────────────────────────────────────────
 
 export async function cleanupRefreshTokens(userId: string): Promise<void> {
-  await db
-    .delete(refreshTokensTable)
-    .where(eq(refreshTokensTable.userId, userId));
+  await db.delete(refreshTokensTable).where(eq(refreshTokensTable.userId, userId));
 }
 
 // ─── Wallet Helpers ────────────────────────────────────────────────────────────
@@ -225,10 +213,7 @@ export async function setWalletBalance(userId: string, amount: number): Promise<
 
 /** Freeze a user's wallet by adding "wallet" to their blockedServices. */
 export async function freezeWallet(userId: string): Promise<void> {
-  await db
-    .update(usersTable)
-    .set({ blockedServices: "wallet" })
-    .where(eq(usersTable.id, userId));
+  await db.update(usersTable).set({ blockedServices: "wallet" }).where(eq(usersTable.id, userId));
 }
 
 /** Get a user's current wallet balance from the DB. */
@@ -243,16 +228,12 @@ export async function getWalletBalance(userId: string): Promise<number> {
 
 /** Clean up all wallet transactions for a user. */
 export async function cleanupWalletTransactions(userId: string): Promise<void> {
-  await db
-    .delete(walletTransactionsTable)
-    .where(eq(walletTransactionsTable.userId, userId));
+  await db.delete(walletTransactionsTable).where(eq(walletTransactionsTable.userId, userId));
 }
 
 /** Clean up idempotency keys for a user. */
 export async function cleanupIdempotencyKeys(userId: string): Promise<void> {
-  await db
-    .delete(idempotencyKeysTable)
-    .where(eq(idempotencyKeysTable.userId, userId));
+  await db.delete(idempotencyKeysTable).where(eq(idempotencyKeysTable.userId, userId));
 }
 
 // ─── Ride Helpers ─────────────────────────────────────────────────────────────
@@ -305,10 +286,13 @@ export async function setRideOtp(rideId: string, otp: string): Promise<void> {
 }
 
 /** Create a rider profile for a user. */
-export async function createRiderProfile(userId: string, opts: {
-  vehicleType?: string;
-  vehiclePlate?: string;
-} = {}): Promise<void> {
+export async function createRiderProfile(
+  userId: string,
+  opts: {
+    vehicleType?: string;
+    vehiclePlate?: string;
+  } = {}
+): Promise<void> {
   await db
     .insert(riderProfilesTable)
     .values({
@@ -321,21 +305,15 @@ export async function createRiderProfile(userId: string, opts: {
 
 /** Clean up all rides for a user (as customer or rider). */
 export async function cleanupRides(userId: string): Promise<void> {
-  await db
-    .delete(ridesTable)
-    .where(eq(ridesTable.userId, userId));
+  await db.delete(ridesTable).where(eq(ridesTable.userId, userId));
 }
 
 /** Clean up a specific ride by ID. */
 export async function deleteRide(rideId: string): Promise<void> {
-  await db
-    .delete(ridesTable)
-    .where(eq(ridesTable.id, rideId));
+  await db.delete(ridesTable).where(eq(ridesTable.id, rideId));
 }
 
 /** Clean up ride OTP attempts for a ride. */
 export async function cleanupRideOtpAttempts(rideId: string): Promise<void> {
-  await db
-    .delete(otpAttemptsTable)
-    .where(eq(otpAttemptsTable.key, rideId));
+  await db.delete(otpAttemptsTable).where(eq(otpAttemptsTable.key, rideId));
 }

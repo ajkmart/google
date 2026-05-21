@@ -6,8 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type SendOtpRequestRole =
-  (typeof SendOtpRequestRole)[keyof typeof SendOtpRequestRole];
+export type SendOtpRequestRole = (typeof SendOtpRequestRole)[keyof typeof SendOtpRequestRole];
 
 export const SendOtpRequestRole = {
   customer: "customer",

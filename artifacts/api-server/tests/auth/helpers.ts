@@ -1,6 +1,5 @@
-import express, { type Application } from "express";
 import cookieParser from "cookie-parser";
-import { vi } from "vitest";
+import express, { type Application } from "express";
 
 export const DEFAULT_SETTINGS: Record<string, string> = {
   auth_phone_otp_enabled: "on",

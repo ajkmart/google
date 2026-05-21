@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { escapeHtml } from "../src/lib/escapeHtml";
 
 describe("escapeHtml", () => {
   it("encodes the standard XSS-relevant characters", () => {
     expect(escapeHtml("<script>alert('x')</script>")).toBe(
-      "&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt;",
+      "&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt;"
     );
   });
 
@@ -21,8 +21,6 @@ describe("escapeHtml", () => {
   });
 
   it("encodes both quote styles", () => {
-    expect(escapeHtml(`hello "world" 'quotes'`)).toBe(
-      "hello &quot;world&quot; &#39;quotes&#39;",
-    );
+    expect(escapeHtml(`hello "world" 'quotes'`)).toBe("hello &quot;world&quot; &#39;quotes&#39;");
   });
 });

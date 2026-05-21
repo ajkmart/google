@@ -1,9 +1,11 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 const API = "/api/auth";
 
 test.describe("Vendor Auth — password reset flow", () => {
-  test("forgot-password with unknown identifier returns generic success (no leakage)", async ({ request }) => {
+  test("forgot-password with unknown identifier returns generic success (no leakage)", async ({
+    request,
+  }) => {
     const res = await request.post(`${API}/forgot-password`, {
       data: { identifier: "unknown_vendor_xyz@example.com" },
     });

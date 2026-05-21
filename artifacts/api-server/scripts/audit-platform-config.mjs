@@ -18,14 +18,14 @@ const BASE_URL = process.argv[2]?.replace(/\/$/, "") ?? "http://localhost:5000";
 const ENDPOINT = `${BASE_URL}/api/platform-config`;
 
 const REQUIRED_PATHS = [
-  ["platform.appName",        "string"],
-  ["platform.appStatus",      "string"],
+  ["platform.appName", "string"],
+  ["platform.appStatus", "string"],
   ["platform.currencySymbol", "string"],
-  ["platform.currencyCode",   "string"],
-  ["features.mart",           "boolean"],
-  ["features.food",           "boolean"],
-  ["features.rides",          "boolean"],
-  ["finance.gstEnabled",      "boolean"],
+  ["platform.currencyCode", "string"],
+  ["features.mart", "boolean"],
+  ["features.food", "boolean"],
+  ["features.rides", "boolean"],
+  ["finance.gstEnabled", "boolean"],
   ["orderRules.minOrderAmount", "number"],
 ];
 
@@ -71,7 +71,9 @@ async function main() {
 
   const status = get(raw, "platform.appStatus");
   if (status && !EXPECTED_STATUS_VALUES.includes(status)) {
-    console.error(`  ✗  platform.appStatus has unexpected value "${status}" (expected one of: ${EXPECTED_STATUS_VALUES.join(", ")})`);
+    console.error(
+      `  ✗  platform.appStatus has unexpected value "${status}" (expected one of: ${EXPECTED_STATUS_VALUES.join(", ")})`
+    );
     fail++;
   }
 
@@ -104,11 +106,15 @@ async function main() {
       console.log(`  ✓  regional.phoneFormat  =  ${phoneFormat}  (valid regex)`);
       pass++;
     } catch {
-      console.error(`  ✗  regional.phoneFormat  =  ${phoneFormat}  (INVALID regex — validator will fall back to hardcoded pattern)`);
+      console.error(
+        `  ✗  regional.phoneFormat  =  ${phoneFormat}  (INVALID regex — validator will fall back to hardcoded pattern)`
+      );
       fail++;
     }
   } else {
-    console.log(`  ℹ  regional.phoneFormat not set — apps will use hardcoded /^0?3\\d{9}$/ pattern`);
+    console.log(
+      `  ℹ  regional.phoneFormat not set — apps will use hardcoded /^0?3\\d{9}$/ pattern`
+    );
   }
 
   console.log(`\n${"─".repeat(56)}`);

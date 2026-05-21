@@ -1,6 +1,6 @@
-import { AdminFetchError, TimeoutError } from "./adminFetcher";
-import { isApiErr } from "./adminApiTypes";
 import { useToast } from "@/hooks/use-toast";
+import { isApiErr } from "./adminApiTypes";
+import { AdminFetchError, TimeoutError } from "./adminFetcher";
 
 /**
  * Maps any thrown error value to a human-readable string.
@@ -20,7 +20,8 @@ export function parseApiError(err: unknown): string {
     if (err.status === 401) return "Your session has expired. Please log in again.";
     if (err.status === 403) return "You do not have permission to perform this action.";
     if (err.status === 404) return "The requested resource was not found.";
-    if (err.status === 409) return err.message || "A conflict occurred. The item may already exist.";
+    if (err.status === 409)
+      return err.message || "A conflict occurred. The item may already exist.";
     if (err.status === 422) return err.message || "The submitted data is invalid.";
     if (err.status >= 500) return "A server error occurred. Please try again later.";
     return err.message || `Request failed (HTTP ${err.status}).`;
@@ -32,7 +33,10 @@ export function parseApiError(err: unknown): string {
 
   if (err instanceof Error) {
     if (err.name === "AbortError") return "The request was cancelled.";
-    if (err.message.toLowerCase().includes("network") || err.message.toLowerCase().includes("failed to fetch")) {
+    if (
+      err.message.toLowerCase().includes("network") ||
+      err.message.toLowerCase().includes("failed to fetch")
+    ) {
       return "Network error. Check your connection and try again.";
     }
     return err.message || "An unexpected error occurred.";

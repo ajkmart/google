@@ -106,11 +106,16 @@ export function TwoFactorVerify({
 
       {!useBackup ? (
         <>
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 16 }} onPaste={handlePaste}>
+          <div
+            style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 16 }}
+            onPaste={handlePaste}
+          >
             {digits.map((digit, i) => (
               <input
                 key={i}
-                ref={(el) => { inputRefs.current[i] = el; }}
+                ref={(el) => {
+                  inputRefs.current[i] = el;
+                }}
                 type="text"
                 inputMode="numeric"
                 maxLength={1}

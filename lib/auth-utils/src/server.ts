@@ -27,7 +27,7 @@ export type Role = "customer" | "rider" | "vendor" | "admin" | string;
 export function isAuthMethodEnabled(
   settings: Record<string, string>,
   key: string,
-  role?: Role,
+  role?: Role
 ): boolean {
   const val = settings[key];
   if (!val) return false;
@@ -57,7 +57,7 @@ export function isAuthMethodEnabledStrict(
   settings: Record<string, string>,
   newKey: string,
   legacyKey: string,
-  role?: Role,
+  role?: Role
 ): boolean {
   const newVal = settings[newKey];
   if (newVal) {

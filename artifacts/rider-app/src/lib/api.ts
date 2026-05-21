@@ -1,7 +1,7 @@
-import { getRiderApiBase } from "./envValidation";
+import { createLogger } from "@/lib/logger";
 import { createResilientFetcher } from "@workspace/api-client-react";
 import { createAuthClient } from "@workspace/auth-react";
-import { createLogger } from "@/lib/logger";
+import { getRiderApiBase } from "./envValidation";
 const log = createLogger("[api]");
 
 const BASE = getRiderApiBase();
@@ -11,7 +11,7 @@ export function getApiBase(): string {
   return BASE;
 }
 
-const TOKEN_KEY   = "ajkmart_rider_token";
+const TOKEN_KEY = "ajkmart_rider_token";
 const REFRESH_KEY = "ajkmart_rider_refresh_token";
 
 /* ── Secure token storage ──────────────────────────────────────────────────────
@@ -23,15 +23,20 @@ const REFRESH_KEY = "ajkmart_rider_refresh_token";
 
    Refresh tokens are carried by an HttpOnly cookie (no localStorage). */
 
-let _inMemoryAccessToken   = "";
-let _inMemoryRefreshToken  = "";
+let _inMemoryAccessToken = "";
+let _inMemoryRefreshToken = "";
 
 /* One-time purge of legacy refresh-token persistence. */
 try {
   if (typeof localStorage !== "undefined") {
     localStorage.removeItem(REFRESH_KEY);
   }
-} catch (err) { log.warn({ err: err instanceof Error ? err.message : String(err) }, "[api] legacy localStorage purge failed — non-critical"); }
+} catch (err) {
+  log.warn(
+    { err: err instanceof Error ? err.message : String(err) },
+    "[api] legacy localStorage purge failed — non-critical"
+  );
+}
 
 /* ── Preferences-backed async token storage ── */
 async function preferencesSet(key: string, value: string): Promise<void> {
@@ -39,7 +44,10 @@ async function preferencesSet(key: string, value: string): Promise<void> {
     const { Preferences } = await import("@capacitor/preferences");
     await Preferences.set({ key, value });
   } catch (err) {
-    log.warn({ key, err: err instanceof Error ? err.message : String(err) }, "[api] preferencesSet failed — token persistence unavailable");
+    log.warn(
+      { key, err: err instanceof Error ? err.message : String(err) },
+      "[api] preferencesSet failed — token persistence unavailable"
+    );
   }
 }
 
@@ -49,7 +57,10 @@ async function preferencesGet(key: string): Promise<string> {
     const { value } = await Preferences.get({ key });
     return value ?? "";
   } catch (err) {
-    log.warn({ key, err: err instanceof Error ? err.message : String(err) }, "[api] preferencesGet failed — returning empty string");
+    log.warn(
+      { key, err: err instanceof Error ? err.message : String(err) },
+      "[api] preferencesGet failed — returning empty string"
+    );
     return "";
   }
 }
@@ -59,7 +70,10 @@ async function preferencesRemove(key: string): Promise<void> {
     const { Preferences } = await import("@capacitor/preferences");
     await Preferences.remove({ key });
   } catch (err) {
-    log.warn({ key, err: err instanceof Error ? err.message : String(err) }, "[api] preferencesRemove failed — non-critical");
+    log.warn(
+      { key, err: err instanceof Error ? err.message : String(err) },
+      "[api] preferencesRemove failed — non-critical"
+    );
   }
 }
 
@@ -91,11 +105,21 @@ function sessionGet(): string {
 }
 function sessionSet(value: string): void {
   _inMemoryAccessToken = value;
-  preferencesSet(TOKEN_KEY, value).catch((err) => { log.warn({ err: err instanceof Error ? err.message : String(err) }, "[api] sessionSet persistence failed"); });
+  preferencesSet(TOKEN_KEY, value).catch((err) => {
+    log.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[api] sessionSet persistence failed"
+    );
+  });
 }
 function sessionRemove(): void {
   _inMemoryAccessToken = "";
-  preferencesRemove(TOKEN_KEY).catch((err) => { log.warn({ err: err instanceof Error ? err.message : String(err) }, "[api] sessionRemove persistence failed"); });
+  preferencesRemove(TOKEN_KEY).catch((err) => {
+    log.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[api] sessionRemove persistence failed"
+    );
+  });
 }
 
 /* Refresh token helpers — Preferences-backed (identical to access token approach).
@@ -107,28 +131,43 @@ function localGet(): string {
 }
 function localSet(value: string): void {
   _inMemoryRefreshToken = value;
-  preferencesSet(REFRESH_KEY, value).catch((err) => { log.warn({ err: err instanceof Error ? err.message : String(err) }, "[api] localSet persistence failed"); });
+  preferencesSet(REFRESH_KEY, value).catch((err) => {
+    log.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[api] localSet persistence failed"
+    );
+  });
 }
 function localRemove(): void {
   _inMemoryRefreshToken = "";
-  preferencesRemove(REFRESH_KEY).catch((err) => { log.warn({ err: err instanceof Error ? err.message : String(err) }, "[api] localRemove persistence failed"); });
+  preferencesRemove(REFRESH_KEY).catch((err) => {
+    log.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[api] localRemove persistence failed"
+    );
+  });
 }
 
 /* ── Rider token storage — Preferences-backed with in-memory cache ───────────
    Exported so rider-auth.tsx can pass it to useTokenRefresh (SDK hook) without
    duplicating the Preferences integration. */
 export const riderTokenStorage = {
-  getAccessToken:    sessionGet,
-  setAccessToken:    sessionSet,
+  getAccessToken: sessionGet,
+  setAccessToken: sessionSet,
   removeAccessToken: sessionRemove,
-  getRefreshToken:   localGet,
-  setRefreshToken:   localSet,
+  getRefreshToken: localGet,
+  setRefreshToken: localSet,
   removeRefreshToken: localRemove,
-  clear: () => { sessionRemove(); localRemove(); },
+  clear: () => {
+    sessionRemove();
+    localRemove();
+  },
 };
 
 /** Returns the shared rider token storage instance for use in SDK hooks. */
-export function getRiderTokenStorage() { return riderTokenStorage; }
+export function getRiderTokenStorage() {
+  return riderTokenStorage;
+}
 
 /* ── Shared SDK auth client (typed HTTP client from @workspace/auth-react) ── */
 export const authClient = createAuthClient({
@@ -157,15 +196,29 @@ function sweepLegacyTokens(): void {
         keysToRemove.push(key);
       }
     }
-    keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch (err) { log.warn({ key: k, err: err instanceof Error ? err.message : String(err) }, "[api] sweepLegacyTokens removeItem failed"); } });
-  } catch (err) { log.warn({ err: err instanceof Error ? err.message : String(err) }, "[api] sweepLegacyTokens failed — non-critical"); }
+    keysToRemove.forEach((k) => {
+      try {
+        localStorage.removeItem(k);
+      } catch (err) {
+        log.warn(
+          { key: k, err: err instanceof Error ? err.message : String(err) },
+          "[api] sweepLegacyTokens removeItem failed"
+        );
+      }
+    });
+  } catch (err) {
+    log.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[api] sweepLegacyTokens failed — non-critical"
+    );
+  }
 }
 
 function clearTokens(): void {
   sessionRemove();
   localRemove();
   sweepLegacyTokens();
-  _inMemoryAccessToken  = "";
+  _inMemoryAccessToken = "";
   _inMemoryRefreshToken = "";
 }
 
@@ -177,7 +230,9 @@ const _tokenRefreshCallbacks = new Set<() => void>();
 
 export function registerTokenRefreshCallback(fn: () => void): () => void {
   _tokenRefreshCallbacks.add(fn);
-  return () => { _tokenRefreshCallbacks.delete(fn); };
+  return () => {
+    _tokenRefreshCallbacks.delete(fn);
+  };
 }
 
 /* ── Module-level logout callback ─────────────────────────────────────────────
@@ -189,7 +244,9 @@ let _logoutCallback: (() => void) | null = null;
 
 export function registerLogoutCallback(fn: () => void): () => void {
   _logoutCallback = fn;
-  return () => { if (_logoutCallback === fn) _logoutCallback = null; };
+  return () => {
+    if (_logoutCallback === fn) _logoutCallback = null;
+  };
 }
 
 function triggerLogout(reason: string) {
@@ -200,7 +257,12 @@ function triggerLogout(reason: string) {
   /* Also dispatch CustomEvent for components that still listen to it */
   try {
     window.dispatchEvent(new CustomEvent("ajkmart:logout", { detail: { reason } }));
-  } catch (err) { log.warn({ err: err instanceof Error ? err.message : String(err) }, "[api] dispatchEvent(ajkmart:logout) failed — non-critical"); }
+  } catch (err) {
+    log.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[api] dispatchEvent(ajkmart:logout) failed — non-critical"
+    );
+  }
 }
 
 export interface ApiError extends Error {
@@ -240,7 +302,16 @@ const _resiClient = createResilientFetcher({
   setToken: (token: string | null) => {
     if (token) sessionSet(token);
     sweepLegacyTokens();
-    _tokenRefreshCallbacks.forEach(fn => { try { fn(); } catch (err) { log.warn({ err: err instanceof Error ? err.message : String(err) }, "[api] tokenRefreshCallback threw — non-critical"); } });
+    _tokenRefreshCallbacks.forEach((fn) => {
+      try {
+        fn();
+      } catch (err) {
+        log.warn(
+          { err: err instanceof Error ? err.message : String(err) },
+          "[api] tokenRefreshCallback threw — non-critical"
+        );
+      }
+    });
   },
   getRefreshToken: localGet,
   setRefreshToken: localSet,
@@ -259,7 +330,9 @@ const _resiClient = createResilientFetcher({
        storeCsrfToken is a hoisted function declaration — safe to call here. */
     const csrfInBody = (json as Record<string, unknown>).csrfToken;
     if (typeof csrfInBody === "string" && csrfInBody) {
-      storeCsrfToken(csrfInBody).catch((err: unknown) => { log.debug("[api] CSRF token store failed:", err); });
+      storeCsrfToken(csrfInBody).catch((err: unknown) => {
+        log.debug("[api] CSRF token store failed:", err);
+      });
     }
   },
 });
@@ -319,7 +392,11 @@ export interface Ride {
   myBid?: { fare: number | string } | null;
   paymentMethod?: string | null;
 }
-export interface RiderRequestsResponse { orders: Order[]; rides: Ride[]; _serverTime: string | null; }
+export interface RiderRequestsResponse {
+  orders: Order[];
+  rides: Ride[];
+  _serverTime: string | null;
+}
 
 /* ── CSRF token — Preferences-backed ──────────────────────────────────────────
    Capacitor does not expose HttpOnly cookies to JavaScript, so document.cookie
@@ -334,7 +411,9 @@ let _inMemoryCsrfToken = "";
 export async function storeCsrfToken(token: string): Promise<void> {
   if (!token) return;
   _inMemoryCsrfToken = token;
-  await preferencesSet(CSRF_KEY, token).catch((err: unknown) => { log.debug("[api] CSRF prefs store failed:", err); });
+  await preferencesSet(CSRF_KEY, token).catch((err: unknown) => {
+    log.debug("[api] CSRF prefs store failed:", err);
+  });
 }
 
 /* Load persisted CSRF token from Preferences into memory (called from tokenStoreReady). */
@@ -346,7 +425,9 @@ export const csrfStoreReady: Promise<void> = (async () => {
     try {
       const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
       if (match) _inMemoryCsrfToken = decodeURIComponent(match[1]);
-    } catch (e) { log.debug("[api] document.cookie unavailable:", e); }
+    } catch (e) {
+      log.debug("[api] document.cookie unavailable:", e);
+    }
   }
 })();
 
@@ -362,7 +443,11 @@ function readCsrfFromCookie(): string {
   }
 }
 
-export async function apiFetch(path: string, opts: RequestInit = {}, _returnEnvelope = false): Promise<any> {
+export async function apiFetch(
+  path: string,
+  opts: RequestInit = {},
+  _returnEnvelope = false
+): Promise<any> {
   /* Ensure the token store has been seeded from Preferences before any request fires.
      tokenStoreReady resolves once the persisted access + refresh tokens are loaded.
      Without this guard, the first request after a cold restart fires without a token. */
@@ -377,7 +462,7 @@ export async function apiFetch(path: string, opts: RequestInit = {}, _returnEnve
     headers: {
       ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
-      ...(opts.headers as Record<string, string> || {}),
+      ...((opts.headers as Record<string, string>) || {}),
     },
   };
 
@@ -395,17 +480,44 @@ export async function apiFetch(path: string, opts: RequestInit = {}, _returnEnve
       const body = e.responseData;
       const msg = (body.error as string) || "";
       /* code and rejectionReason may live at top level OR inside body.data */
-      const code = (body.code as string) || ((body.data as Record<string, unknown> | undefined)?.code as string) || "";
-      const rejectionReason = body.rejectionReason ?? (body.data as Record<string, unknown> | undefined)?.rejectionReason ?? null;
-      const approvalStatus = body.approvalStatus ?? (body.data as Record<string, unknown> | undefined)?.approvalStatus ?? null;
+      const code =
+        (body.code as string) ||
+        ((body.data as Record<string, unknown> | undefined)?.code as string) ||
+        "";
+      const rejectionReason =
+        body.rejectionReason ??
+        (body.data as Record<string, unknown> | undefined)?.rejectionReason ??
+        null;
+      const approvalStatus =
+        body.approvalStatus ??
+        (body.data as Record<string, unknown> | undefined)?.approvalStatus ??
+        null;
       /* APPROVAL_PENDING and APPROVAL_REJECTED are NOT auth failures — do not force logout */
-      const AUTH_DENY_CODES = ["AUTH_REQUIRED", "ROLE_DENIED", "TOKEN_INVALID", "TOKEN_EXPIRED", "ACCOUNT_BANNED"];
-      const AUTH_DENY_PHRASES = ["access denied", "forbidden", "unauthorized", "authentication required", "token invalid", "token expired"];
+      const AUTH_DENY_CODES = [
+        "AUTH_REQUIRED",
+        "ROLE_DENIED",
+        "TOKEN_INVALID",
+        "TOKEN_EXPIRED",
+        "ACCOUNT_BANNED",
+      ];
+      const AUTH_DENY_PHRASES = [
+        "access denied",
+        "forbidden",
+        "unauthorized",
+        "authentication required",
+        "token invalid",
+        "token expired",
+      ];
       const isAuthDenial =
         AUTH_DENY_CODES.includes(code) ||
-        AUTH_DENY_PHRASES.some(p => msg.toLowerCase().startsWith(p));
+        AUTH_DENY_PHRASES.some((p) => msg.toLowerCase().startsWith(p));
       if (isAuthDenial) triggerLogout("access_denied");
-      throw Object.assign(new Error(msg || "Access denied"), { status: 403, code, rejectionReason, approvalStatus });
+      throw Object.assign(new Error(msg || "Access denied"), {
+        status: 403,
+        code,
+        rejectionReason,
+        approvalStatus,
+      });
     }
     /* For non-auth errors, fire the error reporter then re-throw unchanged. */
     const status = e.status ?? 0;
@@ -413,7 +525,12 @@ export async function apiFetch(path: string, opts: RequestInit = {}, _returnEnve
       try {
         const { reportApiError } = await import("./error-reporter");
         reportApiError(path, status, (err as Error).message || "Request failed");
-      } catch (reportErr) { log.warn({ err: reportErr instanceof Error ? reportErr.message : String(reportErr) }, "[api] error reporter threw — non-critical"); }
+      } catch (reportErr) {
+        log.warn(
+          { err: reportErr instanceof Error ? reportErr.message : String(reportErr) },
+          "[api] error reporter threw — non-critical"
+        );
+      }
     }
     throw err;
   }
@@ -421,33 +538,116 @@ export async function apiFetch(path: string, opts: RequestInit = {}, _returnEnve
 
 export const api = {
   /* Auth */
-  sendOtp:      (phone: string, captchaToken?: string, preferredChannel?: string, signal?: AbortSignal) => apiFetch("/auth/send-otp", { method: "POST", body: JSON.stringify({ phone, captchaToken, ...(preferredChannel ? { preferredChannel } : {}) }), ...(signal ? { signal } : {}) }),
-  verifyOtp:    (phone: string, otp: string, deviceFingerprint?: string, captchaToken?: string) => apiFetch("/auth/verify-otp", { method: "POST", body: JSON.stringify({ phone, otp, role: "rider", deviceFingerprint, captchaToken }) }),
-  sendEmailOtp: (email: string, captchaToken?: string) => apiFetch("/auth/send-email-otp", { method: "POST", body: JSON.stringify({ email, captchaToken }) }),
-  verifyEmailOtp:(email: string, otp: string, deviceFingerprint?: string, captchaToken?: string) => apiFetch("/auth/verify-email-otp", { method: "POST", body: JSON.stringify({ email, otp, role: "rider", deviceFingerprint, captchaToken }) }),
-  loginUsername:(identifier: string, password: string, captchaToken?: string, deviceFingerprint?: string) => apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password, role: "rider", captchaToken, deviceFingerprint }) }),
-  checkAvailable:(data: { phone?: string; email?: string; username?: string }, signal?: AbortSignal) => apiFetch("/auth/check-available", { method: "POST", body: JSON.stringify(data), ...(signal ? { signal } : {}) }),
-  logout:       (refreshToken?: string) => apiFetch("/auth/logout", { method: "POST", body: JSON.stringify({ refreshToken }) }).finally(clearTokens),
+  sendOtp: (
+    phone: string,
+    captchaToken?: string,
+    preferredChannel?: string,
+    signal?: AbortSignal
+  ) =>
+    apiFetch("/auth/send-otp", {
+      method: "POST",
+      body: JSON.stringify({
+        phone,
+        captchaToken,
+        ...(preferredChannel ? { preferredChannel } : {}),
+      }),
+      ...(signal ? { signal } : {}),
+    }),
+  verifyOtp: (phone: string, otp: string, deviceFingerprint?: string, captchaToken?: string) =>
+    apiFetch("/auth/verify-otp", {
+      method: "POST",
+      body: JSON.stringify({ phone, otp, role: "rider", deviceFingerprint, captchaToken }),
+    }),
+  sendEmailOtp: (email: string, captchaToken?: string) =>
+    apiFetch("/auth/send-email-otp", {
+      method: "POST",
+      body: JSON.stringify({ email, captchaToken }),
+    }),
+  verifyEmailOtp: (email: string, otp: string, deviceFingerprint?: string, captchaToken?: string) =>
+    apiFetch("/auth/verify-email-otp", {
+      method: "POST",
+      body: JSON.stringify({ email, otp, role: "rider", deviceFingerprint, captchaToken }),
+    }),
+  loginUsername: (
+    identifier: string,
+    password: string,
+    captchaToken?: string,
+    deviceFingerprint?: string
+  ) =>
+    apiFetch("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        identifier,
+        password,
+        role: "rider",
+        captchaToken,
+        deviceFingerprint,
+      }),
+    }),
+  checkAvailable: (
+    data: { phone?: string; email?: string; username?: string },
+    signal?: AbortSignal
+  ) =>
+    apiFetch("/auth/check-available", {
+      method: "POST",
+      body: JSON.stringify(data),
+      ...(signal ? { signal } : {}),
+    }),
+  logout: (refreshToken?: string) =>
+    apiFetch("/auth/logout", { method: "POST", body: JSON.stringify({ refreshToken }) }).finally(
+      clearTokens
+    ),
 
   registerRider: (data: {
-    name: string; phone?: string; email?: string; cnic: string; vehicleType: string;
-    vehicleRegistration: string; drivingLicense: string; password?: string;
-    captchaToken?: string; username?: string;
-    address?: string; city?: string; emergencyContact?: string;
-    vehiclePlate?: string; vehiclePhoto?: string; documents?: string;
+    name: string;
+    phone?: string;
+    email?: string;
+    cnic: string;
+    vehicleType: string;
+    vehicleRegistration: string;
+    drivingLicense: string;
+    password?: string;
+    captchaToken?: string;
+    username?: string;
+    address?: string;
+    city?: string;
+    emergencyContact?: string;
+    vehiclePlate?: string;
+    vehiclePhoto?: string;
+    documents?: string;
     deviceMeta?: Record<string, unknown>;
   }) =>
-    apiFetch("/auth/register", { method: "POST", body: JSON.stringify({ ...data, role: "rider", vehicleRegNo: data.vehicleRegistration }) }),
+    apiFetch("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ ...data, role: "rider", vehicleRegNo: data.vehicleRegistration }),
+    }),
   emailRegisterRider: (data: {
-    name: string; phone?: string; email?: string; cnic: string; vehicleType: string;
-    vehicleRegistration: string; drivingLicense: string; password: string;
-    captchaToken?: string; username?: string;
-    address?: string; city?: string; emergencyContact?: string;
-    vehiclePlate?: string; vehiclePhoto?: string; documents?: string;
+    name: string;
+    phone?: string;
+    email?: string;
+    cnic: string;
+    vehicleType: string;
+    vehicleRegistration: string;
+    drivingLicense: string;
+    password: string;
+    captchaToken?: string;
+    username?: string;
+    address?: string;
+    city?: string;
+    emergencyContact?: string;
+    vehiclePlate?: string;
+    vehiclePhoto?: string;
+    documents?: string;
   }) =>
-    apiFetch("/auth/email-register", { method: "POST", body: JSON.stringify({ ...data, role: "rider", vehicleRegNo: data.vehicleRegistration }) }),
+    apiFetch("/auth/email-register", {
+      method: "POST",
+      body: JSON.stringify({ ...data, role: "rider", vehicleRegNo: data.vehicleRegistration }),
+    }),
   verifyTotpCode: (code: string, phone: string, captchaToken?: string) =>
-    apiFetch("/auth/verify-otp", { method: "POST", body: JSON.stringify({ phone, otp: code, role: "rider", captchaToken }) }),
+    apiFetch("/auth/verify-otp", {
+      method: "POST",
+      body: JSON.stringify({ phone, otp: code, role: "rider", captchaToken }),
+    }),
   uploadFile: (data: { file: string; filename?: string; mimeType?: string }) =>
     apiFetch("/uploads", { method: "POST", body: JSON.stringify(data) }),
   /* Multipart/form-data upload — avoids large base64 payload; used for delivery proof.
@@ -481,7 +681,7 @@ export const api = {
   uploadRegistrationDocWithProgress: async (
     file: File,
     uploadToken: string,
-    onProgress?: (pct: number) => void,
+    onProgress?: (pct: number) => void
   ): Promise<{ url?: string; downloadToken?: string; filename?: string; size?: number }> => {
     await tokenStoreReady;
     const accessToken = sessionGet();
@@ -493,7 +693,7 @@ export const api = {
       xhr.open("POST", `${BASE}/uploads/register`, true);
       xhr.withCredentials = true;
       if (accessToken) xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
-      if (csrfToken)   xhr.setRequestHeader("X-CSRF-Token", csrfToken);
+      if (csrfToken) xhr.setRequestHeader("X-CSRF-Token", csrfToken);
       xhr.setRequestHeader("x-upload-token", uploadToken);
       if (onProgress && xhr.upload) {
         xhr.upload.onprogress = (ev) => {
@@ -506,12 +706,21 @@ export const api = {
       xhr.onload = () => {
         if (onProgress) onProgress(100);
         let parsed: Record<string, unknown> | null = null;
-        try { parsed = xhr.responseText ? JSON.parse(xhr.responseText) as Record<string, unknown> : null; } catch { parsed = null; }
+        try {
+          parsed = xhr.responseText
+            ? (JSON.parse(xhr.responseText) as Record<string, unknown>)
+            : null;
+        } catch {
+          parsed = null;
+        }
         if (xhr.status >= 200 && xhr.status < 300) {
           const body = parsed?.data ? (parsed.data as Record<string, unknown>) : (parsed ?? {});
-          resolve(body as { url?: string; downloadToken?: string; filename?: string; size?: number });
+          resolve(
+            body as { url?: string; downloadToken?: string; filename?: string; size?: number }
+          );
         } else {
-          const msg = (parsed as { error?: string } | null)?.error ?? `Upload failed (${xhr.status})`;
+          const msg =
+            (parsed as { error?: string } | null)?.error ?? `Upload failed (${xhr.status})`;
           reject(Object.assign(new Error(msg), { status: xhr.status }));
         }
       };
@@ -551,28 +760,53 @@ export const api = {
   },
   /* Request a KYC review from the rider's already-uploaded registration documents. */
   requestKycReview: () => apiFetch("/rider/kyc/request", { method: "POST" }),
-  forgotPassword: (data: { method: "phone" | "email"; phone?: string; email?: string; captchaToken?: string }) =>
-    apiFetch("/auth/forgot-password", { method: "POST", body: JSON.stringify(data) }),
-  resetPassword: (data: { phone?: string; email?: string; otp: string; newPassword: string; totpCode?: string; captchaToken?: string }) =>
-    apiFetch("/auth/reset-password", { method: "POST", body: JSON.stringify(data) }),
+  forgotPassword: (data: {
+    method: "phone" | "email";
+    phone?: string;
+    email?: string;
+    captchaToken?: string;
+  }) => apiFetch("/auth/forgot-password", { method: "POST", body: JSON.stringify(data) }),
+  resetPassword: (data: {
+    phone?: string;
+    email?: string;
+    otp: string;
+    newPassword: string;
+    totpCode?: string;
+    captchaToken?: string;
+  }) => apiFetch("/auth/reset-password", { method: "POST", body: JSON.stringify(data) }),
   socialGoogle: (data: { idToken: string; deviceMeta?: Record<string, unknown> }) =>
-    apiFetch("/auth/social/google", { method: "POST", body: JSON.stringify({ ...data, role: "rider" }) }),
+    apiFetch("/auth/social/google", {
+      method: "POST",
+      body: JSON.stringify({ ...data, role: "rider" }),
+    }),
   socialFacebook: (data: { accessToken: string; deviceMeta?: Record<string, unknown> }) =>
-    apiFetch("/auth/social/facebook", { method: "POST", body: JSON.stringify({ ...data, role: "rider" }) }),
+    apiFetch("/auth/social/facebook", {
+      method: "POST",
+      body: JSON.stringify({ ...data, role: "rider" }),
+    }),
   magicLinkVerify: (data: { token: string }) =>
     apiFetch("/auth/magic-link/verify", { method: "POST", body: JSON.stringify(data) }),
-  twoFactorSetup: () =>
-    apiFetch("/auth/2fa/setup"),
+  twoFactorSetup: () => apiFetch("/auth/2fa/setup"),
   twoFactorEnable: (data: { code: string }) =>
     apiFetch("/auth/2fa/verify-setup", { method: "POST", body: JSON.stringify(data) }),
-  twoFactorVerify: (data: { code: string; tempToken?: string; deviceFingerprint?: string; trustDevice?: boolean }) =>
-    apiFetch("/auth/2fa/verify", { method: "POST", body: JSON.stringify(data) }),
-  twoFactorRecovery: (data: { backupCode: string; tempToken?: string; deviceFingerprint?: string }) =>
-    apiFetch("/auth/2fa/recovery", { method: "POST", body: JSON.stringify(data) }),
+  twoFactorVerify: (data: {
+    code: string;
+    tempToken?: string;
+    deviceFingerprint?: string;
+    trustDevice?: boolean;
+  }) => apiFetch("/auth/2fa/verify", { method: "POST", body: JSON.stringify(data) }),
+  twoFactorRecovery: (data: {
+    backupCode: string;
+    tempToken?: string;
+    deviceFingerprint?: string;
+  }) => apiFetch("/auth/2fa/recovery", { method: "POST", body: JSON.stringify(data) }),
   twoFactorDisable: (data: { code: string }) =>
     apiFetch("/auth/2fa/disable", { method: "POST", body: JSON.stringify(data) }),
   sendMagicLink: (email: string, deviceMeta?: Record<string, unknown>) =>
-    apiFetch("/auth/magic-link/send", { method: "POST", body: JSON.stringify({ email, ...(deviceMeta ? { deviceMeta } : {}) }) }),
+    apiFetch("/auth/magic-link/send", {
+      method: "POST",
+      body: JSON.stringify({ email, ...(deviceMeta ? { deviceMeta } : {}) }),
+    }),
 
   /* Token helpers */
   storeTokens: (token: string, refreshToken?: string) => {
@@ -591,82 +825,214 @@ export const api = {
   registerLogoutCallback,
 
   /* Rider */
-  getMe:        (signal?: AbortSignal) => apiFetch("/riders/me?appRole=rider", signal ? { signal } : {}),
-  setOnline:    (isOnline: boolean): Promise<{ isOnline: boolean; serviceZoneWarning?: string }> => apiFetch("/riders/online", { method: "PATCH", body: JSON.stringify({ isOnline }) }),
-  updateProfile:(data: Record<string, unknown>): Promise<{ success: boolean; pendingVerification?: boolean }> => apiFetch("/riders/profile", { method: "PATCH", body: JSON.stringify(data) }),
-  getRequests:  (): Promise<RiderRequestsResponse> =>
-    apiFetch("/riders/requests", {}, true).then((env: ApiEnvelope<{ orders: Order[]; rides: Ride[] }> & { serverTime?: string }) => {
-      const payload = env.data ?? { orders: [], rides: [] };
-      return {
-        orders: payload.orders ?? [],
-        rides: payload.rides ?? [],
-        _serverTime: env.serverTime ?? null,
-      };
+  getMe: (signal?: AbortSignal) => apiFetch("/riders/me?appRole=rider", signal ? { signal } : {}),
+  setOnline: (isOnline: boolean): Promise<{ isOnline: boolean; serviceZoneWarning?: string }> =>
+    apiFetch("/riders/online", { method: "PATCH", body: JSON.stringify({ isOnline }) }),
+  updateProfile: (
+    data: Record<string, unknown>
+  ): Promise<{ success: boolean; pendingVerification?: boolean }> =>
+    apiFetch("/riders/profile", { method: "PATCH", body: JSON.stringify(data) }),
+  getRequests: (): Promise<RiderRequestsResponse> =>
+    apiFetch("/riders/requests", {}, true).then(
+      (env: ApiEnvelope<{ orders: Order[]; rides: Ride[] }> & { serverTime?: string }) => {
+        const payload = env.data ?? { orders: [], rides: [] };
+        return {
+          orders: payload.orders ?? [],
+          rides: payload.rides ?? [],
+          _serverTime: env.serverTime ?? null,
+        };
+      }
+    ),
+  getActive: () => apiFetch("/riders/active"),
+  acceptOrder: (id: string) =>
+    apiFetch(`/riders/orders/${id}/accept`, { method: "POST", body: "{}" }),
+  rejectOrder: (id: string, reason?: string) =>
+    apiFetch(`/riders/orders/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason: reason || "not_interested" }),
     }),
-  getActive:    () => apiFetch("/riders/active"),
-  acceptOrder:  (id: string) => apiFetch(`/riders/orders/${id}/accept`, { method: "POST", body: "{}" }),
-  rejectOrder:  (id: string, reason?: string) => apiFetch(`/riders/orders/${id}/reject`, { method: "POST", body: JSON.stringify({ reason: reason || "not_interested" }) }),
-  updateOrder:  (id: string, status: string, proofPhoto?: string) => apiFetch(`/riders/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, ...(proofPhoto ? { proofPhoto } : {}) }) }),
-  acceptRide:   (id: string) => apiFetch(`/riders/rides/${id}/accept`, { method: "POST", body: "{}" }),
-  updateRide:   (id: string, status: string, loc?: { lat: number; lng: number }) => apiFetch(`/riders/rides/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, ...(loc || {}) }) }),
-  verifyRideOtp:(id: string, otp: string): Promise<{ success: boolean }> => apiFetch(`/riders/rides/${id}/verify-otp`, { method: "POST", body: JSON.stringify({ otp }) }),
-  counterRide:  (id: string, data: { counterFare: number; note?: string }) => apiFetch(`/riders/rides/${id}/counter`, { method: "POST", body: JSON.stringify(data) }),
-  rejectOffer:  (id: string) => apiFetch(`/riders/rides/${id}/reject-offer`, { method: "POST", body: "{}" }),
-  ignoreRide:   (id: string) => apiFetch(`/riders/rides/${id}/ignore`, { method: "POST", body: "{}" }),
+  updateOrder: (id: string, status: string, proofPhoto?: string) =>
+    apiFetch(`/riders/orders/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status, ...(proofPhoto ? { proofPhoto } : {}) }),
+    }),
+  acceptRide: (id: string) =>
+    apiFetch(`/riders/rides/${id}/accept`, { method: "POST", body: "{}" }),
+  updateRide: (id: string, status: string, loc?: { lat: number; lng: number }) =>
+    apiFetch(`/riders/rides/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status, ...(loc || {}) }),
+    }),
+  verifyRideOtp: (id: string, otp: string): Promise<{ success: boolean }> =>
+    apiFetch(`/riders/rides/${id}/verify-otp`, { method: "POST", body: JSON.stringify({ otp }) }),
+  counterRide: (id: string, data: { counterFare: number; note?: string }) =>
+    apiFetch(`/riders/rides/${id}/counter`, { method: "POST", body: JSON.stringify(data) }),
+  rejectOffer: (id: string) =>
+    apiFetch(`/riders/rides/${id}/reject-offer`, { method: "POST", body: "{}" }),
+  ignoreRide: (id: string) =>
+    apiFetch(`/riders/rides/${id}/ignore`, { method: "POST", body: "{}" }),
   getCancelStats: () => apiFetch("/riders/cancel-stats"),
   getIgnoreStats: () => apiFetch("/riders/ignore-stats"),
   getPenaltyHistory: () => apiFetch("/riders/penalty-history"),
-  getHistory:   (opts: { limit?: number; offset?: number } = {}): Promise<{ history: Array<{ id: string; kind: "order" | "ride"; type: string; status: string; earnings: number; amount: number; address?: string; createdAt: string; proofPhoto?: string; origin?: string; destination?: string; fare?: number; distance?: string | number; duration?: number }>; hasMore: boolean; limit: number; offset: number }> => {
+  getHistory: (
+    opts: { limit?: number; offset?: number } = {}
+  ): Promise<{
+    history: Array<{
+      id: string;
+      kind: "order" | "ride";
+      type: string;
+      status: string;
+      earnings: number;
+      amount: number;
+      address?: string;
+      createdAt: string;
+      proofPhoto?: string;
+      origin?: string;
+      destination?: string;
+      fare?: number;
+      distance?: string | number;
+      duration?: number;
+    }>;
+    hasMore: boolean;
+    limit: number;
+    offset: number;
+  }> => {
     const params = new URLSearchParams();
-    if (opts.limit  !== undefined) params.set("limit",  String(opts.limit));
+    if (opts.limit !== undefined) params.set("limit", String(opts.limit));
     if (opts.offset !== undefined) params.set("offset", String(opts.offset));
     const qs = params.toString();
     return apiFetch(`/riders/history${qs ? `?${qs}` : ""}`);
   },
-  getEarnings:  (): Promise<{ today: { earnings: number; deliveries: number; breakdown?: { food: { earnings: number; count: number }; parcel: { earnings: number; count: number }; rides: { earnings: number; count: number } } }; week: { earnings: number; deliveries: number; breakdown?: { food: { earnings: number; count: number }; parcel: { earnings: number; count: number }; rides: { earnings: number; count: number } } }; month: { earnings: number; deliveries: number; breakdown?: { food: { earnings: number; count: number }; parcel: { earnings: number; count: number }; rides: { earnings: number; count: number } } }; dailyGoal: number | null }> => apiFetch("/riders/earnings"),
+  getEarnings: (): Promise<{
+    today: {
+      earnings: number;
+      deliveries: number;
+      breakdown?: {
+        food: { earnings: number; count: number };
+        parcel: { earnings: number; count: number };
+        rides: { earnings: number; count: number };
+      };
+    };
+    week: {
+      earnings: number;
+      deliveries: number;
+      breakdown?: {
+        food: { earnings: number; count: number };
+        parcel: { earnings: number; count: number };
+        rides: { earnings: number; count: number };
+      };
+    };
+    month: {
+      earnings: number;
+      deliveries: number;
+      breakdown?: {
+        food: { earnings: number; count: number };
+        parcel: { earnings: number; count: number };
+        rides: { earnings: number; count: number };
+      };
+    };
+    dailyGoal: number | null;
+  }> => apiFetch("/riders/earnings"),
   getMyReviews: () => apiFetch("/riders/reviews"),
 
   /* Location */
-  updateLocation: (data: { latitude: number; longitude: number; accuracy?: number; speed?: number; heading?: number; batteryLevel?: number; mockProvider?: boolean; rideId?: string }) => apiFetch("/riders/location", { method: "PATCH", body: JSON.stringify(data) }),
-  batchLocation: (pings: Array<{ timestamp: string; latitude: number; longitude: number; accuracy?: number; speed?: number; heading?: number; batteryLevel?: number; mockProvider?: boolean; action?: string | null }>) =>
-    apiFetch("/riders/location/batch", { method: "POST", body: JSON.stringify({ locations: pings }) }),
+  updateLocation: (data: {
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+    speed?: number;
+    heading?: number;
+    batteryLevel?: number;
+    mockProvider?: boolean;
+    rideId?: string;
+  }) => apiFetch("/riders/location", { method: "PATCH", body: JSON.stringify(data) }),
+  batchLocation: (
+    pings: Array<{
+      timestamp: string;
+      latitude: number;
+      longitude: number;
+      accuracy?: number;
+      speed?: number;
+      heading?: number;
+      batteryLevel?: number;
+      mockProvider?: boolean;
+      action?: string | null;
+    }>
+  ) =>
+    apiFetch("/riders/location/batch", {
+      method: "POST",
+      body: JSON.stringify({ locations: pings }),
+    }),
 
   /* Wallet */
   /* getWallet — kept for backward compatibility. Calls the legacy non-paged
      endpoint shape `{ balance, transactions }` via `?legacy=1`. New code
      should use `getWalletPage` for cursor pagination. */
-  getWallet:      () => apiFetch("/riders/wallet/transactions?legacy=1"),
+  getWallet: () => apiFetch("/riders/wallet/transactions?legacy=1"),
   /* getWalletPage — cursor-paginated. Returns `{ balance, items, nextCursor, limit }`.
      Pass `cursor` (opaque string from the previous response) to fetch the
      next page. Pass `limit` (1–200) to control page size; default 50. */
-  getWalletPage:  (opts: { cursor?: string | null; limit?: number } = {}): Promise<{ balance: number; items: Array<{ id: string; type: string; amount: number; description?: string | null; reference?: string | null; createdAt: string; [k: string]: unknown }>; nextCursor: string | null; limit: number }> => {
+  getWalletPage: (
+    opts: { cursor?: string | null; limit?: number } = {}
+  ): Promise<{
+    balance: number;
+    items: Array<{
+      id: string;
+      type: string;
+      amount: number;
+      description?: string | null;
+      reference?: string | null;
+      createdAt: string;
+      [k: string]: unknown;
+    }>;
+    nextCursor: string | null;
+    limit: number;
+  }> => {
     const params = new URLSearchParams();
     if (opts.limit != null) params.set("limit", String(opts.limit));
     if (opts.cursor != null) params.set("cursor", opts.cursor);
     const qs = params.toString();
     return apiFetch(`/riders/wallet/transactions${qs ? `?${qs}` : ""}`);
   },
-  getMinBalance:  () => apiFetch("/riders/wallet/min-balance"),
-  withdrawWallet: (data: { amount: number; bankName: string; accountNumber: string; accountTitle: string; paymentMethod?: string; note?: string }) =>
-    apiFetch("/riders/wallet/withdraw", { method: "POST", body: JSON.stringify(data) }),
-  submitDeposit:  (data: { amount: number; paymentMethod: string; transactionId: string; accountNumber?: string; note?: string }) =>
-    apiFetch("/riders/wallet/deposit", { method: "POST", body: JSON.stringify(data) }),
-  getDeposits:    () => apiFetch("/riders/wallet/deposits"),
+  getMinBalance: () => apiFetch("/riders/wallet/min-balance"),
+  withdrawWallet: (data: {
+    amount: number;
+    bankName: string;
+    accountNumber: string;
+    accountTitle: string;
+    paymentMethod?: string;
+    note?: string;
+  }) => apiFetch("/riders/wallet/withdraw", { method: "POST", body: JSON.stringify(data) }),
+  submitDeposit: (data: {
+    amount: number;
+    paymentMethod: string;
+    transactionId: string;
+    accountNumber?: string;
+    note?: string;
+  }) => apiFetch("/riders/wallet/deposit", { method: "POST", body: JSON.stringify(data) }),
+  getDeposits: () => apiFetch("/riders/wallet/deposits"),
 
   /* COD Remittance */
-  getPopularCities:    (): Promise<{ cities: string[] }> => apiFetch("/maps/popular-cities"),
-  getCodSummary:       () => apiFetch("/riders/cod-summary"),
-  submitCodRemittance: (data: { amount: number; paymentMethod: string; accountNumber: string; transactionId?: string; note?: string }) =>
-    apiFetch("/riders/cod/remit", { method: "POST", body: JSON.stringify(data) }),
+  getPopularCities: (): Promise<{ cities: string[] }> => apiFetch("/maps/popular-cities"),
+  getCodSummary: () => apiFetch("/riders/cod-summary"),
+  submitCodRemittance: (data: {
+    amount: number;
+    paymentMethod: string;
+    accountNumber: string;
+    transactionId?: string;
+    note?: string;
+  }) => apiFetch("/riders/cod/remit", { method: "POST", body: JSON.stringify(data) }),
 
   /* Notifications */
   getNotifications: () => apiFetch("/riders/notifications"),
-  markAllRead:      () => apiFetch("/riders/notifications/read-all", { method: "PATCH", body: "{}" }),
-  markOneRead:      (id: string) => apiFetch(`/riders/notifications/${id}/read`, { method: "PATCH", body: "{}" }),
+  markAllRead: () => apiFetch("/riders/notifications/read-all", { method: "PATCH", body: "{}" }),
+  markOneRead: (id: string) =>
+    apiFetch(`/riders/notifications/${id}/read`, { method: "PATCH", body: "{}" }),
 
   /* Settings */
-  getSettings:    () => apiFetch("/settings"),
-  updateSettings: (data: Record<string, unknown>) => apiFetch("/settings", { method: "PUT", body: JSON.stringify(data) }),
+  getSettings: () => apiFetch("/settings"),
+  updateSettings: (data: Record<string, unknown>) =>
+    apiFetch("/settings", { method: "PUT", body: JSON.stringify(data) }),
 
   /* AI Assistant */
   aiChat: (message: string, history?: Array<{ role: "user" | "assistant"; content: string }>) =>

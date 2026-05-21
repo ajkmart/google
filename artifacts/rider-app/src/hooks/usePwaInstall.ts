@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -12,7 +12,12 @@ export function usePwaInstall() {
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isDismissed, setIsDismissed] = useState<boolean>(() => {
-    try { return localStorage.getItem(DISMISSED_KEY) === "1"; } catch (err) { console.warn('[artifacts/rider-app/src/hooks/usePwaInstall.ts]', err); return false; } // eslint-disable-line no-console
+    try {
+      return localStorage.getItem(DISMISSED_KEY) === "1";
+    } catch (err) {
+      console.warn("[artifacts/rider-app/src/hooks/usePwaInstall.ts]", err);
+      return false;
+    } // eslint-disable-line no-console
   });
 
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -21,14 +26,20 @@ export function usePwaInstall() {
     (window.navigator as { standalone?: boolean }).standalone === true;
 
   useEffect(() => {
-    if (isStandalone) { setIsInstalled(true); return; }
+    if (isStandalone) {
+      setIsInstalled(true);
+      return;
+    }
 
     const onPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       setIsInstallable(true);
     };
-    const onInstalled = () => { setIsInstalled(true); setIsInstallable(false); };
+    const onInstalled = () => {
+      setIsInstalled(true);
+      setIsInstallable(false);
+    };
 
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", onInstalled);
@@ -36,7 +47,10 @@ export function usePwaInstall() {
     // Hide the banner automatically if beforeinstallprompt never fires
     // (e.g. sandboxed Replit preview iframe, already-installed, or unsupported browser).
     const timeout = setTimeout(() => {
-      setDeferredPrompt(prev => { if (!prev) setIsInstallable(false); return prev; });
+      setDeferredPrompt((prev) => {
+        if (!prev) setIsInstallable(false);
+        return prev;
+      });
     }, 5000);
 
     return () => {
@@ -52,14 +66,20 @@ export function usePwaInstall() {
       await deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === "accepted") setIsInstalled(true);
-    } catch (err) { console.warn('[artifacts/rider-app/src/hooks/usePwaInstall.ts]', err); } // eslint-disable-line no-console
+    } catch (err) {
+      console.warn("[artifacts/rider-app/src/hooks/usePwaInstall.ts]", err);
+    } // eslint-disable-line no-console
     setDeferredPrompt(null);
     setIsInstallable(false);
   };
 
   const dismiss = () => {
     setIsDismissed(true);
-    try { localStorage.setItem(DISMISSED_KEY, "1"); } catch (err) { console.warn('[artifacts/rider-app/src/hooks/usePwaInstall.ts]', err); } // eslint-disable-line no-console
+    try {
+      localStorage.setItem(DISMISSED_KEY, "1");
+    } catch (err) {
+      console.warn("[artifacts/rider-app/src/hooks/usePwaInstall.ts]", err);
+    } // eslint-disable-line no-console
   };
 
   return { isInstallable, isInstalled, isIOS, isStandalone, isDismissed, promptInstall, dismiss };

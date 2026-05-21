@@ -60,16 +60,20 @@ function _buildVendorEnv(): VendorEnv {
   }
 
   const apiProxyTarget =
-    typeof env["VITE_API_PROXY_TARGET"] === "string" && (env["VITE_API_PROXY_TARGET"] as string).trim()
+    typeof env["VITE_API_PROXY_TARGET"] === "string" &&
+    (env["VITE_API_PROXY_TARGET"] as string).trim()
       ? (env["VITE_API_PROXY_TARGET"] as string).trim()
       : undefined;
 
   if (!apiProxyTarget && !apiBaseUrl) {
-    warnings.push("Neither VITE_API_PROXY_TARGET nor VITE_API_BASE_URL is set — API proxy may point to wrong host");
+    warnings.push(
+      "Neither VITE_API_PROXY_TARGET nor VITE_API_BASE_URL is set — API proxy may point to wrong host"
+    );
   }
 
   const firebaseApiKey =
-    typeof env["VITE_FIREBASE_API_KEY"] === "string" && (env["VITE_FIREBASE_API_KEY"] as string).trim()
+    typeof env["VITE_FIREBASE_API_KEY"] === "string" &&
+    (env["VITE_FIREBASE_API_KEY"] as string).trim()
       ? (env["VITE_FIREBASE_API_KEY"] as string).trim()
       : undefined;
 

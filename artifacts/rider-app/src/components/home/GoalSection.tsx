@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Target, CheckCircle, Pencil, X } from "lucide-react";
-import { formatCurrency } from "../dashboard";
+import { CheckCircle, Pencil, Target, X } from "lucide-react";
+import { useState } from "react";
 import { api } from "../../lib/api";
+import { formatCurrency } from "../dashboard";
 
 interface GoalSectionProps {
   adminGoal: number;
@@ -14,7 +14,15 @@ interface GoalSectionProps {
   refreshUser: () => Promise<void>;
 }
 
-export function GoalSection({ adminGoal, personalGoal, todayEarnings, currency, T, showToast, refreshUser }: GoalSectionProps) {
+export function GoalSection({
+  adminGoal,
+  personalGoal,
+  todayEarnings,
+  currency,
+  T,
+  showToast,
+  refreshUser,
+}: GoalSectionProps) {
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [goalInput, setGoalInput] = useState("");
@@ -27,7 +35,9 @@ export function GoalSection({ adminGoal, personalGoal, todayEarnings, currency, 
     mutationFn: (v: number | null) => api.updateProfile({ dailyGoal: v }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["rider-earnings"] });
-      await refreshUser().catch((err) => { console.warn('[artifacts/rider-app/src/components/home/GoalSection.tsx]', err); }); // eslint-disable-line no-console
+      await refreshUser().catch((err) => {
+        console.warn("[artifacts/rider-app/src/components/home/GoalSection.tsx]", err);
+      }); // eslint-disable-line no-console
       setShowModal(false);
       showToast("Daily goal updated!", "success");
     },
@@ -51,67 +61,100 @@ export function GoalSection({ adminGoal, personalGoal, todayEarnings, currency, 
         type="button"
         onClick={openModal}
         aria-label="Set personal daily earnings goal"
-        className="w-full text-left bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-3 active:bg-gray-50 transition-colors"
+        className="w-full rounded-2xl border border-gray-100 bg-white px-4 py-3 text-left shadow-sm transition-colors active:bg-gray-50"
       >
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+        <div className="mb-2 flex items-center justify-between">
+          <p className="flex items-center gap-1.5 text-xs font-bold text-gray-700">
             <Target size={12} className={reached ? "text-green-500" : "text-gray-400"} />
             {T("dailyGoal")}
             {personalGoal !== null && (
-              <span className="text-[8px] font-bold bg-gray-900 text-white rounded-full px-1.5 py-0.5 uppercase tracking-wider">{T("myGoalBadge")}</span>
+              <span className="rounded-full bg-gray-900 px-1.5 py-0.5 text-[8px] font-bold tracking-wider text-white uppercase">
+                {T("myGoalBadge")}
+              </span>
             )}
           </p>
           <div className="flex items-center gap-1.5">
-            <span className={`text-xs font-extrabold ${reached ? "text-green-600" : "text-gray-900"}`}>{todayPct}%</span>
+            <span
+              className={`text-xs font-extrabold ${reached ? "text-green-600" : "text-gray-900"}`}
+            >
+              {todayPct}%
+            </span>
             {reached && <CheckCircle size={12} className="text-green-500" />}
-            <Pencil size={11} className="text-gray-300"/>
+            <Pencil size={11} className="text-gray-300" />
           </div>
         </div>
-        <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
           <div
             className={`h-2 rounded-full transition-all duration-700 ${reached ? "bg-green-500" : todayPct >= 60 ? "bg-gray-700" : "bg-gray-400"}`}
             style={{ width: `${todayPct}%` }}
           />
         </div>
-        <p className="text-[10px] text-gray-400 mt-1.5 font-medium">
-          {reached ? T("dailyGoalReached") : `${formatCurrency(todayEarnings, currency)} / ${formatCurrency(dailyGoal, currency)}`}
+        <p className="mt-1.5 text-[10px] font-medium text-gray-400">
+          {reached
+            ? T("dailyGoalReached")
+            : `${formatCurrency(todayEarnings, currency)} / ${formatCurrency(dailyGoal, currency)}`}
         </p>
       </button>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-sm rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl">
+            <div className="mb-4 flex items-center justify-between">
               <div>
-                <h3 className="font-extrabold text-gray-900 text-base">{T("setDailyGoalTitle")}</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Admin default: {formatCurrency(adminGoal, currency)}/day</p>
+                <h3 className="text-base font-extrabold text-gray-900">{T("setDailyGoalTitle")}</h3>
+                <p className="mt-0.5 text-xs text-gray-400">
+                  Admin default: {formatCurrency(adminGoal, currency)}/day
+                </p>
               </div>
-              <button onClick={() => setShowModal(false)} className="p-2 rounded-xl bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors">
-                <X size={16}/>
+              <button
+                onClick={() => setShowModal(false)}
+                className="rounded-xl bg-gray-100 p-2 text-gray-500 transition-colors hover:bg-gray-200"
+              >
+                <X size={16} />
               </button>
             </div>
             <div className="mb-4">
-              <label className="text-xs font-bold text-gray-600 uppercase tracking-wider block mb-1.5">Your Personal Goal ({currency})</label>
-              <div className="flex items-center border-2 border-gray-200 rounded-2xl overflow-hidden focus-within:border-gray-900 transition-colors">
-                <span className="px-3 text-gray-400 font-bold text-sm">{currency}</span>
+              <label className="mb-1.5 block text-xs font-bold tracking-wider text-gray-600 uppercase">
+                Your Personal Goal ({currency})
+              </label>
+              <div className="flex items-center overflow-hidden rounded-2xl border-2 border-gray-200 transition-colors focus-within:border-gray-900">
+                <span className="px-3 text-sm font-bold text-gray-400">{currency}</span>
                 <input
-                  type="number" min="1" step="100" value={goalInput}
-                  onChange={e => setGoalInput(e.target.value)}
+                  type="number"
+                  min="1"
+                  step="100"
+                  value={goalInput}
+                  onChange={(e) => setGoalInput(e.target.value)}
                   placeholder={String(Math.round(adminGoal))}
-                  className="flex-1 py-3 pr-3 text-gray-900 font-extrabold text-lg outline-none bg-transparent"
+                  className="flex-1 bg-transparent py-3 pr-3 text-lg font-extrabold text-gray-900 outline-none"
                   autoFocus
                 />
               </div>
-              <p className="text-xs text-gray-400 mt-1.5">Leave blank to use admin default ({formatCurrency(adminGoal, currency)}).</p>
+              <p className="mt-1.5 text-xs text-gray-400">
+                Leave blank to use admin default ({formatCurrency(adminGoal, currency)}).
+              </p>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setShowModal(false)} className="flex-1 py-3 rounded-2xl border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50 transition-colors">Cancel</button>
-              <button onClick={handleSave} disabled={goalMutation.isPending} className="flex-1 py-3 rounded-2xl bg-gray-900 text-white font-bold text-sm hover:bg-gray-800 transition-colors disabled:opacity-60">
+              <button
+                onClick={() => setShowModal(false)}
+                className="flex-1 rounded-2xl border border-gray-200 py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={goalMutation.isPending}
+                className="flex-1 rounded-2xl bg-gray-900 py-3 text-sm font-bold text-white transition-colors hover:bg-gray-800 disabled:opacity-60"
+              >
                 {goalMutation.isPending ? "Saving…" : T("saveGoal")}
               </button>
             </div>
             {personalGoal != null && (
-              <button onClick={() => goalMutation.mutate(null)} disabled={goalMutation.isPending} className="w-full mt-2 py-2.5 text-xs font-bold text-red-500 hover:text-red-700 transition-colors disabled:opacity-60">
+              <button
+                onClick={() => goalMutation.mutate(null)}
+                disabled={goalMutation.isPending}
+                className="mt-2 w-full py-2.5 text-xs font-bold text-red-500 transition-colors hover:text-red-700 disabled:opacity-60"
+              >
                 {T("resetToAdminDefault")}
               </button>
             )}

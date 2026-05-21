@@ -1,14 +1,10 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../components/dashboard", () => ({
-  OrderRequestCard: ({ order }: any) => (
-    <div data-testid="order-card">{order?.id ?? "order"}</div>
-  ),
-  RideRequestCard: ({ ride }: any) => (
-    <div data-testid="ride-card">{ride?.id ?? "ride"}</div>
-  ),
+  OrderRequestCard: ({ order }: any) => <div data-testid="order-card">{order?.id ?? "order"}</div>,
+  RideRequestCard: ({ ride }: any) => <div data-testid="ride-card">{ride?.id ?? "ride"}</div>,
 }));
 
 vi.mock("lucide-react", () => ({

@@ -6,8 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type BookRideRequestType =
-  (typeof BookRideRequestType)[keyof typeof BookRideRequestType];
+export type BookRideRequestType = (typeof BookRideRequestType)[keyof typeof BookRideRequestType];
 
 export const BookRideRequestType = {
   car: "car",

@@ -17,9 +17,9 @@
  * multer and never reach express.json()).
  */
 
-import type { Request, Response, NextFunction } from "express";
-import { JSDOM } from "jsdom";
 import DOMPurify from "dompurify";
+import type { NextFunction, Request, Response } from "express";
+import { JSDOM } from "jsdom";
 
 // jsdom's Window type doesn't fully satisfy DOMPurify's WindowLike interface
 // at the TypeScript level; the cast is safe because jsdom implements every
@@ -40,9 +40,7 @@ function sanitizeValue(value: unknown): unknown {
   }
   if (value !== null && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(
-        ([k, v]) => [k, sanitizeValue(v)],
-      ),
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, sanitizeValue(v)])
     );
   }
   return value;
@@ -55,11 +53,7 @@ function sanitizeValue(value: unknown): unknown {
  * Mount AFTER body parsers (express.json / express.urlencoded) and BEFORE
  * the API router so all downstream handlers receive clean input.
  */
-export function sanitizeBody(
-  req: Request,
-  _res: Response,
-  next: NextFunction,
-): void {
+export function sanitizeBody(req: Request, _res: Response, next: NextFunction): void {
   if (req.body && typeof req.body === "object") {
     req.body = sanitizeValue(req.body) as typeof req.body;
   }

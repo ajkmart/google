@@ -23,17 +23,18 @@ export function normalizePaginated<T>(res: unknown): ApiPaginated<T> {
           : [];
 
   const total =
-    typeof r.total === "number"
-      ? r.total
-      : typeof r.count === "number"
-        ? r.count
-        : items.length;
+    typeof r.total === "number" ? r.total : typeof r.count === "number" ? r.count : items.length;
 
   return {
     items,
     total,
     page: typeof r.page === "number" ? r.page : undefined,
-    pageSize: typeof r.pageSize === "number" ? r.pageSize : typeof r.limit === "number" ? r.limit : undefined,
+    pageSize:
+      typeof r.pageSize === "number"
+        ? r.pageSize
+        : typeof r.limit === "number"
+          ? r.limit
+          : undefined,
     hasMore: typeof r.hasMore === "boolean" ? r.hasMore : undefined,
   };
 }
@@ -49,7 +50,7 @@ export function normalizePaginated<T>(res: unknown): ApiPaginated<T> {
  */
 export function toFormDefaults<T extends Record<string, unknown>>(
   obj: Partial<T>,
-  schema?: Partial<Record<keyof T, string | number | boolean>>,
+  schema?: Partial<Record<keyof T, string | number | boolean>>
 ): T {
   const base = schema ? { ...schema } : { ...obj };
   const result: Record<string, unknown> = {};
@@ -93,7 +94,7 @@ export function toFormDefaults<T extends Record<string, unknown>>(
  */
 export function pickChanged<T extends Record<string, unknown>>(
   original: T,
-  updated: T,
+  updated: T
 ): Partial<T> {
   const changed: Partial<T> = {};
   const allKeys = new Set([...Object.keys(original), ...Object.keys(updated)]) as Set<keyof T>;

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 test.describe("Vendor Login", () => {
   test("load /vendor → login screen renders", async ({ page }) => {
@@ -28,7 +28,11 @@ test.describe("Vendor Login", () => {
     await expect(passwordTab).toBeVisible();
     await passwordTab.click();
 
-    const identifierInput = page.locator('input[placeholder="Phone / Username"], input[placeholder*="Username" i], input[placeholder*="Phone" i]').first();
+    const identifierInput = page
+      .locator(
+        'input[placeholder="Phone / Username"], input[placeholder*="Username" i], input[placeholder*="Phone" i]'
+      )
+      .first();
     await expect(identifierInput).toBeVisible({ timeout: 5_000 });
 
     const passwordInput = page.locator('input[type="password"]').first();
@@ -39,22 +43,36 @@ test.describe("Vendor Login", () => {
     const vendorPhone = process.env.TEST_VENDOR_PHONE;
     const vendorPassword = process.env.TEST_VENDOR_PASSWORD;
 
-    test.skip(!vendorPhone || !vendorPassword, "Set TEST_VENDOR_PHONE and TEST_VENDOR_PASSWORD env vars to run this test");
+    test.skip(
+      !vendorPhone || !vendorPassword,
+      "Set TEST_VENDOR_PHONE and TEST_VENDOR_PASSWORD env vars to run this test"
+    );
 
     await page.goto("/vendor/login");
     await page.waitForSelector("text=AJKMart Vendor", { timeout: 15_000 });
 
     await page.locator("button", { hasText: "Password" }).first().click();
 
-    const identifierInput = page.locator('input[placeholder="Phone / Username"], input[placeholder*="Username" i], input[placeholder*="Phone" i]').first();
+    const identifierInput = page
+      .locator(
+        'input[placeholder="Phone / Username"], input[placeholder*="Username" i], input[placeholder*="Phone" i]'
+      )
+      .first();
     await identifierInput.fill(vendorPhone!);
     await page.locator('input[type="password"]').first().fill(vendorPassword!);
-    await page.locator("button").filter({ hasText: /sign in/i }).first().click();
+    await page
+      .locator("button")
+      .filter({ hasText: /sign in/i })
+      .first()
+      .click();
 
     await expect(page).toHaveURL(/\/vendor\/?$|\/vendor\/dashboard/, { timeout: 20_000 });
   });
 
   test("logout → redirected to /vendor login", async ({ page }) => {
-    test.skip(true, "Requires authenticated session — skip until TEST_VENDOR_* credentials are set");
+    test.skip(
+      true,
+      "Requires authenticated session — skip until TEST_VENDOR_* credentials are set"
+    );
   });
 });

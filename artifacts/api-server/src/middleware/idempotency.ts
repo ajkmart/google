@@ -23,12 +23,12 @@
  *   TTL is IDEMPOTENCY_TTL_MS (30 min) — stale keys are automatically recycled.
  */
 
-import type { Request, Response, NextFunction } from "express";
 import { db } from "@workspace/db";
 import { idempotencyKeysTable } from "@workspace/db/schema";
 import { and, eq, gte } from "drizzle-orm";
-import { generateId } from "../lib/id.js";
+import type { NextFunction, Request, Response } from "express";
 import { IDEMPOTENCY_TTL_MS } from "../lib/cleanupIdempotencyKeys.js";
+import { generateId } from "../lib/id.js";
 import { logger } from "../lib/logger.js";
 
 declare module "express" {
@@ -49,14 +49,14 @@ export function idempotency(prefix: string) {
   return async function idempotencyMiddleware(
     req: Request,
     res: Response,
-    next: NextFunction,
+    next: NextFunction
   ): Promise<void> {
     const rawKey =
       typeof req.headers["x-idempotency-key"] === "string"
         ? req.headers["x-idempotency-key"].trim()
         : typeof req.body?.idempotencyKey === "string"
-        ? req.body.idempotencyKey.trim()
-        : null;
+          ? req.body.idempotencyKey.trim()
+          : null;
 
     /* No key supplied — passthrough; the route is not idempotency-protected. */
     if (!rawKey) {
@@ -86,10 +86,12 @@ export function idempotency(prefix: string) {
         const [existing] = await db
           .select()
           .from(idempotencyKeysTable)
-          .where(and(
-            eq(idempotencyKeysTable.userId, userId),
-            eq(idempotencyKeysTable.idempotencyKey, idemKey),
-          ))
+          .where(
+            and(
+              eq(idempotencyKeysTable.userId, userId),
+              eq(idempotencyKeysTable.idempotencyKey, idemKey)
+            )
+          )
           .limit(1);
 
         if (!existing) {
@@ -102,17 +104,20 @@ export function idempotency(prefix: string) {
             .returning({ id: idempotencyKeysTable.id });
 
           if (retry.length === 0) {
-            res.status(409).json({ success: false, error: "Request already in progress. Please wait and retry." });
+            res.status(409).json({
+              success: false,
+              error: "Request already in progress. Please wait and retry.",
+            });
             return;
           }
           /* Fall through — we now own the key. */
         } else if (existing.createdAt < ttlCutoff) {
           /* Stale row — delete by PK and re-acquire. */
-          await db.delete(idempotencyKeysTable)
-            .where(and(
-              eq(idempotencyKeysTable.id, existing.id),
-              eq(idempotencyKeysTable.userId, userId),
-            ));
+          await db
+            .delete(idempotencyKeysTable)
+            .where(
+              and(eq(idempotencyKeysTable.id, existing.id), eq(idempotencyKeysTable.userId, userId))
+            );
 
           const reinserted = await db
             .insert(idempotencyKeysTable)
@@ -125,15 +130,20 @@ export function idempotency(prefix: string) {
             const [fresh] = await db
               .select()
               .from(idempotencyKeysTable)
-              .where(and(
-                eq(idempotencyKeysTable.userId, userId),
-                eq(idempotencyKeysTable.idempotencyKey, idemKey),
-                gte(idempotencyKeysTable.createdAt, ttlCutoff),
-              ))
+              .where(
+                and(
+                  eq(idempotencyKeysTable.userId, userId),
+                  eq(idempotencyKeysTable.idempotencyKey, idemKey),
+                  gte(idempotencyKeysTable.createdAt, ttlCutoff)
+                )
+              )
               .limit(1);
 
             if (!fresh || fresh.responseData === "{}") {
-              res.status(409).json({ success: false, error: "Request already in progress. Please wait and retry." });
+              res.status(409).json({
+                success: false,
+                error: "Request already in progress. Please wait and retry.",
+              });
               return;
             }
             const parsed = safeParseJson(fresh.responseData);
@@ -142,13 +152,18 @@ export function idempotency(prefix: string) {
               res.status(_sc ?? 200).json(body);
               return;
             }
-            res.status(409).json({ success: false, error: "Request already in progress. Please wait and retry." });
+            res.status(409).json({
+              success: false,
+              error: "Request already in progress. Please wait and retry.",
+            });
             return;
           }
           /* Fall through — we now own the reinserted key. */
         } else if (existing.responseData === "{}") {
           /* Key is within TTL and still in-flight. */
-          res.status(409).json({ success: false, error: "Request already in progress. Please wait and retry." });
+          res
+            .status(409)
+            .json({ success: false, error: "Request already in progress. Please wait and retry." });
           return;
         } else {
           /* Key is within TTL and has a completed response — replay it. */
@@ -160,7 +175,9 @@ export function idempotency(prefix: string) {
             return;
           }
           /* Corrupt responseData — treat as in-flight. */
-          res.status(409).json({ success: false, error: "Request already in progress. Please wait and retry." });
+          res
+            .status(409)
+            .json({ success: false, error: "Request already in progress. Please wait and retry." });
           return;
         }
       }
@@ -171,24 +188,31 @@ export function idempotency(prefix: string) {
         await db
           .update(idempotencyKeysTable)
           .set({ responseData: payload })
-          .where(and(
-            eq(idempotencyKeysTable.userId, userId),
-            eq(idempotencyKeysTable.idempotencyKey, idemKey),
-          ))
+          .where(
+            and(
+              eq(idempotencyKeysTable.userId, userId),
+              eq(idempotencyKeysTable.idempotencyKey, idemKey)
+            )
+          )
           .catch((e: Error) =>
-            logger.warn({ userId, idemKey, err: e.message }, "[idempotency] response persist failed"),
+            logger.warn(
+              { userId, idemKey, err: e.message },
+              "[idempotency] response persist failed"
+            )
           );
       };
 
       res.idempotencyDelete = async () => {
         await db
           .delete(idempotencyKeysTable)
-          .where(and(
-            eq(idempotencyKeysTable.userId, userId),
-            eq(idempotencyKeysTable.idempotencyKey, idemKey),
-          ))
+          .where(
+            and(
+              eq(idempotencyKeysTable.userId, userId),
+              eq(idempotencyKeysTable.idempotencyKey, idemKey)
+            )
+          )
           .catch((e: Error) =>
-            logger.warn({ userId, idemKey, err: e.message }, "[idempotency] key delete failed"),
+            logger.warn({ userId, idemKey, err: e.message }, "[idempotency] key delete failed")
           );
       };
 
@@ -204,7 +228,13 @@ function safeParseJson(s: string): Record<string, unknown> | null {
   try {
     return JSON.parse(s) as Record<string, unknown>;
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return null;
   }
 }

@@ -1,22 +1,20 @@
-import { describe, it, expect } from "vitest";
-import { http, HttpResponse } from "msw";
+import { AdminAuthProvider, useAdminAuth } from "@/lib/adminAuthContext";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { AdminAuthProvider, useAdminAuth } from "@/lib/adminAuthContext";
+import { http, HttpResponse } from "msw";
+import { describe, expect, it } from "vitest";
 import { server } from "./utils/server";
 
 function setCsrfCookie(value: string | null) {
   if (value === null) {
-    document.cookie =
-      "csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+    document.cookie = "csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
     return;
   }
   document.cookie = `csrf_token=${value}; path=/`;
 }
 
 function AuthHarness() {
-  const { state, login, logout, refreshAccessToken, clearError } =
-    useAdminAuth();
+  const { state, login, logout, refreshAccessToken, clearError } = useAdminAuth();
   return (
     <div>
       <p data-testid="loading">{state.isLoading ? "loading" : "ready"}</p>
@@ -50,11 +48,7 @@ function AuthHarness() {
       >
         logout
       </button>
-      <button
-        type="button"
-        data-testid="clear-error-btn"
-        onClick={() => clearError()}
-      >
+      <button type="button" data-testid="clear-error-btn" onClick={() => clearError()}>
         clear-error
       </button>
     </div>
@@ -65,12 +59,10 @@ async function renderProvider() {
   const utils = render(
     <AdminAuthProvider>
       <AuthHarness />
-    </AdminAuthProvider>,
+    </AdminAuthProvider>
   );
   // Provider runs `restoreSession` on mount; wait for it to settle.
-  await waitFor(() =>
-    expect(utils.getByTestId("loading")).toHaveTextContent("ready"),
-  );
+  await waitFor(() => expect(utils.getByTestId("loading")).toHaveTextContent("ready"));
   return utils;
 }
 
@@ -82,7 +74,7 @@ describe("AdminAuthProvider integration", () => {
       http.post("/api/admin/auth/refresh", () => {
         refreshHits += 1;
         return HttpResponse.json({ accessToken: "should-not-fire" });
-      }),
+      })
     );
 
     await renderProvider();
@@ -111,16 +103,14 @@ describe("AdminAuthProvider integration", () => {
             role: "super_admin",
           },
         });
-      }),
+      })
     );
 
     await renderProvider();
     const user = userEvent.setup();
     await user.click(screen.getByTestId("login-btn"));
 
-    await waitFor(() =>
-      expect(screen.getByTestId("token")).toHaveTextContent("access-token-1"),
-    );
+    await waitFor(() => expect(screen.getByTestId("token")).toHaveTextContent("access-token-1"));
     expect(screen.getByTestId("user")).toHaveTextContent("admin@example.com");
     expect(screen.getByTestId("error")).toHaveTextContent("no-error");
   });
@@ -129,8 +119,8 @@ describe("AdminAuthProvider integration", () => {
     setCsrfCookie(null);
     server.use(
       http.post("/api/admin/auth/login", () =>
-        HttpResponse.json({ error: "Invalid credentials" }, { status: 401 }),
-      ),
+        HttpResponse.json({ error: "Invalid credentials" }, { status: 401 })
+      )
     );
 
     await renderProvider();
@@ -138,9 +128,7 @@ describe("AdminAuthProvider integration", () => {
     await user.click(screen.getByTestId("login-btn"));
 
     await waitFor(() =>
-      expect(screen.getByTestId("error")).toHaveTextContent(
-        "Invalid credentials",
-      ),
+      expect(screen.getByTestId("error")).toHaveTextContent("Invalid credentials")
     );
     expect(screen.getByTestId("token")).toHaveTextContent("no-token");
 
@@ -160,8 +148,8 @@ describe("AdminAuthProvider integration", () => {
             email: "admin@example.com",
             role: "super_admin",
           },
-        }),
-      ),
+        })
+      )
     );
 
     await renderProvider();
@@ -179,15 +167,13 @@ describe("AdminAuthProvider integration", () => {
         HttpResponse.json({
           accessToken: "token-A",
           user: { id: "u1", name: "A", email: "a@x.com", role: "admin" },
-        }),
-      ),
+        })
+      )
     );
     await renderProvider();
     const user = userEvent.setup();
     await user.click(screen.getByTestId("login-btn"));
-    await waitFor(() =>
-      expect(screen.getByTestId("token")).toHaveTextContent("token-A"),
-    );
+    await waitFor(() => expect(screen.getByTestId("token")).toHaveTextContent("token-A"));
 
     // Now wire refresh and trigger it.
     let refreshCalls = 0;
@@ -198,13 +184,11 @@ describe("AdminAuthProvider integration", () => {
           accessToken: "token-B",
           user: { id: "u1", name: "A", email: "a@x.com", role: "admin" },
         });
-      }),
+      })
     );
 
     await user.click(screen.getByTestId("refresh-btn"));
-    await waitFor(() =>
-      expect(screen.getByTestId("token")).toHaveTextContent("token-B"),
-    );
+    await waitFor(() => expect(screen.getByTestId("token")).toHaveTextContent("token-B"));
     expect(refreshCalls).toBe(1);
   });
 
@@ -224,14 +208,14 @@ describe("AdminAuthProvider integration", () => {
           accessToken: `concurrent-${refreshCalls}`,
           user: { id: "u1", name: "A", email: "a@x.com", role: "admin" },
         });
-      }),
+      })
     );
 
     // Render kicks off the first refresh as the bootstrap call.
     const { getByTestId } = render(
       <AdminAuthProvider>
         <AuthHarness />
-      </AdminAuthProvider>,
+      </AdminAuthProvider>
     );
 
     // Fire two extra refreshes while the first is still in flight.
@@ -243,9 +227,7 @@ describe("AdminAuthProvider integration", () => {
     expect(refreshCalls).toBe(1);
     release?.();
 
-    await waitFor(() =>
-      expect(getByTestId("token")).toHaveTextContent("concurrent-1"),
-    );
+    await waitFor(() => expect(getByTestId("token")).toHaveTextContent("concurrent-1"));
     expect(refreshCalls).toBe(1);
   });
 
@@ -257,17 +239,15 @@ describe("AdminAuthProvider integration", () => {
 
     server.use(
       http.post("/api/admin/auth/refresh", () =>
-        HttpResponse.json({ error: "expired" }, { status: 401 }),
-      ),
+        HttpResponse.json({ error: "expired" }, { status: 401 })
+      )
     );
 
     const user = userEvent.setup();
     await user.click(screen.getByTestId("refresh-btn"));
 
     await waitFor(() =>
-      expect(screen.getByTestId("error")).toHaveTextContent(
-        "Session expired. Please log in again.",
-      ),
+      expect(screen.getByTestId("error")).toHaveTextContent("Session expired. Please log in again.")
     );
     expect(screen.getByTestId("token")).toHaveTextContent("no-token");
     expect(screen.getByTestId("user")).toHaveTextContent("no-user");
@@ -281,8 +261,8 @@ describe("AdminAuthProvider integration", () => {
         HttpResponse.json({
           accessToken: "logout-token",
           user: { id: "u1", name: "A", email: "a@x.com", role: "admin" },
-        }),
-      ),
+        })
+      )
     );
 
     await renderProvider();
@@ -293,15 +273,13 @@ describe("AdminAuthProvider integration", () => {
       http.post("/api/admin/auth/logout", ({ request }) => {
         logoutAuthHeader = request.headers.get("authorization");
         return HttpResponse.json({ ok: true });
-      }),
+      })
     );
 
     const user = userEvent.setup();
     await user.click(screen.getByTestId("logout-btn"));
 
-    await waitFor(() =>
-      expect(screen.getByTestId("token")).toHaveTextContent("no-token"),
-    );
+    await waitFor(() => expect(screen.getByTestId("token")).toHaveTextContent("no-token"));
     expect(logoutAuthHeader).toBe("Bearer logout-token");
     expect(screen.getByTestId("user")).toHaveTextContent("no-user");
   });

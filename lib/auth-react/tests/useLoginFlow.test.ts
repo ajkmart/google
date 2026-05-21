@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import React from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../src/AuthProvider";
 import { useLoginFlow } from "../src/hooks/useLoginFlow";
 
@@ -43,10 +43,11 @@ describe("useLoginFlow", () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({
-          success: true,
-          data: { method: "otp", exists: true },
-        }),
+        json: () =>
+          Promise.resolve({
+            success: true,
+            data: { method: "otp", exists: true },
+          }),
       });
 
       const { result } = renderHook(() => useLoginFlow(), { wrapper });
@@ -68,10 +69,11 @@ describe("useLoginFlow", () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({
-          success: true,
-          data: { method: "otp", exists: false },
-        }),
+        json: () =>
+          Promise.resolve({
+            success: true,
+            data: { method: "otp", exists: false },
+          }),
       });
 
       const { result } = renderHook(() => useLoginFlow(), { wrapper });
@@ -158,13 +160,14 @@ describe("useLoginFlow", () => {
         .mockResolvedValueOnce({
           ok: true,
           status: 200,
-          json: () => Promise.resolve({
-            success: true,
-            data: {
-              user: { id: "usr_001", phone: "+923001234567", role: "customer" },
-              accessToken: "access_token_xyz",
-            },
-          }),
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: {
+                user: { id: "usr_001", phone: "+923001234567", role: "customer" },
+                accessToken: "access_token_xyz",
+              },
+            }),
         });
 
       const onSuccess = vi.fn();
@@ -192,10 +195,11 @@ describe("useLoginFlow", () => {
         .mockResolvedValueOnce({
           ok: true,
           status: 200,
-          json: () => Promise.resolve({
-            success: true,
-            data: { twoFactorRequired: true },
-          }),
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: { twoFactorRequired: true },
+            }),
         });
 
       const { result } = renderHook(() => useLoginFlow(), { wrapper });
@@ -228,7 +232,9 @@ describe("useLoginFlow", () => {
       await act(async () => {
         try {
           await result.current.verifyOtp("000000");
-        } catch { /* expected */ }
+        } catch {
+          /* expected */
+        }
       });
 
       expect(result.current.error).toBe("Invalid OTP");
@@ -238,19 +244,18 @@ describe("useLoginFlow", () => {
   describe("verifyPassword", () => {
     it("calls /api/auth/login and succeeds", async () => {
       // Email → no send-otp; password method → only 2 mocks needed
-      mockFetch
-        .mockResolvedValueOnce(makeIdentifierResponse("password"))
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve({
+      mockFetch.mockResolvedValueOnce(makeIdentifierResponse("password")).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
             success: true,
             data: {
               user: { id: "usr_002", role: "vendor" },
               accessToken: "vendor_token",
             },
           }),
-        });
+      });
 
       const onSuccess = vi.fn();
       const { result } = renderHook(() => useLoginFlow({ onSuccess }), { wrapper });
@@ -267,13 +272,11 @@ describe("useLoginFlow", () => {
     });
 
     it("sets error on invalid password", async () => {
-      mockFetch
-        .mockResolvedValueOnce(makeIdentifierResponse("password"))
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 401,
-          json: () => Promise.resolve({ success: false, error: "Invalid credentials" }),
-        });
+      mockFetch.mockResolvedValueOnce(makeIdentifierResponse("password")).mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ success: false, error: "Invalid credentials" }),
+      });
 
       const { result } = renderHook(() => useLoginFlow(), { wrapper });
 
@@ -283,7 +286,9 @@ describe("useLoginFlow", () => {
       await act(async () => {
         try {
           await result.current.verifyPassword("wrong");
-        } catch { /* expected */ }
+        } catch {
+          /* expected */
+        }
       });
 
       expect(result.current.error).toBe("Invalid credentials");
@@ -304,18 +309,25 @@ describe("useLoginFlow", () => {
         .mockResolvedValueOnce({
           ok: true,
           status: 200,
-          json: () => Promise.resolve({
-            success: true,
-            data: { user: { id: "usr_003", role: "customer" }, accessToken: "final_token" },
-          }),
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: { user: { id: "usr_003", role: "customer" }, accessToken: "final_token" },
+            }),
         });
 
       const onSuccess = vi.fn();
       const { result } = renderHook(() => useLoginFlow({ onSuccess }), { wrapper });
 
-      await act(async () => { await result.current.initiateLogin("03001234567"); });
-      await act(async () => { await result.current.verifyOtp("654321"); });
-      await act(async () => { await result.current.twoFactorVerify("123456"); });
+      await act(async () => {
+        await result.current.initiateLogin("03001234567");
+      });
+      await act(async () => {
+        await result.current.verifyOtp("654321");
+      });
+      await act(async () => {
+        await result.current.twoFactorVerify("123456");
+      });
 
       expect(mockFetch.mock.calls[3]?.[0]).toContain("/api/auth/2fa/verify");
       expect(onSuccess).toHaveBeenCalledWith(
@@ -342,10 +354,18 @@ describe("useLoginFlow", () => {
 
       const { result } = renderHook(() => useLoginFlow(), { wrapper });
 
-      await act(async () => { await result.current.initiateLogin("03001234567"); });
-      await act(async () => { await result.current.verifyOtp("654321"); });
       await act(async () => {
-        try { await result.current.twoFactorVerify("000000"); } catch { /* expected */ }
+        await result.current.initiateLogin("03001234567");
+      });
+      await act(async () => {
+        await result.current.verifyOtp("654321");
+      });
+      await act(async () => {
+        try {
+          await result.current.twoFactorVerify("000000");
+        } catch {
+          /* expected */
+        }
       });
 
       expect(result.current.error).toBe("Invalid 2FA code");
@@ -363,11 +383,17 @@ describe("useLoginFlow", () => {
       const { result } = renderHook(() => useLoginFlow(), { wrapper });
 
       await act(async () => {
-        try { await result.current.initiateLogin("bad"); } catch { /* ok */ }
+        try {
+          await result.current.initiateLogin("bad");
+        } catch {
+          /* ok */
+        }
       });
       expect(result.current.error).toBeTruthy();
 
-      await act(async () => { result.current.clearError(); });
+      await act(async () => {
+        result.current.clearError();
+      });
       expect(result.current.error).toBeNull();
     });
   });

@@ -21,19 +21,17 @@ import {
   type AdminAccount,
   type AdminPasswordResetToken,
 } from "@workspace/db/schema";
-import { and, eq, isNull, lt } from "drizzle-orm";
 import { randomBytes } from "crypto";
-import { hashAdminSecret, validatePasswordStrength } from "./password.js";
-import { hashToken } from "../utils/admin-hash.js";
+import { and, eq, isNull, lt } from "drizzle-orm";
 import { generateId } from "../lib/id.js";
+import { hashToken } from "../utils/admin-hash.js";
 import { recordAdminPasswordSnapshot } from "./admin-password-watch.service.js";
+import { hashAdminSecret, validatePasswordStrength } from "./password.js";
 
 /** Default token lifetime (30 minutes) — overridable via env. */
 function getResetTokenTtlMs(): number {
   const minutes = Number(process.env.ADMIN_PASSWORD_RESET_TOKEN_TTL_MIN ?? "30");
-  return Number.isFinite(minutes) && minutes > 0
-    ? Math.floor(minutes) * 60 * 1000
-    : 30 * 60 * 1000;
+  return Number.isFinite(minutes) && minutes > 0 ? Math.floor(minutes) * 60 * 1000 : 30 * 60 * 1000;
 }
 
 export interface IssueResetTokenInput {
@@ -57,7 +55,7 @@ export interface IssuedResetToken {
  * to the caller for delivery (email or super-admin display).
  */
 export async function issueAdminPasswordResetToken(
-  input: IssueResetTokenInput,
+  input: IssueResetTokenInput
 ): Promise<IssuedResetToken> {
   // 32 random bytes → 64 hex chars; ample entropy for a 30-minute token.
   const rawToken = randomBytes(32).toString("hex");
@@ -90,7 +88,7 @@ export interface VerifiedResetToken {
  * (the caller surfaces a generic error to the user).
  */
 export async function verifyAdminPasswordResetToken(
-  rawToken: string,
+  rawToken: string
 ): Promise<VerifiedResetToken | null> {
   if (!rawToken || typeof rawToken !== "string") return null;
   const tokenHash = hashToken(rawToken);
@@ -134,7 +132,7 @@ export interface CompleteResetResult {
  *    issued against the previous password can no longer be refreshed.
  */
 export async function completeAdminPasswordReset(
-  input: CompleteResetInput,
+  input: CompleteResetInput
 ): Promise<{ ok: true; admin: AdminAccount } | { ok: false; error: string }> {
   const strength = validatePasswordStrength(input.newPassword);
   if (!strength.ok) return { ok: false, error: strength.message };
@@ -160,8 +158,8 @@ export async function completeAdminPasswordReset(
       .where(
         and(
           eq(adminPasswordResetTokensTable.adminId, verified.admin.id),
-          isNull(adminPasswordResetTokensTable.usedAt),
-        ),
+          isNull(adminPasswordResetTokensTable.usedAt)
+        )
       );
 
     // Update password and clear the must-change flag. Also flip the
@@ -182,10 +180,7 @@ export async function completeAdminPasswordReset(
       .update(adminSessionsTable)
       .set({ revokedAt: now })
       .where(
-        and(
-          eq(adminSessionsTable.adminId, verified.admin.id),
-          isNull(adminSessionsTable.revokedAt),
-        ),
+        and(eq(adminSessionsTable.adminId, verified.admin.id), isNull(adminSessionsTable.revokedAt))
       );
   });
 
@@ -265,8 +260,8 @@ export async function changeAdminPassword(input: {
       .where(
         and(
           eq(adminPasswordResetTokensTable.adminId, admin.id),
-          isNull(adminPasswordResetTokensTable.usedAt),
-        ),
+          isNull(adminPasswordResetTokensTable.usedAt)
+        )
       );
 
     // Revoke every other session for this admin (keep the caller's session
@@ -275,12 +270,7 @@ export async function changeAdminPassword(input: {
       const sessions = await tx
         .select()
         .from(adminSessionsTable)
-        .where(
-          and(
-            eq(adminSessionsTable.adminId, admin.id),
-            isNull(adminSessionsTable.revokedAt),
-          ),
-        );
+        .where(and(eq(adminSessionsTable.adminId, admin.id), isNull(adminSessionsTable.revokedAt)));
       for (const s of sessions) {
         if (s.id === input.keepSessionId) continue;
         await tx
@@ -292,12 +282,7 @@ export async function changeAdminPassword(input: {
       await tx
         .update(adminSessionsTable)
         .set({ revokedAt: now })
-        .where(
-          and(
-            eq(adminSessionsTable.adminId, admin.id),
-            isNull(adminSessionsTable.revokedAt),
-          ),
-        );
+        .where(and(eq(adminSessionsTable.adminId, admin.id), isNull(adminSessionsTable.revokedAt)));
     }
   });
 

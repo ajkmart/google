@@ -1,11 +1,11 @@
-import type { Request, Response, NextFunction } from "express";
 import { db } from "@workspace/db";
 import { ridesTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import type { NextFunction, Request, Response } from "express";
 
 export function loadRide() {
   return async (req: Request, res: Response, next: NextFunction) => {
-    const rideId = String(req.params["id"] as string ?? "");
+    const rideId = String((req.params["id"] as string) ?? "");
     if (!rideId) {
       res.status(400).json({ error: "Ride ID is required" });
       return;
@@ -31,14 +31,18 @@ export function requireRideState(allowedStates: string[]) {
     let ride = req.ride;
 
     if (!ride) {
-      const rideId = String(req.params["id"] as string ?? "");
+      const rideId = String((req.params["id"] as string) ?? "");
       if (!rideId) {
         res.status(400).json({ error: "Ride ID is required" });
         return;
       }
 
       try {
-        const [found] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
+        const [found] = await db
+          .select()
+          .from(ridesTable)
+          .where(eq(ridesTable.id, rideId))
+          .limit(1);
         if (!found) {
           res.status(404).json({ error: "Ride not found" });
           return;

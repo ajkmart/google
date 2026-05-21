@@ -1,8 +1,8 @@
-import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { usersTable, productsTable, reviewsTable, vendorProfilesTable } from "@workspace/db/schema";
-import { eq, and, sql, isNotNull, ilike } from "drizzle-orm";
-import { sendSuccess, sendNotFound, sendError } from "../lib/response.js";
+import { productsTable, reviewsTable, usersTable, vendorProfilesTable } from "@workspace/db/schema";
+import { and, eq, ilike, isNotNull, sql } from "drizzle-orm";
+import { Router, type IRouter } from "express";
+import { sendError, sendNotFound, sendSuccess } from "../lib/response.js";
 
 const router: IRouter = Router();
 
@@ -10,7 +10,9 @@ router.get("/", async (req, res) => {
   try {
     const { category, slim } = req.query as Record<string, string | undefined>;
 
-    const conditions: ReturnType<typeof eq>[] = [ilike(usersTable.roles, "%vendor%") as ReturnType<typeof eq>];
+    const conditions: ReturnType<typeof eq>[] = [
+      ilike(usersTable.roles, "%vendor%") as ReturnType<typeof eq>,
+    ];
     if (category) {
       conditions.push(eq(vendorProfilesTable.storeCategory, category) as ReturnType<typeof eq>);
     }
@@ -32,7 +34,7 @@ router.get("/", async (req, res) => {
       .leftJoin(vendorProfilesTable, eq(usersTable.id, vendorProfilesTable.userId))
       .where(and(...conditions));
 
-    const vendorIds = vendors.map(v => v.id);
+    const vendorIds = vendors.map((v) => v.id);
     const productCounts: Record<string, number> = {};
     const avgRatings: Record<string, number> = {};
     if (vendorIds.length > 0) {
@@ -59,7 +61,7 @@ router.get("/", async (req, res) => {
     }
 
     sendSuccess(res, {
-      vendors: vendors.map(v => {
+      vendors: vendors.map((v) => {
         if (slim === "true") {
           return {
             id: v.id,
@@ -124,7 +126,13 @@ router.get("/:id/store", async (req, res) => {
     const products = await db
       .select()
       .from(productsTable)
-      .where(and(eq(productsTable.vendorId, id), eq(productsTable.approvalStatus, "approved"), eq(productsTable.inStock, true)));
+      .where(
+        and(
+          eq(productsTable.vendorId, id),
+          eq(productsTable.approvalStatus, "approved"),
+          eq(productsTable.inStock, true)
+        )
+      );
 
     sendSuccess(res, {
       vendor: {
@@ -141,7 +149,7 @@ router.get("/:id/store", async (req, res) => {
         avatar: vendor.avatar,
         city: vendor.city,
       },
-      products: products.map(p => ({
+      products: products.map((p) => ({
         ...p,
         price: parseFloat(p.price),
         originalPrice: p.originalPrice ? parseFloat(p.originalPrice) : undefined,

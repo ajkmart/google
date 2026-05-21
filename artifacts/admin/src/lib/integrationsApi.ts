@@ -42,7 +42,7 @@ function pickBool(value: unknown): boolean | null {
  */
 export function parseIntegrationTestResponse(
   raw: unknown,
-  defaultMessage: string,
+  defaultMessage: string
 ): IntegrationTestResponse {
   if (raw == null || typeof raw !== "object") {
     return { ok: true, message: defaultMessage };
@@ -51,7 +51,9 @@ export function parseIntegrationTestResponse(
   const inner = r.data && typeof r.data === "object" ? r.data : null;
 
   const explicitOk =
-    pickBool(r.ok) ?? pickBool(r.success) ?? (inner ? pickBool(inner.ok) ?? pickBool(inner.success) : null);
+    pickBool(r.ok) ??
+    pickBool(r.success) ??
+    (inner ? (pickBool(inner.ok) ?? pickBool(inner.success)) : null);
   const errorText = pickString(r.error) ?? (inner ? pickString(inner.error) : null);
   const message =
     pickString(r.message) ??

@@ -1,9 +1,15 @@
-import { useEffect, useRef, useState } from "react";
-import { Lock, AlertTriangle, Loader2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { fetchAdmin, AdminFetchError } from "@/lib/adminFetcher";
+import { AdminFetchError, fetchAdmin } from "@/lib/adminFetcher";
+import { AlertTriangle, Loader2, Lock } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 export interface SensitiveActionDialogProps {
   open: boolean;
@@ -94,7 +100,7 @@ export function SensitiveActionDialog({
       const msg =
         status === 401 || status === 403
           ? "Incorrect password. Please try again."
-          : message ?? "Verification failed. Please try again.";
+          : (message ?? "Verification failed. Please try again.");
       setError(msg);
     } finally {
       setVerifying(false);
@@ -102,7 +108,12 @@ export function SensitiveActionDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={o => { if (!o && !verifying) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o && !verifying) onClose();
+      }}
+    >
       <DialogContent className="w-[95vw] max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2.5">
@@ -115,12 +126,12 @@ export function SensitiveActionDialog({
 
         <div className="space-y-4">
           {description && (
-            <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
+            <p className="text-muted-foreground text-sm leading-relaxed">{description}</p>
           )}
 
           <div className="space-y-2">
-            <label className="text-sm font-medium flex items-center gap-1.5">
-              <Lock className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+            <label className="flex items-center gap-1.5 text-sm font-medium">
+              <Lock className="text-muted-foreground h-3.5 w-3.5" aria-hidden="true" />
               Enter your password to confirm
             </label>
             <Input
@@ -128,24 +139,23 @@ export function SensitiveActionDialog({
               type="password"
               placeholder="Current password"
               value={password}
-              onChange={e => { setPassword(e.target.value); setError(null); }}
-              onKeyDown={e => { if (e.key === "Enter" && !verifying) handleSubmit(); }}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !verifying) handleSubmit();
+              }}
               className="h-10 rounded-lg"
               disabled={verifying}
               autoComplete="current-password"
             />
-            {error && (
-              <p className="text-xs text-red-600 font-medium">{error}</p>
-            )}
+            {error && <p className="text-xs font-medium text-red-600">{error}</p>}
           </div>
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={verifying}
-          >
+          <Button variant="outline" onClick={onClose} disabled={verifying}>
             {cancelLabel}
           </Button>
           <Button
@@ -154,8 +164,13 @@ export function SensitiveActionDialog({
             disabled={verifying || !password.trim()}
           >
             {verifying ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />Verifying…</>
-            ) : confirmLabel}
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                Verifying…
+              </>
+            ) : (
+              confirmLabel
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

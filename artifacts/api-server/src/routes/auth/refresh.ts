@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { validateBody as sharedValidateBody } from "../../middleware/validate.js";
-import { refreshTokenSchema } from "./helpers.js";
 import { handleRefreshToken } from "./auth-common.js";
+import { refreshTokenSchema } from "./helpers.js";
 
 const router: IRouter = Router();
 

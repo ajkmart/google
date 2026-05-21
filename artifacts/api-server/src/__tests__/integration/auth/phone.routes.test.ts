@@ -8,7 +8,7 @@
  *    so we never need to capture the randomly generated plaintext code.
  */
 
-import { vi, describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 // ── Mocks (hoisted before all imports) ────────────────────────────────────────
 vi.mock("../../../modules/otp/otp.deliver.js", () => ({
@@ -41,22 +41,21 @@ vi.mock("../../../services/email.js", () => ({
 }));
 
 // ── Imports ────────────────────────────────────────────────────────────────────
+import { db } from "@workspace/db";
+import { otpTokensTable } from "@workspace/db/schema";
+import { eq } from "drizzle-orm";
 import request from "supertest";
 import { createServer } from "../../../app.js";
-import { db } from "@workspace/db";
-import { usersTable, otpTokensTable } from "@workspace/db/schema";
-import { eq, isNull, gt } from "drizzle-orm";
 import {
-  generateTestPhone,
-  toCanonicalPhone,
+  cleanupOtpAttempts,
+  cleanupOtpTokens,
   createTestUser,
   deleteTestUser,
   deleteTestUserByPhone,
-  seedOtpToken,
   expireOtpToken,
-  markOtpTokenUsed,
-  cleanupOtpTokens,
-  cleanupOtpAttempts,
+  generateTestPhone,
+  seedOtpToken,
+  toCanonicalPhone,
 } from "../helpers/db-helpers.js";
 
 // ── Test Suite ─────────────────────────────────────────────────────────────────
@@ -195,7 +194,12 @@ describe("POST /api/auth/verify-otp", () => {
 
     // Routes store otp_tokens with the canonical phone as identifier
     const canonPhone = toCanonicalPhone(phone);
-    await seedOtpToken({ identifier: canonPhone, identifierType: "phone", otpType: "login", code: "123456" });
+    await seedOtpToken({
+      identifier: canonPhone,
+      identifierType: "phone",
+      otpType: "login",
+      code: "123456",
+    });
 
     const res = await request(app)
       .post("/api/auth/verify-otp")
@@ -219,7 +223,13 @@ describe("POST /api/auth/verify-otp", () => {
     const userId = await createTestUser({ phone: canonPhone, phoneVerified: true });
     createdUserIds.push(userId);
 
-    await seedOtpToken({ identifier: canonPhone, identifierType: "phone", otpType: "login", code: "123456", userId });
+    await seedOtpToken({
+      identifier: canonPhone,
+      identifierType: "phone",
+      otpType: "login",
+      code: "123456",
+      userId,
+    });
 
     const res = await request(app)
       .post("/api/auth/verify-otp")
@@ -238,7 +248,12 @@ describe("POST /api/auth/verify-otp", () => {
     usedPhones.push(phone);
     const canonPhone = toCanonicalPhone(phone);
 
-    await seedOtpToken({ identifier: canonPhone, identifierType: "phone", otpType: "login", code: "123456" });
+    await seedOtpToken({
+      identifier: canonPhone,
+      identifierType: "phone",
+      otpType: "login",
+      code: "123456",
+    });
 
     const res = await request(app)
       .post("/api/auth/verify-otp")
@@ -278,7 +293,13 @@ describe("POST /api/auth/verify-otp", () => {
     const userId = await createTestUser({ phone: canonPhone, phoneVerified: true });
     createdUserIds.push(userId);
 
-    await seedOtpToken({ identifier: canonPhone, identifierType: "phone", otpType: "login", code: "123456", userId });
+    await seedOtpToken({
+      identifier: canonPhone,
+      identifierType: "phone",
+      otpType: "login",
+      code: "123456",
+      userId,
+    });
 
     // First verify succeeds
     const first = await request(app)

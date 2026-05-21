@@ -1,22 +1,22 @@
 /**
  * Admin API Bridge Layer
- * 
+ *
  * This module bridges the old sessionStorage-based auth API to the new
  * Bearer token + CSRF + auto-refresh system (adminFetcher).
- * 
+ *
  * All existing components continue to work without modification, but requests
  * now use the Binance-grade auth system under the hood.
- * 
+ *
  * Migration path: Components gradually switch from calling these functions
  * to using adminFetcher/useAdminAuth directly.
  */
 
-import { fetchAdmin, fetchAdminAbsolute, fetchAdminAbsoluteResponse, getAdminAccessToken, setupAdminFetcherHandlers } from './adminFetcher';
 import { createLogger } from "@/lib/logger";
+import { fetchAdmin, fetchAdminAbsolute, fetchAdminAbsoluteResponse } from "./adminFetcher";
 const log = createLogger("[api]");
 export { fetchAdminAbsoluteResponse };
 
-export { getAdminAccessToken } from './adminFetcher';
+export { getAdminAccessToken } from "./adminFetcher";
 
 // ============================================================================
 // Legacy Auth State (now no-ops - state is in adminAuthContext)
@@ -75,20 +75,20 @@ export const uploadAdminImage = async (file: File): Promise<string> => {
   try {
     // Create FormData with file
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
-    const endpoint = '/uploads/admin';
+    const endpoint = "/uploads/admin";
     const csrfToken = getCsrfFromCookie();
-    
+
     // Build the request with proper auth headers
     // The getAccessTokenFromContext() will be populated by setupAdminFetcherHandlers
     let response = await fetch(`/api/admin${endpoint}`, {
-      method: 'POST',
+      method: "POST",
       headers: {
         // Authorization header set dynamically if token available
         ...(await getAuthHeadersForUpload()),
       },
-      credentials: 'include',
+      credentials: "include",
       body: formData,
     });
 
@@ -100,23 +100,23 @@ export const uploadAdminImage = async (file: File): Promise<string> => {
           await tokenRefresher();
           // Retry with new token
           response = await fetch(`/api/admin${endpoint}`, {
-            method: 'POST',
+            method: "POST",
             headers: {
               ...(await getAuthHeadersForUpload()),
             },
-            credentials: 'include',
+            credentials: "include",
             body: formData,
           });
         }
       } catch (err) {
-        log.error('Token refresh failed for upload:', err);
-        window.location.href = `${import.meta.env.BASE_URL || '/'}login`;
+        log.error("Token refresh failed for upload:", err);
+        window.location.href = `${import.meta.env.BASE_URL || "/"}login`;
       }
     }
 
     if (!response.ok) {
       // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to status-code message
-    const errorData = await response.json().catch(() => ({}));
+      const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || `Upload failed with status ${response.status}`);
     }
 
@@ -124,7 +124,7 @@ export const uploadAdminImage = async (file: File): Promise<string> => {
     const data = json.data !== undefined ? json.data : json;
     return data.url as string;
   } catch (err) {
-    log.error('Image upload failed:', err);
+    log.error("Image upload failed:", err);
     throw err;
   }
 };
@@ -136,20 +136,20 @@ export const uploadAdminImage = async (file: File): Promise<string> => {
  */
 export const uploadAdminImageWithProgress = async (
   file: File,
-  onProgress?: (percent: number) => void,
+  onProgress?: (percent: number) => void
 ): Promise<string> => {
   const send = async (): Promise<{ ok: boolean; status: number; body: unknown }> => {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
     const csrfToken = getCsrfFromCookie();
     void csrfToken;
     const headers = await getAuthHeadersForUpload();
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', `/api/admin/uploads/admin`, true);
+      xhr.open("POST", `/api/admin/uploads/admin`, true);
       xhr.withCredentials = true;
       Object.entries(headers).forEach(([k, v]) => {
-        if (typeof v === 'string') xhr.setRequestHeader(k, v);
+        if (typeof v === "string") xhr.setRequestHeader(k, v);
       });
       if (onProgress && xhr.upload) {
         xhr.upload.onprogress = (event) => {
@@ -158,10 +158,14 @@ export const uploadAdminImageWithProgress = async (
           }
         };
       }
-      xhr.onerror = () => reject(new Error('Network error during upload'));
+      xhr.onerror = () => reject(new Error("Network error during upload"));
       xhr.onload = () => {
         let parsed: unknown = null;
-        try { parsed = xhr.responseText ? JSON.parse(xhr.responseText) : null; } catch { parsed = null; }
+        try {
+          parsed = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+        } catch {
+          parsed = null;
+        }
         resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, body: parsed });
       };
       xhr.send(formData);
@@ -174,17 +178,19 @@ export const uploadAdminImageWithProgress = async (
       await tokenRefresher();
       result = await send();
     } catch (err) {
-      log.error('Token refresh failed for upload:', err);
+      log.error("Token refresh failed for upload:", err);
       throw err;
     }
   }
   if (!result.ok) {
-    const errorMsg = (result.body as { error?: string } | null)?.error ?? `Upload failed with status ${result.status}`;
+    const errorMsg =
+      (result.body as { error?: string } | null)?.error ??
+      `Upload failed with status ${result.status}`;
     throw new Error(errorMsg);
   }
   const json = result.body as { data?: { url?: string }; url?: string } | null;
   const url = json?.data?.url ?? json?.url;
-  if (typeof url !== 'string') throw new Error('Upload response missing url');
+  if (typeof url !== "string") throw new Error("Upload response missing url");
   return url;
 };
 
@@ -205,7 +211,7 @@ export const fetcher = async (endpoint: string, options: RequestInit = {}) => {
     const result = await fetchAdmin(endpoint, options);
     return result.data !== undefined ? result.data : result;
   } catch (err) {
-    log.error('API error:', err);
+    log.error("API error:", err);
     throw err;
   }
 };
@@ -222,7 +228,7 @@ export const fetcherWithMeta = async (
     const result = await fetchAdmin(endpoint, options);
     return result;
   } catch (err) {
-    log.error('API error:', err);
+    log.error("API error:", err);
     throw err;
   }
 };
@@ -242,7 +248,7 @@ export const apiAbsoluteFetch = async (path: string, options: RequestInit = {}) 
     const result = await fetchAdminAbsolute(path, options);
     return result?.data !== undefined ? result.data : result;
   } catch (err) {
-    log.error('API error:', err);
+    log.error("API error:", err);
     throw err;
   }
 };
@@ -261,9 +267,12 @@ export const apiAbsoluteFetchRaw = async (path: string, options: RequestInit = {
  */
 export async function apiGet(endpoint: string) {
   try {
-    return await fetcher(endpoint, { method: 'GET' });
+    return await fetcher(endpoint, { method: "GET" });
   } catch (err) {
-    log.error({ endpoint, err: err instanceof Error ? err.message : String(err) }, "[api] apiGet failed");
+    log.error(
+      { endpoint, err: err instanceof Error ? err.message : String(err) },
+      "[api] apiGet failed"
+    );
     throw err;
   }
 }
@@ -274,11 +283,14 @@ export async function apiGet(endpoint: string) {
 export async function apiPost(endpoint: string, data: Record<string, unknown>) {
   try {
     return await fetcher(endpoint, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(data),
     });
   } catch (err) {
-    log.error({ endpoint, err: err instanceof Error ? err.message : String(err) }, "[api] apiPost failed");
+    log.error(
+      { endpoint, err: err instanceof Error ? err.message : String(err) },
+      "[api] apiPost failed"
+    );
     throw err;
   }
 }
@@ -289,11 +301,14 @@ export async function apiPost(endpoint: string, data: Record<string, unknown>) {
 export async function apiPut(endpoint: string, data: Record<string, unknown>) {
   try {
     return await fetcher(endpoint, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify(data),
     });
   } catch (err) {
-    log.error({ endpoint, err: err instanceof Error ? err.message : String(err) }, "[api] apiPut failed");
+    log.error(
+      { endpoint, err: err instanceof Error ? err.message : String(err) },
+      "[api] apiPut failed"
+    );
     throw err;
   }
 }
@@ -304,11 +319,14 @@ export async function apiPut(endpoint: string, data: Record<string, unknown>) {
 export async function apiPatch(endpoint: string, data: Record<string, unknown>) {
   try {
     return await fetcher(endpoint, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(data),
     });
   } catch (err) {
-    log.error({ endpoint, err: err instanceof Error ? err.message : String(err) }, "[api] apiPatch failed");
+    log.error(
+      { endpoint, err: err instanceof Error ? err.message : String(err) },
+      "[api] apiPatch failed"
+    );
     throw err;
   }
 }
@@ -318,9 +336,12 @@ export async function apiPatch(endpoint: string, data: Record<string, unknown>) 
  */
 export async function apiDelete(endpoint: string) {
   try {
-    return await fetcher(endpoint, { method: 'DELETE' });
+    return await fetcher(endpoint, { method: "DELETE" });
   } catch (err) {
-    log.error({ endpoint, err: err instanceof Error ? err.message : String(err) }, "[api] apiDelete failed");
+    log.error(
+      { endpoint, err: err instanceof Error ? err.message : String(err) },
+      "[api] apiDelete failed"
+    );
     throw err;
   }
 }
@@ -337,10 +358,7 @@ let tokenRefresher: (() => Promise<string>) | null = null;
  * Set token handlers from adminFetcher
  * Called during App initialization
  */
-export function setTokenHandlers(
-  getter: () => string | null,
-  refresher: () => Promise<string>
-) {
+export function setTokenHandlers(getter: () => string | null, refresher: () => Promise<string>) {
   tokenGetter = getter;
   tokenRefresher = refresher;
 }
@@ -352,14 +370,14 @@ export function setTokenHandlers(
 function getCsrfFromCookie(): string {
   if (typeof document === "undefined" || !document.cookie) return "";
   try {
-    const cookies = document.cookie.split(';');
+    const cookies = document.cookie.split(";");
     for (const cookie of cookies) {
       const trimmed = cookie.trim();
-      const eqIdx = trimmed.indexOf('=');
+      const eqIdx = trimmed.indexOf("=");
       if (eqIdx === -1) continue;
       const key = trimmed.slice(0, eqIdx);
       const rawValue = trimmed.slice(eqIdx + 1);
-      if (key === 'csrf_token') {
+      if (key === "csrf_token") {
         try {
           return decodeURIComponent(rawValue);
         } catch {
@@ -367,11 +385,11 @@ function getCsrfFromCookie(): string {
         }
       }
     }
-  // eslint-disable-next-line ajk-local/no-silent-catch -- cookie parsing failure returns empty string safely
+    // eslint-disable-next-line ajk-local/no-silent-catch -- cookie parsing failure returns empty string safely
   } catch {
     /* ignore */
   }
-  return '';
+  return "";
 }
 
 /**
@@ -380,17 +398,17 @@ function getCsrfFromCookie(): string {
  */
 async function getAuthHeadersForUpload(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {};
-  
+
   const token = tokenGetter?.();
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
   }
-  
+
   const csrf = getCsrfFromCookie();
   if (csrf) {
-    headers['X-CSRF-Token'] = csrf;
+    headers["X-CSRF-Token"] = csrf;
   }
-  
+
   return headers;
 }
 
@@ -401,5 +419,5 @@ async function getAuthHeadersForUpload(): Promise<Record<string, string>> {
 function getAccessTokenFromContext(): string {
   // Try to extract from current request context or return empty
   // The adminFetcher handlers will be set up by App.tsx
-  return '';
+  return "";
 }

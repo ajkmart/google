@@ -1,79 +1,79 @@
-import { Router, type IRouter, type Request, type Response } from "express";
-import rateLimit from "express-rate-limit";
-import crypto, { randomBytes, createHash, randomInt } from "crypto";
-import { z } from "zod";
 import { db } from "@workspace/db";
-import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable, accountRecoveryTokensTable } from "@workspace/db/schema";
-import { eq, and, sql, lt, or, ilike, isNull } from "drizzle-orm";
-import { generateId } from "../../lib/id.js";
-import { getPlatformSettings } from "../admin.js";
-import { emitWebhookEvent } from "../../lib/webhook-emitter.js";
-import { fireAndForget } from "../../lib/fireAndForget.js";
-import { checkLockout, recordFailedAttempt, resetAttempts, addAuditEntry, addSecurityEvent, getClientIp, getCachedSettings, signUserJwt, signAccessToken, sign2faChallengeToken, verify2faChallengeToken, generateRefreshToken, hashRefreshToken, isRefreshTokenValid, revokeRefreshToken, revokeAllUserRefreshTokens, verifyUserJwt, blacklistJti, writeAuthAuditLog, getRefreshTokenTtlDays, getAccessTokenTtlSec, verifyCaptcha, checkAvailableRateLimit } from "../../middleware/security.js";
-import { sendOtpSMS, isSMSProviderConfigured, isSMSConsoleActive } from "../../services/sms.js";
-import { sendOtpWithFailover, getWhitelistBypass } from "../../services/smsGateway.js";
-import { sendWhatsAppOTP, isWhatsAppProviderConfigured } from "../../services/whatsapp.js";
-import { hashPassword, verifyPassword, validatePasswordStrength, generateSecureOtp } from "../../services/password.js";
-import { generateTotpSecret, verifyTotpToken, generateQRCodeDataURL, getTotpUri, encryptTotpSecret, decryptTotpSecret } from "../../services/totp.js";
-import { sendVerificationEmail, sendPasswordResetEmail, sendMagicLinkEmail, alertNewVendor, isEmailProviderConfigured } from "../../services/email.js";
-import { getUserLanguage, getPlatformDefaultLanguage } from "../../lib/getUserLanguage.js";
-import { t } from "@workspace/i18n";
-import { logger } from "../../lib/logger.js";
-import { sendError, sendErrorWithData, sendUnauthorized, sendForbidden, sendNotFound, sendInternalError, sendTooManyRequests, sendSuccess, sendCreated } from "../../lib/response.js";
-import { clearSpoofHits } from "../rider/index.js";
-import { canonicalizePhone } from "@workspace/phone-utils";
-import { isAuthMethodEnabled, isAuthMethodEnabledStrict } from "@workspace/auth-utils/server";
-import { validateBody as sharedValidateBody } from "../../middleware/validate.js";
-import { authLimiter, loginLimiter, otpLimiter } from "../../middleware/rate-limit.js";
-import { hashOtp, isValidCanonicalPhone, normalizeVehicleTypeForStorage, generateVerificationToken, hashVerificationToken, tryEncrypt, decryptPii, setRiderRefreshCookie, clearRiderRefreshCookie, setVendorRefreshCookie, clearVendorRefreshCookie, RIDER_REFRESH_COOKIE, RIDER_REFRESH_COOKIE_PATH, VENDOR_REFRESH_COOKIE, VENDOR_REFRESH_COOKIE_PATH } from "./helpers.js";
-import { rotateRefreshToken, invalidateTokenFamily } from "../../services/auth/tokenRotation.js";
 import {
-  AUTH_OTP_TTL_MS,
-  CNIC_REGEX,
-  PHONE_REGEX,
-  forgotPasswordSchema,
-  registerSchema,
-  refreshTokenSchema,
-  checkIdentifierSchema,
-  sendOtpSchema,
-  verifyOtpSchema,
-  loginSchema,
-  extractAuthUser,
-} from "./helpers.js";
+  accountRecoveryTokensTable,
+  refreshTokensTable,
+  userSessionsTable,
+  usersTable,
+} from "@workspace/db/schema";
+import { createHash } from "crypto";
+import { and, eq, isNull, sql } from "drizzle-orm";
+import { Router, type IRouter } from "express";
+import { z } from "zod";
+import { logger } from "../../lib/logger.js";
+import {
+  sendError,
+  sendForbidden,
+  sendNotFound,
+  sendSuccess,
+  sendUnauthorized,
+} from "../../lib/response.js";
+import {
+  getClientIp,
+  revokeAllUserRefreshTokens,
+  writeAuthAuditLog,
+} from "../../middleware/security.js";
+import { hashPassword, validatePasswordStrength } from "../../services/password.js";
+import { extractAuthUser } from "./helpers.js";
 
 const router: IRouter = Router();
 
 router.delete("/sessions/:id", async (req, res) => {
   try {
-  const auth = extractAuthUser(req);
-  if (!auth) { sendUnauthorized(res, "Authentication required"); return; }
+    const auth = extractAuthUser(req);
+    if (!auth) {
+      sendUnauthorized(res, "Authentication required");
+      return;
+    }
 
-  const { id } = req.params as Record<string, string>;
-  const [session] = await db
-    .select()
-    .from(userSessionsTable)
-    .where(and(eq(userSessionsTable.id, id!), eq(userSessionsTable.userId, auth.userId)))
-    .limit(1);
+    const { id } = req.params as Record<string, string>;
+    const [session] = await db
+      .select()
+      .from(userSessionsTable)
+      .where(and(eq(userSessionsTable.id, id!), eq(userSessionsTable.userId, auth.userId)))
+      .limit(1);
 
-  if (!session) { sendNotFound(res, "Session not found"); return; }
+    if (!session) {
+      sendNotFound(res, "Session not found");
+      return;
+    }
 
-  await db
-    .update(userSessionsTable)
-    .set({ revokedAt: new Date() })
-    .where(eq(userSessionsTable.id, id!));
-
-  /* Also revoke the linked refresh token if present */
-  if (session.refreshTokenId) {
     await db
-      .update(refreshTokensTable)
+      .update(userSessionsTable)
       .set({ revokedAt: new Date() })
-      .where(eq(refreshTokensTable.id, session.refreshTokenId));
-  }
+      .where(eq(userSessionsTable.id, id!));
 
-  writeAuthAuditLog("session_revoked", { userId: auth.userId, ip: getClientIp(req), metadata: { sessionId: id } });
-  sendSuccess(res, undefined, "Session revoked");
+    /* Also revoke the linked refresh token if present */
+    if (session.refreshTokenId) {
+      await db
+        .update(refreshTokensTable)
+        .set({ revokedAt: new Date() })
+        .where(eq(refreshTokensTable.id, session.refreshTokenId));
+    }
+
+    writeAuthAuditLog("session_revoked", {
+      userId: auth.userId,
+      ip: getClientIp(req),
+      metadata: { sessionId: id },
+    });
+    sendSuccess(res, undefined, "Session revoked");
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -116,10 +116,12 @@ router.delete("/sessions/:id", async (req, res) => {
  *         description: Token not found or already used
  */
 
-const RecoveryResetSchema = z.object({
-  token: z.string().min(16),
-  newPassword: z.string().min(8),
-}).strict();
+const RecoveryResetSchema = z
+  .object({
+    token: z.string().min(16),
+    newPassword: z.string().min(8),
+  })
+  .strict();
 
 router.post("/recovery/reset-password", async (req, res) => {
   try {
@@ -151,15 +153,18 @@ router.post("/recovery/reset-password", async (req, res) => {
         and(
           eq(accountRecoveryTokensTable.tokenHash, tokenHash),
           isNull(accountRecoveryTokensTable.usedAt),
-          sql`${accountRecoveryTokensTable.expiresAt} > now()`,
-        ),
+          sql`${accountRecoveryTokensTable.expiresAt} > now()`
+        )
       )
       .returning();
 
     if (!claimed) {
       /* Token not found, already used, or expired — give a safe unified message */
       const [existing] = await db
-        .select({ usedAt: accountRecoveryTokensTable.usedAt, expiresAt: accountRecoveryTokensTable.expiresAt })
+        .select({
+          usedAt: accountRecoveryTokensTable.usedAt,
+          expiresAt: accountRecoveryTokensTable.expiresAt,
+        })
         .from(accountRecoveryTokensTable)
         .where(eq(accountRecoveryTokensTable.tokenHash, tokenHash))
         .limit(1);
@@ -191,16 +196,23 @@ router.post("/recovery/reset-password", async (req, res) => {
     }
 
     /* Update password, bump tokenVersion to invalidate outstanding JWTs */
-    await db.update(usersTable).set({
-      passwordHash: hashPassword(newPassword),
-      requirePasswordChange: false,
-      tokenVersion: sql`token_version + 1`,
-      updatedAt: new Date(),
-    }).where(eq(usersTable.id, claimed.userId));
+    await db
+      .update(usersTable)
+      .set({
+        passwordHash: hashPassword(newPassword),
+        requirePasswordChange: false,
+        tokenVersion: sql`token_version + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(usersTable.id, claimed.userId));
 
     /* Revoke all active sessions and refresh tokens */
-    await db.update(userSessionsTable).set({ revokedAt: new Date() })
-      .where(and(eq(userSessionsTable.userId, claimed.userId), isNull(userSessionsTable.revokedAt)));
+    await db
+      .update(userSessionsTable)
+      .set({ revokedAt: new Date() })
+      .where(
+        and(eq(userSessionsTable.userId, claimed.userId), isNull(userSessionsTable.revokedAt))
+      );
     await revokeAllUserRefreshTokens(claimed.userId);
 
     writeAuthAuditLog("password_reset_via_recovery", {
@@ -209,9 +221,19 @@ router.post("/recovery/reset-password", async (req, res) => {
       userAgent: req.headers["user-agent"] ?? undefined,
     });
 
-    sendSuccess(res, undefined, "Password has been reset successfully. Please login with your new password.");
+    sendSuccess(
+      res,
+      undefined,
+      "Password has been reset successfully. Please login with your new password."
+    );
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, "[route] unhandled error");
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

@@ -36,52 +36,36 @@ export function splitCsv(value: string | null | undefined): string[] {
 // ---------------------------------------------------------------------------
 
 export const productSchema = z.object({
-  name: z
-    .string()
-    .min(1, "Name is required")
-    .max(120, "Name must be 120 characters or fewer"),
-  category: z
-    .string()
-    .min(1, "Category is required — search and select one from the dropdown"),
+  name: z.string().min(1, "Name is required").max(120, "Name must be 120 characters or fewer"),
+  category: z.string().min(1, "Category is required — search and select one from the dropdown"),
   type: z.string().min(1, "Type is required"),
   price: z
     .string()
     .min(1, "Price is required")
-    .refine(v => !isNaN(Number(v)) && Number(v) >= 1, {
+    .refine((v) => !isNaN(Number(v)) && Number(v) >= 1, {
       message: "Price must be at least 1",
     })
-    .refine(v => Number(v) <= 1_000_000, {
+    .refine((v) => Number(v) <= 1_000_000, {
       message: "Price must be 1,000,000 or less",
     }),
   originalPrice: z
     .string()
     .optional()
-    .refine(v => !v || (!isNaN(Number(v)) && Number(v) >= 1), {
+    .refine((v) => !v || (!isNaN(Number(v)) && Number(v) >= 1), {
       message: "Original price must be at least 1",
     })
-    .refine(v => !v || Number(v) <= 1_000_000, {
+    .refine((v) => !v || Number(v) <= 1_000_000, {
       message: "Original price must be 1,000,000 or less",
     }),
-  description: z
-    .string()
-    .max(500, "Description must be 500 characters or fewer")
-    .optional(),
+  description: z.string().max(500, "Description must be 500 characters or fewer").optional(),
   unit: z.string().max(32, "Unit must be 32 characters or fewer").optional(),
-  vendorName: z
-    .string()
-    .max(120, "Vendor name must be 120 characters or fewer")
-    .optional(),
-  deliveryTime: z
-    .string()
-    .max(48, "Delivery time must be 48 characters or fewer")
-    .optional(),
+  vendorName: z.string().max(120, "Vendor name must be 120 characters or fewer").optional(),
+  deliveryTime: z.string().max(48, "Delivery time must be 48 characters or fewer").optional(),
   inStock: z.boolean(),
   image: z.string().optional(),
 });
 
-export type ProductFormErrors = Partial<
-  Record<keyof z.infer<typeof productSchema>, string>
->;
+export type ProductFormErrors = Partial<Record<keyof z.infer<typeof productSchema>, string>>;
 
 export const createUserSchema = z
   .object({
@@ -119,10 +103,7 @@ export const createUserSchema = z
         path: ["email"],
       });
     }
-    if (
-      data.username.trim() &&
-      data.username.trim().replace(/[^a-z0-9_]/gi, "").length < 3
-    ) {
+    if (data.username.trim() && data.username.trim().replace(/[^a-z0-9_]/gi, "").length < 3) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Username kam az kam 3 characters ka hona chahiye",

@@ -1,8 +1,8 @@
-import { Router } from "express";
 import { db } from "@workspace/db";
-import { userInteractionsTable, searchLogsTable } from "@workspace/db/schema";
-import { gte, sql, count, eq } from "drizzle-orm";
-import { sendSuccess, sendError } from "../../lib/response.js";
+import { searchLogsTable, userInteractionsTable } from "@workspace/db/schema";
+import { count, gte, sql } from "drizzle-orm";
+import { Router } from "express";
+import { sendError, sendSuccess } from "../../lib/response.js";
 
 const router = Router();
 
@@ -20,13 +20,20 @@ router.get("/search-analytics/interaction-timeline", async (req, res) => {
       })
       .from(userInteractionsTable)
       .where(gte(userInteractionsTable.createdAt, since))
-      .groupBy(
-        sql`DATE(${userInteractionsTable.createdAt})`,
-        userInteractionsTable.interactionType,
-      )
+      .groupBy(sql`DATE(${userInteractionsTable.createdAt})`, userInteractionsTable.interactionType)
       .orderBy(sql`DATE(${userInteractionsTable.createdAt})`);
 
-    const dayMap = new Map<string, { date: string; view: number; cart: number; purchase: number; wishlist: number; total: number }>();
+    const dayMap = new Map<
+      string,
+      {
+        date: string;
+        view: number;
+        cart: number;
+        purchase: number;
+        wishlist: number;
+        total: number;
+      }
+    >();
 
     for (const row of rows) {
       const d = row.date;
@@ -35,8 +42,8 @@ router.get("/search-analytics/interaction-timeline", async (req, res) => {
       }
       const entry = dayMap.get(d)!;
       const type = row.interactionType as string;
-      if (type === "view")     entry.view     += row.total;
-      if (type === "cart")     entry.cart     += row.total;
+      if (type === "view") entry.view += row.total;
+      if (type === "cart") entry.cart += row.total;
       if (type === "purchase") entry.purchase += row.total;
       if (type === "wishlist") entry.wishlist += row.total;
       entry.total += row.total;
@@ -69,13 +76,13 @@ router.get("/search-analytics/interaction-stats", async (req, res) => {
       totals[s.interactionType] = s.total;
     }
 
-    const views     = totals["view"]     || 0;
-    const carts     = totals["cart"]     || 0;
+    const views = totals["view"] || 0;
+    const carts = totals["cart"] || 0;
     const purchases = totals["purchase"] || 0;
     const wishlists = totals["wishlist"] || 0;
 
     const conversionRate = views > 0 ? parseFloat(((purchases / views) * 100).toFixed(2)) : 0;
-    const cartRate       = views > 0 ? parseFloat(((carts     / views) * 100).toFixed(2)) : 0;
+    const cartRate = views > 0 ? parseFloat(((carts / views) * 100).toFixed(2)) : 0;
 
     sendSuccess(res, {
       totals,
@@ -106,9 +113,7 @@ router.get("/search-analytics/zero-results", async (req, res) => {
         lastSearchedAt: sql<string>`max(${searchLogsTable.createdAt})::text`,
       })
       .from(searchLogsTable)
-      .where(
-        sql`${searchLogsTable.resultCount} = 0 AND ${searchLogsTable.createdAt} >= ${since}`
-      )
+      .where(sql`${searchLogsTable.resultCount} = 0 AND ${searchLogsTable.createdAt} >= ${since}`)
       .groupBy(searchLogsTable.query)
       .orderBy(sql`count(*) DESC`)
       .limit(limit);

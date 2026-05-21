@@ -10,7 +10,7 @@
  *    by design in the password.ts handler.
  */
 
-import { vi, describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 // ── Mocks (hoisted) ────────────────────────────────────────────────────────────
 vi.mock("../../../modules/otp/otp.deliver.js", () => ({
@@ -45,19 +45,19 @@ vi.mock("../../../services/email.js", () => ({
 // ── Imports ────────────────────────────────────────────────────────────────────
 import request from "supertest";
 import { createServer } from "../../../app.js";
+import { hashPassword } from "../../../services/password.js";
 import {
-  generateTestPhone,
-  toCanonicalPhone,
+  cleanupOtpAttempts,
+  cleanupOtpTokens,
+  cleanupRefreshTokens,
   createTestUser,
   deleteTestUser,
   deleteTestUserByPhone,
-  seedOtpToken,
   expireOtpToken,
-  cleanupOtpTokens,
-  cleanupOtpAttempts,
-  cleanupRefreshTokens,
+  generateTestPhone,
+  seedOtpToken,
+  toCanonicalPhone,
 } from "../helpers/db-helpers.js";
-import { hashPassword } from "../../../services/password.js";
 
 // ── Test Suite ─────────────────────────────────────────────────────────────────
 
@@ -153,7 +153,13 @@ describe("POST /api/auth/verify-reset-otp", () => {
     const userId = await createTestUser({ phone: canonPhone, phoneVerified: true });
     createdUserIds.push(userId);
 
-    await seedOtpToken({ identifier: canonPhone, identifierType: "phone", otpType: "reset", code: "123456", userId });
+    await seedOtpToken({
+      identifier: canonPhone,
+      identifierType: "phone",
+      otpType: "reset",
+      code: "123456",
+      userId,
+    });
 
     const res = await request(app)
       .post("/api/auth/verify-reset-otp")
@@ -174,7 +180,13 @@ describe("POST /api/auth/verify-reset-otp", () => {
     const userId = await createTestUser({ phone: canonPhone, phoneVerified: true });
     createdUserIds.push(userId);
 
-    await seedOtpToken({ identifier: canonPhone, identifierType: "phone", otpType: "reset", code: "123456", userId });
+    await seedOtpToken({
+      identifier: canonPhone,
+      identifierType: "phone",
+      otpType: "reset",
+      code: "123456",
+      userId,
+    });
 
     const res = await request(app)
       .post("/api/auth/verify-reset-otp")
@@ -192,7 +204,13 @@ describe("POST /api/auth/verify-reset-otp", () => {
     const userId = await createTestUser({ phone: canonPhone, phoneVerified: true });
     createdUserIds.push(userId);
 
-    const { tokenId } = await seedOtpToken({ identifier: canonPhone, identifierType: "phone", otpType: "reset", code: "123456", userId });
+    const { tokenId } = await seedOtpToken({
+      identifier: canonPhone,
+      identifierType: "phone",
+      otpType: "reset",
+      code: "123456",
+      userId,
+    });
     await expireOtpToken(tokenId);
 
     const res = await request(app)
@@ -253,7 +271,13 @@ describe("POST /api/auth/reset-password", () => {
     createdUserIds.push(userId);
 
     // Seed reset OTP and obtain resetToken via verify-reset-otp
-    await seedOtpToken({ identifier: canonPhone, identifierType: "phone", otpType: "reset", code: "123456", userId });
+    await seedOtpToken({
+      identifier: canonPhone,
+      identifierType: "phone",
+      otpType: "reset",
+      code: "123456",
+      userId,
+    });
 
     const verifyRes = await request(app)
       .post("/api/auth/verify-reset-otp")
@@ -296,7 +320,13 @@ describe("POST /api/auth/reset-password", () => {
     const userId = await createTestUser({ phone: canonPhone, phoneVerified: true });
     createdUserIds.push(userId);
 
-    await seedOtpToken({ identifier: canonPhone, identifierType: "phone", otpType: "reset", code: "123456", userId });
+    await seedOtpToken({
+      identifier: canonPhone,
+      identifierType: "phone",
+      otpType: "reset",
+      code: "123456",
+      userId,
+    });
 
     const verifyRes = await request(app)
       .post("/api/auth/verify-reset-otp")
@@ -322,7 +352,13 @@ describe("POST /api/auth/reset-password", () => {
     const userId = await createTestUser({ phone: canonPhone, phoneVerified: true });
     createdUserIds.push(userId);
 
-    await seedOtpToken({ identifier: canonPhone, identifierType: "phone", otpType: "reset", code: "123456", userId });
+    await seedOtpToken({
+      identifier: canonPhone,
+      identifierType: "phone",
+      otpType: "reset",
+      code: "123456",
+      userId,
+    });
 
     const verifyRes = await request(app)
       .post("/api/auth/verify-reset-otp")

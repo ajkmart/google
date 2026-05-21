@@ -242,13 +242,95 @@ const DEFAULT_CONFIG: PlatformConfig = {
     currencySymbol: "Rs.",
     currencyCode: "PKR",
   },
-  features: { mart: true, food: true, rides: true, pharmacy: true, parcel: true, wallet: true, referral: true, newUsers: true, chat: false, liveTracking: true, reviews: true, sos: true },
-  content: { trackerBannerEnabled: true, trackerBannerPosition: "top", showBanner: true, banner: "Free delivery on your first order! 🎉", announcement: "", maintenanceMsg: "We're performing scheduled maintenance. Back soon!", supportMsg: "Need help? Chat with us!", vendorNotice: "", riderNotice: "", tncUrl: "", privacyUrl: "", refundPolicyUrl: "", faqUrl: "", aboutUrl: "" },
-  orderRules: { minOrderAmount: 100, maxCodAmount: 5000, maxCartValue: 50000, cancelWindowMin: 5, autoCancelMin: 15, refundDays: 3, preptimeMin: 15, ratingWindowHours: 48, scheduleEnabled: false },
-  deliveryFee: { mart: 80, food: 60, pharmacy: 50, parcel: 100, parcelPerKg: 40, freeEnabled: true, freeDeliveryAbove: 1000 },
-  rides: { bikeBaseFare: 15, bikePerKm: 8, bikeMinFare: 50, carBaseFare: 25, carPerKm: 12, carMinFare: 80, surgeEnabled: false, surgeMultiplier: 1.5, cancellationFee: 30, riderEarningPct: 80 },
-  finance: { gstEnabled: false, gstPct: 17, cashbackEnabled: false, cashbackPct: 2, cashbackMaxRs: 100, invoiceEnabled: false, platformCommissionPct: 10, vendorCommissionPct: 15, riderEarningPct: 80, minVendorPayout: 500, minRiderPayout: 500, vendorSettleDays: 7, referralBonus: 100 },
-  auth: { phoneOtp: false, emailOtp: false, usernamePassword: false, google: false, facebook: false, magicLink: false, captchaEnabled: false, lockoutEnabled: true, lockoutMaxAttempts: 5, lockoutDurationSec: 300 },
+  features: {
+    mart: true,
+    food: true,
+    rides: true,
+    pharmacy: true,
+    parcel: true,
+    wallet: true,
+    referral: true,
+    newUsers: true,
+    chat: false,
+    liveTracking: true,
+    reviews: true,
+    sos: true,
+  },
+  content: {
+    trackerBannerEnabled: true,
+    trackerBannerPosition: "top",
+    showBanner: true,
+    banner: "Free delivery on your first order! 🎉",
+    announcement: "",
+    maintenanceMsg: "We're performing scheduled maintenance. Back soon!",
+    supportMsg: "Need help? Chat with us!",
+    vendorNotice: "",
+    riderNotice: "",
+    tncUrl: "",
+    privacyUrl: "",
+    refundPolicyUrl: "",
+    faqUrl: "",
+    aboutUrl: "",
+  },
+  orderRules: {
+    minOrderAmount: 100,
+    maxCodAmount: 5000,
+    maxCartValue: 50000,
+    cancelWindowMin: 5,
+    autoCancelMin: 15,
+    refundDays: 3,
+    preptimeMin: 15,
+    ratingWindowHours: 48,
+    scheduleEnabled: false,
+  },
+  deliveryFee: {
+    mart: 80,
+    food: 60,
+    pharmacy: 50,
+    parcel: 100,
+    parcelPerKg: 40,
+    freeEnabled: true,
+    freeDeliveryAbove: 1000,
+  },
+  rides: {
+    bikeBaseFare: 15,
+    bikePerKm: 8,
+    bikeMinFare: 50,
+    carBaseFare: 25,
+    carPerKm: 12,
+    carMinFare: 80,
+    surgeEnabled: false,
+    surgeMultiplier: 1.5,
+    cancellationFee: 30,
+    riderEarningPct: 80,
+  },
+  finance: {
+    gstEnabled: false,
+    gstPct: 17,
+    cashbackEnabled: false,
+    cashbackPct: 2,
+    cashbackMaxRs: 100,
+    invoiceEnabled: false,
+    platformCommissionPct: 10,
+    vendorCommissionPct: 15,
+    riderEarningPct: 80,
+    minVendorPayout: 500,
+    minRiderPayout: 500,
+    vendorSettleDays: 7,
+    referralBonus: 100,
+  },
+  auth: {
+    phoneOtp: false,
+    emailOtp: false,
+    usernamePassword: false,
+    google: false,
+    facebook: false,
+    magicLink: false,
+    captchaEnabled: false,
+    lockoutEnabled: true,
+    lockoutMaxAttempts: 5,
+    lockoutDurationSec: 300,
+  },
   security: { gpsTracking: true, gpsInterval: 30, sessionDays: 30, riderTokenDays: 7 },
   rider: {
     keepPct: 80,
@@ -288,7 +370,7 @@ export interface RiderAuthConfig {
 function resolveRoleFlag(
   simple: boolean | undefined,
   perRole: boolean | { customer?: boolean; rider?: boolean; vendor?: boolean } | undefined,
-  fallback: boolean,
+  fallback: boolean
 ): boolean {
   if (typeof simple === "boolean") return simple;
   if (typeof perRole === "boolean") return perRole;
@@ -300,7 +382,19 @@ function resolveRoleFlag(
 
 export function getRiderAuthConfig(config: PlatformConfig): RiderAuthConfig {
   const a = config.auth;
-  if (!a) return { phoneOtp: false, emailOtp: false, usernamePassword: false, google: false, facebook: false, magicLink: false, captchaEnabled: false, lockoutEnabled: true, lockoutMaxAttempts: 5, lockoutDurationSec: 300 };
+  if (!a)
+    return {
+      phoneOtp: false,
+      emailOtp: false,
+      usernamePassword: false,
+      google: false,
+      facebook: false,
+      magicLink: false,
+      captchaEnabled: false,
+      lockoutEnabled: true,
+      lockoutMaxAttempts: 5,
+      lockoutDurationSec: 300,
+    };
   return {
     phoneOtp: resolveRoleFlag(a.phoneOtp, a.phoneOtpEnabled, false),
     emailOtp: resolveRoleFlag(a.emailOtp, a.emailOtpEnabled, false),
@@ -356,8 +450,12 @@ export function usePlatformConfig() {
 export function useCurrency() {
   const { config } = usePlatformConfig();
   return {
-    symbol: config.platform.currencySymbol ?? config.currencySymbol ?? config.regional?.currencySymbol ?? "Rs.",
-    code:   config.platform.currencyCode   ?? config.currencyCode   ?? "PKR",
+    symbol:
+      config.platform.currencySymbol ??
+      config.currencySymbol ??
+      config.regional?.currencySymbol ??
+      "Rs.",
+    code: config.platform.currencyCode ?? config.currencyCode ?? "PKR",
   };
 }
 
@@ -377,7 +475,10 @@ export function usePhoneValidator(): (phone: string) => boolean {
   return buildPhoneValidator(config);
 }
 
-export function useDateFormatter(): (date: string | Date | null | undefined, options?: Intl.DateTimeFormatOptions) => string {
+export function useDateFormatter(): (
+  date: string | Date | null | undefined,
+  options?: Intl.DateTimeFormatOptions
+) => string {
   const { config } = usePlatformConfig();
   const tz = config.regional?.timezone;
   return (date, options) => formatDateTz(date, options, tz);
@@ -386,13 +487,13 @@ export function useDateFormatter(): (date: string | Date | null | undefined, opt
 export function formatDateTz(
   date: string | Date | null | undefined,
   options?: Intl.DateTimeFormatOptions,
-  timezone?: string,
+  timezone?: string
 ): string {
   if (!date) return "";
   try {
     const tz = timezone || "Asia/Karachi";
     return new Intl.DateTimeFormat("en-PK", { timeZone: tz, ...options }).format(
-      typeof date === "string" ? new Date(date) : date,
+      typeof date === "string" ? new Date(date) : date
     );
   } catch {
     return new Date(date as string).toLocaleString();

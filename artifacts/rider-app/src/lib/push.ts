@@ -16,21 +16,23 @@
  * project roots before building.
  */
 
-import { z } from "zod";
+import { createLogger } from "@/lib/logger";
 import { Capacitor } from "@capacitor/core";
+import { z } from "zod";
 import { api, getApiBase } from "./api";
 import { riderEnv } from "./envValidation";
-import { createLogger } from "@/lib/logger";
 const log = createLogger("[push]");
 
-const PushPayloadSchema = z.object({
-  type: z.string().optional(),
-  rideId: z.string().optional(),
-  orderId: z.string().optional(),
-  title: z.string().optional(),
-  body: z.string().optional(),
-  route: z.string().optional(),
-}).passthrough();
+const PushPayloadSchema = z
+  .object({
+    type: z.string().optional(),
+    rideId: z.string().optional(),
+    orderId: z.string().optional(),
+    title: z.string().optional(),
+    body: z.string().optional(),
+    route: z.string().optional(),
+  })
+  .passthrough();
 
 /* ─── AI tab active flag ───────────────────────────────────────────────────────
  * Chat.tsx sets this to true whenever the rider has the AI Help tab open and
@@ -84,20 +86,26 @@ export function consumePendingNotificationTap(): Record<string, string> | null {
 }
 
 if (Capacitor.isNativePlatform()) {
-  import("@capacitor/push-notifications").then(({ PushNotifications }) => {
-    PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
-      const raw = action.notification?.data ?? {};
-      const validated = validatePushPayload(raw);
-      if (validated && Object.keys(validated).length > 0) {
-        _pendingTapData = validated as Record<string, string>;
-      }
-    }).catch((err) => { log.warn("pushNotificationActionPerformed listener registration failed:", err); });
-  }).catch((err) => { log.warn("registrationError listener registration failed:", err); });
+  import("@capacitor/push-notifications")
+    .then(({ PushNotifications }) => {
+      PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
+        const raw = action.notification?.data ?? {};
+        const validated = validatePushPayload(raw);
+        if (validated && Object.keys(validated).length > 0) {
+          _pendingTapData = validated as Record<string, string>;
+        }
+      }).catch((err) => {
+        log.warn("pushNotificationActionPerformed listener registration failed:", err);
+      });
+    })
+    .catch((err) => {
+      log.warn("registrationError listener registration failed:", err);
+    });
 }
 
 export async function registerPush(
   onForegroundMessage?: (title: string, body: string) => void,
-  onNotificationTap?: NotificationTapHandler,
+  onNotificationTap?: NotificationTapHandler
 ): Promise<PushCleanup | void> {
   if (Capacitor.isNativePlatform()) {
     return registerFcmPush(onForegroundMessage, onNotificationTap);
@@ -109,7 +117,7 @@ export async function registerPush(
 
 async function registerFcmPush(
   onForegroundMessage?: (title: string, body: string) => void,
-  onNotificationTap?: NotificationTapHandler,
+  onNotificationTap?: NotificationTapHandler
 ): Promise<PushCleanup | void> {
   try {
     const { PushNotifications } = await import("@capacitor/push-notifications");
@@ -147,12 +155,20 @@ async function registerFcmPush(
         /* resolve() is idempotent — subsequent calls (token rotation) are no-ops
            on the promise but we still re-register the new token with the server. */
         resolve(newToken.value);
-        await registerTokenWithServer(newToken.value).catch((err) => { console.warn('[artifacts/rider-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
-      }).then((h) => cleanups.push(h)).catch(reject);
+        await registerTokenWithServer(newToken.value).catch((err) => {
+          console.warn("[artifacts/rider-app/src/lib/push.ts]", err);
+        }); // eslint-disable-line no-console
+      })
+        .then((h) => cleanups.push(h))
+        .catch(reject);
 
       PushNotifications.addListener("registrationError", (err) => {
         reject(new Error(err.error));
-      }).then((h) => cleanups.push(h)).catch((err) => { console.warn('[artifacts/rider-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
+      })
+        .then((h) => cleanups.push(h))
+        .catch((err) => {
+          console.warn("[artifacts/rider-app/src/lib/push.ts]", err);
+        }); // eslint-disable-line no-console
     });
 
     /* Token refresh listener — fires when FCM rotates the device token without
@@ -161,12 +177,25 @@ async function registerFcmPush(
        expose this event yet, but the underlying native layer does emit it on
        some configurations; we handle it defensively alongside the registration
        event so no rotation is missed. */
-    (PushNotifications as unknown as {
-      addListener(e: "tokenRefresh", fn: (t: { registration?: string; value?: string }) => void): Promise<{ remove: () => void }>;
-    }).addListener("tokenRefresh", async (newToken) => {
-      const token = newToken.registration ?? newToken.value;
-      if (token) await registerTokenWithServer(token).catch((err) => { console.warn('[artifacts/rider-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
-    }).then((h) => cleanups.push(h)).catch((err) => { console.warn('[artifacts/rider-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
+    (
+      PushNotifications as unknown as {
+        addListener(
+          e: "tokenRefresh",
+          fn: (t: { registration?: string; value?: string }) => void
+        ): Promise<{ remove: () => void }>;
+      }
+    )
+      .addListener("tokenRefresh", async (newToken) => {
+        const token = newToken.registration ?? newToken.value;
+        if (token)
+          await registerTokenWithServer(token).catch((err) => {
+            console.warn("[artifacts/rider-app/src/lib/push.ts]", err);
+          }); // eslint-disable-line no-console
+      })
+      .then((h) => cleanups.push(h))
+      .catch((err) => {
+        console.warn("[artifacts/rider-app/src/lib/push.ts]", err);
+      }); // eslint-disable-line no-console
 
     if (onForegroundMessage) {
       PushNotifications.addListener("pushNotificationReceived", (notification) => {
@@ -177,7 +206,11 @@ async function registerFcmPush(
            Help tab open — they can see the reply directly without a banner. */
         if (validated.type === "ai_chat" && _aiTabActive) return;
         onForegroundMessage(notification.title ?? "", notification.body ?? "");
-      }).then((h) => cleanups.push(h)).catch((err) => { console.warn('[artifacts/rider-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
+      })
+        .then((h) => cleanups.push(h))
+        .catch((err) => {
+          console.warn("[artifacts/rider-app/src/lib/push.ts]", err);
+        }); // eslint-disable-line no-console
     }
 
     /* Handle notification tap — fires when rider taps the notification in the
@@ -189,7 +222,11 @@ async function registerFcmPush(
         const validated = validatePushPayload(raw);
         if (validated === null) return;
         onNotificationTap(validated as Record<string, string>);
-      }).then((h) => cleanups.push(h)).catch((err) => { console.warn('[artifacts/rider-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
+      })
+        .then((h) => cleanups.push(h))
+        .catch((err) => {
+          console.warn("[artifacts/rider-app/src/lib/push.ts]", err);
+        }); // eslint-disable-line no-console
     }
 
     /* Now trigger registration — token/error events may fire after this. */
@@ -201,7 +238,7 @@ async function registerFcmPush(
     await Promise.race<void>([
       tokenPromise.then(() => {}),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("FCM registration timeout")), TOKEN_TIMEOUT_MS),
+        setTimeout(() => reject(new Error("FCM registration timeout")), TOKEN_TIMEOUT_MS)
       ),
     ]);
 
@@ -224,7 +261,9 @@ async function registerVapidPush(): Promise<void> {
     const vapidRes = await fetch(`${base}/api/push/vapid-key`);
     if (!vapidRes.ok) return;
     const vj = await vapidRes.json();
-    const { publicKey } = (vj?.success === true && "data" in vj ? vj.data : vj) as { publicKey: string };
+    const { publicKey } = (vj?.success === true && "data" in vj ? vj.data : vj) as {
+      publicKey: string;
+    };
     if (!publicKey) return;
 
     const keyBytes = urlBase64ToUint8Array(publicKey);
@@ -257,8 +296,8 @@ async function registerVapidPush(): Promise<void> {
 }
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = window.atob(base64);
-  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }

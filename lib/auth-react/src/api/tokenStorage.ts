@@ -8,8 +8,8 @@ export interface TokenStorage {
   clear(): void;
 }
 
-const ACCESS_TOKEN_KEY = 'ajk_access_token';
-const REFRESH_TOKEN_KEY = 'ajk_refresh_token';
+const ACCESS_TOKEN_KEY = "ajk_access_token";
+const REFRESH_TOKEN_KEY = "ajk_refresh_token";
 
 class MemoryStorage implements TokenStorage {
   private accessToken: string | null = null;
@@ -48,11 +48,11 @@ class MemoryStorage implements TokenStorage {
 class WebStorage implements TokenStorage {
   private store: Storage;
 
-  constructor(type: 'session' | 'local' = 'session') {
-    if (typeof window === 'undefined') {
-      throw new Error('WebStorage is only available in browser environments');
+  constructor(type: "session" | "local" = "session") {
+    if (typeof window === "undefined") {
+      throw new Error("WebStorage is only available in browser environments");
     }
-    this.store = type === 'local' ? window.localStorage : window.sessionStorage;
+    this.store = type === "local" ? window.localStorage : window.sessionStorage;
   }
 
   getAccessToken(): string | null {
@@ -98,18 +98,18 @@ type CapacitorPreferencesApi = {
 };
 
 function getCapacitorPreferences(): CapacitorPreferencesApi | undefined {
-  if (typeof globalThis === 'undefined') return undefined;
-  const cap = (globalThis as Record<string, unknown>)['Capacitor'] as
+  if (typeof globalThis === "undefined") return undefined;
+  const cap = (globalThis as Record<string, unknown>)["Capacitor"] as
     | { Plugins?: { Preferences?: CapacitorPreferencesApi } }
     | undefined;
   return cap?.Plugins?.Preferences;
 }
 
 function getSecureStore(): ExpoSecureStoreApi | undefined {
-  if (typeof globalThis === 'undefined') return undefined;
-  return (globalThis as Record<string, unknown>)[
-    '__ExpoSecureStore'
-  ] as ExpoSecureStoreApi | undefined;
+  if (typeof globalThis === "undefined") return undefined;
+  return (globalThis as Record<string, unknown>)["__ExpoSecureStore"] as
+    | ExpoSecureStoreApi
+    | undefined;
 }
 
 class NativeStorage implements TokenStorage {
@@ -171,7 +171,9 @@ class NativeStorage implements TokenStorage {
       cap.set({ key: ACCESS_TOKEN_KEY, value: token }).catch(() => {});
       return;
     }
-    getSecureStore()?.setItemAsync(ACCESS_TOKEN_KEY, token).catch(() => {});
+    getSecureStore()
+      ?.setItemAsync(ACCESS_TOKEN_KEY, token)
+      .catch(() => {});
   }
 
   removeAccessToken(): void {
@@ -181,7 +183,9 @@ class NativeStorage implements TokenStorage {
       cap.remove({ key: ACCESS_TOKEN_KEY }).catch(() => {});
       return;
     }
-    getSecureStore()?.deleteItemAsync(ACCESS_TOKEN_KEY).catch(() => {});
+    getSecureStore()
+      ?.deleteItemAsync(ACCESS_TOKEN_KEY)
+      .catch(() => {});
   }
 
   getRefreshToken(): string | null {
@@ -195,7 +199,9 @@ class NativeStorage implements TokenStorage {
       cap.set({ key: REFRESH_TOKEN_KEY, value: token }).catch(() => {});
       return;
     }
-    getSecureStore()?.setItemAsync(REFRESH_TOKEN_KEY, token).catch(() => {});
+    getSecureStore()
+      ?.setItemAsync(REFRESH_TOKEN_KEY, token)
+      .catch(() => {});
   }
 
   removeRefreshToken(): void {
@@ -205,7 +211,9 @@ class NativeStorage implements TokenStorage {
       cap.remove({ key: REFRESH_TOKEN_KEY }).catch(() => {});
       return;
     }
-    getSecureStore()?.deleteItemAsync(REFRESH_TOKEN_KEY).catch(() => {});
+    getSecureStore()
+      ?.deleteItemAsync(REFRESH_TOKEN_KEY)
+      .catch(() => {});
   }
 
   clear(): void {
@@ -216,22 +224,26 @@ class NativeStorage implements TokenStorage {
       cap.remove({ key: REFRESH_TOKEN_KEY }).catch(() => {});
       return;
     }
-    getSecureStore()?.deleteItemAsync(ACCESS_TOKEN_KEY).catch(() => {});
-    getSecureStore()?.deleteItemAsync(REFRESH_TOKEN_KEY).catch(() => {});
+    getSecureStore()
+      ?.deleteItemAsync(ACCESS_TOKEN_KEY)
+      .catch(() => {});
+    getSecureStore()
+      ?.deleteItemAsync(REFRESH_TOKEN_KEY)
+      .catch(() => {});
   }
 }
 
-export type StorageType = 'web' | 'web-local' | 'native' | 'memory';
+export type StorageType = "web" | "web-local" | "native" | "memory";
 
-export function createTokenStorage(type: StorageType = 'web'): TokenStorage {
+export function createTokenStorage(type: StorageType = "web"): TokenStorage {
   switch (type) {
-    case 'web':
-      return new WebStorage('session');
-    case 'web-local':
-      return new WebStorage('local');
-    case 'native':
+    case "web":
+      return new WebStorage("session");
+    case "web-local":
+      return new WebStorage("local");
+    case "native":
       return new NativeStorage();
-    case 'memory':
+    case "memory":
     default:
       return new MemoryStorage();
   }
@@ -256,7 +268,7 @@ export async function createNativeTokenStorage(): Promise<TokenStorage> {
   return storage;
 }
 
-export function getTokenStorage(type: StorageType = 'web'): TokenStorage {
+export function getTokenStorage(type: StorageType = "web"): TokenStorage {
   return createTokenStorage(type);
 }
 

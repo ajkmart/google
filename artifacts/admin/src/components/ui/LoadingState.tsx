@@ -1,5 +1,5 @@
-import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 /**
  * LoadingState — canonical loading indicator for any async section in
@@ -22,11 +22,7 @@ export function LoadingState({
   className,
 }: LoadingStateProps) {
   const containerCls =
-    variant === "page"
-      ? "min-h-[60vh] p-8"
-      : variant === "inline"
-      ? "p-2"
-      : "p-8";
+    variant === "page" ? "min-h-[60vh] p-8" : variant === "inline" ? "p-2" : "p-8";
 
   return (
     <div
@@ -34,9 +30,9 @@ export function LoadingState({
       aria-live="polite"
       data-testid="loading-state"
       className={cn(
-        "flex flex-col items-center justify-center gap-2 text-center text-muted-foreground",
+        "text-muted-foreground flex flex-col items-center justify-center gap-2 text-center",
         containerCls,
-        className,
+        className
       )}
     >
       <Loader2 className="h-5 w-5 animate-spin text-indigo-500" aria-hidden="true" />

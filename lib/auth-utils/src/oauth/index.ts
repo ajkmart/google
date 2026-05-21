@@ -1,8 +1,5 @@
+import { GoogleOAuthProvider, useGoogleLogin as useGoogleLoginLib } from "@react-oauth/google";
 import { useState } from "react";
-import {
-  GoogleOAuthProvider,
-  useGoogleLogin as useGoogleLoginLib,
-} from "@react-oauth/google";
 
 export { GoogleOAuthProvider };
 
@@ -94,15 +91,42 @@ export function useGoogleLogin(): {
 
 export function loadGoogleGSIToken(clientId: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const gw = window as unknown as { google?: { accounts: { id: { initialize: (c: Record<string, unknown>) => void; prompt: (cb: (n: { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean }) => void) => void } } } };
+    const gw = window as unknown as {
+      google?: {
+        accounts: {
+          id: {
+            initialize: (c: Record<string, unknown>) => void;
+            prompt: (
+              cb: (n: { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean }) => void
+            ) => void;
+          };
+        };
+      };
+    };
     if (!gw.google?.accounts?.id) {
       loadScript("https://accounts.google.com/gsi/client", "google-gsi").then(init).catch(reject);
     } else {
       init();
     }
     function init() {
-      const g = (window as unknown as { google?: { accounts: { id: { initialize: (c: Record<string, unknown>) => void; prompt: (cb: (n: { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean }) => void) => void } } } }).google;
-      if (!g?.accounts?.id) { reject(new Error("Google SDK not available")); return; }
+      const g = (
+        window as unknown as {
+          google?: {
+            accounts: {
+              id: {
+                initialize: (c: Record<string, unknown>) => void;
+                prompt: (
+                  cb: (n: { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean }) => void
+                ) => void;
+              };
+            };
+          };
+        }
+      ).google;
+      if (!g?.accounts?.id) {
+        reject(new Error("Google SDK not available"));
+        return;
+      }
       g.accounts.id.initialize({
         client_id: clientId,
         callback: (response: { credential?: string }) => {
@@ -131,10 +155,13 @@ export function loadFacebookAccessToken(appId: string): Promise<string> {
       doLogin();
     }
     function doLogin() {
-      window.FB!.login((response) => {
-        if (response.authResponse?.accessToken) resolve(response.authResponse.accessToken);
-        else reject(new Error("Facebook sign-in cancelled"));
-      }, { scope: "email,public_profile" });
+      window.FB!.login(
+        (response) => {
+          if (response.authResponse?.accessToken) resolve(response.authResponse.accessToken);
+          else reject(new Error("Facebook sign-in cancelled"));
+        },
+        { scope: "email,public_profile" }
+      );
     }
   });
 }
@@ -144,7 +171,10 @@ export function decodeGoogleJwtPayload(idToken: string): Record<string, string> 
   const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
   return JSON.parse(
     decodeURIComponent(
-      atob(b64).split("").map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join("")
+      atob(b64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
     )
   );
 }

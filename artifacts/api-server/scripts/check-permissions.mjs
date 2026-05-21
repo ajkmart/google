@@ -15,9 +15,9 @@
  */
 
 import { readFileSync, readdirSync, statSync } from "fs";
+import { createRequire } from "module";
 import { join, relative } from "path";
 import { fileURLToPath } from "url";
-import { createRequire } from "module";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = join(__dirname, "..", "..", "..");
@@ -32,13 +32,8 @@ try {
   PERMISSION_IDS = new Set(catalog.PERMISSION_IDS ?? []);
 } catch {
   // Fall back: parse PERMISSION_IDS directly from the TS source as text.
-  const src = readFileSync(
-    join(repoRoot, "lib/auth-utils/src/permissions.ts"),
-    "utf8"
-  );
-  PERMISSION_IDS = new Set(
-    [...src.matchAll(/\{\s*id:\s*"([^"]+)"/g)].map((m) => m[1])
-  );
+  const src = readFileSync(join(repoRoot, "lib/auth-utils/src/permissions.ts"), "utf8");
+  PERMISSION_IDS = new Set([...src.matchAll(/\{\s*id:\s*"([^"]+)"/g)].map((m) => m[1]));
 }
 
 if (PERMISSION_IDS.size === 0) {
@@ -70,8 +65,7 @@ const routeFiles = walkSync(routesDir);
 //   requireAnyPermission(["a.b", "c.d"])
 //   requireAllPermissions(["a.b"])
 const STRING_RE = /"([a-z][a-z0-9._]*)"/g;
-const CALL_RE =
-  /require(?:Permission|AnyPermission|AllPermissions)\s*\(([^)]+)\)/g;
+const CALL_RE = /require(?:Permission|AnyPermission|AllPermissions)\s*\(([^)]+)\)/g;
 
 const unknown = []; // { file, id }
 
@@ -99,14 +93,10 @@ if (unknown.length === 0) {
   );
   process.exit(0);
 } else {
-  console.error(
-    `[check-permissions] FAIL — ${unknown.length} unknown permission id(s) found:\n`
-  );
+  console.error(`[check-permissions] FAIL — ${unknown.length} unknown permission id(s) found:\n`);
   for (const { file, id } of unknown) {
     console.error(`  ✗  "${id}"  in  ${file}`);
   }
-  console.error(
-    "\nAdd the missing id(s) to lib/auth-utils/src/permissions.ts and re-run."
-  );
+  console.error("\nAdd the missing id(s) to lib/auth-utils/src/permissions.ts and re-run.");
   process.exit(1);
 }

@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/adminFetcher", () => ({
   adminFetch: vi.fn(),
@@ -69,9 +69,15 @@ vi.mock("@/components/ErrorBoundary", () => ({
 vi.mock("@hello-pangea/dnd", () => ({
   DragDropContext: ({ children }: { children: ReactNode }) => <>{children}</>,
   Droppable: ({ children }: { children: (p: object, s: object) => ReactNode }) =>
-    children({ innerRef: () => {}, droppableProps: {}, placeholder: null }, { isDraggingOver: false }),
+    children(
+      { innerRef: () => {}, droppableProps: {}, placeholder: null },
+      { isDraggingOver: false }
+    ),
   Draggable: ({ children }: { children: (p: object, s: object) => ReactNode }) =>
-    children({ innerRef: () => {}, draggableProps: {}, dragHandleProps: {} }, { isDragging: false }),
+    children(
+      { innerRef: () => {}, draggableProps: {}, dragHandleProps: {} },
+      { isDragging: false }
+    ),
 }));
 
 const mockUseQuery = vi.fn();
@@ -79,7 +85,8 @@ const mockUseMutation = vi.fn();
 const mockUseQueryClient = vi.fn();
 
 vi.mock("@tanstack/react-query", async () => {
-  const actual = await vi.importActual<typeof import("@tanstack/react-query")>("@tanstack/react-query");
+  const actual =
+    await vi.importActual<typeof import("@tanstack/react-query")>("@tanstack/react-query");
   return {
     ...actual,
     useQuery: (...args: unknown[]) => mockUseQuery(...args),
@@ -89,7 +96,9 @@ vi.mock("@tanstack/react-query", async () => {
 });
 
 function makeClient() {
-  return new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
 }
 function Wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={makeClient()}>{children}</QueryClientProvider>;

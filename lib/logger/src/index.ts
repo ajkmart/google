@@ -44,7 +44,7 @@ export function registerErrorHandler(handler: ErrorHandler): void {
 function isDevMode(): boolean {
   if (typeof __DEV__ !== "undefined") return !!__DEV__;
   try {
-    return !!((import.meta as any)?.env?.DEV);
+    return !!(import.meta as any)?.env?.DEV;
   } catch {
     return false;
   }
@@ -52,8 +52,14 @@ function isDevMode(): boolean {
 
 /** ANSI-free colour prefix for browser devtools. */
 const COLOURS = [
-  "#7c3aed", "#0284c7", "#059669", "#d97706",
-  "#db2777", "#16a34a", "#9333ea", "#0891b2",
+  "#7c3aed",
+  "#0284c7",
+  "#059669",
+  "#d97706",
+  "#db2777",
+  "#16a34a",
+  "#9333ea",
+  "#0891b2",
 ];
 let _colourIdx = 0;
 
@@ -81,23 +87,29 @@ export function createLogger(namespace: string): Logger {
     const style = `color:${colour};font-weight:600`;
     return {
       debug: (...args) => console.debug(prefix, style, ...args),
-      info:  (...args) => console.info(prefix, style, ...args),
-      warn:  (...args) => console.warn(prefix, style, ...args),
+      info: (...args) => console.info(prefix, style, ...args),
+      warn: (...args) => console.warn(prefix, style, ...args),
       error: (...args) => console.error(prefix, style, ...args),
     };
   }
 
   return {
     debug: () => {},
-    info:  () => {},
-    warn:  () => {},
+    info: () => {},
+    warn: () => {},
     error: (...args) => {
       if (!_errorHandler) return;
-      const msg = args.map(a => {
-        if (a instanceof Error) return a.message;
-        if (typeof a === "string") return a;
-        try { return JSON.stringify(a); } catch { return String(a); }
-      }).join(" ");
+      const msg = args
+        .map((a) => {
+          if (a instanceof Error) return a.message;
+          if (typeof a === "string") return a;
+          try {
+            return JSON.stringify(a);
+          } catch {
+            return String(a);
+          }
+        })
+        .join(" ");
       const stack = args.find((a): a is Error => a instanceof Error)?.stack;
       _errorHandler({
         errorType: "ui_error",

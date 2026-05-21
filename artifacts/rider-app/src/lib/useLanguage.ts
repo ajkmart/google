@@ -1,17 +1,26 @@
-import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
-import React from "react";
 import type { Language } from "@workspace/i18n";
 import { LANGUAGE_OPTIONS, isRTL } from "@workspace/i18n";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { api } from "./api";
 
 const STORAGE_KEY = "ajkmart_rider_language";
-const VALID_LANGS = new Set<string>(LANGUAGE_OPTIONS.map(o => o.value));
+const VALID_LANGS = new Set<string>(LANGUAGE_OPTIONS.map((o) => o.value));
 
 function getStoredLanguage(): Language | null {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored && VALID_LANGS.has(stored)) return stored as Language;
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/useLanguage.ts]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/useLanguage.ts]", err);
+  } // eslint-disable-line no-console
   return null;
 }
 
@@ -62,7 +71,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       /* Only sync language preference from server when authenticated — avoids
          a 401 on the login page which would log noise in the browser console. */
       if (api.getToken()) {
-        api.getSettings().catch((err) => { console.warn('[artifacts/rider-app/src/lib/useLanguage.ts]', err); }); // eslint-disable-line no-console
+        api.getSettings().catch((err) => {
+          console.warn("[artifacts/rider-app/src/lib/useLanguage.ts]", err);
+        }); // eslint-disable-line no-console
       }
     } else {
       /* Only fetch from server when a token exists — avoids a 401 on the login
@@ -71,7 +82,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         setInitialised(true);
         return;
       }
-      api.getSettings()
+      api
+        .getSettings()
         .then((data: { language?: string }) => {
           /* If the user has set a language between fetch start and resolution,
              skip the server overwrite. */
@@ -80,10 +92,16 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
           if (serverLang && VALID_LANGS.has(serverLang)) {
             setLanguageState(serverLang as Language);
             applyRTL(serverLang as Language);
-            try { localStorage.setItem(STORAGE_KEY, serverLang); } catch (err) { console.warn('[artifacts/rider-app/src/lib/useLanguage.ts]', err); } // eslint-disable-line no-console
+            try {
+              localStorage.setItem(STORAGE_KEY, serverLang);
+            } catch (err) {
+              console.warn("[artifacts/rider-app/src/lib/useLanguage.ts]", err);
+            } // eslint-disable-line no-console
           }
         })
-        .catch((err) => { console.warn('[artifacts/rider-app/src/lib/useLanguage.ts]', err); }) // eslint-disable-line no-console
+        .catch((err) => {
+          console.warn("[artifacts/rider-app/src/lib/useLanguage.ts]", err);
+        }) // eslint-disable-line no-console
         .finally(() => setInitialised(true));
     }
   }, []);
@@ -95,10 +113,16 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     /* P3: Mark that the user has made an explicit pick so any in-flight
        getSettings() resolution from the init effect does not overwrite it. */
     localPickRef.current = true;
-    try { localStorage.setItem(STORAGE_KEY, lang); } catch (err) { console.warn('[artifacts/rider-app/src/lib/useLanguage.ts]', err); } // eslint-disable-line no-console
+    try {
+      localStorage.setItem(STORAGE_KEY, lang);
+    } catch (err) {
+      console.warn("[artifacts/rider-app/src/lib/useLanguage.ts]", err);
+    } // eslint-disable-line no-console
     try {
       await api.updateSettings({ language: lang });
-    } catch (err) { console.warn('[artifacts/rider-app/src/lib/useLanguage.ts]', err); } // eslint-disable-line no-console
+    } catch (err) {
+      console.warn("[artifacts/rider-app/src/lib/useLanguage.ts]", err);
+    } // eslint-disable-line no-console
     setLoading(false);
   }, []);
 

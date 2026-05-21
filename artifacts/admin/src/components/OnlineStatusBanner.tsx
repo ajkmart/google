@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { WifiOff, Wifi } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Wifi, WifiOff } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 type ConnectionState = "online" | "offline" | "restoring";
 
@@ -17,7 +17,7 @@ type ConnectionState = "online" | "offline" | "restoring";
 export function OnlineStatusBanner() {
   const queryClient = useQueryClient();
   const [connState, setConnState] = useState<ConnectionState>(() =>
-    typeof navigator === "undefined" || navigator.onLine ? "online" : "offline",
+    typeof navigator === "undefined" || navigator.onLine ? "online" : "offline"
   );
   const restoreTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -77,8 +77,8 @@ export function OnlineStatusBanner() {
     >
       <WifiOff className="h-4 w-4" aria-hidden="true" />
       <span>
-        You are offline. Admin actions need a live connection — your changes
-        will fail until the network is restored.
+        You are offline. Admin actions need a live connection — your changes will fail until the
+        network is restored.
       </span>
     </div>
   );

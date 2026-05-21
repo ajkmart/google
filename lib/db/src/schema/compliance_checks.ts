@@ -12,20 +12,20 @@ import { usersTable } from "./users";
  * result values:      "pass" | "fail" | "review"
  */
 export const complianceChecksTable = pgTable("compliance_checks", {
-  id:        text("id").primaryKey(),
-  userId:    text("user_id").references(() => usersTable.id, { onDelete: "cascade" }),
+  id: text("id").primaryKey(),
+  userId: text("user_id").references(() => usersTable.id, { onDelete: "cascade" }),
   /** Category of check performed. */
   checkType: text("check_type").notNull(),
   /** Outcome: pass | fail | review */
-  result:    text("result").notNull(),
+  result: text("result").notNull(),
   /** Optional numeric risk score (e.g. AML risk score 0–100). */
-  score:     integer("score"),
+  score: integer("score"),
   /** Structured detail payload — provider response, flags, reasons, etc. */
-  details:   jsonb("details"),
+  details: jsonb("details"),
   checkedAt: timestamp("checked_at", { withTimezone: true }).notNull().defaultNow(),
   /** "system" for automated checks, or an admin account ID for manual ones. */
   checkedBy: text("checked_by"),
 });
 
-export type ComplianceCheck    = typeof complianceChecksTable.$inferSelect;
+export type ComplianceCheck = typeof complianceChecksTable.$inferSelect;
 export type NewComplianceCheck = typeof complianceChecksTable.$inferInsert;

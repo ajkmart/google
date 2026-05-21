@@ -1,8 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import type {
+  RegisterRole,
+  StepComponentProps,
+  StepConfig,
+} from "../src/components/RegisterScreen";
 import { RegisterScreen } from "../src/components/RegisterScreen";
-import type { StepConfig, StepComponentProps, RegisterRole } from "../src/components/RegisterScreen";
 
 const noop = () => {};
 
@@ -19,9 +23,7 @@ const basicSteps: StepConfig[] = [
     id: "step2",
     title: "Step 2",
     subtitle: "Second step",
-    fields: [
-      { id: "email", type: "email", label: "Email", required: true, placeholder: "Email" },
-    ],
+    fields: [{ id: "email", type: "email", label: "Email", required: true, placeholder: "Email" }],
   },
 ];
 
@@ -38,16 +40,12 @@ const threeSteps: StepConfig[] = [
   {
     id: "step2",
     title: "Step 2",
-    fields: [
-      { id: "city", type: "text", label: "City", placeholder: "Enter city" },
-    ],
+    fields: [{ id: "city", type: "text", label: "City", placeholder: "Enter city" }],
   },
   {
     id: "step3",
     title: "Step 3",
-    fields: [
-      { id: "email", type: "email", label: "Email", required: true, placeholder: "Email" },
-    ],
+    fields: [{ id: "email", type: "email", label: "Email", required: true, placeholder: "Email" }],
   },
 ];
 
@@ -55,14 +53,21 @@ const stepsWithPassword: StepConfig[] = [
   {
     id: "info",
     title: "Info",
-    fields: [{ id: "name", type: "text", label: "Name", placeholder: "Enter name", required: true }],
+    fields: [
+      { id: "name", type: "text", label: "Name", placeholder: "Enter name", required: true },
+    ],
   },
   {
     id: "password",
     title: "Password",
     fields: [
       { id: "password", type: "password", label: "Password", required: true },
-      { id: "confirmPassword", type: "confirm-password", label: "Confirm Password", required: true },
+      {
+        id: "confirmPassword",
+        type: "confirm-password",
+        label: "Confirm Password",
+        required: true,
+      },
     ],
   },
 ];
@@ -84,9 +89,7 @@ const stepsWithOtp: StepConfig[] = [
 ];
 
 function renderScreen(role: RegisterRole, steps: StepConfig[], onComplete = noop) {
-  return render(
-    <RegisterScreen role={role} steps={steps} onComplete={onComplete} />
-  );
+  return render(<RegisterScreen role={role} steps={steps} onComplete={onComplete} />);
 }
 
 describe("RegisterScreen", () => {
@@ -107,7 +110,9 @@ describe("RegisterScreen", () => {
   });
 
   it("renders custom title when provided", () => {
-    render(<RegisterScreen role="customer" steps={basicSteps} onComplete={noop} title="Custom Title" />);
+    render(
+      <RegisterScreen role="customer" steps={basicSteps} onComplete={noop} title="Custom Title" />
+    );
     expect(screen.getByText("Custom Title")).toBeInTheDocument();
   });
 
@@ -121,16 +126,22 @@ describe("RegisterScreen", () => {
     // Use 3-step form so step 1 button says "Next →"
     renderScreen("customer", threeSteps);
     const nextBtn = screen.getByRole("button", { name: /next/i });
-    await act(async () => { fireEvent.click(nextBtn); });
+    await act(async () => {
+      fireEvent.click(nextBtn);
+    });
     expect(screen.getByText(/required/i)).toBeInTheDocument();
   });
 
   it("advances to next step when form is valid", async () => {
     renderScreen("customer", threeSteps);
     const input = screen.getByPlaceholderText("Enter name");
-    await act(async () => { await userEvent.type(input, "Ali Khan"); });
+    await act(async () => {
+      await userEvent.type(input, "Ali Khan");
+    });
     const nextBtn = screen.getByRole("button", { name: /next/i });
-    await act(async () => { fireEvent.click(nextBtn); });
+    await act(async () => {
+      fireEvent.click(nextBtn);
+    });
     await waitFor(() => {
       expect(screen.getByText("Step 2")).toBeInTheDocument();
     });
@@ -139,8 +150,12 @@ describe("RegisterScreen", () => {
   it("shows back button on second step", async () => {
     renderScreen("customer", threeSteps);
     const input = screen.getByPlaceholderText("Enter name");
-    await act(async () => { await userEvent.type(input, "Ali Khan"); });
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /next/i })); });
+    await act(async () => {
+      await userEvent.type(input, "Ali Khan");
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    });
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /back/i })).toBeInTheDocument();
     });
@@ -148,10 +163,16 @@ describe("RegisterScreen", () => {
 
   it("goes back when back button is clicked", async () => {
     renderScreen("customer", threeSteps);
-    await act(async () => { await userEvent.type(screen.getByPlaceholderText("Enter name"), "Ali Khan"); });
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /next/i })); });
+    await act(async () => {
+      await userEvent.type(screen.getByPlaceholderText("Enter name"), "Ali Khan");
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    });
     await waitFor(() => screen.getByText("Step 2"));
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /back/i })); });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /back/i }));
+    });
     await waitFor(() => {
       expect(screen.getByText("First step")).toBeInTheDocument();
     });
@@ -178,14 +199,26 @@ describe("RegisterScreen", () => {
 
   it("shows confirm-password mismatch error", async () => {
     const { container } = renderScreen("customer", stepsWithPassword);
-    await act(async () => { await userEvent.type(screen.getByPlaceholderText("Enter name"), "Test"); });
+    await act(async () => {
+      await userEvent.type(screen.getByPlaceholderText("Enter name"), "Test");
+    });
     // First step of 2 shows "Submit Registration"
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /submit registration/i })); });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /submit registration/i }));
+    });
     await waitFor(() => screen.getByText("Confirm Password"));
-    const [pw1, pw2] = Array.from(container.querySelectorAll('input[type="password"]')) as HTMLInputElement[];
-    await act(async () => { await userEvent.type(pw1, "password123"); });
-    await act(async () => { await userEvent.type(pw2, "different"); });
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /go to login/i })); });
+    const [pw1, pw2] = Array.from(
+      container.querySelectorAll('input[type="password"]')
+    ) as HTMLInputElement[];
+    await act(async () => {
+      await userEvent.type(pw1, "password123");
+    });
+    await act(async () => {
+      await userEvent.type(pw2, "different");
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /go to login/i }));
+    });
     await waitFor(() => {
       expect(screen.getByText(/passwords do not match/i)).toBeInTheDocument();
     });
@@ -198,9 +231,13 @@ describe("RegisterScreen", () => {
   });
 
   it("shows custom step component when provided", () => {
-    const CustomComp = ({ data: _d, onChange: _c, onError: _e, onNext: _n, role: _r }: StepComponentProps) => (
-      <div data-testid="custom-step">Custom Step Content</div>
-    );
+    const CustomComp = ({
+      data: _d,
+      onChange: _c,
+      onError: _e,
+      onNext: _n,
+      role: _r,
+    }: StepComponentProps) => <div data-testid="custom-step">Custom Step Content</div>;
     const stepsWithCustom: StepConfig[] = [
       { id: "custom", title: "Custom", fields: [], component: CustomComp },
     ];
@@ -243,9 +280,7 @@ describe("RegisterScreen", () => {
       {
         id: "terms",
         title: "Terms",
-        fields: [
-          { id: "accepted", type: "checkbox", label: "Accept Terms" },
-        ],
+        fields: [{ id: "accepted", type: "checkbox", label: "Accept Terms" }],
       },
     ];
     renderScreen("customer", stepsWithCheckbox, vi.fn());
@@ -264,14 +299,18 @@ describe("RegisterScreen", () => {
             type: "text",
             label: "Age",
             required: true,
-            validate: (v) => (!v || Number(v) < 18) ? "Must be 18 or older" : null,
+            validate: (v) => (!v || Number(v) < 18 ? "Must be 18 or older" : null),
           },
         ],
       },
     ];
     renderScreen("customer", stepsWithCustomValidation, vi.fn());
-    await act(async () => { await userEvent.type(screen.getByRole("textbox"), "15"); });
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /go to login/i })); });
+    await act(async () => {
+      await userEvent.type(screen.getByRole("textbox"), "15");
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /go to login/i }));
+    });
     await waitFor(() => {
       expect(screen.getByText("Must be 18 or older")).toBeInTheDocument();
     });
@@ -279,20 +318,12 @@ describe("RegisterScreen", () => {
 
   it("re-syncs form data when initialData reference changes", async () => {
     const { rerender } = render(
-      <RegisterScreen
-        role="customer"
-        steps={basicSteps}
-        initialData={{ name: "Original" }}
-      />
+      <RegisterScreen role="customer" steps={basicSteps} initialData={{ name: "Original" }} />
     );
     expect((screen.getByPlaceholderText("Enter name") as HTMLInputElement).value).toBe("Original");
 
     rerender(
-      <RegisterScreen
-        role="customer"
-        steps={basicSteps}
-        initialData={{ name: "Updated" }}
-      />
+      <RegisterScreen role="customer" steps={basicSteps} initialData={{ name: "Updated" }} />
     );
 
     await waitFor(() => {

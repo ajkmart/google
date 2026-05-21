@@ -1,37 +1,37 @@
-import React, { useState } from 'react';
-import { useSessionManager } from '../hooks/useSessionManager';
-import type { Session, LoginHistoryEntry } from '../hooks/useSessionManager';
+import React, { useState } from "react";
+import type { LoginHistoryEntry, Session } from "../hooks/useSessionManager";
+import { useSessionManager } from "../hooks/useSessionManager";
 
 /* ── Inline styles (no CSS deps — works in any React web app) ───────────── */
 
 const palette = {
-  bg: '#f9fafb',
-  card: '#ffffff',
-  border: '#e5e7eb',
-  primary: '#3b82f6',
-  primaryHover: '#2563eb',
-  danger: '#ef4444',
-  dangerHover: '#dc2626',
-  muted: '#6b7280',
-  success: '#22c55e',
-  error: '#ef4444',
-  text: '#111827',
-  textSub: '#6b7280',
-  badge: '#f3f4f6',
-  badgeBorder: '#e5e7eb',
+  bg: "#f9fafb",
+  card: "#ffffff",
+  border: "#e5e7eb",
+  primary: "#3b82f6",
+  primaryHover: "#2563eb",
+  danger: "#ef4444",
+  dangerHover: "#dc2626",
+  muted: "#6b7280",
+  success: "#22c55e",
+  error: "#ef4444",
+  text: "#111827",
+  textSub: "#6b7280",
+  badge: "#f3f4f6",
+  badgeBorder: "#e5e7eb",
 };
 
 const s = {
   root: {
-    fontFamily: 'system-ui, -apple-system, sans-serif',
+    fontFamily: "system-ui, -apple-system, sans-serif",
     background: palette.bg,
-    minHeight: '100%',
-    padding: '24px 16px',
-    boxSizing: 'border-box' as const,
+    minHeight: "100%",
+    padding: "24px 16px",
+    boxSizing: "border-box" as const,
   },
   inner: {
     maxWidth: 680,
-    margin: '0 auto',
+    margin: "0 auto",
   },
   heading: {
     fontSize: 22,
@@ -45,22 +45,22 @@ const s = {
     marginBottom: 24,
   },
   tabs: {
-    display: 'flex',
+    display: "flex",
     borderBottom: `2px solid ${palette.border}`,
     marginBottom: 24,
     gap: 0,
   },
   tab: (active: boolean): React.CSSProperties => ({
-    padding: '8px 20px',
+    padding: "8px 20px",
     fontSize: 14,
     fontWeight: active ? 600 : 400,
     color: active ? palette.primary : palette.muted,
-    background: 'transparent',
-    border: 'none',
-    borderBottom: active ? `2px solid ${palette.primary}` : '2px solid transparent',
+    background: "transparent",
+    border: "none",
+    borderBottom: active ? `2px solid ${palette.primary}` : "2px solid transparent",
     marginBottom: -2,
-    cursor: 'pointer',
-    transition: 'color 0.15s, border-color 0.15s',
+    cursor: "pointer",
+    transition: "color 0.15s, border-color 0.15s",
   }),
   card: {
     background: palette.card,
@@ -68,8 +68,8 @@ const s = {
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    display: 'flex',
-    alignItems: 'center',
+    display: "flex",
+    alignItems: "center",
     gap: 16,
   },
   icon: {
@@ -78,9 +78,9 @@ const s = {
     borderRadius: 10,
     background: palette.badge,
     border: `1px solid ${palette.badgeBorder}`,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     fontSize: 20,
     flexShrink: 0,
   },
@@ -92,94 +92,92 @@ const s = {
     fontSize: 14,
     fontWeight: 600,
     color: palette.text,
-    whiteSpace: 'nowrap' as const,
-    overflow: 'hidden' as const,
-    textOverflow: 'ellipsis',
+    whiteSpace: "nowrap" as const,
+    overflow: "hidden" as const,
+    textOverflow: "ellipsis",
   },
   deviceMeta: {
     fontSize: 12,
     color: palette.textSub,
     marginTop: 2,
-    whiteSpace: 'nowrap' as const,
-    overflow: 'hidden' as const,
-    textOverflow: 'ellipsis',
+    whiteSpace: "nowrap" as const,
+    overflow: "hidden" as const,
+    textOverflow: "ellipsis",
   },
   badge: (success: boolean): React.CSSProperties => ({
-    display: 'inline-block',
-    padding: '2px 8px',
+    display: "inline-block",
+    padding: "2px 8px",
     borderRadius: 999,
     fontSize: 11,
     fontWeight: 600,
-    background: success ? '#dcfce7' : '#fee2e2',
-    color: success ? '#15803d' : '#b91c1c',
-    border: `1px solid ${success ? '#bbf7d0' : '#fecaca'}`,
+    background: success ? "#dcfce7" : "#fee2e2",
+    color: success ? "#15803d" : "#b91c1c",
+    border: `1px solid ${success ? "#bbf7d0" : "#fecaca"}`,
     marginLeft: 8,
-    verticalAlign: 'middle',
+    verticalAlign: "middle",
   }),
   revokeBtn: (loading: boolean): React.CSSProperties => ({
-    padding: '6px 14px',
+    padding: "6px 14px",
     fontSize: 13,
     fontWeight: 500,
     color: loading ? palette.muted : palette.danger,
-    background: loading ? palette.badge : '#fff1f2',
-    border: `1px solid ${loading ? palette.badgeBorder : '#fecaca'}`,
+    background: loading ? palette.badge : "#fff1f2",
+    border: `1px solid ${loading ? palette.badgeBorder : "#fecaca"}`,
     borderRadius: 8,
-    cursor: loading ? 'not-allowed' : 'pointer',
-    whiteSpace: 'nowrap',
-    transition: 'background 0.15s',
+    cursor: loading ? "not-allowed" : "pointer",
+    whiteSpace: "nowrap",
+    transition: "background 0.15s",
     flexShrink: 0,
   }),
   bulkActions: {
-    display: 'flex',
+    display: "flex",
     gap: 10,
     marginBottom: 20,
-    flexWrap: 'wrap' as const,
+    flexWrap: "wrap" as const,
   },
-  bulkBtn: (variant: 'primary' | 'danger', disabled: boolean): React.CSSProperties => ({
-    padding: '8px 18px',
+  bulkBtn: (variant: "primary" | "danger", disabled: boolean): React.CSSProperties => ({
+    padding: "8px 18px",
     fontSize: 13,
     fontWeight: 600,
-    color: '#fff',
-    background: disabled
-      ? palette.muted
-      : variant === 'danger' ? palette.danger : palette.primary,
-    border: 'none',
+    color: "#fff",
+    background: disabled ? palette.muted : variant === "danger" ? palette.danger : palette.primary,
+    border: "none",
     borderRadius: 8,
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    transition: 'background 0.15s',
+    cursor: disabled ? "not-allowed" : "pointer",
+    transition: "background 0.15s",
     opacity: disabled ? 0.7 : 1,
   }),
   refreshBtn: {
-    padding: '6px 14px',
+    padding: "6px 14px",
     fontSize: 13,
     fontWeight: 500,
     color: palette.primary,
-    background: '#eff6ff',
+    background: "#eff6ff",
     border: `1px solid #bfdbfe`,
     borderRadius: 8,
-    cursor: 'pointer',
+    cursor: "pointer",
   },
   error: {
-    background: '#fef2f2',
+    background: "#fef2f2",
     border: `1px solid #fecaca`,
-    color: '#b91c1c',
+    color: "#b91c1c",
     borderRadius: 8,
-    padding: '10px 14px',
+    padding: "10px 14px",
     fontSize: 13,
     marginBottom: 16,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   empty: {
-    textAlign: 'center' as const,
+    textAlign: "center" as const,
     color: palette.textSub,
-    padding: '48px 0',
+    padding: "48px 0",
     fontSize: 14,
   },
   spinner: {
-    textAlign: 'center' as const,
-    padding: '40px 0',
+    textAlign: "center" as const,
+    padding: "40px 0",
     color: palette.muted,
     fontSize: 14,
   },
@@ -187,15 +185,15 @@ const s = {
     fontSize: 12,
     fontWeight: 600,
     color: palette.textSub,
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.05em',
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.05em",
     marginBottom: 12,
   },
   historyRow: {
-    display: 'flex',
-    alignItems: 'flex-start',
+    display: "flex",
+    alignItems: "flex-start",
     gap: 12,
-    padding: '12px 16px',
+    padding: "12px 16px",
     background: palette.card,
     border: `1px solid ${palette.border}`,
     borderRadius: 10,
@@ -208,7 +206,7 @@ const s = {
 function formatRelative(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const minutes = Math.floor(diff / 60_000);
-  if (minutes < 1) return 'Just now';
+  if (minutes < 1) return "Just now";
   if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
@@ -222,28 +220,28 @@ function formatAbsolute(iso: string): string {
 }
 
 function deviceIcon(os: string | null): string {
-  const o = (os ?? '').toLowerCase();
-  if (o.includes('android') || o.includes('ios')) return '📱';
-  if (o.includes('mac')) return '💻';
-  if (o.includes('windows')) return '🖥️';
-  if (o.includes('linux')) return '🐧';
-  return '🔒';
+  const o = (os ?? "").toLowerCase();
+  if (o.includes("android") || o.includes("ios")) return "📱";
+  if (o.includes("mac")) return "💻";
+  if (o.includes("windows")) return "🖥️";
+  if (o.includes("linux")) return "🐧";
+  return "🔒";
 }
 
 function methodLabel(method: string | null): string {
-  const m = method ?? '';
+  const m = method ?? "";
   const map: Record<string, string> = {
-    phone_otp: 'Phone',
-    email_otp: 'Email',
-    password: 'Password',
-    google: 'Google',
-    facebook: 'Facebook',
-    magic_link: 'Magic Link',
-    biometric: 'Biometric',
-    totp: '2FA',
-    refresh: 'Token Refresh',
+    phone_otp: "Phone",
+    email_otp: "Email",
+    password: "Password",
+    google: "Google",
+    facebook: "Facebook",
+    magic_link: "Magic Link",
+    biometric: "Biometric",
+    totp: "2FA",
+    refresh: "Token Refresh",
   };
-  return map[m] ?? m ?? 'Unknown';
+  return map[m] ?? m ?? "Unknown";
 }
 
 /* ── Session card ───────────────────────────────────────────────────────── */
@@ -259,16 +257,17 @@ function SessionCard({
 }) {
   const meta = [session.browser, session.os, session.ip, session.location]
     .filter(Boolean)
-    .join(' · ');
+    .join(" · ");
 
   return (
     <div style={s.card}>
       <div style={s.icon}>{deviceIcon(session.os)}</div>
       <div style={s.deviceInfo}>
-        <div style={s.deviceName}>{session.deviceName ?? 'Unknown device'}</div>
+        <div style={s.deviceName}>{session.deviceName ?? "Unknown device"}</div>
         {meta && <div style={s.deviceMeta}>{meta}</div>}
         <div style={{ ...s.deviceMeta, marginTop: 4 }}>
-          Active {formatRelative(session.lastActiveAt)} &nbsp;·&nbsp; Since {formatAbsolute(session.createdAt)}
+          Active {formatRelative(session.lastActiveAt)} &nbsp;·&nbsp; Since{" "}
+          {formatAbsolute(session.createdAt)}
         </div>
       </div>
       <button
@@ -277,7 +276,7 @@ function SessionCard({
         disabled={isRevoking}
         title="Sign out this device"
       >
-        {isRevoking ? '…' : 'Sign out'}
+        {isRevoking ? "…" : "Sign out"}
       </button>
     </div>
   );
@@ -286,26 +285,20 @@ function SessionCard({
 /* ── History row ────────────────────────────────────────────────────────── */
 
 function HistoryRow({ entry }: { entry: LoginHistoryEntry }) {
-  const meta = [entry.browser, entry.os, entry.ip, entry.location]
-    .filter(Boolean)
-    .join(' · ');
+  const meta = [entry.browser, entry.os, entry.ip, entry.location].filter(Boolean).join(" · ");
 
   return (
     <div style={s.historyRow}>
       <div style={{ ...s.icon, width: 34, height: 34, fontSize: 16 }}>
-        {entry.success ? '✅' : '❌'}
+        {entry.success ? "✅" : "❌"}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: palette.text }}>
           {methodLabel(entry.method)}
-          <span style={s.badge(entry.success)}>
-            {entry.success ? 'Success' : 'Failed'}
-          </span>
+          <span style={s.badge(entry.success)}>{entry.success ? "Success" : "Failed"}</span>
         </div>
         {meta && <div style={s.deviceMeta}>{meta}</div>}
-        <div style={{ ...s.deviceMeta, marginTop: 2 }}>
-          {formatAbsolute(entry.createdAt)}
-        </div>
+        <div style={{ ...s.deviceMeta, marginTop: 2 }}>{formatAbsolute(entry.createdAt)}</div>
       </div>
     </div>
   );
@@ -337,11 +330,11 @@ export interface SessionManagerScreenProps {
 
 export function SessionManagerScreen({
   baseURL,
-  title = 'Active Sessions',
+  title = "Active Sessions",
   className,
   showRevokeAll = false,
 }: SessionManagerScreenProps) {
-  const [activeTab, setActiveTab] = useState<'sessions' | 'history'>('sessions');
+  const [activeTab, setActiveTab] = useState<"sessions" | "history">("sessions");
   const [confirmRevokeAll, setConfirmRevokeAll] = useState(false);
 
   const {
@@ -359,14 +352,14 @@ export function SessionManagerScreen({
     clearError,
   } = useSessionManager({ baseURL, autoFetchSessions: true, autoFetchHistory: false });
 
-  const handleTabChange = (tab: 'sessions' | 'history') => {
+  const handleTabChange = (tab: "sessions" | "history") => {
     setActiveTab(tab);
-    if (tab === 'history' && history.length === 0 && !loadingHistory) {
+    if (tab === "history" && history.length === 0 && !loadingHistory) {
       void refreshHistory();
     }
   };
 
-  const anyBulkLoading = revokingId === '__others__' || revokingId === '__all__';
+  const anyBulkLoading = revokingId === "__others__" || revokingId === "__all__";
 
   return (
     <div style={s.root} className={className}>
@@ -382,7 +375,13 @@ export function SessionManagerScreen({
             <span>{error}</span>
             <button
               onClick={clearError}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b91c1c', fontWeight: 700 }}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "#b91c1c",
+                fontWeight: 700,
+              }}
             >
               ✕
             </button>
@@ -391,42 +390,45 @@ export function SessionManagerScreen({
 
         {/* ── Tabs ───────────────────────────────────────────────────── */}
         <div style={s.tabs}>
-          <button style={s.tab(activeTab === 'sessions')} onClick={() => handleTabChange('sessions')}>
+          <button
+            style={s.tab(activeTab === "sessions")}
+            onClick={() => handleTabChange("sessions")}
+          >
             Active Devices {sessions.length > 0 && `(${sessions.length})`}
           </button>
-          <button style={s.tab(activeTab === 'history')} onClick={() => handleTabChange('history')}>
+          <button style={s.tab(activeTab === "history")} onClick={() => handleTabChange("history")}>
             Login History
           </button>
         </div>
 
         {/* ── Sessions tab ───────────────────────────────────────────── */}
-        {activeTab === 'sessions' && (
+        {activeTab === "sessions" && (
           <>
             {/* Bulk actions */}
             <div style={s.bulkActions}>
               <button
-                style={s.bulkBtn('primary', anyBulkLoading || loadingSessions)}
+                style={s.bulkBtn("primary", anyBulkLoading || loadingSessions)}
                 onClick={() => void refreshSessions()}
                 disabled={anyBulkLoading || loadingSessions}
               >
-                {loadingSessions ? 'Refreshing…' : 'Refresh'}
+                {loadingSessions ? "Refreshing…" : "Refresh"}
               </button>
               {sessions.length > 1 && (
                 <button
-                  style={s.bulkBtn('danger', anyBulkLoading)}
+                  style={s.bulkBtn("danger", anyBulkLoading)}
                   onClick={() => void revokeAllOthers()}
                   disabled={anyBulkLoading}
                 >
-                  {revokingId === '__others__' ? 'Signing out…' : 'Sign out other devices'}
+                  {revokingId === "__others__" ? "Signing out…" : "Sign out other devices"}
                 </button>
               )}
               {showRevokeAll && sessions.length > 0 && !confirmRevokeAll && (
                 <button
-                  style={s.bulkBtn('danger', anyBulkLoading)}
+                  style={s.bulkBtn("danger", anyBulkLoading)}
                   onClick={() => setConfirmRevokeAll(true)}
                   disabled={anyBulkLoading}
                 >
-                  {revokingId === '__all__' ? 'Signing out all…' : 'Sign out all devices'}
+                  {revokingId === "__all__" ? "Signing out all…" : "Sign out all devices"}
                 </button>
               )}
             </div>
@@ -435,52 +437,56 @@ export function SessionManagerScreen({
             {confirmRevokeAll && (
               <div
                 style={{
-                  background: '#fef2f2',
-                  border: '1px solid #fecaca',
+                  background: "#fef2f2",
+                  border: "1px solid #fecaca",
                   borderRadius: 10,
-                  padding: '16px 20px',
+                  padding: "16px 20px",
                   marginBottom: 16,
-                  display: 'flex',
-                  flexDirection: 'column',
+                  display: "flex",
+                  flexDirection: "column",
                   gap: 12,
                 }}
                 role="alert"
                 aria-live="assertive"
               >
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#b91c1c' }}>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#b91c1c" }}>
                   Sign out of ALL devices?
                 </p>
-                <p style={{ margin: 0, fontSize: 13, color: '#6b7280' }}>
-                  This will immediately end every active session including this one. You will need to sign in again.
+                <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>
+                  This will immediately end every active session including this one. You will need
+                  to sign in again.
                 </p>
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ display: "flex", gap: 10 }}>
                   <button
                     style={{
-                      padding: '8px 18px',
+                      padding: "8px 18px",
                       fontSize: 13,
                       fontWeight: 600,
-                      color: '#fff',
+                      color: "#fff",
                       background: palette.danger,
-                      border: 'none',
+                      border: "none",
                       borderRadius: 8,
-                      cursor: anyBulkLoading ? 'not-allowed' : 'pointer',
+                      cursor: anyBulkLoading ? "not-allowed" : "pointer",
                       opacity: anyBulkLoading ? 0.7 : 1,
                     }}
                     disabled={anyBulkLoading}
-                    onClick={() => { setConfirmRevokeAll(false); void revokeAll(); }}
+                    onClick={() => {
+                      setConfirmRevokeAll(false);
+                      void revokeAll();
+                    }}
                   >
                     Yes, sign out all
                   </button>
                   <button
                     style={{
-                      padding: '8px 18px',
+                      padding: "8px 18px",
                       fontSize: 13,
                       fontWeight: 600,
                       color: palette.text,
-                      background: '#f3f4f6',
-                      border: '1px solid #e5e7eb',
+                      background: "#f3f4f6",
+                      border: "1px solid #e5e7eb",
                       borderRadius: 8,
-                      cursor: 'pointer',
+                      cursor: "pointer",
                     }}
                     onClick={() => setConfirmRevokeAll(false)}
                   >
@@ -497,7 +503,9 @@ export function SessionManagerScreen({
               <div style={s.empty}>No active sessions found.</div>
             ) : (
               <>
-                <div style={s.sectionLabel}>{sessions.length} active device{sessions.length !== 1 ? 's' : ''}</div>
+                <div style={s.sectionLabel}>
+                  {sessions.length} active device{sessions.length !== 1 ? "s" : ""}
+                </div>
                 {sessions.map((session) => (
                   <SessionCard
                     key={session.id}
@@ -512,7 +520,7 @@ export function SessionManagerScreen({
         )}
 
         {/* ── History tab ────────────────────────────────────────────── */}
-        {activeTab === 'history' && (
+        {activeTab === "history" && (
           <>
             <div style={s.bulkActions}>
               <button
@@ -520,7 +528,7 @@ export function SessionManagerScreen({
                 onClick={() => void refreshHistory()}
                 disabled={loadingHistory}
               >
-                {loadingHistory ? 'Loading…' : 'Refresh'}
+                {loadingHistory ? "Loading…" : "Refresh"}
               </button>
             </div>
 
@@ -530,7 +538,9 @@ export function SessionManagerScreen({
               <div style={s.empty}>No login history found.</div>
             ) : (
               <>
-                <div style={s.sectionLabel}>Last {history.length} login event{history.length !== 1 ? 's' : ''}</div>
+                <div style={s.sectionLabel}>
+                  Last {history.length} login event{history.length !== 1 ? "s" : ""}
+                </div>
                 {history.map((entry) => (
                   <HistoryRow key={entry.id} entry={entry} />
                 ))}

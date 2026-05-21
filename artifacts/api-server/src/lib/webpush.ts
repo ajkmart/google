@@ -1,7 +1,7 @@
-import webpush from "web-push";
 import { db } from "@workspace/db";
 import { pushSubscriptionsTable } from "@workspace/db/schema";
 import { eq, inArray } from "drizzle-orm";
+import webpush from "web-push";
 import { sendFcmToTokens } from "./fcm.js";
 import { logger } from "./logger.js";
 
@@ -9,7 +9,7 @@ let vapidInitialized = false;
 
 export function initVapid() {
   if (vapidInitialized) return;
-  const pub  = process.env["VAPID_PUBLIC_KEY"]  ?? "";
+  const pub = process.env["VAPID_PUBLIC_KEY"] ?? "";
   const priv = process.env["VAPID_PRIVATE_KEY"] ?? "";
   const mail = process.env["VAPID_CONTACT_EMAIL"] ?? "mailto:admin@ajkmart.app";
   if (!pub || !priv) {
@@ -45,32 +45,44 @@ export interface PushDeliveryStats {
   noSubscriptions: boolean;
 }
 
-export async function sendPushToUser(userId: string, payload: PushPayload): Promise<PushDeliveryStats> {
-  const subs = await db.select().from(pushSubscriptionsTable).where(eq(pushSubscriptionsTable.userId, userId));
+export async function sendPushToUser(
+  userId: string,
+  payload: PushPayload
+): Promise<PushDeliveryStats> {
+  const subs = await db
+    .select()
+    .from(pushSubscriptionsTable)
+    .where(eq(pushSubscriptionsTable.userId, userId));
   return sendPushToSubs(subs, payload);
 }
 
 export async function sendPushToRole(role: string, payload: PushPayload): Promise<void> {
-  const subs = await db.select().from(pushSubscriptionsTable).where(eq(pushSubscriptionsTable.role, role));
+  const subs = await db
+    .select()
+    .from(pushSubscriptionsTable)
+    .where(eq(pushSubscriptionsTable.role, role));
   await sendPushToSubs(subs, payload);
 }
 
 export async function sendPushToUsers(userIds: string[], payload: PushPayload): Promise<void> {
   if (userIds.length === 0) return;
-  const subs = await db.select().from(pushSubscriptionsTable).where(inArray(pushSubscriptionsTable.userId, userIds));
+  const subs = await db
+    .select()
+    .from(pushSubscriptionsTable)
+    .where(inArray(pushSubscriptionsTable.userId, userIds));
   await sendPushToSubs(subs, payload);
 }
 
 async function sendPushToSubs(
-  subs: typeof pushSubscriptionsTable.$inferSelect[],
-  payload: PushPayload,
+  subs: (typeof pushSubscriptionsTable.$inferSelect)[],
+  payload: PushPayload
 ): Promise<PushDeliveryStats> {
   if (subs.length === 0) {
     return { attempted: 0, delivered: 0, stalePurged: 0, noSubscriptions: true };
   }
 
-  const vapidSubs = subs.filter(s => s.tokenType === "vapid");
-  const fcmSubs   = subs.filter(s => s.tokenType === "fcm");
+  const vapidSubs = subs.filter((s) => s.tokenType === "vapid");
+  const fcmSubs = subs.filter((s) => s.tokenType === "fcm");
 
   const staleIds: string[] = [];
   let delivered = 0;
@@ -86,14 +98,14 @@ async function sendPushToSubs(
     vapidInitialized ? sendVapidSubs(vapidSubs, payload, staleIds) : Promise.resolve(0),
     fcmSubs.length > 0
       ? sendFcmToTokens(
-          fcmSubs.map(s => s.endpoint),
+          fcmSubs.map((s) => s.endpoint),
           {
             title: payload.title,
             body: payload.body,
             icon: payload.icon,
             tag: payload.tag,
             data: Object.keys(fcmDataPayload).length > 0 ? fcmDataPayload : undefined,
-          },
+          }
         )
       : Promise.resolve({ stale: [] as string[], delivered: 0 }),
   ]);
@@ -111,9 +123,12 @@ async function sendPushToSubs(
   }
 
   if (staleIds.length > 0) {
-    await db.delete(pushSubscriptionsTable)
+    await db
+      .delete(pushSubscriptionsTable)
       .where(inArray(pushSubscriptionsTable.id, staleIds))
-      .catch((err: unknown) => { logger.error({ err }, "[webpush] Stale subscription cleanup failed"); });
+      .catch((err: unknown) => {
+        logger.error({ err }, "[webpush] Stale subscription cleanup failed");
+      });
   }
 
   return {
@@ -125,9 +140,9 @@ async function sendPushToSubs(
 }
 
 async function sendVapidSubs(
-  subs: typeof pushSubscriptionsTable.$inferSelect[],
+  subs: (typeof pushSubscriptionsTable.$inferSelect)[],
   payload: PushPayload,
-  staleIds: string[],
+  staleIds: string[]
 ): Promise<number> {
   if (subs.length === 0) return 0;
   const json = JSON.stringify(payload);
@@ -138,7 +153,7 @@ async function sendVapidSubs(
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.authKey } },
-          json,
+          json
         );
         delivered++;
       } catch (err: any) {
@@ -148,7 +163,7 @@ async function sendVapidSubs(
           logger.warn({ err: err?.message }, "[webpush] send failed");
         }
       }
-    }),
+    })
   );
   return delivered;
 }

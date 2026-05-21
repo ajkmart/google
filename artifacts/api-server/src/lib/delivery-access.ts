@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
 import { deliveryWhitelistTable, systemAuditLogTable } from "@workspace/db/schema";
-import { eq, and, or, sql } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { getPlatformSettings } from "../routes/admin-shared.js";
 import { generateId } from "./id.js";
 
@@ -33,7 +33,7 @@ async function getDeliveryAccessMode(): Promise<DeliveryAccessMode> {
 async function isWhitelisted(
   type: "vendor" | "user",
   targetId: string,
-  serviceType: string,
+  serviceType: string
 ): Promise<{ found: boolean; deliveryLabel?: string }> {
   const cacheKey = `${type}:${targetId}:${serviceType}`;
   if (Date.now() - _whitelistCacheAt < WHITELIST_CACHE_TTL) {
@@ -59,9 +59,9 @@ async function isWhitelisted(
         eq(deliveryWhitelistTable.targetId, targetId),
         or(
           eq(deliveryWhitelistTable.serviceType, serviceType),
-          eq(deliveryWhitelistTable.serviceType, "all"),
-        ),
-      ),
+          eq(deliveryWhitelistTable.serviceType, "all")
+        )
+      )
     );
 
   for (const row of rows) {
@@ -93,7 +93,7 @@ export interface EligibilityResult {
 export async function checkDeliveryEligibility(
   userId: string,
   vendorId: string | null | undefined,
-  serviceType: string,
+  serviceType: string
 ): Promise<EligibilityResult> {
   const mode = await getDeliveryAccessMode();
 
@@ -128,7 +128,7 @@ export async function checkDeliveryEligibility(
 
 export async function checkUserOnlyEligibility(
   userId: string,
-  serviceType: string,
+  serviceType: string
 ): Promise<EligibilityResult> {
   const mode = await getDeliveryAccessMode();
 
@@ -159,5 +159,7 @@ export async function addAuditLog(opts: {
       id: generateId(),
       ...opts,
     });
-  } catch (err) { /* intentional: non-fatal guard */ void err; }
+  } catch (err) {
+    /* intentional: non-fatal guard */ void err;
+  }
 }

@@ -19,17 +19,19 @@ const GRAPH_VERSION = "v19.0";
  */
 function toWhatsAppLangCode(lang?: string): string {
   switch (lang) {
-    case "ur":      return "ur";
+    case "ur":
+      return "ur";
     case "roman":
     case "en":
-    default:        return "en";
+    default:
+      return "en";
   }
 }
 
 function toWhatsAppNumber(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   if (digits.startsWith("92")) return digits;
-  if (digits.startsWith("0"))  return `92${digits.slice(1)}`;
+  if (digits.startsWith("0")) return `92${digits.slice(1)}`;
   return `92${digits}`;
 }
 
@@ -66,7 +68,10 @@ async function sendTemplate(
       }
     );
 
-    const body = await resp.json() as { messages?: Array<{ id: string }>; error?: { message: string } };
+    const body = (await resp.json()) as {
+      messages?: Array<{ id: string }>;
+      error?: { message: string };
+    };
 
     if (!resp.ok) {
       return { sent: false, error: body?.error?.message ?? `HTTP ${resp.status}` };
@@ -101,12 +106,16 @@ export async function sendWhatsAppOTP(
     return { sent: false, error: "WhatsApp OTP channel is disabled (wa_send_otp=off)" };
   }
 
-  const phoneNumberId  = settings["wa_phone_number_id"]?.trim();
-  const accessToken    = settings["wa_access_token"]?.trim();
-  const templateName   = settings["wa_otp_template"]?.trim() ?? "otp_verification";
+  const phoneNumberId = settings["wa_phone_number_id"]?.trim();
+  const accessToken = settings["wa_access_token"]?.trim();
+  const templateName = settings["wa_otp_template"]?.trim() ?? "otp_verification";
 
   if (!phoneNumberId || !accessToken) {
-    return { sent: false, error: "WhatsApp credentials not configured. Set wa_phone_number_id and wa_access_token in Integrations." };
+    return {
+      sent: false,
+      error:
+        "WhatsApp credentials not configured. Set wa_phone_number_id and wa_access_token in Integrations.",
+    };
   }
 
   const to = toWhatsAppNumber(phone);
@@ -144,12 +153,15 @@ export async function sendWhatsAppRideNotification(
 
   const toggleKey = recipientType === "rider" ? "wa_send_rider_notif" : "wa_send_ride_update";
   if ((settings[toggleKey] ?? "on") !== "on") {
-    return { sent: false, error: `WhatsApp ${recipientType} ride channel is disabled (${toggleKey}=off)` };
+    return {
+      sent: false,
+      error: `WhatsApp ${recipientType} ride channel is disabled (${toggleKey}=off)`,
+    };
   }
 
   const phoneNumberId = settings["wa_phone_number_id"]?.trim();
-  const accessToken   = settings["wa_access_token"]?.trim();
-  const templateName  = settings["wa_order_template"]?.trim() ?? "order_notification";
+  const accessToken = settings["wa_access_token"]?.trim();
+  const templateName = settings["wa_order_template"]?.trim() ?? "order_notification";
 
   if (!phoneNumberId || !accessToken) {
     return { sent: false, error: "WhatsApp credentials not configured" };
@@ -162,7 +174,15 @@ export async function sendWhatsAppRideNotification(
     to,
     templateName,
     langCode,
-    [{ type: "body", parameters: [{ type: "text", text: rideId }, { type: "text", text: status }] }],
+    [
+      {
+        type: "body",
+        parameters: [
+          { type: "text", text: rideId },
+          { type: "text", text: status },
+        ],
+      },
+    ],
     phoneNumberId,
     accessToken
   );
@@ -180,12 +200,15 @@ export async function sendWhatsAppVendorNotification(
   }
 
   if ((settings["wa_send_vendor_notif"] ?? "on") !== "on") {
-    return { sent: false, error: "WhatsApp vendor notification channel is disabled (wa_send_vendor_notif=off)" };
+    return {
+      sent: false,
+      error: "WhatsApp vendor notification channel is disabled (wa_send_vendor_notif=off)",
+    };
   }
 
   const phoneNumberId = settings["wa_phone_number_id"]?.trim();
-  const accessToken   = settings["wa_access_token"]?.trim();
-  const templateName  = settings["wa_order_template"]?.trim() ?? "order_notification";
+  const accessToken = settings["wa_access_token"]?.trim();
+  const templateName = settings["wa_order_template"]?.trim() ?? "order_notification";
 
   if (!phoneNumberId || !accessToken) {
     return { sent: false, error: "WhatsApp credentials not configured" };
@@ -198,7 +221,15 @@ export async function sendWhatsAppVendorNotification(
     to,
     templateName,
     langCode,
-    [{ type: "body", parameters: [{ type: "text", text: orderId }, { type: "text", text: customerName }] }],
+    [
+      {
+        type: "body",
+        parameters: [
+          { type: "text", text: orderId },
+          { type: "text", text: customerName },
+        ],
+      },
+    ],
     phoneNumberId,
     accessToken
   );
@@ -216,12 +247,15 @@ export async function sendWhatsAppOrderNotification(
   }
 
   if ((settings["wa_send_order_update"] ?? "on") !== "on") {
-    return { sent: false, error: "WhatsApp order update channel is disabled (wa_send_order_update=off)" };
+    return {
+      sent: false,
+      error: "WhatsApp order update channel is disabled (wa_send_order_update=off)",
+    };
   }
 
   const phoneNumberId = settings["wa_phone_number_id"]?.trim();
-  const accessToken   = settings["wa_access_token"]?.trim();
-  const templateName  = settings["wa_order_template"]?.trim() ?? "order_notification";
+  const accessToken = settings["wa_access_token"]?.trim();
+  const templateName = settings["wa_order_template"]?.trim() ?? "order_notification";
 
   if (!phoneNumberId || !accessToken) {
     return { sent: false, error: "WhatsApp credentials not configured" };
@@ -235,10 +269,13 @@ export async function sendWhatsAppOrderNotification(
     templateName,
     langCode,
     [
-      { type: "body", parameters: [
-        { type: "text", text: orderId },
-        { type: "text", text: status },
-      ]},
+      {
+        type: "body",
+        parameters: [
+          { type: "text", text: orderId },
+          { type: "text", text: status },
+        ],
+      },
     ],
     phoneNumberId,
     accessToken
@@ -246,9 +283,11 @@ export async function sendWhatsAppOrderNotification(
 }
 
 /* ── Generic dispatch wrapper for NotificationService ── */
-export async function sendWhatsappMessage(
-  input: { to: string; message: string; templateId?: string }
-): Promise<{ messageId?: string } & WAResult> {
+export async function sendWhatsappMessage(input: {
+  to: string;
+  message: string;
+  templateId?: string;
+}): Promise<{ messageId?: string } & WAResult> {
   logger.info(`[WhatsApp:generic] To: ${input.to} | ${input.message}`);
   return { sent: true, provider: "console", messageId: input.templateId };
 }

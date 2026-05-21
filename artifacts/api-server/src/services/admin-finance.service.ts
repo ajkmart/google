@@ -1,6 +1,6 @@
 /**
  * FinanceService - Admin Finance & Wallet Management
- * 
+ *
  * Centralized business logic for:
  * - Wallet transactions
  * - Topups & deposits
@@ -11,13 +11,8 @@
  */
 
 import { db } from "@workspace/db";
-import {
-  usersTable,
-  walletTransactionsTable,
-  ordersTable,
-  ridesTable,
-} from "@workspace/db/schema";
-import { eq, desc, sum, and, sql } from "drizzle-orm";
+import { ordersTable, ridesTable, usersTable, walletTransactionsTable } from "@workspace/db/schema";
+import { and, desc, eq, sql, sum } from "drizzle-orm";
 import { generateId } from "../lib/id.js";
 import { logger } from "../lib/logger.js";
 import { getPlatformSettings } from "../routes/admin-shared.js";
@@ -190,7 +185,9 @@ export class FinanceService {
           .returning({ walletBalance: usersTable.walletBalance });
 
         if (!updated) {
-          throw new Error("Insufficient wallet balance at time of processing (possible concurrent request).");
+          throw new Error(
+            "Insufficient wallet balance at time of processing (possible concurrent request)."
+          );
         }
       } else {
         const settings = await getPlatformSettings();
@@ -336,10 +333,7 @@ export class FinanceService {
   /**
    * Get wallet transaction history
    */
-  static async getTransactionHistory(
-    userId: string,
-    limit: number = 100
-  ) {
+  static async getTransactionHistory(userId: string, limit: number = 100) {
     const transactions = await db
       .select()
       .from(walletTransactionsTable)
@@ -363,11 +357,7 @@ export class FinanceService {
    * Get wallet statistics for a user
    */
   static async getWalletStats(userId: string) {
-    const [user] = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.id, userId))
-      .limit(1);
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
 
     if (!user) {
       throw new Error("User not found");
@@ -380,8 +370,7 @@ export class FinanceService {
       .select({ total: sum(walletTransactionsTable.amount) })
       .from(walletTransactionsTable)
       .where(
-        eq(walletTransactionsTable.userId, userId) &&
-        eq(walletTransactionsTable.type, "credit")
+        eq(walletTransactionsTable.userId, userId) && eq(walletTransactionsTable.type, "credit")
       )
       .limit(1);
 
@@ -389,8 +378,7 @@ export class FinanceService {
       .select({ total: sum(walletTransactionsTable.amount) })
       .from(walletTransactionsTable)
       .where(
-        eq(walletTransactionsTable.userId, userId) &&
-        eq(walletTransactionsTable.type, "debit")
+        eq(walletTransactionsTable.userId, userId) && eq(walletTransactionsTable.type, "debit")
       )
       .limit(1);
 

@@ -1,23 +1,22 @@
-import { logger } from "../../lib/logger.js";
-import { fireAndForget } from "../../lib/fireAndForget.js";
-import { Router } from "express";
-import { z } from "zod";
-import { sendValidationError } from "../../lib/response.js";
 import { db } from "@workspace/db";
 import {
-  usersTable,
   accountConditionsTable,
   conditionRulesTable,
   conditionSettingsTable,
+  usersTable,
   vanBookingsTable,
-  vanSchedulesTable,
   vanDriversTable,
+  vanSchedulesTable,
 } from "@workspace/db/schema";
-import { and, desc, eq, gte, inArray, lte, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
+import { Router } from "express";
+import { z } from "zod";
 import { generateId } from "../../lib/id.js";
-import { getCachedSettings } from "../admin-shared.js";
-import { alertAccountRestriction } from "../../services/email.js";
+import { logger } from "../../lib/logger.js";
+import { sendValidationError } from "../../lib/response.js";
 import { sendPushToRole } from "../../lib/webpush.js";
+import { alertAccountRestriction } from "../../services/email.js";
+import { getCachedSettings } from "../admin-shared.js";
 
 const router = Router();
 
@@ -38,7 +37,9 @@ const SEVERITY_TO_CATEGORY: Record<string, string> = {
 };
 
 const TYPE_TO_SEVERITY: Record<string, string> = {
-  warning_l1: "warning", warning_l2: "warning", warning_l3: "warning",
+  warning_l1: "warning",
+  warning_l2: "warning",
+  warning_l3: "warning",
   restriction_service_block: "restriction_normal",
   restriction_wallet_freeze: "restriction_normal",
   restriction_promo_block: "restriction_normal",
@@ -52,7 +53,9 @@ const TYPE_TO_SEVERITY: Record<string, string> = {
   suspension_temporary: "suspension",
   suspension_extended: "suspension",
   suspension_pending_review: "suspension",
-  ban_soft: "ban", ban_hard: "ban", ban_fraud: "ban",
+  ban_soft: "ban",
+  ban_hard: "ban",
+  ban_fraud: "ban",
 };
 
 const ESCALATION_MAP: Record<string, string> = {
@@ -115,59 +118,70 @@ async function notifyAdminConditionApplied(params: ConditionNotifyParams): Promi
       .from(usersTable)
       .where(eq(usersTable.id, params.userId))
       .limit(1);
-    userName  = u?.name  ?? null;
+    userName = u?.name ?? null;
     userPhone = u?.phone ?? null;
   } catch (err) {
-    logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] ignore — display name falls back to userId`);
+    logger.debug(
+      { error: err instanceof Error ? err.message : String(err) },
+      `[fn] ignore — display name falls back to userId`
+    );
   }
 
   const displayName = userName || userPhone || params.userId;
   const pushTitle = `Account ${label} Applied`;
-  const pushBody  = `${displayName} — ${params.conditionType}: ${params.reason.slice(0, 100)}`;
+  const pushBody = `${displayName} — ${params.conditionType}: ${params.reason.slice(0, 100)}`;
 
   const pushPromise = sendPushToRole("admin", {
     title: pushTitle,
-    body:  pushBody,
-    tag:   `condition_${params.userId}`,
-    data:  {
-      type:          "account_condition",
-      userId:        params.userId,
+    body: pushBody,
+    tag: `condition_${params.userId}`,
+    data: {
+      type: "account_condition",
+      userId: params.userId,
       conditionType: params.conditionType,
-      severity:      params.severity,
+      severity: params.severity,
       ...(params.triggeredByRule ? { rule: params.triggeredByRule } : {}),
     },
-  }).catch(err => {
+  }).catch((err) => {
     logger.error("[admin/conditions] push notification failed:", err);
   });
 
-  const emailPromise = getCachedSettings().then(settings =>
-    alertAccountRestriction(
-      {
-        userId:          params.userId,
-        userName,
-        userPhone,
-        conditionType:   params.conditionType,
-        severity:        params.severity,
-        reason:          params.reason,
-        appliedBy:       params.appliedBy,
-        triggeredByRule: params.triggeredByRule ?? null,
-      },
-      settings,
+  const emailPromise = getCachedSettings()
+    .then((settings) =>
+      alertAccountRestriction(
+        {
+          userId: params.userId,
+          userName,
+          userPhone,
+          conditionType: params.conditionType,
+          severity: params.severity,
+          reason: params.reason,
+          appliedBy: params.appliedBy,
+          triggeredByRule: params.triggeredByRule ?? null,
+        },
+        settings
+      )
     )
-  ).then(result => {
-    if (!result.sent) {
-      logger.info(`[admin/conditions] email alert skipped: ${result.reason ?? result.error ?? "unknown"}`);
-    }
-  }).catch(err => {
-    logger.error("[admin/conditions] email alert failed:", err);
-  });
+    .then((result) => {
+      if (!result.sent) {
+        logger.info(
+          `[admin/conditions] email alert skipped: ${result.reason ?? result.error ?? "unknown"}`
+        );
+      }
+    })
+    .catch((err) => {
+      logger.error("[admin/conditions] email alert failed:", err);
+    });
 
   await Promise.all([pushPromise, emailPromise]);
 }
 
 async function getUserRole(userId: string): Promise<string> {
-  const [u] = await db.select({ roles: usersTable.roles })
-    .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  const [u] = await db
+    .select({ roles: usersTable.roles })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId))
+    .limit(1);
   if (!u?.roles) return "customer";
   return u.roles.split(",")[0]?.trim() || "customer";
 }
@@ -177,8 +191,11 @@ async function getUserRole(userId: string): Promise<string> {
  *  match rules whose targetRole is "van_driver". */
 async function getUserRoleSet(userId: string): Promise<Set<string>> {
   const roles = new Set<string>();
-  const [u] = await db.select({ roles: usersTable.roles })
-    .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  const [u] = await db
+    .select({ roles: usersTable.roles })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId))
+    .limit(1);
   if (u?.roles) {
     for (const r of u.roles.split(",")) {
       const t = r.trim();
@@ -200,69 +217,81 @@ async function getUserRoleSet(userId: string): Promise<Set<string>> {
 
 /* ─── Input validation schemas ─── */
 const createConditionSchema = z.object({
-  userId:        z.string().min(1, "userId is required"),
+  userId: z.string().min(1, "userId is required"),
   conditionType: z.string().min(1, "conditionType is required"),
-  reason:        z.string().min(1, "reason is required").max(1000),
-  severity:      z.string().optional(),
-  category:      z.string().optional(),
-  userRole:      z.string().optional(),
-  notes:         z.string().max(2000).optional().nullable(),
-  expiresAt:     z.string().optional().nullable(),
-  appliedBy:     z.string().optional(),
-  metadata:      z.record(z.unknown()).optional().nullable(),
+  reason: z.string().min(1, "reason is required").max(1000),
+  severity: z.string().optional(),
+  category: z.string().optional(),
+  userRole: z.string().optional(),
+  notes: z.string().max(2000).optional().nullable(),
+  expiresAt: z.string().optional().nullable(),
+  appliedBy: z.string().optional(),
+  metadata: z.record(z.unknown()).optional().nullable(),
 });
 
-const patchConditionSchema = z.object({
-  action:    z.enum(["lift", "escalate"]).optional(),
-  liftReason: z.string().max(1000).optional(),
-  liftedBy:  z.string().optional(),
-  appliedBy: z.string().optional(),
-  reason:    z.string().max(1000).optional(),
-  notes:     z.string().max(2000).optional().nullable(),
-  expiresAt: z.string().optional().nullable(),
-  isActive:  z.boolean().optional(),
-}).strip();
+const patchConditionSchema = z
+  .object({
+    action: z.enum(["lift", "escalate"]).optional(),
+    liftReason: z.string().max(1000).optional(),
+    liftedBy: z.string().optional(),
+    appliedBy: z.string().optional(),
+    reason: z.string().max(1000).optional(),
+    notes: z.string().max(2000).optional().nullable(),
+    expiresAt: z.string().optional().nullable(),
+    isActive: z.boolean().optional(),
+  })
+  .strip();
 
 const createConditionRuleSchema = z.object({
-  name:              z.string().min(1, "name is required").max(200),
-  description:       z.string().max(500).optional().nullable(),
-  targetRole:        z.string().min(1, "targetRole is required"),
-  metric:            z.string().min(1, "metric is required"),
-  operator:          z.enum([">", "<", ">=", "<=", "==", "!="]),
-  threshold:         z.union([z.string().min(1), z.number()]),
-  conditionType:     z.string().min(1, "conditionType is required"),
-  severity:          z.string().optional(),
-  cooldownHours:     z.number().int().min(0).optional(),
+  name: z.string().min(1, "name is required").max(200),
+  description: z.string().max(500).optional().nullable(),
+  targetRole: z.string().min(1, "targetRole is required"),
+  metric: z.string().min(1, "metric is required"),
+  operator: z.enum([">", "<", ">=", "<=", "==", "!="]),
+  threshold: z.union([z.string().min(1), z.number()]),
+  conditionType: z.string().min(1, "conditionType is required"),
+  severity: z.string().optional(),
+  cooldownHours: z.number().int().min(0).optional(),
   modeApplicability: z.string().optional(),
-  isActive:          z.boolean().optional(),
+  isActive: z.boolean().optional(),
 });
 
-const patchConditionRuleSchema = z.object({
-  name:              z.string().min(1).max(200).optional(),
-  description:       z.string().max(500).nullable().optional(),
-  targetRole:        z.string().min(1).optional(),
-  metric:            z.string().min(1).optional(),
-  operator:          z.enum([">", "<", ">=", "<=", "==", "!="]).optional(),
-  threshold:         z.union([z.string().min(1), z.number()]).optional(),
-  conditionType:     z.string().min(1).optional(),
-  severity:          z.string().optional(),
-  cooldownHours:     z.number().int().min(0).optional(),
-  modeApplicability: z.string().optional(),
-  isActive:          z.boolean().optional(),
-}).strict();
+const patchConditionRuleSchema = z
+  .object({
+    name: z.string().min(1).max(200).optional(),
+    description: z.string().max(500).nullable().optional(),
+    targetRole: z.string().min(1).optional(),
+    metric: z.string().min(1).optional(),
+    operator: z.enum([">", "<", ">=", "<=", "==", "!="]).optional(),
+    threshold: z.union([z.string().min(1), z.number()]).optional(),
+    conditionType: z.string().min(1).optional(),
+    severity: z.string().optional(),
+    cooldownHours: z.number().int().min(0).optional(),
+    modeApplicability: z.string().optional(),
+    isActive: z.boolean().optional(),
+  })
+  .strict();
 
-const bulkConditionSchema = z.object({
-  ids:    z.array(z.string().min(1)).min(1, "ids must be a non-empty array"),
-  action: z.enum(["lift", "delete"], { errorMap: () => ({ message: "action must be 'lift' or 'delete'" }) }),
-  reason: z.string().optional(),
-}).strict();
+const bulkConditionSchema = z
+  .object({
+    ids: z.array(z.string().min(1)).min(1, "ids must be a non-empty array"),
+    action: z.enum(["lift", "delete"], {
+      errorMap: () => ({ message: "action must be 'lift' or 'delete'" }),
+    }),
+    reason: z.string().optional(),
+  })
+  .strict();
 
-export async function reconcileUserFlags(userId: string): Promise<{ success: boolean; conditions?: number; error?: string }> {
+export async function reconcileUserFlags(
+  userId: string
+): Promise<{ success: boolean; conditions?: number; error?: string }> {
   try {
     const conditions = await db
       .select()
       .from(accountConditionsTable)
-      .where(and(eq(accountConditionsTable.userId, userId), eq(accountConditionsTable.isActive, true)));
+      .where(
+        and(eq(accountConditionsTable.userId, userId), eq(accountConditionsTable.isActive, true))
+      );
     return { success: true, conditions: conditions.length };
   } catch (err) {
     logger.error("reconcileUserFlags error:", err);
@@ -273,12 +302,21 @@ export async function reconcileUserFlags(userId: string): Promise<{ success: boo
 /* ─────────────── CONDITIONS LIST ─────────────── */
 router.get("/conditions", async (req, res) => {
   try {
-    const { userId, role, severity, status, search, dateFrom, dateTo } = req.query as Record<string, string>;
+    const { userId, role, severity, status, search, dateFrom, dateTo } = req.query as Record<
+      string,
+      string
+    >;
 
     const where: SQL[] = []; // drizzle dynamic query
     if (userId) where.push(eq(accountConditionsTable.userId, userId));
     if (role && role !== "all") where.push(eq(accountConditionsTable.userRole, role));
-    if (severity && severity !== "all") where.push(eq(accountConditionsTable.severity, severity as typeof accountConditionsTable.severity._.data));
+    if (severity && severity !== "all")
+      where.push(
+        eq(
+          accountConditionsTable.severity,
+          severity as typeof accountConditionsTable.severity._.data
+        )
+      );
     if (status === "active") where.push(eq(accountConditionsTable.isActive, true));
     if (status === "lifted") where.push(eq(accountConditionsTable.isActive, false));
     if (dateFrom) where.push(gte(accountConditionsTable.appliedAt, new Date(dateFrom)));
@@ -321,7 +359,7 @@ router.get("/conditions", async (req, res) => {
         (c) =>
           (c.userName ?? "").toLowerCase().includes(q) ||
           (c.userPhone ?? "").toLowerCase().includes(q) ||
-          (c.reason ?? "").toLowerCase().includes(q),
+          (c.reason ?? "").toLowerCase().includes(q)
       );
     }
 
@@ -365,141 +403,172 @@ router.get("/conditions/user/:userId", async (req, res) => {
 
 router.post("/conditions", async (req, res) => {
   try {
-  const p = createConditionSchema.safeParse(req.body ?? {});
-  if (!p.success) {
-    const msg = p.error.errors.map(e => e.message).join("; ");
-    return res.status(400).json({ success: false, error: msg });
-  }
-  try {
-    const { userId, conditionType, reason, notes, expiresAt, appliedBy, metadata } = p.data;
-    const severity = p.data.severity || TYPE_TO_SEVERITY[conditionType] || "warning";
-    const category = p.data.category || SEVERITY_TO_CATEGORY[severity] || "warning";
-    const userRole = p.data.userRole || (await getUserRole(userId));
+    const p = createConditionSchema.safeParse(req.body ?? {});
+    if (!p.success) {
+      const msg = p.error.errors.map((e) => e.message).join("; ");
+      return res.status(400).json({ success: false, error: msg });
+    }
+    try {
+      const { userId, conditionType, reason, notes, expiresAt, appliedBy, metadata } = p.data;
+      const severity = p.data.severity || TYPE_TO_SEVERITY[conditionType] || "warning";
+      const category = p.data.category || SEVERITY_TO_CATEGORY[severity] || "warning";
+      const userRole = p.data.userRole || (await getUserRole(userId));
 
-    const [created] = await db
-      .insert(accountConditionsTable)
-      .values({
-        id: generateId(),
+      const [created] = await db
+        .insert(accountConditionsTable)
+        .values({
+          id: generateId(),
+          userId,
+          userRole,
+          conditionType: conditionType as "warning_l1",
+          severity: severity as "warning",
+          category,
+          reason,
+          notes: notes ?? null,
+          appliedBy: appliedBy ?? "admin",
+          expiresAt: expiresAt ? new Date(expiresAt) : null,
+          isActive: true,
+          metadata: metadata ?? null,
+        })
+        .returning();
+
+      res.json({ success: true, data: created });
+
+      /* Fire admin notifications after response — non-blocking */
+      notifyAdminConditionApplied({
         userId,
-        userRole,
-        conditionType: conditionType as "warning_l1",
-        severity: severity as "warning",
-        category,
+        conditionType,
+        severity,
         reason,
-        notes: notes ?? null,
         appliedBy: appliedBy ?? "admin",
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
-        isActive: true,
-        metadata: metadata ?? null,
-      })
-      .returning();
+      }).catch((err: unknown) =>
+        logger.warn(
+          {
+            message: "[admin/conditions] notify error",
+            error: err instanceof Error ? err.message : String(err),
+            code: "CONDITIONS_NOTIFY_FAILED",
+            correlationId: null,
+            timestamp: new Date().toISOString(),
+          },
+          "[admin/conditions] notify error"
+        )
+      );
 
-    res.json({ success: true, data: created });
-
-    /* Fire admin notifications after response — non-blocking */
-    notifyAdminConditionApplied({
-      userId,
-      conditionType,
-      severity,
-      reason,
-      appliedBy: appliedBy ?? "admin",
-    }).catch((err: unknown) => logger.warn({ message: "[admin/conditions] notify error", error: err instanceof Error ? err.message : String(err), code: "CONDITIONS_NOTIFY_FAILED", correlationId: null, timestamp: new Date().toISOString() }, "[admin/conditions] notify error"));
-
-    return;
-  } catch (error) {
-    logger.error("[admin/conditions] create error:", error);
-    res.status(500).json({ success: false, error: "An internal error occurred" });
-    return;
-  }
+      return;
+    } catch (error) {
+      logger.error("[admin/conditions] create error:", error);
+      res.status(500).json({ success: false, error: "An internal error occurred" });
+      return;
+    }
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" }); return;
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
+    res.status(500).json({ success: false, error: "Internal server error" });
+    return;
   }
 });
 
 router.patch("/conditions/:id", async (req, res) => {
   try {
-  const p = patchConditionSchema.safeParse(req.body ?? {});
-  if (!p.success) {
-    const msg = p.error.errors.map(e => e.message).join("; ");
-    return res.status(400).json({ success: false, error: msg });
-  }
-  try {
-    const { id } = req.params as Record<string, string>;
-    const { action, liftReason, liftedBy, appliedBy, reason, notes, expiresAt, isActive } = p.data;
+    const p = patchConditionSchema.safeParse(req.body ?? {});
+    if (!p.success) {
+      const msg = p.error.errors.map((e) => e.message).join("; ");
+      return res.status(400).json({ success: false, error: msg });
+    }
+    try {
+      const { id } = req.params as Record<string, string>;
+      const { action, liftReason, liftedBy, appliedBy, reason, notes, expiresAt, isActive } =
+        p.data;
 
-    const [existing] = await db.select().from(accountConditionsTable).where(eq(accountConditionsTable.id, id)).limit(1);
-    if (!existing) return res.status(404).json({ success: false, error: "Condition not found" });
+      const [existing] = await db
+        .select()
+        .from(accountConditionsTable)
+        .where(eq(accountConditionsTable.id, id))
+        .limit(1);
+      if (!existing) return res.status(404).json({ success: false, error: "Condition not found" });
 
-    if (action === "lift") {
+      if (action === "lift") {
+        const [updated] = await db
+          .update(accountConditionsTable)
+          .set({
+            isActive: false,
+            liftedAt: new Date(),
+            liftedBy: liftedBy ?? "admin",
+            liftReason: liftReason ?? "Lifted by admin",
+            updatedAt: new Date(),
+          })
+          .where(eq(accountConditionsTable.id, id))
+          .returning();
+        return res.json({ success: true, data: updated });
+      }
+
+      if (action === "escalate") {
+        const nextType = ESCALATION_MAP[existing.conditionType] || existing.conditionType;
+        const nextSeverity = TYPE_TO_SEVERITY[nextType] || existing.severity;
+        const nextCategory = SEVERITY_TO_CATEGORY[nextSeverity] || existing.category;
+        await db
+          .update(accountConditionsTable)
+          .set({
+            isActive: false,
+            liftedAt: new Date(),
+            liftedBy: liftedBy ?? "admin",
+            liftReason: `Escalated to ${nextType}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(accountConditionsTable.id, id));
+        const [created] = await db
+          .insert(accountConditionsTable)
+          .values({
+            id: generateId(),
+            userId: existing.userId,
+            userRole: existing.userRole,
+            conditionType: nextType as typeof existing.conditionType,
+            severity: nextSeverity as typeof existing.severity,
+            category: nextCategory,
+            reason: reason ?? `Escalated from ${existing.conditionType}`,
+            notes: existing.notes,
+            appliedBy: appliedBy ?? "admin",
+            isActive: true,
+            metadata: { escalatedFrom: existing.id },
+          })
+          .returning();
+        return res.json({ success: true, data: created });
+      }
+
+      /* General field update — only the allowlisted fields from the validated schema */
+      const generalUpdates: Record<string, unknown> = { updatedAt: new Date() };
+      if (notes !== undefined) generalUpdates.notes = notes;
+      if (expiresAt !== undefined)
+        generalUpdates.expiresAt = expiresAt ? new Date(expiresAt) : null;
+      if (isActive !== undefined) generalUpdates.isActive = isActive;
+      if (reason !== undefined) generalUpdates.reason = reason;
+      if (appliedBy !== undefined) generalUpdates.appliedBy = appliedBy;
+
       const [updated] = await db
         .update(accountConditionsTable)
-        .set({
-          isActive: false,
-          liftedAt: new Date(),
-          liftedBy: liftedBy ?? "admin",
-          liftReason: liftReason ?? "Lifted by admin",
-          updatedAt: new Date(),
-        })
+        .set(generalUpdates)
         .where(eq(accountConditionsTable.id, id))
         .returning();
       return res.json({ success: true, data: updated });
+    } catch (error) {
+      logger.error("[admin/conditions] update error:", error);
+      return res.status(500).json({ success: false, error: "An internal error occurred" });
     }
-
-    if (action === "escalate") {
-      const nextType = ESCALATION_MAP[existing.conditionType] || existing.conditionType;
-      const nextSeverity = TYPE_TO_SEVERITY[nextType] || existing.severity;
-      const nextCategory = SEVERITY_TO_CATEGORY[nextSeverity] || existing.category;
-      await db
-        .update(accountConditionsTable)
-        .set({
-          isActive: false,
-          liftedAt: new Date(),
-          liftedBy: liftedBy ?? "admin",
-          liftReason: `Escalated to ${nextType}`,
-          updatedAt: new Date(),
-        })
-        .where(eq(accountConditionsTable.id, id));
-      const [created] = await db
-        .insert(accountConditionsTable)
-        .values({
-          id: generateId(),
-          userId: existing.userId,
-          userRole: existing.userRole,
-          conditionType: nextType as typeof existing.conditionType,
-          severity: nextSeverity as typeof existing.severity,
-          category: nextCategory,
-          reason: reason ?? `Escalated from ${existing.conditionType}`,
-          notes: existing.notes,
-          appliedBy: appliedBy ?? "admin",
-          isActive: true,
-          metadata: { escalatedFrom: existing.id },
-        })
-        .returning();
-      return res.json({ success: true, data: created });
-    }
-
-    /* General field update — only the allowlisted fields from the validated schema */
-    const generalUpdates: Record<string, unknown> = { updatedAt: new Date() };
-    if (notes     !== undefined) generalUpdates.notes     = notes;
-    if (expiresAt !== undefined) generalUpdates.expiresAt = expiresAt ? new Date(expiresAt) : null;
-    if (isActive  !== undefined) generalUpdates.isActive  = isActive;
-    if (reason    !== undefined) generalUpdates.reason    = reason;
-    if (appliedBy !== undefined) generalUpdates.appliedBy = appliedBy;
-
-    const [updated] = await db
-      .update(accountConditionsTable)
-      .set(generalUpdates)
-      .where(eq(accountConditionsTable.id, id))
-      .returning();
-    return res.json({ success: true, data: updated });
-  } catch (error) {
-    logger.error("[admin/conditions] update error:", error);
-    return res.status(500).json({ success: false, error: "An internal error occurred" });
-  }
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" }); return;
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
+    res.status(500).json({ success: false, error: "Internal server error" });
+    return;
   }
 });
 
@@ -515,49 +584,61 @@ router.delete("/conditions/:id", async (req, res) => {
 
 router.post("/conditions/bulk", async (req, res) => {
   try {
-  const p = bulkConditionSchema.safeParse(req.body ?? {});
-  if (!p.success) {
-    sendValidationError(res, p.error.errors.map(e => e.message).join("; "));
-    return;
-  }
-  try {
-    const { ids, action, reason } = p.data;
-    if (action === "lift") {
-      const result = await db
-        .update(accountConditionsTable)
-        .set({
-          isActive: false,
-          liftedAt: new Date(),
-          liftedBy: "admin",
-          liftReason: reason || "Bulk lift by admin",
-          updatedAt: new Date(),
-        })
-        .where(and(inArray(accountConditionsTable.id, ids), eq(accountConditionsTable.isActive, true)))
-        .returning({ id: accountConditionsTable.id });
-      return res.json({ success: true, affected: result.length });
+    const p = bulkConditionSchema.safeParse(req.body ?? {});
+    if (!p.success) {
+      sendValidationError(res, p.error.errors.map((e) => e.message).join("; "));
+      return;
     }
-    if (action === "delete") {
-      const result = await db
-        .delete(accountConditionsTable)
-        .where(inArray(accountConditionsTable.id, ids))
-        .returning({ id: accountConditionsTable.id });
-      return res.json({ success: true, affected: result.length });
+    try {
+      const { ids, action, reason } = p.data;
+      if (action === "lift") {
+        const result = await db
+          .update(accountConditionsTable)
+          .set({
+            isActive: false,
+            liftedAt: new Date(),
+            liftedBy: "admin",
+            liftReason: reason || "Bulk lift by admin",
+            updatedAt: new Date(),
+          })
+          .where(
+            and(inArray(accountConditionsTable.id, ids), eq(accountConditionsTable.isActive, true))
+          )
+          .returning({ id: accountConditionsTable.id });
+        return res.json({ success: true, affected: result.length });
+      }
+      if (action === "delete") {
+        const result = await db
+          .delete(accountConditionsTable)
+          .where(inArray(accountConditionsTable.id, ids))
+          .returning({ id: accountConditionsTable.id });
+        return res.json({ success: true, affected: result.length });
+      }
+      return res.status(400).json({ success: false, error: "Unsupported action" });
+    } catch (error) {
+      logger.error("[admin/conditions] bulk action error:", error);
+      return res.status(500).json({ success: false, error: "An internal error occurred" });
     }
-    return res.status(400).json({ success: false, error: "Unsupported action" });
-  } catch (error) {
-    logger.error("[admin/conditions] bulk action error:", error);
-    return res.status(500).json({ success: false, error: "An internal error occurred" });
-  }
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" }); return;
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
+    res.status(500).json({ success: false, error: "Internal server error" });
+    return;
   }
 });
 
 /* ─────────────── CONDITION RULES (CRUD) ─────────────── */
 router.get("/condition-rules", async (_req, res) => {
   try {
-    const rules = await db.select().from(conditionRulesTable).orderBy(desc(conditionRulesTable.createdAt));
+    const rules = await db
+      .select()
+      .from(conditionRulesTable)
+      .orderBy(desc(conditionRulesTable.createdAt));
     res.json({ success: true, data: { rules } });
   } catch (error) {
     logger.error("[admin/condition-rules] list error:", error);
@@ -567,68 +648,95 @@ router.get("/condition-rules", async (_req, res) => {
 
 router.post("/condition-rules", async (req, res) => {
   try {
-  const p = createConditionRuleSchema.safeParse(req.body ?? {});
-  if (!p.success) {
-    const msg = p.error.errors.map(e => e.message).join("; ");
-    return res.status(400).json({ success: false, error: msg });
-  }
-  try {
-    const { name, description, targetRole, metric, operator, threshold, conditionType, severity, cooldownHours, modeApplicability, isActive } = p.data;
-    const sev = severity || TYPE_TO_SEVERITY[conditionType] || "warning";
-    const [created] = await db
-      .insert(conditionRulesTable)
-      .values({
-        id: generateId(),
+    const p = createConditionRuleSchema.safeParse(req.body ?? {});
+    if (!p.success) {
+      const msg = p.error.errors.map((e) => e.message).join("; ");
+      return res.status(400).json({ success: false, error: msg });
+    }
+    try {
+      const {
         name,
-        description: description ?? null,
+        description,
         targetRole,
         metric,
         operator,
-        threshold: String(threshold),
-        conditionType: conditionType as "warning_l1",
-        severity: sev as "warning",
-        cooldownHours: cooldownHours != null ? Number(cooldownHours) : 24,
-        modeApplicability: modeApplicability ?? "default,ai_recommended,custom",
-        isActive: isActive ?? true,
-      })
-      .returning();
-    return res.json({ success: true, data: created });
-  } catch (error) {
-    logger.error("[admin/condition-rules] create error:", error);
-    return res.status(500).json({ success: false, error: "An internal error occurred" });
-  }
+        threshold,
+        conditionType,
+        severity,
+        cooldownHours,
+        modeApplicability,
+        isActive,
+      } = p.data;
+      const sev = severity || TYPE_TO_SEVERITY[conditionType] || "warning";
+      const [created] = await db
+        .insert(conditionRulesTable)
+        .values({
+          id: generateId(),
+          name,
+          description: description ?? null,
+          targetRole,
+          metric,
+          operator,
+          threshold: String(threshold),
+          conditionType: conditionType as "warning_l1",
+          severity: sev as "warning",
+          cooldownHours: cooldownHours != null ? Number(cooldownHours) : 24,
+          modeApplicability: modeApplicability ?? "default,ai_recommended,custom",
+          isActive: isActive ?? true,
+        })
+        .returning();
+      return res.json({ success: true, data: created });
+    } catch (error) {
+      logger.error("[admin/condition-rules] create error:", error);
+      return res.status(500).json({ success: false, error: "An internal error occurred" });
+    }
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" }); return;
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
+    res.status(500).json({ success: false, error: "Internal server error" });
+    return;
   }
 });
 
 router.patch("/condition-rules/:id", async (req, res) => {
   try {
-  const p = patchConditionRuleSchema.safeParse(req.body ?? {});
-  if (!p.success) {
-    sendValidationError(res, p.error.errors.map(e => e.message).join("; "));
-    return;
-  }
-  try {
-    const validated = p.data;
-    const updates: Record<string, unknown> = { ...validated, updatedAt: new Date() };
-    if (updates.threshold !== undefined) updates.threshold = String(updates.threshold);
-    if (updates.cooldownHours !== undefined) updates.cooldownHours = Number(updates.cooldownHours);
-    const [updated] = await db
-      .update(conditionRulesTable)
-      .set(updates)
-      .where(eq(conditionRulesTable.id, req.params.id))
-      .returning();
-    if (!updated) return res.status(404).json({ success: false, error: "Rule not found" });
-    return res.json({ success: true, data: updated });
-  } catch (error) {
-    logger.error("[admin/condition-rules] patch error:", error);
-    return res.status(500).json({ success: false, error: "An internal error occurred" });
-  }
+    const p = patchConditionRuleSchema.safeParse(req.body ?? {});
+    if (!p.success) {
+      sendValidationError(res, p.error.errors.map((e) => e.message).join("; "));
+      return;
+    }
+    try {
+      const validated = p.data;
+      const updates: Record<string, unknown> = { ...validated, updatedAt: new Date() };
+      if (updates.threshold !== undefined) updates.threshold = String(updates.threshold);
+      if (updates.cooldownHours !== undefined)
+        updates.cooldownHours = Number(updates.cooldownHours);
+      const [updated] = await db
+        .update(conditionRulesTable)
+        .set(updates)
+        .where(eq(conditionRulesTable.id, req.params.id))
+        .returning();
+      if (!updated) return res.status(404).json({ success: false, error: "Rule not found" });
+      return res.json({ success: true, data: updated });
+    } catch (error) {
+      logger.error("[admin/condition-rules] patch error:", error);
+      return res.status(500).json({ success: false, error: "An internal error occurred" });
+    }
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" }); return;
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
+    res.status(500).json({ success: false, error: "Internal server error" });
+    return;
   }
 });
 
@@ -645,31 +753,175 @@ router.delete("/condition-rules/:id", async (req, res) => {
 /* ─────────────── DEFAULT RULE SEEDS ─────────────── */
 const DEFAULT_RULES: Array<Partial<typeof conditionRulesTable.$inferInsert>> = [
   // Customer
-  { name: "Customer high cancellation", targetRole: "customer", metric: "cancellation_rate", operator: ">", threshold: "30", conditionType: "warning_l2", severity: "warning", cooldownHours: 48, description: "Cancels too many orders" },
-  { name: "Customer fraud incident", targetRole: "customer", metric: "fraud_incidents", operator: ">=", threshold: "1", conditionType: "ban_fraud", severity: "ban", cooldownHours: 0, description: "Confirmed payment fraud" },
-  { name: "Customer abuse reports", targetRole: "customer", metric: "abuse_reports", operator: ">=", threshold: "3", conditionType: "suspension_temporary", severity: "suspension", cooldownHours: 72 },
-  { name: "Customer failed payments", targetRole: "customer", metric: "failed_payments_7d", operator: ">=", threshold: "5", conditionType: "restriction_cash_only", severity: "restriction_normal", cooldownHours: 168 },
+  {
+    name: "Customer high cancellation",
+    targetRole: "customer",
+    metric: "cancellation_rate",
+    operator: ">",
+    threshold: "30",
+    conditionType: "warning_l2",
+    severity: "warning",
+    cooldownHours: 48,
+    description: "Cancels too many orders",
+  },
+  {
+    name: "Customer fraud incident",
+    targetRole: "customer",
+    metric: "fraud_incidents",
+    operator: ">=",
+    threshold: "1",
+    conditionType: "ban_fraud",
+    severity: "ban",
+    cooldownHours: 0,
+    description: "Confirmed payment fraud",
+  },
+  {
+    name: "Customer abuse reports",
+    targetRole: "customer",
+    metric: "abuse_reports",
+    operator: ">=",
+    threshold: "3",
+    conditionType: "suspension_temporary",
+    severity: "suspension",
+    cooldownHours: 72,
+  },
+  {
+    name: "Customer failed payments",
+    targetRole: "customer",
+    metric: "failed_payments_7d",
+    operator: ">=",
+    threshold: "5",
+    conditionType: "restriction_cash_only",
+    severity: "restriction_normal",
+    cooldownHours: 168,
+  },
   // Rider
-  { name: "Rider miss/ignore high", targetRole: "rider", metric: "miss_ignore_rate", operator: ">", threshold: "40", conditionType: "warning_l2", severity: "warning", cooldownHours: 48 },
-  { name: "Rider rating low", targetRole: "rider", metric: "avg_rating_30d", operator: "<", threshold: "3.5", conditionType: "warning_l1", severity: "warning", cooldownHours: 72 },
-  { name: "Rider GPS spoofing", targetRole: "rider", metric: "gps_spoofing", operator: ">=", threshold: "1", conditionType: "ban_fraud", severity: "ban", cooldownHours: 0 },
-  { name: "Rider cancellation debt", targetRole: "rider", metric: "cancellation_debt", operator: ">", threshold: "500", conditionType: "restriction_new_order_block", severity: "restriction_strict", cooldownHours: 24 },
+  {
+    name: "Rider miss/ignore high",
+    targetRole: "rider",
+    metric: "miss_ignore_rate",
+    operator: ">",
+    threshold: "40",
+    conditionType: "warning_l2",
+    severity: "warning",
+    cooldownHours: 48,
+  },
+  {
+    name: "Rider rating low",
+    targetRole: "rider",
+    metric: "avg_rating_30d",
+    operator: "<",
+    threshold: "3.5",
+    conditionType: "warning_l1",
+    severity: "warning",
+    cooldownHours: 72,
+  },
+  {
+    name: "Rider GPS spoofing",
+    targetRole: "rider",
+    metric: "gps_spoofing",
+    operator: ">=",
+    threshold: "1",
+    conditionType: "ban_fraud",
+    severity: "ban",
+    cooldownHours: 0,
+  },
+  {
+    name: "Rider cancellation debt",
+    targetRole: "rider",
+    metric: "cancellation_debt",
+    operator: ">",
+    threshold: "500",
+    conditionType: "restriction_new_order_block",
+    severity: "restriction_strict",
+    cooldownHours: 24,
+  },
   // Van driver (synthetic role — matched via getUserRoleSet)
-  { name: "Van driver excessive cancellations", targetRole: "van_driver", metric: "van_cancellation_count_30d", operator: ">=", threshold: "5", conditionType: "warning_l2", severity: "warning", cooldownHours: 48, description: "Cancelled too many van trips in last 30 days" },
-  { name: "Van driver no-shows", targetRole: "van_driver", metric: "van_noshow_count", operator: ">=", threshold: "3", conditionType: "restriction_service_block", severity: "restriction_normal", cooldownHours: 72, description: "Multiple passenger no-shows on van trips" },
-  { name: "Van driver missed start", targetRole: "van_driver", metric: "van_driver_missed_start", operator: ">=", threshold: "2", conditionType: "warning_l1", severity: "warning", cooldownHours: 24, description: "Missed scheduled trip starts" },
+  {
+    name: "Van driver excessive cancellations",
+    targetRole: "van_driver",
+    metric: "van_cancellation_count_30d",
+    operator: ">=",
+    threshold: "5",
+    conditionType: "warning_l2",
+    severity: "warning",
+    cooldownHours: 48,
+    description: "Cancelled too many van trips in last 30 days",
+  },
+  {
+    name: "Van driver no-shows",
+    targetRole: "van_driver",
+    metric: "van_noshow_count",
+    operator: ">=",
+    threshold: "3",
+    conditionType: "restriction_service_block",
+    severity: "restriction_normal",
+    cooldownHours: 72,
+    description: "Multiple passenger no-shows on van trips",
+  },
+  {
+    name: "Van driver missed start",
+    targetRole: "van_driver",
+    metric: "van_driver_missed_start",
+    operator: ">=",
+    threshold: "2",
+    conditionType: "warning_l1",
+    severity: "warning",
+    cooldownHours: 24,
+    description: "Missed scheduled trip starts",
+  },
   // Vendor
-  { name: "Vendor complaint reports", targetRole: "vendor", metric: "complaint_reports", operator: ">=", threshold: "5", conditionType: "warning_l2", severity: "warning", cooldownHours: 72 },
-  { name: "Vendor fake item complaints", targetRole: "vendor", metric: "fake_item_complaints", operator: ">=", threshold: "3", conditionType: "restriction_new_order_block", severity: "restriction_strict", cooldownHours: 168 },
-  { name: "Vendor hygiene complaints", targetRole: "vendor", metric: "hygiene_complaints", operator: ">=", threshold: "3", conditionType: "suspension_temporary", severity: "suspension", cooldownHours: 168 },
-  { name: "Vendor late pattern violations", targetRole: "vendor", metric: "late_pattern_violations", operator: ">=", threshold: "5", conditionType: "warning_l1", severity: "warning", cooldownHours: 48 },
+  {
+    name: "Vendor complaint reports",
+    targetRole: "vendor",
+    metric: "complaint_reports",
+    operator: ">=",
+    threshold: "5",
+    conditionType: "warning_l2",
+    severity: "warning",
+    cooldownHours: 72,
+  },
+  {
+    name: "Vendor fake item complaints",
+    targetRole: "vendor",
+    metric: "fake_item_complaints",
+    operator: ">=",
+    threshold: "3",
+    conditionType: "restriction_new_order_block",
+    severity: "restriction_strict",
+    cooldownHours: 168,
+  },
+  {
+    name: "Vendor hygiene complaints",
+    targetRole: "vendor",
+    metric: "hygiene_complaints",
+    operator: ">=",
+    threshold: "3",
+    conditionType: "suspension_temporary",
+    severity: "suspension",
+    cooldownHours: 168,
+  },
+  {
+    name: "Vendor late pattern violations",
+    targetRole: "vendor",
+    metric: "late_pattern_violations",
+    operator: ">=",
+    threshold: "5",
+    conditionType: "warning_l1",
+    severity: "warning",
+    cooldownHours: 48,
+  },
 ];
 
 router.post("/condition-rules/seed-defaults", async (_req, res) => {
   try {
     const existing = await db.select({ id: conditionRulesTable.id }).from(conditionRulesTable);
     if (existing.length > 0) {
-      return res.json({ success: true, message: `Skipped — ${existing.length} rules already exist`, inserted: 0 });
+      return res.json({
+        success: true,
+        message: `Skipped — ${existing.length} rules already exist`,
+        inserted: 0,
+      });
     }
     const rows = DEFAULT_RULES.map((r) => ({
       id: generateId(),
@@ -685,8 +937,14 @@ router.post("/condition-rules/seed-defaults", async (_req, res) => {
       modeApplicability: "default,ai_recommended,custom",
       isActive: true,
     }));
-    await db.insert(conditionRulesTable).values(rows as Array<typeof conditionRulesTable.$inferInsert>);
-    return res.json({ success: true, message: `Seeded ${rows.length} default rules`, inserted: rows.length });
+    await db
+      .insert(conditionRulesTable)
+      .values(rows as Array<typeof conditionRulesTable.$inferInsert>);
+    return res.json({
+      success: true,
+      message: `Seeded ${rows.length} default rules`,
+      inserted: rows.length,
+    });
   } catch (error) {
     logger.error("[admin/condition-rules] seed error:", error);
     return res.status(500).json({ success: false, error: "An internal error occurred" });
@@ -701,17 +959,22 @@ async function computeUserMetric(userId: string, metric: string): Promise<number
 
   switch (metric) {
     case "van_cancellation_count_30d": {
-      const driverSchedules = await db.select({ id: vanSchedulesTable.id })
-        .from(vanSchedulesTable).where(eq(vanSchedulesTable.driverId, userId));
+      const driverSchedules = await db
+        .select({ id: vanSchedulesTable.id })
+        .from(vanSchedulesTable)
+        .where(eq(vanSchedulesTable.driverId, userId));
       const ids = driverSchedules.map((s) => s.id);
       if (ids.length === 0) return 0;
-      const [row] = await db.select({ c: sql<number>`count(*)::int` })
+      const [row] = await db
+        .select({ c: sql<number>`count(*)::int` })
         .from(vanBookingsTable)
-        .where(and(
-          inArray(vanBookingsTable.scheduleId, ids),
-          eq(vanBookingsTable.status, "cancelled"),
-          gte(vanBookingsTable.cancelledAt, ago30),
-        ));
+        .where(
+          and(
+            inArray(vanBookingsTable.scheduleId, ids),
+            eq(vanBookingsTable.status, "cancelled"),
+            gte(vanBookingsTable.cancelledAt, ago30)
+          )
+        );
       return Number(row?.c ?? 0);
     }
     case "van_noshow_count": {
@@ -719,29 +982,37 @@ async function computeUserMetric(userId: string, metric: string): Promise<number
       // remained "confirmed" but the passenger never boarded — i.e. an actual
       // no-show. Future/upcoming confirmed bookings must not be counted.
       const today = now.toISOString().split("T")[0]!;
-      const driverSchedules = await db.select({ id: vanSchedulesTable.id })
-        .from(vanSchedulesTable).where(eq(vanSchedulesTable.driverId, userId));
+      const driverSchedules = await db
+        .select({ id: vanSchedulesTable.id })
+        .from(vanSchedulesTable)
+        .where(eq(vanSchedulesTable.driverId, userId));
       const ids = driverSchedules.map((s) => s.id);
       if (ids.length === 0) return 0;
-      const [row] = await db.select({ c: sql<number>`count(*)::int` })
+      const [row] = await db
+        .select({ c: sql<number>`count(*)::int` })
         .from(vanBookingsTable)
-        .where(and(
-          inArray(vanBookingsTable.scheduleId, ids),
-          eq(vanBookingsTable.status, "confirmed"),
-          gte(vanBookingsTable.createdAt, ago30),
-          sql`${vanBookingsTable.travelDate} < ${today}`,
-          sql`${vanBookingsTable.boardedAt} IS NULL`,
-        ));
+        .where(
+          and(
+            inArray(vanBookingsTable.scheduleId, ids),
+            eq(vanBookingsTable.status, "confirmed"),
+            gte(vanBookingsTable.createdAt, ago30),
+            sql`${vanBookingsTable.travelDate} < ${today}`,
+            sql`${vanBookingsTable.boardedAt} IS NULL`
+          )
+        );
       return Number(row?.c ?? 0);
     }
     case "van_driver_missed_start": {
-      const [row] = await db.select({ c: sql<number>`count(*)::int` })
+      const [row] = await db
+        .select({ c: sql<number>`count(*)::int` })
         .from(vanSchedulesTable)
-        .where(and(
-          eq(vanSchedulesTable.driverId, userId),
-          eq(vanSchedulesTable.tripStatus, "idle"),
-          gte(vanSchedulesTable.updatedAt, ago30),
-        ));
+        .where(
+          and(
+            eq(vanSchedulesTable.driverId, userId),
+            eq(vanSchedulesTable.tripStatus, "idle"),
+            gte(vanSchedulesTable.updatedAt, ago30)
+          )
+        );
       return Number(row?.c ?? 0);
     }
     case "cancellation_rate":
@@ -767,13 +1038,20 @@ function compareMetric(value: number, operator: string, threshold: string): bool
   const t = parseFloat(threshold);
   if (Number.isNaN(t)) return false;
   switch (operator) {
-    case ">": return value > t;
-    case "<": return value < t;
-    case ">=": return value >= t;
-    case "<=": return value <= t;
-    case "==": return value === t;
-    case "!=": return value !== t;
-    default: return false;
+    case ">":
+      return value > t;
+    case "<":
+      return value < t;
+    case ">=":
+      return value >= t;
+    case "<=":
+      return value <= t;
+    case "==":
+      return value === t;
+    case "!=":
+      return value !== t;
+    default:
+      return false;
   }
 }
 
@@ -791,12 +1069,17 @@ export async function evaluateRulesForUser(userId: string) {
   const rules = await db
     .select()
     .from(conditionRulesTable)
-    .where(and(
-      eq(conditionRulesTable.isActive, true),
-      inArray(conditionRulesTable.targetRole, roleArr),
-    ));
+    .where(
+      and(eq(conditionRulesTable.isActive, true), inArray(conditionRulesTable.targetRole, roleArr))
+    );
 
-  const triggered: Array<{ ruleId: string; ruleName: string; metric: string; value: number; conditionId?: string }> = [];
+  const triggered: Array<{
+    ruleId: string;
+    ruleName: string;
+    metric: string;
+    value: number;
+    conditionId?: string;
+  }> = [];
   const skipped: Array<{ ruleId: string; ruleName: string; reason: string }> = [];
 
   for (const rule of rules) {
@@ -812,11 +1095,13 @@ export async function evaluateRulesForUser(userId: string) {
       const [recent] = await db
         .select({ id: accountConditionsTable.id })
         .from(accountConditionsTable)
-        .where(and(
-          eq(accountConditionsTable.userId, userId),
-          eq(accountConditionsTable.conditionType, rule.conditionType),
-          gte(accountConditionsTable.appliedAt, cutoff),
-        ))
+        .where(
+          and(
+            eq(accountConditionsTable.userId, userId),
+            eq(accountConditionsTable.conditionType, rule.conditionType),
+            gte(accountConditionsTable.appliedAt, cutoff)
+          )
+        )
         .limit(1);
       if (recent) {
         skipped.push({ ruleId: rule.id, ruleName: rule.name, reason: "cooldown" });
@@ -835,20 +1120,42 @@ export async function evaluateRulesForUser(userId: string) {
         reason: `Auto: ${rule.name} (${rule.metric} ${rule.operator} ${rule.threshold}, observed ${value})`,
         appliedBy: "rule_engine",
         isActive: true,
-        metadata: { ruleId: rule.id, metric: rule.metric, observed: value, threshold: rule.threshold },
+        metadata: {
+          ruleId: rule.id,
+          metric: rule.metric,
+          observed: value,
+          threshold: rule.threshold,
+        },
       })
       .returning();
-    triggered.push({ ruleId: rule.id, ruleName: rule.name, metric: rule.metric, value, conditionId: created?.id });
+    triggered.push({
+      ruleId: rule.id,
+      ruleName: rule.name,
+      metric: rule.metric,
+      value,
+      conditionId: created?.id,
+    });
 
     /* Fire admin notifications for high-severity auto-triggered conditions */
     notifyAdminConditionApplied({
       userId,
       conditionType: rule.conditionType,
-      severity:      rule.severity,
-      reason:        `Auto: ${rule.name} (${rule.metric} ${rule.operator} ${rule.threshold}, observed ${value})`,
-      appliedBy:     "rule_engine",
+      severity: rule.severity,
+      reason: `Auto: ${rule.name} (${rule.metric} ${rule.operator} ${rule.threshold}, observed ${value})`,
+      appliedBy: "rule_engine",
       triggeredByRule: rule.name,
-    }).catch((err: unknown) => logger.warn({ message: "[admin/conditions] notify error (rule engine)", error: err instanceof Error ? err.message : String(err), code: "CONDITIONS_RULE_ENGINE_NOTIFY_FAILED", correlationId: null, timestamp: new Date().toISOString() }, "[admin/conditions] notify error (rule engine)"));
+    }).catch((err: unknown) =>
+      logger.warn(
+        {
+          message: "[admin/conditions] notify error (rule engine)",
+          error: err instanceof Error ? err.message : String(err),
+          code: "CONDITIONS_RULE_ENGINE_NOTIFY_FAILED",
+          correlationId: null,
+          timestamp: new Date().toISOString(),
+        },
+        "[admin/conditions] notify error (rule engine)"
+      )
+    );
   }
 
   return {

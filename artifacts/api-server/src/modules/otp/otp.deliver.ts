@@ -12,11 +12,11 @@
 
 import { logger } from "../../lib/logger.js";
 import { getCachedSettings } from "../../middleware/security.js";
-import { sendOtpSMS, isSMSProviderConfigured, isSMSConsoleActive } from "../../services/sms.js";
-import { sendWhatsAppOTP, isWhatsAppProviderConfigured } from "../../services/whatsapp.js";
-import { OtpDeliveryError } from "./otp.types.js";
+import { isSMSConsoleActive, isSMSProviderConfigured, sendOtpSMS } from "../../services/sms.js";
+import { isWhatsAppProviderConfigured, sendWhatsAppOTP } from "../../services/whatsapp.js";
 import { OTP_CONFIG } from "./otp.config.js";
 import type { OtpChannel, OtpIdentifierType } from "./otp.types.js";
+import { OtpDeliveryError } from "./otp.types.js";
 
 export interface DeliveryResult {
   success: boolean;
@@ -62,35 +62,34 @@ export async function deliverOtp(options: {
       if (result.success) {
         logger.info(
           { channel, provider: result.provider, latencyMs: ms },
-          "[otp:deliver] OTP delivered successfully",
+          "[otp:deliver] OTP delivered successfully"
         );
-        return { success: true, usedChannel: channel, provider: result.provider, messageId: result.messageId };
+        return {
+          success: true,
+          usedChannel: channel,
+          provider: result.provider,
+          messageId: result.messageId,
+        };
       }
 
       const reason = `${channel} failed`;
       errors.push(reason);
-      logger.warn(
-        { channel, latencyMs: ms },
-        `[otp:deliver] Channel failed — trying next`,
-      );
+      logger.warn({ channel, latencyMs: ms }, `[otp:deliver] Channel failed — trying next`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`${channel}: ${msg}`);
-      logger.warn(
-        { channel, error: msg },
-        "[otp:deliver] Channel threw — trying next",
-      );
+      logger.warn({ channel, error: msg }, "[otp:deliver] Channel threw — trying next");
     }
   }
 
   // All channels exhausted
   logger.error(
     { channelsTried: channelOrder, errors },
-    "[otp:deliver] All channels failed — OTP not delivered",
+    "[otp:deliver] All channels failed — OTP not delivered"
   );
   throw new OtpDeliveryError(
     `OTP delivery failed on all channels: ${errors.join("; ")}`,
-    channelOrder[channelOrder.length - 1] ?? "console",
+    channelOrder[channelOrder.length - 1] ?? "console"
   );
 }
 
@@ -98,7 +97,7 @@ export async function deliverOtp(options: {
 
 export function getAvailableChannels(
   identifierType: OtpIdentifierType,
-  settings: Record<string, string>,
+  settings: Record<string, string>
 ): OtpChannel[] {
   const available: OtpChannel[] = [];
 
@@ -108,10 +107,11 @@ export function getAvailableChannels(
   }
 
   if (identifierType === "email") {
-    const emailConfigured =
-      !!(process.env["SENDGRID_API_KEY"] ||
-        process.env["SMTP_HOST"] ||
-        settings["smtp_host"]?.trim());
+    const emailConfigured = !!(
+      process.env["SENDGRID_API_KEY"] ||
+      process.env["SMTP_HOST"] ||
+      settings["smtp_host"]?.trim()
+    );
     if (emailConfigured) available.push("email");
   }
 
@@ -126,7 +126,7 @@ export function getAvailableChannels(
 function buildChannelOrder(
   preferred: OtpChannel | undefined,
   identifierType: OtpIdentifierType,
-  settings: Record<string, string>,
+  settings: Record<string, string>
 ): OtpChannel[] {
   const available = getAvailableChannels(identifierType, settings);
 
@@ -135,7 +135,7 @@ function buildChannelOrder(
     if (isConsoleAllowed()) return ["console"];
     throw new OtpDeliveryError(
       "No OTP delivery channels are configured. Enable SMS, WhatsApp, or Email in Admin → Integrations.",
-      "console",
+      "console"
     );
   }
 
@@ -161,7 +161,7 @@ async function tryWhatsApp(
   phone: string,
   code: string,
   settings: Record<string, string>,
-  userLanguage?: string,
+  userLanguage?: string
 ): Promise<{ success: boolean; provider?: string; messageId?: string }> {
   const result = await sendWhatsAppOTP(phone, code, settings, userLanguage);
   return { success: result.sent, provider: "whatsapp", messageId: result.messageId };
@@ -171,7 +171,7 @@ async function trySms(
   phone: string,
   code: string,
   settings: Record<string, string>,
-  userLanguage?: string,
+  userLanguage?: string
 ): Promise<{ success: boolean; provider?: string }> {
   const result = await sendOtpSMS(phone, code, settings, userLanguage);
   return { success: result.sent, provider: result.provider };
@@ -181,7 +181,7 @@ async function tryEmail(
   email: string,
   code: string,
   settings: Record<string, string>,
-  userLanguage?: string,
+  userLanguage?: string
 ): Promise<{ success: boolean; provider?: string }> {
   // Lazy import to avoid circular dependencies
   const { sendPasswordResetEmail } = await import("../../services/email.js");
@@ -189,20 +189,16 @@ async function tryEmail(
   return { success: result.sent, provider: "email" };
 }
 
-function tryConsole(
-  identifier: string,
-  code: string,
-): { success: boolean; provider: string } {
+function tryConsole(identifier: string, code: string): { success: boolean; provider: string } {
   if (!isConsoleAllowed()) {
     return { success: false, provider: "console" };
   }
   // Mask identifier in log for safety even in dev
-  const masked = identifier.length > 6
-    ? `${identifier.slice(0, 3)}***${identifier.slice(-2)}`
-    : "***";
+  const masked =
+    identifier.length > 6 ? `${identifier.slice(0, 3)}***${identifier.slice(-2)}` : "***";
   logger.info(
     { identifier: masked, code },
-    "[DEV-OTP] OTP code (dev mode only — never in production)",
+    "[DEV-OTP] OTP code (dev mode only — never in production)"
   );
   return { success: true, provider: "console" };
 }
@@ -210,8 +206,5 @@ function tryConsole(
 // ─── Guards ────────────────────────────────────────────────────────────────────
 
 function isConsoleAllowed(): boolean {
-  return (
-    process.env["NODE_ENV"] !== "production" &&
-    process.env["ALLOW_DEV_OTP"] === "true"
-  );
+  return process.env["NODE_ENV"] !== "production" && process.env["ALLOW_DEV_OTP"] === "true";
 }

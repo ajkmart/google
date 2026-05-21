@@ -85,10 +85,7 @@ export function useFacebookLoginNative(config: AuthSessionConfig) {
 
       const result = await request.promptAsync(discovery);
 
-      if (
-        result.type === "success" &&
-        result.params.access_token
-      ) {
+      if (result.type === "success" && result.params.access_token) {
         setLoading(false);
         return { token: result.params.access_token, provider: "facebook" };
       }

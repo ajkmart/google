@@ -1,9 +1,7 @@
 import { Router, type IRouter } from "express";
-import { adminAuth } from "./admin-shared.js";
-import {
-  getP95Ms, getMemoryPct, getDiskPct, getSampleCount,
-} from "../lib/metrics/responseTime.js";
+import { getDiskPct, getMemoryPct, getP95Ms, getSampleCount } from "../lib/metrics/responseTime.js";
 import { sendSuccess } from "../lib/response.js";
+import { adminAuth } from "./admin-shared.js";
 
 const router: IRouter = Router();
 

@@ -12,55 +12,28 @@
 
 import { db } from "@workspace/db";
 import {
-  usersTable,
-  ridesTable,
-  rideRatingsTable,
-  riderPenaltiesTable,
-  locationLogsTable,
-  serviceZonesTable,
-  rideBidsTable,
-  rideServiceTypesTable,
-  popularLocationsTable,
-  schoolRoutesTable,
   liveLocationsTable,
+  rideBidsTable,
   rideEventLogsTable,
   rideNotifiedRidersTable,
-  locationHistoryTable,
-  walletTransactionsTable,
-  ordersTable,
   riderProfilesTable,
+  ridesTable,
+  usersTable,
+  walletTransactionsTable,
 } from "@workspace/db/schema";
-import {
-  eq,
-  desc,
-  and,
-  count,
-  sum,
-  gte,
-  lte,
-  lt,
-  sql,
-  or,
-  ilike,
-  asc,
-  isNull,
-  inArray,
-} from "drizzle-orm";
+import { getSocketRoom } from "@workspace/service-constants";
+import { and, asc, count, desc, eq, gte, ilike, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { generateId } from "../lib/id.js";
 import { logger } from "../lib/logger.js";
-import {
-  getPlatformSettings,
-  sendUserNotification,
-  getUserLanguage,
-  t,
-  RIDE_NOTIF_KEYS,
-} from "../routes/admin-shared.js";
-import { getIO, emitRideDispatchUpdate } from "../lib/socketio.js";
 import { emitRideUpdate } from "../lib/rideEvents.js";
+import { emitRideDispatchUpdate, getIO } from "../lib/socketio.js";
 import {
-  RIDE_VALID_STATUSES,
-  getSocketRoom,
-} from "@workspace/service-constants";
+  RIDE_NOTIF_KEYS,
+  getPlatformSettings,
+  getUserLanguage,
+  sendUserNotification,
+  t,
+} from "../routes/admin-shared.js";
 
 export interface RiderApprovalInput {
   riderId: string;
@@ -128,13 +101,10 @@ export class FleetService {
    * Get all rides (basic list)
    */
   static async getRidesList(limit: number = 50, after?: string) {
-    const { buildCursorPage, decodeCursor } =
-      await import("../lib/pagination/cursor.js");
+    const { buildCursorPage, decodeCursor } = await import("../lib/pagination/cursor.js");
     const cursor = after ? decodeCursor(after) : null;
 
-    const conditions = cursor
-      ? [lt(ridesTable.createdAt, new Date(cursor))]
-      : [];
+    const conditions = cursor ? [lt(ridesTable.createdAt, new Date(cursor))] : [];
 
     const rows = await db
       .select()
@@ -185,10 +155,8 @@ export class FleetService {
     const conditions: any[] = [];
     if (filters.status && filters.status !== "all")
       conditions.push(eq(ridesTable.status, filters.status));
-    if (filters.type && filters.type !== "all")
-      conditions.push(eq(ridesTable.type, filters.type));
-    if (filters.dateFrom)
-      conditions.push(gte(ridesTable.createdAt, new Date(filters.dateFrom)));
+    if (filters.type && filters.type !== "all") conditions.push(eq(ridesTable.type, filters.type));
+    if (filters.dateFrom) conditions.push(gte(ridesTable.createdAt, new Date(filters.dateFrom)));
     if (filters.dateTo) {
       const toDate = new Date(filters.dateTo);
       toDate.setHours(23, 59, 59, 999);
@@ -201,35 +169,28 @@ export class FleetService {
           ilike(ridesTable.id, `%${q}%`),
           ilike(ridesTable.pickupAddress, `%${q}%`),
           ilike(ridesTable.dropAddress, `%${q}%`),
-          ilike(ridesTable.riderName, `%${q}%`),
-        )!,
+          ilike(ridesTable.riderName, `%${q}%`)
+        )!
       );
     }
     if (filters.rider) {
       const q = filters.rider.trim().toLowerCase();
       conditions.push(
-        or(
-          ilike(ridesTable.riderName, `%${q}%`),
-          ilike(ridesTable.riderPhone, `%${q}%`),
-        )!,
+        or(ilike(ridesTable.riderName, `%${q}%`), ilike(ridesTable.riderPhone, `%${q}%`))!
       );
     }
     if (filters.customer) {
       const q = filters.customer.trim().toLowerCase();
       conditions.push(
-        sql`${ridesTable.userId} IN (SELECT ${usersTable.id} FROM ${usersTable} WHERE LOWER(${usersTable.name}) LIKE ${"%" + q + "%"} OR LOWER(${usersTable.phone}) LIKE ${"%" + q + "%"})`,
+        sql`${ridesTable.userId} IN (SELECT ${usersTable.id} FROM ${usersTable} WHERE LOWER(${usersTable.name}) LIKE ${"%" + q + "%"} OR LOWER(${usersTable.phone}) LIKE ${"%" + q + "%"})`
       );
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-    const [totalResult] = await db
-      .select({ cnt: count() })
-      .from(ridesTable)
-      .where(whereClause);
+    const [totalResult] = await db.select({ cnt: count() }).from(ridesTable).where(whereClause);
     const total = Number(totalResult?.cnt ?? 0);
 
-    const orderCol =
-      filters.sortBy === "fare" ? ridesTable.fare : ridesTable.createdAt;
+    const orderCol = filters.sortBy === "fare" ? ridesTable.fare : ridesTable.createdAt;
     const orderFn = filters.sortDir === "asc" ? asc : desc;
     const rides = await db
       .select()
@@ -244,11 +205,7 @@ export class FleetService {
       ...new Set(
         rides
           .map((r: any) => r.userId)
-          .concat(
-            rides
-              .map((r: any) => r.riderId)
-              .filter((id): id is string => id != null),
-          ),
+          .concat(rides.map((r: any) => r.riderId).filter((id): id is string => id != null))
       ),
     ];
     const users =
@@ -263,8 +220,8 @@ export class FleetService {
             .where(
               sql`${usersTable.id} = ANY(ARRAY[${sql.join(
                 userIds.map((id: string) => sql`${id}`),
-                sql`, `,
-              )}]::text[])`,
+                sql`, `
+              )}]::text[])`
             )
         : [];
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
@@ -282,14 +239,12 @@ export class FleetService {
             .where(
               sql`${rideBidsTable.rideId} = ANY(ARRAY[${sql.join(
                 rideIds.map((id: string) => sql`${id}`),
-                sql`, `,
-              )}]::text[])`,
+                sql`, `
+              )}]::text[])`
             )
             .groupBy(rideBidsTable.rideId)
         : [];
-    const bidCountMap = Object.fromEntries(
-      bidCounts.map((b) => [b.rideId, Number(b.total)]),
-    );
+    const bidCountMap = Object.fromEntries(bidCounts.map((b) => [b.rideId, Number(b.total)]));
 
     return {
       rides: rides.map((r: any) => ({
@@ -298,18 +253,12 @@ export class FleetService {
         distance: parseFloat(r.distance),
         offeredFare: r.offeredFare ? parseFloat(r.offeredFare) : null,
         counterFare: r.counterFare ? parseFloat(r.counterFare) : null,
-        createdAt:
-          r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
-        updatedAt:
-          r.updatedAt instanceof Date ? r.updatedAt.toISOString() : r.updatedAt,
+        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
+        updatedAt: r.updatedAt instanceof Date ? r.updatedAt.toISOString() : r.updatedAt,
         userName: userMap[r.userId]?.name || null,
         userPhone: userMap[r.userId]?.phone || null,
-        riderName:
-          r.riderName || (r.riderId ? userMap[r.riderId]?.name : null) || null,
-        riderPhone:
-          r.riderPhone ||
-          (r.riderId ? userMap[r.riderId]?.phone : null) ||
-          null,
+        riderName: r.riderName || (r.riderId ? userMap[r.riderId]?.name : null) || null,
+        riderPhone: r.riderPhone || (r.riderId ? userMap[r.riderId]?.phone : null) || null,
         totalBids: bidCountMap[r.id] ?? 0,
       })),
       total,
@@ -350,9 +299,7 @@ export class FleetService {
     if (!existing) throw new Error("Ride not found");
 
     if (existing.status === "completed" || existing.status === "cancelled") {
-      throw new Error(
-        `Cannot change status of a ride that is already ${existing.status}`,
-      );
+      throw new Error(`Cannot change status of a ride that is already ${existing.status}`);
     }
 
     const allowed = VALID_STATUS_TRANSITIONS[existing.status];
@@ -370,11 +317,7 @@ export class FleetService {
     const commissionPct = 1 - riderKeepPct;
     let riderBalance = 0;
 
-    if (
-      status === "completed" &&
-      existing.riderId &&
-      existing.paymentMethod !== "wallet"
-    ) {
+    if (status === "completed" && existing.riderId && existing.paymentMethod !== "wallet") {
       const [riderWalletRow] = await db
         .select({ walletBalance: usersTable.walletBalance })
         .from(usersTable)
@@ -445,9 +388,7 @@ export class FleetService {
           const refundClaimed = await tx
             .update(ridesTable)
             .set({ refundedAt: now })
-            .where(
-              and(eq(ridesTable.id, updated.id), isNull(ridesTable.refundedAt)),
-            )
+            .where(and(eq(ridesTable.id, updated.id), isNull(ridesTable.refundedAt)))
             .returning({ id: ridesTable.id });
 
           if (refundClaimed.length > 0) {
@@ -494,7 +435,7 @@ export class FleetService {
           t(rideNotifKeys.titleKey, rideUserLang),
           t(rideNotifKeys.bodyKey, rideUserLang),
           "ride",
-          rideNotifKeys.icon,
+          rideNotifKeys.icon
         );
       }
     } catch (e) {
@@ -507,10 +448,7 @@ export class FleetService {
       const ridePayload = {
         id: ride.id,
         status: ride.status,
-        updatedAt:
-          ride.updatedAt instanceof Date
-            ? ride.updatedAt.toISOString()
-            : ride.updatedAt,
+        updatedAt: ride.updatedAt instanceof Date ? ride.updatedAt.toISOString() : ride.updatedAt,
       };
       io.to(getSocketRoom(ride.id, "ride")).emit("order:update", ridePayload);
       io.to(`user:${ride.userId}`).emit("order:update", ridePayload);
@@ -536,11 +474,7 @@ export class FleetService {
     const rideId = input.rideId;
     const reason = input.reason;
 
-    const [ride] = await db
-      .select()
-      .from(ridesTable)
-      .where(eq(ridesTable.id, rideId))
-      .limit(1);
+    const [ride] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
     if (!ride) throw new Error("Ride not found");
     if (["completed", "cancelled"].includes(ride.status)) {
       throw new Error(`Cannot cancel a ride that is already ${ride.status}`);
@@ -564,20 +498,13 @@ export class FleetService {
         await tx
           .update(rideBidsTable)
           .set({ status: "rejected", updatedAt: new Date() })
-          .where(
-            and(
-              eq(rideBidsTable.rideId, rideId),
-              eq(rideBidsTable.status, "pending"),
-            ),
-          );
+          .where(and(eq(rideBidsTable.rideId, rideId), eq(rideBidsTable.status, "pending")));
 
         if (isWallet) {
           const refundResult = await tx
             .update(ridesTable)
             .set({ refundedAt: new Date() })
-            .where(
-              and(eq(ridesTable.id, rideId), isNull(ridesTable.refundedAt)),
-            )
+            .where(and(eq(ridesTable.id, rideId), isNull(ridesTable.refundedAt)))
             .returning({ id: ridesTable.id });
 
           if (refundResult.length > 0) {
@@ -612,7 +539,7 @@ export class FleetService {
           "Ride Cancelled & Refunded 💰",
           `Rs. ${refundAmt.toFixed(0)} refund ho gaya.`,
           "ride",
-          "wallet-outline",
+          "wallet-outline"
         );
       }
       if (ride.riderId) {
@@ -621,7 +548,7 @@ export class FleetService {
           "Ride Cancelled ❌",
           `Ride #${rideId.slice(-6).toUpperCase()} cancelled.`,
           "ride",
-          "close-circle-outline",
+          "close-circle-outline"
         );
       }
     } catch (e) {
@@ -650,11 +577,7 @@ export class FleetService {
    */
   static async refundRide(input: RideRefundInput) {
     const rideId = input.rideId;
-    const [ride] = await db
-      .select()
-      .from(ridesTable)
-      .where(eq(ridesTable.id, rideId))
-      .limit(1);
+    const [ride] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
     if (!ride) throw new Error("Ride not found");
 
     if (!["cancelled", "completed"].includes(ride.status)) {
@@ -718,7 +641,7 @@ export class FleetService {
         "Ride Refund 💰",
         `Rs. ${refundAmt.toFixed(0)} aapki wallet mein refund ho gaya.`,
         "ride",
-        "wallet-outline",
+        "wallet-outline"
       );
     } catch (e) {
       logger.warn("Refund notification failed");
@@ -735,11 +658,7 @@ export class FleetService {
     const rideId = input.rideId;
     const riderId = input.riderId;
 
-    const [ride] = await db
-      .select()
-      .from(ridesTable)
-      .where(eq(ridesTable.id, rideId))
-      .limit(1);
+    const [ride] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
     if (!ride) throw new Error("Ride not found");
     if (["completed", "cancelled"].includes(ride.status)) {
       throw new Error(`Cannot reassign a ride that is ${ride.status}`);
@@ -759,14 +678,11 @@ export class FleetService {
       .where(eq(usersTable.id, riderId))
       .limit(1);
     if (!riderUser) throw new Error("Rider not found");
-    if (!(riderUser.roles ?? "").includes("rider"))
-      throw new Error("Selected user is not a rider");
-    if (riderUser.isActive === false)
-      throw new Error("Cannot assign ride to a deactivated rider");
+    if (!(riderUser.roles ?? "").includes("rider")) throw new Error("Selected user is not a rider");
+    if (riderUser.isActive === false) throw new Error("Cannot assign ride to a deactivated rider");
     if (riderUser.approvalStatus === "rejected")
       throw new Error("Cannot assign ride to a rejected rider");
-    if (riderUser.isOnline === false)
-      throw new Error("Cannot assign ride to an offline rider");
+    if (riderUser.isOnline === false) throw new Error("Cannot assign ride to an offline rider");
 
     const oldRiderId = ride.riderId;
     const resolvedName = input.riderName || riderUser.name;
@@ -784,12 +700,7 @@ export class FleetService {
     await db
       .update(rideBidsTable)
       .set({ status: "rejected", updatedAt: new Date() })
-      .where(
-        and(
-          eq(rideBidsTable.rideId, rideId),
-          eq(rideBidsTable.status, "pending"),
-        ),
-      );
+      .where(and(eq(rideBidsTable.rideId, rideId), eq(rideBidsTable.status, "pending")));
 
     const [updated] = await db
       .update(ridesTable)
@@ -805,7 +716,7 @@ export class FleetService {
           "Ride Reassigned",
           `Ride #${rideId.slice(-6).toUpperCase()} reassigned.`,
           "ride",
-          "swap-horizontal-outline",
+          "swap-horizontal-outline"
         );
       }
       await sendUserNotification(
@@ -813,14 +724,14 @@ export class FleetService {
         "New Ride Assigned 🚗",
         `Ride #${rideId.slice(-6).toUpperCase()} assigned!`,
         "ride",
-        "car-outline",
+        "car-outline"
       );
       await sendUserNotification(
         ride.userId,
         "Rider Changed",
         `Aapki ride ka rider change ho gaya.`,
         "ride",
-        "swap-horizontal-outline",
+        "swap-horizontal-outline"
       );
     } catch (e) {
       logger.warn("Reassign notifications failed");
@@ -867,11 +778,7 @@ export class FleetService {
    * Get ride detail with all related data
    */
   static async getRideDetail(rideId: string) {
-    const [ride] = await db
-      .select()
-      .from(ridesTable)
-      .where(eq(ridesTable.id, rideId))
-      .limit(1);
+    const [ride] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
     if (!ride) throw new Error("Ride not found");
 
     const [customer] = await db
@@ -923,9 +830,7 @@ export class FleetService {
     const gstEnabled = (settings["finance_gst_enabled"] ?? "off") === "on";
     const gstPct = parseFloat(settings["finance_gst_pct"] ?? "17");
     const fare = parseFloat(ride.fare);
-    const gstAmount = gstEnabled
-      ? parseFloat(((fare * gstPct) / (100 + gstPct)).toFixed(2))
-      : 0;
+    const gstAmount = gstEnabled ? parseFloat(((fare * gstPct) / (100 + gstPct)).toFixed(2)) : 0;
     const baseFare = fare - gstAmount;
 
     return {
@@ -963,10 +868,7 @@ export class FleetService {
    */
   static async getLiveRiders() {
     const settings = await getPlatformSettings();
-    const staleTimeoutSec = parseInt(
-      settings["gps_stale_timeout_sec"] ?? "300",
-      10,
-    );
+    const staleTimeoutSec = parseInt(settings["gps_stale_timeout_sec"] ?? "300", 10);
     const STALE_MS = staleTimeoutSec * 1000;
     const cutoff = new Date(Date.now() - STALE_MS);
 
@@ -985,20 +887,13 @@ export class FleetService {
       })
       .from(liveLocationsTable)
       .leftJoin(usersTable, eq(liveLocationsTable.userId, usersTable.id))
-      .leftJoin(
-        riderProfilesTable,
-        eq(liveLocationsTable.userId, riderProfilesTable.userId),
-      )
+      .leftJoin(riderProfilesTable, eq(liveLocationsTable.userId, riderProfilesTable.userId))
       .where(
-        or(
-          eq(liveLocationsTable.role, "rider"),
-          eq(liveLocationsTable.role, "service_provider"),
-        ),
+        or(eq(liveLocationsTable.role, "rider"), eq(liveLocationsTable.role, "service_provider"))
       );
 
     const enriched = locs.map((loc) => {
-      const updatedAt =
-        loc.updatedAt instanceof Date ? loc.updatedAt : new Date(loc.updatedAt);
+      const updatedAt = loc.updatedAt instanceof Date ? loc.updatedAt : new Date(loc.updatedAt);
       const ageSeconds = Math.floor((Date.now() - updatedAt.getTime()) / 1000);
       const isFresh = updatedAt >= cutoff;
       return {

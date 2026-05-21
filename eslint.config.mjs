@@ -1,9 +1,9 @@
-import { createRequire } from "module";
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
+import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
 const { rules: localRules } = require("./eslint-rules/no-silent-catch.cjs");
@@ -47,7 +47,7 @@ export default [
       "ajk-local/no-silent-catch": "error",
       // General
       "no-console": ["warn", { allow: ["warn", "error"] }],
-      "eqeqeq": ["error", "always"],
+      eqeqeq: ["error", "always"],
       "no-var": "error",
       "prefer-const": "error",
     },

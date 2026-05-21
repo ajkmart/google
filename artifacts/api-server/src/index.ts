@@ -1,12 +1,12 @@
-import 'dotenv/config';
-import { logger } from './lib/logger.js';
-import net from 'net';
-import { execSync } from 'child_process';
-import { writeFileSync, unlinkSync } from 'fs';
+import { execSync } from "child_process";
+import "dotenv/config";
+import { unlinkSync, writeFileSync } from "fs";
+import net from "net";
 import { createServer, runStartupTasks } from "./app.js";
-import { startScheduler, stopScheduler } from "./scheduler.js";
+import { logger } from "./lib/logger.js";
 import { waitForRedisReady } from "./lib/redis.js";
 import { initSocketIO } from "./lib/socketio.js";
+import { startScheduler, stopScheduler } from "./scheduler.js";
 
 /* ── Sentry error tracking ───────────────────────────────────────────────────
    Imported directly (no dynamic import) so initialization happens synchronously
@@ -53,9 +53,14 @@ const DEV_PLACEHOLDER_SECRETS = new Set([
   "dev-placeholder-jwt-secret",
 ]);
 const JWT_SECRET_VARS = [
-  "JWT_SECRET", "ADMIN_JWT_SECRET", "ADMIN_ACCESS_TOKEN_SECRET",
-  "ADMIN_REFRESH_TOKEN_SECRET", "ADMIN_REFRESH_SECRET", "ADMIN_SECRET",
-  "VENDOR_JWT_SECRET", "RIDER_JWT_SECRET",
+  "JWT_SECRET",
+  "ADMIN_JWT_SECRET",
+  "ADMIN_ACCESS_TOKEN_SECRET",
+  "ADMIN_REFRESH_TOKEN_SECRET",
+  "ADMIN_REFRESH_SECRET",
+  "ADMIN_SECRET",
+  "VENDOR_JWT_SECRET",
+  "RIDER_JWT_SECRET",
 ];
 
 const DEV_PLACEHOLDER_JWT = "dev-placeholder-jwt-secret";
@@ -68,10 +73,10 @@ function checkEnv(): void {
   /* Validate JWT secret strength (min 32 chars, must be hex or base64-like) */
   function validateJwtSecret(secretName: string, secretValue: string): string | null {
     if (!secretValue) return `${secretName} is empty`;
-    if (secretValue.length < 32) return `${secretName} too short (min 32 chars, got ${secretValue.length})`;
+    if (secretValue.length < 32)
+      return `${secretName} too short (min 32 chars, got ${secretValue.length})`;
     // Check if it's hex (most common for generated secrets)
-    if (!/^[a-fA-F0-9]+$/.test(secretValue) && 
-        !/^[A-Za-z0-9+/=]+$/.test(secretValue)) {
+    if (!/^[a-fA-F0-9]+$/.test(secretValue) && !/^[A-Za-z0-9+/=]+$/.test(secretValue)) {
       return `${secretName} has invalid format (must be hex or base64-like)`;
     }
     return null;
@@ -80,21 +85,22 @@ function checkEnv(): void {
   /* Validate encryption key strength */
   function validateEncryptionKey(keyValue: string): string | null {
     if (!keyValue) return "ENCRYPTION_MASTER_KEY is empty";
-    if (keyValue.length < 32) return `ENCRYPTION_MASTER_KEY too short (min 32 chars, got ${keyValue.length})`;
+    if (keyValue.length < 32)
+      return `ENCRYPTION_MASTER_KEY too short (min 32 chars, got ${keyValue.length})`;
     return null;
   }
 
   /* Warn loudly (fatal in production) if dev placeholder JWT secrets are in use */
   if (isProduction) {
     const placeholderVars = JWT_SECRET_VARS.filter(
-      (k) => process.env[k] && DEV_PLACEHOLDER_SECRETS.has(process.env[k]!.toLowerCase()),
+      (k) => process.env[k] && DEV_PLACEHOLDER_SECRETS.has(process.env[k]!.toLowerCase())
     );
     if (placeholderVars.length > 0) {
       logger.fatal(
         { vars: placeholderVars },
         "[env:check] FATAL — dev placeholder JWT secrets detected in production. " +
-        "Generate new secrets: node -e \"console.log(require('crypto').randomBytes(64).toString('hex'))\" " +
-        "and update them in the Replit Secrets panel before deploying.",
+          "Generate new secrets: node -e \"console.log(require('crypto').randomBytes(64).toString('hex'))\" " +
+          "and update them in the Replit Secrets panel before deploying."
       );
       process.exit(1);
     }
@@ -108,7 +114,7 @@ function checkEnv(): void {
         if (error) secretErrors.push(error);
       }
     }
-    
+
     // Validate encryption key
     const encKey = process.env.ENCRYPTION_MASTER_KEY;
     if (encKey) {
@@ -120,7 +126,7 @@ function checkEnv(): void {
       logger.fatal(
         { errors: secretErrors },
         "[env:check] FATAL — weak or invalid secrets detected in production. " +
-        "Generate proper secrets and update them in the Replit Secrets panel."
+          "Generate proper secrets and update them in the Replit Secrets panel."
       );
       process.exit(1);
     }
@@ -143,7 +149,7 @@ function checkEnv(): void {
       substituted.push("ENCRYPTION_MASTER_KEY");
     }
 
-    const hr  = "═".repeat(66);
+    const hr = "═".repeat(66);
     const pad = (s: string) => `║  ${s.padEnd(63)}║`;
     const lines = [
       `╔${hr}╗`,
@@ -168,11 +174,11 @@ function checkEnv(): void {
   }
 
   const missing = CRITICAL_VARS.filter((k) => !process.env[k]);
-  const empty   = IMPORTANT_VARS.filter((k) => !process.env[k]);
+  const empty = IMPORTANT_VARS.filter((k) => !process.env[k]);
 
   if (missing.length === 0 && empty.length === 0) return;
 
-  const hr  = "═".repeat(66);
+  const hr = "═".repeat(66);
   const pad = (s: string) => `║  ${s.padEnd(63)}║`;
 
   const lines: string[] = [
@@ -199,7 +205,7 @@ function checkEnv(): void {
   lines.push(pad("  On Replit:  add secrets in the Secrets panel (padlock icon)"));
   lines.push(pad("  Other envs: set values in your .env file at the project root"));
   lines.push(pad(""));
-  lines.push(pad("  Then restart:   click the Run button (or restart workflow)"))
+  lines.push(pad("  Then restart:   click the Run button (or restart workflow)"));
   lines.push(pad("  DATABASE_URL:   add PostgreSQL URL in Replit Secrets panel"));
   lines.push(`╚${hr}╝`);
 
@@ -262,7 +268,10 @@ function tryKillPort(p: number): boolean {
     logger.info(`[port:kill] Freed port ${p} using fuser`);
     return true;
   } catch (err) {
-    logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[port:kill] fuser: no process on port ${p}`);
+    logger.debug(
+      { error: err instanceof Error ? err.message : String(err) },
+      `[port:kill] fuser: no process on port ${p}`
+    );
     return false;
   }
 }
@@ -275,7 +284,9 @@ function tryKillPort(p: number): boolean {
  * @throws Error if no available port is found
  */
 async function findAvailablePort(start: number, maxAttempts: number): Promise<number> {
-  logger.info(`[port:search] Searching for available port starting from ${start} (max ${maxAttempts} attempts)`);
+  logger.info(
+    `[port:search] Searching for available port starting from ${start} (max ${maxAttempts} attempts)`
+  );
   for (let i = 0; i < maxAttempts; i++) {
     const candidate = start + i;
     const inUse = await isPortInUse(candidate);
@@ -295,7 +306,9 @@ async function findAvailablePort(start: number, maxAttempts: number): Promise<nu
 async function main() {
   let listenPort = PORT;
 
-  logger.info(`[port:init] Primary port: ${PORT}, fallback enabled: ${PORT_FALLBACK_ENABLE}, max retries: ${PORT_MAX_RETRIES}`);
+  logger.info(
+    `[port:init] Primary port: ${PORT}, fallback enabled: ${PORT_FALLBACK_ENABLE}, max retries: ${PORT_MAX_RETRIES}`
+  );
 
   // Check if primary port is available
   const occupied = await isPortInUse(PORT);
@@ -315,17 +328,25 @@ async function main() {
       await new Promise((r) => setTimeout(r, 500));
       const stillOccupied = await isPortInUse(PORT);
       if (stillOccupied) {
-        logger.warn(`[port:conflict] Port ${PORT} still occupied after killing process — falling back`);
+        logger.warn(
+          `[port:conflict] Port ${PORT} still occupied after killing process — falling back`
+        );
         listenPort = await findAvailablePort(PORT + 1, PORT_MAX_RETRIES);
-        logger.info(`[port:fallback] Using fallback port ${listenPort} instead of primary port ${PORT}`);
+        logger.info(
+          `[port:fallback] Using fallback port ${listenPort} instead of primary port ${PORT}`
+        );
       } else {
         logger.info(`[port:conflict] Port ${PORT} successfully freed — using primary port`);
         listenPort = PORT;
       }
     } else {
-      logger.info(`[port:conflict] Could not free port ${PORT} (no process to kill) — falling back`);
+      logger.info(
+        `[port:conflict] Could not free port ${PORT} (no process to kill) — falling back`
+      );
       listenPort = await findAvailablePort(PORT + 1, PORT_MAX_RETRIES);
-      logger.info(`[port:fallback] Using fallback port ${listenPort} instead of primary port ${PORT}`);
+      logger.info(
+        `[port:fallback] Using fallback port ${listenPort} instead of primary port ${PORT}`
+      );
     }
   } else {
     logger.info(`[port:check] Primary port ${PORT} is available`);
@@ -351,9 +372,25 @@ async function main() {
   // we exit non-zero so the platform restarts us.
   /* ── PID file — written so rotate-secrets can find this process ────────────
      Stored at /tmp/ajkmart-api.pid; cleaned up on any exit signal.          */
-  const PID_FILE = '/tmp/ajkmart-api.pid';
-  try { writeFileSync(PID_FILE, String(process.pid)); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] intentional: non-fatal guard`); }
-  process.on('exit', () => { try { unlinkSync(PID_FILE); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] intentional: ignore parse/parse error`); } });
+  const PID_FILE = "/tmp/ajkmart-api.pid";
+  try {
+    writeFileSync(PID_FILE, String(process.pid));
+  } catch (err) {
+    logger.debug(
+      { error: err instanceof Error ? err.message : String(err) },
+      `[route] intentional: non-fatal guard`
+    );
+  }
+  process.on("exit", () => {
+    try {
+      unlinkSync(PID_FILE);
+    } catch (err) {
+      logger.debug(
+        { error: err instanceof Error ? err.message : String(err) },
+        `[route] intentional: ignore parse/parse error`
+      );
+    }
+  });
 
   /* ── activeServer ref — updated once the bind succeeds so shutdown handlers
      always call close() on the real HTTP server.                              */
@@ -371,7 +408,9 @@ async function main() {
       hs.setMaxListeners(50);
       activeServer = hs;
       const addr = hs.address();
-      logger.info(`[server:listen] Server listening on port ${port} (addr=${JSON.stringify(addr)})`);
+      logger.info(
+        `[server:listen] Server listening on port ${port} (addr=${JSON.stringify(addr)})`
+      );
 
       /* ── Socket.IO initialisation — must run after the HTTP server is bound
          so Socket.IO can attach its engine to the live TCP socket.
@@ -451,7 +490,7 @@ async function main() {
   };
 
   process.once("SIGTERM", () => gracefulShutdown("SIGTERM"));
-  process.once("SIGINT",  () => gracefulShutdown("SIGINT"));
+  process.once("SIGINT", () => gracefulShutdown("SIGINT"));
 
   /* ── SIGHUP — secret rotation reload ─────────────────────────────────────
      rotate-secrets sends SIGHUP after writing new secrets to .env.enc and

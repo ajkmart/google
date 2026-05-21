@@ -12,7 +12,7 @@
  * wallet module's acquireWalletIdempotency uses the mocked DB connection.
  */
 
-import { vi, describe, it, expect, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ── DB mock ───────────────────────────────────────────────────────────────────
 // vi.hoisted runs before vi.mock (and before imports), making these functions
@@ -74,7 +74,7 @@ describe("acquireWalletIdempotency", () => {
         id: "row-1",
         userId: USER_ID,
         idempotencyKey: `${PREFIX}:${RAW_KEY}`,
-        responseData: "{}",   // still in-flight
+        responseData: "{}", // still in-flight
         createdAt: new Date(), // within TTL
       },
     ]);
@@ -118,7 +118,7 @@ describe("acquireWalletIdempotency", () => {
 
   it("retries INSERT and returns acquired=true when key was deleted between INSERT and SELECT", async () => {
     mockInsertReturning.mockResolvedValueOnce([]); // first INSERT conflicts
-    mockSelectLimit.mockResolvedValueOnce([]);      // SELECT finds nothing (deleted)
+    mockSelectLimit.mockResolvedValueOnce([]); // SELECT finds nothing (deleted)
     mockInsertReturning.mockResolvedValueOnce([{ id: "row-2" }]); // retry INSERT succeeds
 
     const result = await acquireWalletIdempotency(USER_ID, PREFIX, RAW_KEY);
@@ -130,7 +130,7 @@ describe("acquireWalletIdempotency", () => {
 
   it("returns action=in_flight when retry INSERT also conflicts (concurrent request wins the race)", async () => {
     mockInsertReturning.mockResolvedValueOnce([]); // first INSERT conflicts
-    mockSelectLimit.mockResolvedValueOnce([]);      // SELECT finds nothing
+    mockSelectLimit.mockResolvedValueOnce([]); // SELECT finds nothing
     mockInsertReturning.mockResolvedValueOnce([]); // retry INSERT also conflicts
 
     const result = await acquireWalletIdempotency(USER_ID, PREFIX, RAW_KEY);

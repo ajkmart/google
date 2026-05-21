@@ -71,7 +71,10 @@ export interface ModerationConfig {
   maskFormatCnic?: string;
 }
 
-export function moderateContent(text: string, config: ModerationConfig = {}): ModerationResult & { customHits?: { pattern: string; severity: string; matches: string[] }[] } {
+export function moderateContent(
+  text: string,
+  config: ModerationConfig = {}
+): ModerationResult & { customHits?: { pattern: string; severity: string; matches: string[] }[] } {
   const {
     hidePhone = true,
     hideEmail = true,
@@ -170,15 +173,26 @@ export function moderateContent(text: string, config: ModerationConfig = {}): Mo
         if (cp.pattern.length > 200) continue;
         const re = new RegExp(cp.pattern, "gi");
         const testStr = text.slice(0, 10000);
-        const found = [...testStr.matchAll(re)].map(m => m[0]);
+        const found = [...testStr.matchAll(re)].map((m) => m[0]);
         if (found.length > 0) {
-          customHits.push({ pattern: cp.pattern, severity: cp.severity, matches: found.slice(0, 50) });
+          customHits.push({
+            pattern: cp.pattern,
+            severity: cp.severity,
+            matches: found.slice(0, 50),
+          });
         }
-      } catch (err) { /* intentional: non-fatal guard */ void err; }
+      } catch (err) {
+        /* intentional: non-fatal guard */ void err;
+      }
     }
   }
 
-  return { masked, original: text, detections, customHits: customHits.length ? customHits : undefined };
+  return {
+    masked,
+    original: text,
+    detections,
+    customHits: customHits.length ? customHits : undefined,
+  };
 }
 
 export function checkFlagKeywords(text: string, keywords: string[]): string | null {
@@ -192,7 +206,9 @@ export function checkFlagKeywords(text: string, keywords: string[]): string | nu
   return null;
 }
 
-export function getModerationConfigFromSettings(settings: Record<string, string>): ModerationConfig {
+export function getModerationConfigFromSettings(
+  settings: Record<string, string>
+): ModerationConfig {
   let customPatterns: CustomPattern[] = [];
   const rawPatterns = settings["moderation_custom_patterns"];
   if (rawPatterns) {
@@ -202,7 +218,10 @@ export function getModerationConfigFromSettings(settings: Record<string, string>
         customPatterns = parsed.filter((p: any) => p.pattern && typeof p.pattern === "string");
       }
     } catch (err) {
-      logger.warn("[content-moderation] Failed to parse custom patterns from settings — all custom rules disabled:", err instanceof Error ? err.message : String(err));
+      logger.warn(
+        "[content-moderation] Failed to parse custom patterns from settings — all custom rules disabled:",
+        err instanceof Error ? err.message : String(err)
+      );
     }
   }
 
@@ -212,7 +231,12 @@ export function getModerationConfigFromSettings(settings: Record<string, string>
     hideCnic: settings["comm_hide_cnic"] !== "off",
     hideBank: settings["comm_hide_bank"] !== "off",
     hideAddress: settings["comm_hide_address"] !== "off",
-    flagKeywords: settings["comm_flag_keywords"] ? settings["comm_flag_keywords"].split(",").map(k => k.trim()).filter(Boolean) : [],
+    flagKeywords: settings["comm_flag_keywords"]
+      ? settings["comm_flag_keywords"]
+          .split(",")
+          .map((k) => k.trim())
+          .filter(Boolean)
+      : [],
     customPatterns,
     maskFormatPhone: settings["comm_mask_format_phone"] || undefined,
     maskFormatEmail: settings["comm_mask_format_email"] || undefined,

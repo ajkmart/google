@@ -16,10 +16,10 @@ export interface FeeBreakdown {
 }
 
 const DELIVERY_FEE_KEY: Record<string, string> = {
-  mart:     "delivery_fee_mart",
-  food:     "delivery_fee_food",
+  mart: "delivery_fee_mart",
+  food: "delivery_fee_food",
   pharmacy: "delivery_fee_pharmacy",
-  parcel:   "delivery_fee_parcel",
+  parcel: "delivery_fee_parcel",
 };
 
 /**
@@ -34,9 +34,9 @@ export function calcDeliveryFee(
   s: Record<string, string>,
   type: ServiceType,
   itemsTotal: number,
-  weightKg = 0,
+  weightKg = 0
 ): number {
-  const feeKey  = DELIVERY_FEE_KEY[type] ?? "delivery_fee_mart";
+  const feeKey = DELIVERY_FEE_KEY[type] ?? "delivery_fee_mart";
   const baseFee = parseFloat(s[feeKey] ?? "80");
 
   let rawFee = baseFee;
@@ -46,7 +46,7 @@ export function calcDeliveryFee(
   }
 
   const freeEnabled = (s["delivery_free_enabled"] ?? "on") === "on";
-  const freeAbove   = parseFloat(s["free_delivery_above"] ?? "1000");
+  const freeAbove = parseFloat(s["free_delivery_above"] ?? "1000");
   return freeEnabled && itemsTotal >= freeAbove ? 0 : rawFee;
 }
 
@@ -55,7 +55,7 @@ export function calcDeliveryFee(
  */
 export function calcGst(s: Record<string, string>, itemsTotal: number): number {
   const gstEnabled = (s["finance_gst_enabled"] ?? "off") === "on";
-  const gstPct     = parseFloat(s["finance_gst_pct"] ?? "17");
+  const gstPct = parseFloat(s["finance_gst_pct"] ?? "17");
   return gstEnabled ? parseFloat(((itemsTotal * gstPct) / 100).toFixed(2)) : 0;
 }
 
@@ -69,10 +69,10 @@ export function calcGst(s: Record<string, string>, itemsTotal: number): number {
 export function calcCodFee(
   s: Record<string, string>,
   paymentMethod: string,
-  orderTotal: number,
+  orderTotal: number
 ): number {
   if (paymentMethod !== "cash" && paymentMethod !== "cod") return 0;
-  const fee    = parseFloat(s["cod_fee_amount"] ?? s["cod_fee"] ?? "0");
+  const fee = parseFloat(s["cod_fee_amount"] ?? s["cod_fee"] ?? "0");
   const freeAb = parseFloat(s["cod_free_above"] ?? "2000");
   return fee > 0 && orderTotal < freeAb ? fee : 0;
 }
@@ -88,13 +88,13 @@ export function calcOrderFees(
   type: ServiceType,
   itemsTotal: number,
   paymentMethod: string,
-  opts: { weightKg?: number; promoDiscount?: number } = {},
+  opts: { weightKg?: number; promoDiscount?: number } = {}
 ): FeeBreakdown {
   const deliveryFee = calcDeliveryFee(s, type, itemsTotal, opts.weightKg ?? 0);
-  const gstAmount   = calcGst(s, itemsTotal);
-  const subtotal    = itemsTotal + deliveryFee + gstAmount;
-  const codFee      = calcCodFee(s, paymentMethod, subtotal);
-  const discount    = opts.promoDiscount ?? 0;
-  const total       = Math.max(0, subtotal + codFee - discount);
+  const gstAmount = calcGst(s, itemsTotal);
+  const subtotal = itemsTotal + deliveryFee + gstAmount;
+  const codFee = calcCodFee(s, paymentMethod, subtotal);
+  const discount = opts.promoDiscount ?? 0;
+  const total = Math.max(0, subtotal + codFee - discount);
   return { deliveryFee, gstAmount, codFee, total };
 }

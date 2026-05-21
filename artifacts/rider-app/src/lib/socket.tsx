@@ -1,11 +1,19 @@
-import { createContext, useContext, useEffect, useRef, useState, useCallback, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { io, type Socket } from "socket.io-client";
-import { api, getApiBase, registerTokenRefreshCallback } from "./api";
+import { api, registerTokenRefreshCallback } from "./api";
 
-import { useAuth } from "./rider-auth";
+import { createLogger } from "@/lib/logger";
 import { getRiderSocketOrigin } from "./envValidation";
 import { syncQueue } from "./offline/queueManager";
-import { createLogger } from "@/lib/logger";
+import { useAuth } from "./rider-auth";
 const log = createLogger("[socket]");
 
 type SocketContextType = {
@@ -14,7 +22,6 @@ type SocketContextType = {
   setRiderPosition: (lat: number, lng: number) => void;
   batteryLevel: number | undefined;
   setSlowGps: (slow: boolean) => void;
-
 };
 
 const SocketContext = createContext<SocketContextType>({
@@ -23,7 +30,6 @@ const SocketContext = createContext<SocketContextType>({
   setRiderPosition: () => {},
   batteryLevel: undefined,
   setSlowGps: () => {},
-
 });
 
 export function useSocket() {
@@ -41,7 +47,6 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   /* Slow-GPS flag set by Active.tsx when battery is low or rider is far from waypoint */
   const slowGpsRef = useRef(false);
   const lastHeartbeatMsRef = useRef(0);
-
 
   /* Called from watchPosition callbacks in Home.tsx and Active.tsx */
   const setRiderPosition = useCallback((lat: number, lng: number) => {
@@ -101,7 +106,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       const a = (s as { auth?: unknown }).auth;
       return (a && typeof a === "object" ? (a as AuthBag) : {}) as AuthBag;
     };
-    const writeSocketAuth = (next: AuthBag) => { (s as { auth?: unknown }).auth = next; };
+    const writeSocketAuth = (next: AuthBag) => {
+      (s as { auth?: unknown }).auth = next;
+    };
     /* Immediate reconnect when a token refresh completes — eliminates the gap
        where real-time messages are missed between token refresh and the next
        polling tick. Registered on every socket lifecycle so the callback always
@@ -150,7 +157,11 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
   /* Initialize battery listener once at mount */
   useEffect(() => {
-    type BatteryManager = { level: number; addEventListener: (event: string, cb: () => void) => void; removeEventListener: (event: string, cb: () => void) => void };
+    type BatteryManager = {
+      level: number;
+      addEventListener: (event: string, cb: () => void) => void;
+      removeEventListener: (event: string, cb: () => void) => void;
+    };
     let batt: BatteryManager | undefined;
     let mounted = true;
     const onLevelChange = () => {
@@ -159,14 +170,18 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         setBatteryLevelState(batt.level);
       }
     };
-    (navigator as unknown as { getBattery?: () => Promise<BatteryManager> }).getBattery?.()
+    (navigator as unknown as { getBattery?: () => Promise<BatteryManager> })
+      .getBattery?.()
       .then((b) => {
         if (!mounted) return;
         batt = b;
         batteryLevelRef.current = batt.level;
         setBatteryLevelState(batt.level);
         batt.addEventListener("levelchange", onLevelChange);
-      }).catch((err) => { console.warn('[artifacts/rider-app/src/lib/socket.tsx]', err); }); // eslint-disable-line no-console
+      })
+      .catch((err) => {
+        console.warn("[artifacts/rider-app/src/lib/socket.tsx]", err);
+      }); // eslint-disable-line no-console
     return () => {
       mounted = false;
       batt?.removeEventListener("levelchange", onLevelChange);
@@ -210,8 +225,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   }, [socket, user?.isOnline]);
 
   return (
-    <SocketContext.Provider value={{ socket, connected, setRiderPosition, batteryLevel: batteryLevelState, setSlowGps }}>
-
+    <SocketContext.Provider
+      value={{ socket, connected, setRiderPosition, batteryLevel: batteryLevelState, setSlowGps }}
+    >
       {children}
     </SocketContext.Provider>
   );

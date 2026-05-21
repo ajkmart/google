@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
 import { safeLocalGet, safeLocalSet } from "@/lib/safeStorage";
+import { useCallback, useEffect, useState } from "react";
 
 const THEME_KEY = "ajkmart_dark_mode";
 
@@ -8,11 +8,15 @@ export function useTheme() {
 
   useEffect(() => {
     const html = document.documentElement;
-    if (isDark) { html.classList.add("dark"); } else { html.classList.remove("dark"); }
+    if (isDark) {
+      html.classList.add("dark");
+    } else {
+      html.classList.remove("dark");
+    }
   }, [isDark]);
 
   const toggleDark = useCallback(() => {
-    setIsDark(prev => {
+    setIsDark((prev) => {
       const next = !prev;
       safeLocalSet(THEME_KEY, next ? "true" : "false");
       return next;

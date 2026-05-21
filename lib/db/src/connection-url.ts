@@ -5,8 +5,7 @@ export const usingFallback = false;
 
 if (!process.env.DATABASE_URL) {
   log.warn(
-    "⚠️  Warning: DATABASE_URL secret missing! " +
-    "Add DATABASE_URL in the Replit Secrets panel.",
+    "⚠️  Warning: DATABASE_URL secret missing! " + "Add DATABASE_URL in the Replit Secrets panel."
   );
 }
 
@@ -61,8 +60,7 @@ export function buildPgPoolConfig(rawUrl?: string): PgPoolConnection {
   }
 
   const envAllowSelfSigned =
-    process.env.PGSSL_ALLOW_SELF_SIGNED === "1" ||
-    process.env.PGSSL_REJECT_UNAUTHORIZED === "0";
+    process.env.PGSSL_ALLOW_SELF_SIGNED === "1" || process.env.PGSSL_REJECT_UNAUTHORIZED === "0";
 
   if (!hasSslHint) {
     return {

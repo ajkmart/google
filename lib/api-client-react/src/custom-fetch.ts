@@ -49,7 +49,9 @@ export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
  * Register a callback to invoke whenever a 401 response is received and
  * the token refresh attempt also fails. Typically used to trigger logout.
  */
-export function setOnUnauthorized(handler: ((statusCode?: number, errorMsg?: string) => void) | null): void {
+export function setOnUnauthorized(
+  handler: ((statusCode?: number, errorMsg?: string) => void) | null
+): void {
   _onUnauthorized = handler;
 }
 
@@ -57,7 +59,9 @@ export function setOnUnauthorized(handler: ((statusCode?: number, errorMsg?: str
  * Register a getter that supplies the current refresh token.
  * Used to silently refresh the access token on 401 responses.
  */
-export function setRefreshTokenGetter(getter: (() => Promise<string | null> | string | null) | null): void {
+export function setRefreshTokenGetter(
+  getter: (() => Promise<string | null> | string | null) | null
+): void {
   _refreshTokenGetter = getter;
 }
 
@@ -65,11 +69,15 @@ export function setRefreshTokenGetter(getter: (() => Promise<string | null> | st
  * Register a callback invoked with the new access and refresh tokens
  * when a silent token refresh succeeds.
  */
-export function setOnTokenRefreshed(callback: ((newToken: string, newRefreshToken: string) => void) | null): void {
+export function setOnTokenRefreshed(
+  callback: ((newToken: string, newRefreshToken: string) => void) | null
+): void {
   _onTokenRefreshed = callback;
 }
 
-export function setOnApiError(handler: ((url: string, status: number, message: string) => void) | null): void {
+export function setOnApiError(
+  handler: ((url: string, status: number, message: string) => void) | null
+): void {
   _onApiError = handler;
 }
 
@@ -135,11 +143,11 @@ function isJsonMediaType(mediaType: string | null): boolean {
 function isTextMediaType(mediaType: string | null): boolean {
   return Boolean(
     mediaType &&
-      (mediaType.startsWith("text/") ||
-        mediaType === "application/xml" ||
-        mediaType === "text/xml" ||
-        mediaType.endsWith("+xml") ||
-        mediaType === "application/x-www-form-urlencoded"),
+    (mediaType.startsWith("text/") ||
+      mediaType === "application/xml" ||
+      mediaType === "text/xml" ||
+      mediaType.endsWith("+xml") ||
+      mediaType === "application/x-www-form-urlencoded")
   );
 }
 
@@ -213,11 +221,7 @@ export class ApiError<T = unknown> extends Error {
   readonly method: string;
   readonly url: string;
 
-  constructor(
-    response: Response,
-    data: T | null,
-    requestInfo: { method: string; url: string },
-  ) {
+  constructor(response: Response, data: T | null, requestInfo: { method: string; url: string }) {
     super(buildErrorMessage(response, data));
     Object.setPrototypeOf(this, new.target.prototype);
 
@@ -246,11 +250,11 @@ export class ResponseParseError extends Error {
     response: Response,
     rawBody: string,
     cause: unknown,
-    requestInfo: { method: string; url: string },
+    requestInfo: { method: string; url: string }
   ) {
     super(
       `Failed to parse response from ${requestInfo.method} ${response.url || requestInfo.url} ` +
-        `(${response.status} ${response.statusText}) as JSON`,
+        `(${response.status} ${response.statusText}) as JSON`
     );
     Object.setPrototypeOf(this, new.target.prototype);
 
@@ -267,7 +271,7 @@ export class ResponseParseError extends Error {
 
 async function parseJsonBody(
   response: Response,
-  requestInfo: { method: string; url: string },
+  requestInfo: { method: string; url: string }
 ): Promise<unknown> {
   const raw = await response.text();
   const normalized = stripBom(raw);
@@ -325,14 +329,13 @@ function inferResponseType(response: Response): "json" | "text" | "blob" {
 async function parseSuccessBody(
   response: Response,
   responseType: "json" | "text" | "blob" | "auto",
-  requestInfo: { method: string; url: string },
+  requestInfo: { method: string; url: string }
 ): Promise<unknown> {
   if (hasNoBody(response, requestInfo.method)) {
     return null;
   }
 
-  const effectiveType =
-    responseType === "auto" ? inferResponseType(response) : responseType;
+  const effectiveType = responseType === "auto" ? inferResponseType(response) : responseType;
 
   switch (effectiveType) {
     case "json":
@@ -347,7 +350,7 @@ async function parseSuccessBody(
       if (typeof response.blob !== "function") {
         throw new TypeError(
           "Blob responses are not supported in this runtime. " +
-            "Use responseType \"json\" or \"text\" instead.",
+            'Use responseType "json" or "text" instead.'
         );
       }
       return response.blob();
@@ -364,7 +367,9 @@ async function attemptTokenRefresh(baseUrl: string | null): Promise<TokenRefresh
   if (!refreshToken) return null;
 
   const refreshUrl = baseUrl
-    ? (baseUrl.endsWith("/api") ? `${baseUrl}/auth/refresh` : `${baseUrl}/api/auth/refresh`)
+    ? baseUrl.endsWith("/api")
+      ? `${baseUrl}/auth/refresh`
+      : `${baseUrl}/api/auth/refresh`
     : "/api/auth/refresh";
   try {
     const res = await fetch(refreshUrl, {
@@ -373,7 +378,7 @@ async function attemptTokenRefresh(baseUrl: string | null): Promise<TokenRefresh
       body: JSON.stringify({ refreshToken }),
     });
     if (!res.ok) return null;
-    const data = await res.json() as { token?: string; refreshToken?: string };
+    const data = (await res.json()) as { token?: string; refreshToken?: string };
     if (!data.token) return null;
     return { token: data.token, newRefreshToken: data.refreshToken ?? refreshToken };
   } catch {
@@ -404,17 +409,23 @@ export function setRetryBackoffBaseMs(ms: number): void {
 function isNetworkError(error: unknown): boolean {
   if (error instanceof TypeError) return true;
   const msg = String((error as any)?.message ?? "").toLowerCase();
-  return msg.includes("network") || msg.includes("fetch") || msg.includes("aborted") || msg.includes("timeout") || msg.includes("econnrefused");
+  return (
+    msg.includes("network") ||
+    msg.includes("fetch") ||
+    msg.includes("aborted") ||
+    msg.includes("timeout") ||
+    msg.includes("econnrefused")
+  );
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export async function customFetch<T = unknown>(
   input: RequestInfo | URL,
   options: CustomFetchOptions = {},
-  _isRetry = false,
+  _isRetry = false
 ): Promise<T> {
   input = applyBaseUrl(input);
   const { responseType = "auto", headers: headersInit, ...init } = options;
@@ -427,11 +438,7 @@ export async function customFetch<T = unknown>(
 
   const headers = mergeHeaders(isRequest(input) ? input.headers : undefined, headersInit);
 
-  if (
-    typeof init.body === "string" &&
-    !headers.has("content-type") &&
-    looksLikeJson(init.body)
-  ) {
+  if (typeof init.body === "string" && !headers.has("content-type") && looksLikeJson(init.body)) {
     headers.set("content-type", "application/json");
   }
 
@@ -474,7 +481,9 @@ export async function customFetch<T = unknown>(
 
     if (response.status === 401 && !_isRetry) {
       if (!_refreshPromise) {
-        _refreshPromise = attemptTokenRefresh(_baseUrl).finally(() => { _refreshPromise = null; });
+        _refreshPromise = attemptTokenRefresh(_baseUrl).finally(() => {
+          _refreshPromise = null;
+        });
       }
       const refreshResult = await _refreshPromise;
       if (refreshResult) {
@@ -491,11 +500,13 @@ export async function customFetch<T = unknown>(
     if (!response.ok) {
       const errorData = await parseErrorBody(response, method);
       if (response.status === 403 && _onUnauthorized) {
-        const errMsg = getStringField(errorData, "error") || getStringField(errorData, "message") || undefined;
+        const errMsg =
+          getStringField(errorData, "error") || getStringField(errorData, "message") || undefined;
         _onUnauthorized(403, errMsg);
       }
       if (_onApiError) {
-        const errMsg = getStringField(errorData, "error") || getStringField(errorData, "message") || "API error";
+        const errMsg =
+          getStringField(errorData, "error") || getStringField(errorData, "message") || "API error";
         _onApiError(requestInfo.url, response.status, errMsg);
       }
       throw new ApiError(response, errorData, requestInfo);

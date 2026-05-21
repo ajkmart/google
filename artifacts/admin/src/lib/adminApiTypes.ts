@@ -148,11 +148,7 @@ export interface TermsVersionRow {
 /* ── Type guards ───────────────────────────────────────────────────── */
 
 export function isApiOk<T>(v: unknown): v is ApiOk<T> {
-  return (
-    typeof v === "object" &&
-    v !== null &&
-    (v as { ok?: unknown }).ok === true
-  );
+  return typeof v === "object" && v !== null && (v as { ok?: unknown }).ok === true;
 }
 
 export function isApiErr(v: unknown): v is ApiErr {

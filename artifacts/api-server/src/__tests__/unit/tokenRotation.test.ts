@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  rotateRefreshToken,
-  invalidateTokenFamily,
-  TokenFamilyBreachError,
-  detectAndInvalidateFamily,
-  buildBreachNotificationEmail,
-} from "../../services/auth/tokenRotation.js";
 import type { refreshTokensTable } from "@workspace/db/schema";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  buildBreachNotificationEmail,
+  detectAndInvalidateFamily,
+  invalidateTokenFamily,
+  rotateRefreshToken,
+  TokenFamilyBreachError,
+} from "../../services/auth/tokenRotation.js";
 
 /* ──────────────────────────────────────────────────────────────────────
  * ALL mocks are declared inside vi.mock() factory functions.
@@ -55,7 +55,9 @@ vi.mock("../../lib/logger.js", () => ({
   logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
-function makeOldToken(overrides?: Partial<typeof refreshTokensTable.$inferSelect>): typeof refreshTokensTable.$inferSelect {
+function makeOldToken(
+  overrides?: Partial<typeof refreshTokensTable.$inferSelect>
+): typeof refreshTokensTable.$inferSelect {
   return {
     id: "rt-1",
     userId: "u-1",
@@ -139,9 +141,9 @@ describe("detectAndInvalidateFamily", () => {
     const { db } = await import("@workspace/db");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const d = db as any;
-    d.select.mockImplementationOnce(() => d._selectBuilder([
-      makeOldToken({ usedAt: null, tokenFamilyId: "fam-1" }),
-    ]));
+    d.select.mockImplementationOnce(() =>
+      d._selectBuilder([makeOldToken({ usedAt: null, tokenFamilyId: "fam-1" })])
+    );
 
     const result = await detectAndInvalidateFamily("old-hash");
 
@@ -153,9 +155,9 @@ describe("detectAndInvalidateFamily", () => {
     const { db } = await import("@workspace/db");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const d = db as any;
-    d.select.mockImplementationOnce(() => d._selectBuilder([
-      makeOldToken({ usedAt: new Date(), tokenFamilyId: "fam-breach" }),
-    ]));
+    d.select.mockImplementationOnce(() =>
+      d._selectBuilder([makeOldToken({ usedAt: new Date(), tokenFamilyId: "fam-breach" })])
+    );
 
     await expect(detectAndInvalidateFamily("old-hash")).rejects.toBeInstanceOf(
       TokenFamilyBreachError

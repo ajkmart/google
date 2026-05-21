@@ -1,4 +1,4 @@
-import { logger } from './logger.js';
+import { logger } from "./logger.js";
 /**
  * runtime-config.ts
  *
@@ -47,6 +47,9 @@ export async function seedRuntimeConfigFromDb(): Promise<void> {
     }
   } catch (err) {
     // Non-fatal — env var fallback is already in place
-    logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[runtime-config] Admin secret DB load failed — using env var fallback");
+    logger.debug(
+      { error: err instanceof Error ? err.message : String(err) },
+      "[runtime-config] Admin secret DB load failed — using env var fallback"
+    );
   }
 }

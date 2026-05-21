@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import request from "supertest";
-import express from "express";
 import cookieParser from "cookie-parser";
+import express from "express";
+import request from "supertest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockSettings: Record<string, string> = {
   auth_2fa_enabled: "on",
@@ -30,10 +30,34 @@ const mockDb = {
 
 vi.mock("@workspace/db", () => ({ db: mockDb }));
 vi.mock("@workspace/db/schema", () => ({
-  usersTable: { id: "id", totpEnabled: "totpEnabled", totpSecret: "totpSecret", backupCodes: "backupCodes", trustedDevices: "trustedDevices", roles: "roles", isBanned: "isBanned", isActive: "isActive", tokenVersion: "tokenVersion", updatedAt: "updatedAt" },
-  refreshTokensTable: { id: "id", userId: "userId", tokenHash: "tokenHash", revokedAt: "revokedAt", expiresAt: "expiresAt", familyId: "familyId", revokedReason: "revokedReason" },
+  usersTable: {
+    id: "id",
+    totpEnabled: "totpEnabled",
+    totpSecret: "totpSecret",
+    backupCodes: "backupCodes",
+    trustedDevices: "trustedDevices",
+    roles: "roles",
+    isBanned: "isBanned",
+    isActive: "isActive",
+    tokenVersion: "tokenVersion",
+    updatedAt: "updatedAt",
+  },
+  refreshTokensTable: {
+    id: "id",
+    userId: "userId",
+    tokenHash: "tokenHash",
+    revokedAt: "revokedAt",
+    expiresAt: "expiresAt",
+    familyId: "familyId",
+    revokedReason: "revokedReason",
+  },
   totpRecoveryCodesTable: { id: "id", userId: "userId", codeHash: "codeHash", usedAt: "usedAt" },
-  userTotpSetupTable: { userId: "userId", secret: "secret", encryptedSecret: "encryptedSecret", expiresAt: "expiresAt" },
+  userTotpSetupTable: {
+    userId: "userId",
+    secret: "secret",
+    encryptedSecret: "encryptedSecret",
+    expiresAt: "expiresAt",
+  },
   pendingOtpsTable: {},
   rateLimitsTable: {},
   userSessionsTable: {},
@@ -98,11 +122,32 @@ vi.mock("../../src/middleware/rate-limit.js", () => ({
 vi.mock("../../src/middleware/validate.js", () => ({
   validateBody: () => (_r: unknown, _s: unknown, n: () => void) => n(),
 }));
-vi.mock("../../src/services/sms.js", () => ({ sendOtpSMS: vi.fn(), isSMSProviderConfigured: vi.fn().mockReturnValue(false), isSMSConsoleActive: vi.fn().mockReturnValue(false) }));
-vi.mock("../../src/services/smsGateway.js", () => ({ sendOtpWithFailover: vi.fn(), getWhitelistBypass: vi.fn().mockResolvedValue(null) }));
-vi.mock("../../src/services/whatsapp.js", () => ({ sendWhatsAppOTP: vi.fn(), isWhatsAppProviderConfigured: vi.fn().mockReturnValue(false) }));
-vi.mock("../../src/services/email.js", () => ({ sendVerificationEmail: vi.fn(), sendPasswordResetEmail: vi.fn(), sendMagicLinkEmail: vi.fn(), alertNewVendor: vi.fn(), isEmailProviderConfigured: vi.fn().mockReturnValue(false) }));
-vi.mock("../../src/services/password.js", () => ({ hashPassword: vi.fn().mockReturnValue("h"), verifyPassword: vi.fn(), validatePasswordStrength: vi.fn().mockReturnValue({ ok: true }), generateSecureOtp: vi.fn().mockReturnValue("123456") }));
+vi.mock("../../src/services/sms.js", () => ({
+  sendOtpSMS: vi.fn(),
+  isSMSProviderConfigured: vi.fn().mockReturnValue(false),
+  isSMSConsoleActive: vi.fn().mockReturnValue(false),
+}));
+vi.mock("../../src/services/smsGateway.js", () => ({
+  sendOtpWithFailover: vi.fn(),
+  getWhitelistBypass: vi.fn().mockResolvedValue(null),
+}));
+vi.mock("../../src/services/whatsapp.js", () => ({
+  sendWhatsAppOTP: vi.fn(),
+  isWhatsAppProviderConfigured: vi.fn().mockReturnValue(false),
+}));
+vi.mock("../../src/services/email.js", () => ({
+  sendVerificationEmail: vi.fn(),
+  sendPasswordResetEmail: vi.fn(),
+  sendMagicLinkEmail: vi.fn(),
+  alertNewVendor: vi.fn(),
+  isEmailProviderConfigured: vi.fn().mockReturnValue(false),
+}));
+vi.mock("../../src/services/password.js", () => ({
+  hashPassword: vi.fn().mockReturnValue("h"),
+  verifyPassword: vi.fn(),
+  validatePasswordStrength: vi.fn().mockReturnValue({ ok: true }),
+  generateSecureOtp: vi.fn().mockReturnValue("123456"),
+}));
 vi.mock("../../src/services/totp.js", () => ({
   generateTotpSecret: vi.fn().mockReturnValue("TOTP_SECRET_123"),
   verifyTotpToken: mockVerifyTotpToken,
@@ -112,17 +157,36 @@ vi.mock("../../src/services/totp.js", () => ({
   decryptTotpSecret: vi.fn().mockReturnValue("TOTP_SECRET_123"),
 }));
 vi.mock("../../src/services/auth/tokenRotation.js", () => ({
-  rotateRefreshToken: vi.fn().mockResolvedValue({ token: "new_refresh", record: { expiresAt: new Date(Date.now() + 86400_000), userId: "usr_001" } }),
+  rotateRefreshToken: vi
+    .fn()
+    .mockResolvedValue({
+      token: "new_refresh",
+      record: { expiresAt: new Date(Date.now() + 86400_000), userId: "usr_001" },
+    }),
   invalidateTokenFamily: vi.fn().mockResolvedValue(undefined),
-  detectAndInvalidateFamily: vi.fn().mockResolvedValue({ userId: "usr_001", expiresAt: new Date(Date.now() + 86400_000), revokedAt: null }),
+  detectAndInvalidateFamily: vi
+    .fn()
+    .mockResolvedValue({
+      userId: "usr_001",
+      expiresAt: new Date(Date.now() + 86400_000),
+      revokedAt: null,
+    }),
 }));
 vi.mock("../../src/lib/id.js", () => ({ generateId: vi.fn().mockReturnValue("gen_id") }));
-vi.mock("../../src/lib/getUserLanguage.js", () => ({ getUserLanguage: vi.fn().mockResolvedValue("en"), getPlatformDefaultLanguage: vi.fn().mockResolvedValue("en") }));
+vi.mock("../../src/lib/getUserLanguage.js", () => ({
+  getUserLanguage: vi.fn().mockResolvedValue("en"),
+  getPlatformDefaultLanguage: vi.fn().mockResolvedValue("en"),
+}));
 vi.mock("../../src/lib/webhook-emitter.js", () => ({ emitWebhookEvent: vi.fn() }));
 vi.mock("../../src/lib/fireAndForget.js", () => ({ fireAndForget: vi.fn() }));
 vi.mock("../../src/routes/rider/index.js", () => ({ clearSpoofHits: vi.fn() }));
-vi.mock("../../src/routes/admin.js", () => ({ getPlatformSettings: vi.fn().mockResolvedValue(mockSettings) }));
-vi.mock("../../src/routes/admin-shared.js", () => ({ getCachedSettings: vi.fn().mockResolvedValue(mockSettings), DEFAULT_PLATFORM_SETTINGS: {} }));
+vi.mock("../../src/routes/admin.js", () => ({
+  getPlatformSettings: vi.fn().mockResolvedValue(mockSettings),
+}));
+vi.mock("../../src/routes/admin-shared.js", () => ({
+  getCachedSettings: vi.fn().mockResolvedValue(mockSettings),
+  DEFAULT_PLATFORM_SETTINGS: {},
+}));
 vi.mock("../../src/routes/auth/helpers.js", () => ({
   isValidCanonicalPhone: vi.fn().mockResolvedValue(true),
   hashOtp: vi.fn().mockReturnValue("hashed_otp"),
@@ -234,7 +298,10 @@ describe("GET /auth/2fa/setup", () => {
 
   it("returns 403 when 2FA is disabled in platform settings", async () => {
     const { getCachedSettings } = await import("../../src/middleware/security.js");
-    vi.mocked(getCachedSettings).mockResolvedValueOnce({ ...mockSettings, auth_2fa_enabled: "off" });
+    vi.mocked(getCachedSettings).mockResolvedValueOnce({
+      ...mockSettings,
+      auth_2fa_enabled: "off",
+    });
 
     const res = await request(app)
       .get("/auth/2fa/setup")
@@ -259,7 +326,9 @@ describe("POST /auth/2fa/verify", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    mockSelectChain.limit.mockResolvedValue([{ ...authUser, totpEnabled: true, totpSecret: "encrypted_secret" }]);
+    mockSelectChain.limit.mockResolvedValue([
+      { ...authUser, totpEnabled: true, totpSecret: "encrypted_secret" },
+    ]);
     mockDb.select.mockReturnValue(mockSelectChain);
     mockIssueTokensForUser.mockResolvedValue({
       token: "access_token",
@@ -314,7 +383,9 @@ describe("POST /auth/2fa/recovery — backup code flow", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    mockSelectChain.limit.mockResolvedValue([{ ...authUser, totpEnabled: true, totpSecret: "encrypted_secret" }]);
+    mockSelectChain.limit.mockResolvedValue([
+      { ...authUser, totpEnabled: true, totpSecret: "encrypted_secret" },
+    ]);
     mockDb.select.mockReturnValue(mockSelectChain);
     mockDb.update.mockReturnValue(mockUpdateChain);
 

@@ -1,7 +1,7 @@
+import { createLogger } from "@/lib/logger";
 import { io, type Socket } from "socket.io-client";
 import { api } from "./api";
 import { markOrderSeen, wasOrderSeenRecently } from "./notificationSound";
-import { createLogger } from "@/lib/logger";
 const log = createLogger("[vendor-socket]");
 
 export interface VendorNewOrderEvent {
@@ -59,14 +59,22 @@ export function connectVendorSocket(vendorId: string): void {
     const orderId = String(order?.id ?? "");
     if (orderId && wasOrderSeenRecently(orderId)) return;
     if (orderId) markOrderSeen(orderId);
-    _newOrderHandlers.forEach(fn => {
-      try { fn(order); } catch (err) { console.warn('[artifacts/vendor-app/src/lib/socket.ts]', err); } // eslint-disable-line no-console
+    _newOrderHandlers.forEach((fn) => {
+      try {
+        fn(order);
+      } catch (err) {
+        console.warn("[artifacts/vendor-app/src/lib/socket.ts]", err);
+      } // eslint-disable-line no-console
     });
   });
 
   _socket.on("order:update", (order: Record<string, unknown>) => {
-    _orderUpdateHandlers.forEach(fn => {
-      try { fn(order); } catch (err) { console.warn('[artifacts/vendor-app/src/lib/socket.ts]', err); } // eslint-disable-line no-console
+    _orderUpdateHandlers.forEach((fn) => {
+      try {
+        fn(order);
+      } catch (err) {
+        console.warn("[artifacts/vendor-app/src/lib/socket.ts]", err);
+      } // eslint-disable-line no-console
     });
   });
 
@@ -89,10 +97,14 @@ export function disconnectVendorSocket(): void {
 
 export function onNewOrder(fn: NewOrderHandler): () => void {
   _newOrderHandlers.add(fn);
-  return () => { _newOrderHandlers.delete(fn); };
+  return () => {
+    _newOrderHandlers.delete(fn);
+  };
 }
 
 export function onOrderUpdate(fn: OrderUpdateHandler): () => void {
   _orderUpdateHandlers.add(fn);
-  return () => { _orderUpdateHandlers.delete(fn); };
+  return () => {
+    _orderUpdateHandlers.delete(fn);
+  };
 }

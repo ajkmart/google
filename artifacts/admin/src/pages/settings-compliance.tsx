@@ -1,8 +1,12 @@
-import { FileText, Shield, Lock, AlertTriangle, ExternalLink, CheckCircle2 } from "lucide-react";
-import { Field, SLabel } from "@/components/AdminShared";
 import { Badge } from "@/components/ui/badge";
+import { AlertTriangle, CheckCircle2, ExternalLink, FileText, Lock, Shield } from "lucide-react";
 
-interface Setting { key: string; value: string; label: string; category: string; }
+interface Setting {
+  key: string;
+  value: string;
+  label: string;
+  category: string;
+}
 
 const COMPLIANCE_KEYS = [
   "content_tnc_url",
@@ -52,29 +56,31 @@ export function ComplianceSection({
   handleToggle?: (k: string, v: boolean) => void;
   settings?: Setting[];
 }) {
-  const configuredCount = COMPLIANCE_KEYS.filter(k => (localValues[k] ?? "").trim()).length;
+  const configuredCount = COMPLIANCE_KEYS.filter((k) => (localValues[k] ?? "").trim()).length;
   const allConfigured = configuredCount === COMPLIANCE_KEYS.length;
 
   return (
     <div className="space-y-6">
       {/* Header card */}
-      <div className="rounded-2xl border-2 border-slate-200 bg-white overflow-hidden">
-        <div className="bg-slate-50 px-5 py-4 flex items-center justify-between gap-3 border-b border-slate-200">
+      <div className="overflow-hidden rounded-2xl border-2 border-slate-200 bg-white">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
-              <FileText className="w-5 h-5 text-slate-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
+              <FileText className="h-5 w-5 text-slate-600" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-slate-800">Compliance & Legal Links</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Policy pages shown to users in the app</p>
+              <h3 className="text-base font-bold text-slate-800">Compliance & Legal Links</h3>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Policy pages shown to users in the app
+              </p>
             </div>
           </div>
           <Badge
             variant="outline"
             className={`text-[11px] font-bold ${
               allConfigured
-                ? "bg-green-50 text-green-700 border-green-300"
-                : "bg-amber-50 text-amber-700 border-amber-300"
+                ? "border-green-300 bg-green-50 text-green-700"
+                : "border-amber-300 bg-amber-50 text-amber-700"
             }`}
           >
             {configuredCount}/{COMPLIANCE_KEYS.length} configured
@@ -82,41 +88,45 @@ export function ComplianceSection({
         </div>
 
         {/* Info banner */}
-        <div className="px-5 py-3 bg-blue-50 border-b border-blue-100 flex items-start gap-2.5">
-          <AlertTriangle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-blue-800 leading-relaxed">
-            These links open in the user's browser when tapped in the app. Leaving a field empty hides that link from the app UI.
-            For GDPR compliance, ensure your Privacy Policy and Terms of Service URLs are always configured.
+        <div className="flex items-start gap-2.5 border-b border-blue-100 bg-blue-50 px-5 py-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600" />
+          <p className="text-xs leading-relaxed text-blue-800">
+            These links open in the user's browser when tapped in the app. Leaving a field empty
+            hides that link from the app UI. For GDPR compliance, ensure your Privacy Policy and
+            Terms of Service URLs are always configured.
           </p>
         </div>
 
-        <div className="p-5 space-y-4">
-          {COMPLIANCE_KEYS.map(key => {
+        <div className="space-y-4 p-5">
+          {COMPLIANCE_KEYS.map((key) => {
             const meta = COMPLIANCE_META[key]!;
-            const value = localValues[key] ?? settings.find(s => s.key === key)?.value ?? "";
+            const value = localValues[key] ?? settings.find((s) => s.key === key)?.value ?? "";
             const isDirty = dirtyKeys.has(key);
             const isSet = value.trim().length > 0;
 
             return (
               <div key={key} className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-semibold text-foreground">{meta.label}</label>
+                  <label className="text-foreground text-sm font-semibold">{meta.label}</label>
                   {isDirty && (
-                    <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">
+                    <Badge
+                      variant="outline"
+                      className="border-amber-200 bg-amber-50 text-[10px] font-bold text-amber-700"
+                    >
                       CHANGED
                     </Badge>
                   )}
                   {isSet && !isDirty && (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                    <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-green-500" />
                   )}
                 </div>
                 <div className="relative">
                   <input
                     type="url"
                     value={value}
-                    onChange={e => handleChange(key, e.target.value)}
+                    onChange={(e) => handleChange(key, e.target.value)}
                     placeholder={meta.placeholder}
-                    className={`w-full h-10 rounded-xl border text-sm px-3 pr-10 focus:outline-none focus:ring-2 focus:ring-slate-300 ${
+                    className={`h-10 w-full rounded-xl border px-3 pr-10 text-sm focus:ring-2 focus:ring-slate-300 focus:outline-none ${
                       isDirty
                         ? "border-amber-300 bg-amber-50/50 ring-1 ring-amber-200"
                         : "border-slate-200 bg-white"
@@ -127,15 +137,15 @@ export function ComplianceSection({
                       href={value}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                      className="absolute top-1/2 right-3 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600"
                       title="Open in browser"
                     >
-                      <ExternalLink className="w-3.5 h-3.5" />
+                      <ExternalLink className="h-3.5 w-3.5" />
                     </a>
                   )}
                 </div>
-                <p className="text-[11px] text-muted-foreground">{meta.hint}</p>
-                <p className="text-[10px] text-muted-foreground font-mono">{key}</p>
+                <p className="text-muted-foreground text-[11px]">{meta.hint}</p>
+                <p className="text-muted-foreground font-mono text-[10px]">{key}</p>
               </div>
             );
           })}
@@ -143,12 +153,12 @@ export function ComplianceSection({
       </div>
 
       {/* GDPR readiness checklist */}
-      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
-          <Shield className="w-4 h-4 text-slate-500" />
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3">
+          <Shield className="h-4 w-4 text-slate-500" />
           <h4 className="text-sm font-semibold text-slate-700">Compliance Readiness</h4>
         </div>
-        <div className="p-5 space-y-3">
+        <div className="space-y-3 p-5">
           {[
             {
               label: "Privacy Policy linked",
@@ -170,25 +180,31 @@ export function ComplianceSection({
               done: !!(localValues["content_faq_url"] ?? "").trim(),
               required: false,
             },
-          ].map(item => (
+          ].map((item) => (
             <div key={item.label} className="flex items-center gap-3">
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                item.done ? "bg-green-100 text-green-600" : item.required ? "bg-red-100 text-red-500" : "bg-slate-100 text-slate-400"
-              }`}>
-                {item.done ? (
-                  <CheckCircle2 className="w-3 h-3" />
-                ) : (
-                  <Lock className="w-3 h-3" />
-                )}
+              <div
+                className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${
+                  item.done
+                    ? "bg-green-100 text-green-600"
+                    : item.required
+                      ? "bg-red-100 text-red-500"
+                      : "bg-slate-100 text-slate-400"
+                }`}
+              >
+                {item.done ? <CheckCircle2 className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
               </div>
-              <span className={`text-sm ${item.done ? "text-slate-700" : item.required ? "text-red-600 font-medium" : "text-slate-500"}`}>
+              <span
+                className={`text-sm ${item.done ? "text-slate-700" : item.required ? "font-medium text-red-600" : "text-slate-500"}`}
+              >
                 {item.label}
-                {item.required && !item.done && <span className="text-[10px] ml-1.5 font-bold text-red-500">Required</span>}
+                {item.required && !item.done && (
+                  <span className="ml-1.5 text-[10px] font-bold text-red-500">Required</span>
+                )}
               </span>
             </div>
           ))}
         </div>
-        <div className="px-5 py-3 bg-slate-50 border-t border-slate-100">
+        <div className="border-t border-slate-100 bg-slate-50 px-5 py-3">
           <p className="text-[11px] text-slate-500">
             These links appear in the Customer App, Vendor Portal and Rider App settings screens.
             Ensure all required URLs are live and publicly accessible before launching.

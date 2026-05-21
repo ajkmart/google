@@ -24,8 +24,7 @@
  *   [ ] Logout clears sessionStorage tokens and redirects to /login
  *   [ ] GET /api/users/profile?appRole=vendor returns 403 for non-vendor tokens (server-side gate)
  */
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import { useLocation } from "wouter";
+import { createLogger } from "@/lib/logger";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AuthProvider as SharedAuthProvider,
@@ -33,32 +32,50 @@ import {
   useTokenRefresh,
   type AuthUser as SharedAuthUser,
 } from "@workspace/auth-react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useLocation } from "wouter";
 import { api, getTokenStorage } from "./api";
 import { getVendorApiBase } from "./envValidation";
-import { createLogger } from "@/lib/logger";
 const log = createLogger("[auth]");
 
-export interface StoreHours { [day: string]: { open: string; close: string; closed?: boolean } }
+export interface StoreHours {
+  [day: string]: { open: string; close: string; closed?: boolean };
+}
 
 export interface AuthUser {
-  id: string; phone: string; name?: string; email?: string; avatar?: string;
+  id: string;
+  phone: string;
+  name?: string;
+  email?: string;
+  avatar?: string;
   walletBalance: string;
   roles: string[];
-  storeName?: string; storeCategory?: string;
-  storeBanner?: string; storeDescription?: string;
+  storeName?: string;
+  storeCategory?: string;
+  storeBanner?: string;
+  storeDescription?: string;
   storeHours?: StoreHours | null;
   storeAnnouncement?: string;
   storeMinOrder?: number;
   storeDeliveryTime?: string;
   storeIsOpen: boolean;
-  storeLat?: string | null; storeLng?: string | null;
-  lastLoginAt?: string; createdAt?: string;
+  storeLat?: string | null;
+  storeLng?: string | null;
+  lastLoginAt?: string;
+  createdAt?: string;
   stats: { todayOrders: number; todayRevenue: number; totalOrders: number; totalRevenue: number };
-  cnic?: string; city?: string; address?: string; businessType?: string;
-  bankName?: string; bankAccount?: string; bankAccountTitle?: string;
-  isVerified?: boolean; status?: string;
+  cnic?: string;
+  city?: string;
+  address?: string;
+  businessType?: string;
+  bankName?: string;
+  bankAccount?: string;
+  bankAccountTitle?: string;
+  isVerified?: boolean;
+  status?: string;
   kycStatus?: string;
-  approvalStatus?: string; rejectionReason?: string | null;
+  approvalStatus?: string;
+  rejectionReason?: string | null;
 }
 
 interface AuthCtx {
@@ -79,11 +96,7 @@ export const useAuth = () => useContext(Ctx);
 /** Outer shell — provides the shared SDK context (token storage, base URL) */
 export function AuthProvider({ children }: { children: ReactNode }) {
   return (
-    <SharedAuthProvider
-      tokenStorage={getTokenStorage()}
-      baseURL={getVendorApiBase()}
-      role="vendor"
-    >
+    <SharedAuthProvider tokenStorage={getTokenStorage()} baseURL={getVendorApiBase()} role="vendor">
       <VendorAuthInner>{children}</VendorAuthInner>
     </SharedAuthProvider>
   );
@@ -95,7 +108,7 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
 
-  const [user, setUser]   = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [storageError, setStorageError] = useState(false);
@@ -106,7 +119,8 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
      backoff), and calls onLogout when all attempts are exhausted.            */
   const handleSdkLogout = () => {
     api.clearTokens();
-    setToken(null); setUser(null);
+    setToken(null);
+    setUser(null);
     setSessionExpired(true);
     sharedAuth.logout();
     navigate("/login");
@@ -118,7 +132,9 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
     refreshEndpoint: "/auth/refresh",
     leewaySeconds: 60,
     onLogout: handleSdkLogout,
-    onRefresh: (newTok: string) => { setToken(newTok); },
+    onRefresh: (newTok: string) => {
+      setToken(newTok);
+    },
   });
 
   /* useTokenRefresh (above) already handles scheduling proactively based on
@@ -143,9 +159,15 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
 
       if (!activeToken) {
         const result = await api.refreshToken();
-        if (result !== "refreshed") { setLoading(false); return; }
+        if (result !== "refreshed") {
+          setLoading(false);
+          return;
+        }
         activeToken = api.getToken();
-        if (!activeToken) { setLoading(false); return; }
+        if (!activeToken) {
+          setLoading(false);
+          return;
+        }
       }
 
       setToken(activeToken);
@@ -159,7 +181,11 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
             : [];
         u.roles = roles;
         if (roles.length > 0 && !roles.includes("vendor")) {
-          api.clearTokens(); setToken(null); sharedAuth.logout(); setLoading(false); return;
+          api.clearTokens();
+          setToken(null);
+          sharedAuth.logout();
+          setLoading(false);
+          return;
         }
         sharedAuth.login(
           { id: u.id, phone: u.phone, email: u.email, role: "vendor" } satisfies SharedAuthUser,
@@ -170,30 +196,42 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
         if (err instanceof Error && err.name === "AbortError") return;
         const status = (err as Record<string, unknown>)?.status as number | undefined;
         if (status === 401 || status === 403) {
-          api.clearTokens(); setToken(null); setUser(null); sharedAuth.logout();
+          api.clearTokens();
+          setToken(null);
+          setUser(null);
+          sharedAuth.logout();
         } else {
-          setToken(null); setUser(null);
+          setToken(null);
+          setUser(null);
         }
-      } finally { setLoading(false); }
+      } finally {
+        setLoading(false);
+      }
     };
 
     initAuth();
-    return () => { controller.abort(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      controller.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ── Register logout callback + DOM event ── */
   useEffect(() => {
     const clearAuth = () => {
-      setToken(null); setUser(null);
+      setToken(null);
+      setUser(null);
       sharedAuth.logout();
       navigate("/login");
     };
     const unregister = api.registerLogoutCallback(clearAuth);
     const handleLogout = () => clearAuth();
     window.addEventListener("ajkmart:logout", handleLogout);
-    return () => { unregister(); window.removeEventListener("ajkmart:logout", handleLogout); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      unregister();
+      window.removeEventListener("ajkmart:logout", handleLogout);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = (t: string, u: AuthUser, refreshToken?: string) => {
@@ -221,14 +259,22 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
   const logout = () => {
     const refreshTok = api.getRefreshToken();
     api.clearTokens();
-    try { sessionStorage.clear(); } catch (err) { log.warn("[vendor-auth] sessionStorage.clear failed:", err); }
+    try {
+      sessionStorage.clear();
+    } catch (err) {
+      log.warn("[vendor-auth] sessionStorage.clear failed:", err);
+    }
     sharedAuth.logout();
     setToken(null);
     setUser(null);
     queryClient.clear();
     navigate("/login");
     if (refreshTok) {
-      api.logout(refreshTok).catch((err) => log.warn("server token revocation failed (local session already cleared):", err));
+      api
+        .logout(refreshTok)
+        .catch((err) =>
+          log.warn("server token revocation failed (local session already cleared):", err)
+        );
     }
   };
 
@@ -243,7 +289,11 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
           : [];
       u.roles = roles;
       if (roles.length > 0 && !roles.includes("vendor")) {
-        api.clearTokens(); setToken(null); setUser(null); sharedAuth.logout(); return;
+        api.clearTokens();
+        setToken(null);
+        setUser(null);
+        sharedAuth.logout();
+        return;
       }
       setUser(u);
     } catch (e) {
@@ -254,7 +304,19 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
   const clearSessionExpired = () => setSessionExpired(false);
 
   return (
-    <Ctx.Provider value={{ user, token, loading, storageError, sessionExpired, clearSessionExpired, login, logout, refreshUser }}>
+    <Ctx.Provider
+      value={{
+        user,
+        token,
+        loading,
+        storageError,
+        sessionExpired,
+        clearSessionExpired,
+        login,
+        logout,
+        refreshUser,
+      }}
+    >
       {children}
     </Ctx.Provider>
   );

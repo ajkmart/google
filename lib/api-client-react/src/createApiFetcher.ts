@@ -24,11 +24,7 @@ export class FetchTimeoutError extends Error {
 export class RefreshError extends Error {
   readonly isTransient: boolean;
   constructor(isTransient: boolean) {
-    super(
-      isTransient
-        ? "Refresh failed: network error"
-        : "Refresh failed: session invalid"
-    );
+    super(isTransient ? "Refresh failed: network error" : "Refresh failed: session invalid");
     this.name = "RefreshError";
     this.isTransient = isTransient;
   }
@@ -174,7 +170,10 @@ function withTimeout(
   } else {
     external.addEventListener(
       "abort",
-      () => { clearTimeout(tid); ctrl.abort(external.reason); },
+      () => {
+        clearTimeout(tid);
+        ctrl.abort(external.reason);
+      },
       { once: true }
     );
   }
@@ -216,15 +215,11 @@ export function createApiFetcher(
   } = config;
 
   if (!refreshEndpoint && !refreshFn) {
-    throw new Error(
-      "createApiFetcher: provide either refreshEndpoint or refreshFn"
-    );
+    throw new Error("createApiFetcher: provide either refreshEndpoint or refreshFn");
   }
 
   const getTimeoutMs: () => number =
-    typeof timeoutMsConfig === "function"
-      ? timeoutMsConfig
-      : () => timeoutMsConfig;
+    typeof timeoutMsConfig === "function" ? timeoutMsConfig : () => timeoutMsConfig;
 
   // ── Mutex: one concurrent refresh per factory instance ────────────────────
   let _refreshPromise: Promise<RefreshResult> | null = null;
@@ -246,8 +241,7 @@ export function createApiFetcher(
     // "transient" (keep tokens, try again later) rather than "auth_failed".
     const refreshMs = getTimeoutMs();
     const refreshCtrl = new AbortController();
-    const refreshTid =
-      refreshMs > 0 ? setTimeout(() => refreshCtrl.abort(), refreshMs) : null;
+    const refreshTid = refreshMs > 0 ? setTimeout(() => refreshCtrl.abort(), refreshMs) : null;
     try {
       const res = await fetch(refreshEndpoint!, {
         method: "POST",
@@ -299,20 +293,13 @@ export function createApiFetcher(
   }
 
   // ── Core fetch function ───────────────────────────────────────────────────
-  async function coreFetch(
-    path: string,
-    opts: CoreFetchOpts = {}
-  ): Promise<Response> {
+  async function coreFetch(path: string, opts: CoreFetchOpts = {}): Promise<Response> {
     const { _timeoutMs: callTimeout, ...fetchOpts } = opts;
     // Per-call _timeoutMs overrides the instance timeout (including 0 = disabled).
-    const effectiveTimeout =
-      callTimeout !== undefined ? callTimeout : getTimeoutMs();
+    const effectiveTimeout = callTimeout !== undefined ? callTimeout : getTimeoutMs();
 
     const external = fetchOpts.signal as AbortSignal | undefined;
-    const [signal, factoryCtrl, cancelTimeout] = withTimeout(
-      effectiveTimeout,
-      external
-    );
+    const [signal, factoryCtrl, cancelTimeout] = withTimeout(effectiveTimeout, external);
     const headers = buildHeaders(fetchOpts);
 
     let res: Response;

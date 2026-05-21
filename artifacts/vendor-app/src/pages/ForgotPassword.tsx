@@ -12,62 +12,102 @@
  *   5. totp-verify    — TOTP 2FA gate (only if account has 2FA enabled)
  *   6. success        — Done
  */
-import { useState, useCallback, useRef } from "react";
-import { Link } from "wouter";
-import { useRateLimitCountdown } from "@workspace/auth-react";
-import { api } from "../lib/api";
-import { usePlatformConfig, getVendorAuthConfig } from "../lib/useConfig";
-import { useLanguage } from "../lib/useLanguage";
-import { tDual, type TranslationKey } from "@workspace/i18n";
-import { TwoFactorVerify, executeCaptcha, formatPhoneForApi } from "@workspace/auth-utils";
-import { ArrowLeft, Eye, EyeOff, Phone, Mail, CheckCircle, KeyRound } from "lucide-react";
 import { createLogger } from "@/lib/logger";
+import { useRateLimitCountdown } from "@workspace/auth-react";
+import { TwoFactorVerify, executeCaptcha, formatPhoneForApi } from "@workspace/auth-utils";
+import { tDual, type TranslationKey } from "@workspace/i18n";
+import { ArrowLeft, CheckCircle, Eye, EyeOff, KeyRound, Mail, Phone } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { Link } from "wouter";
+import { api } from "../lib/api";
+import { getVendorAuthConfig, usePlatformConfig } from "../lib/useConfig";
+import { useLanguage } from "../lib/useLanguage";
 const log = createLogger("[VendorForgotPassword]");
 
 /* ── Brand tokens ─────────────────────────────────── */
 const T_ = {
-  bg:       "#0F1117",
-  surface:  "#161B22",
-  border:   "#252D3A",
-  text:     "#E2E8F0",
-  muted:    "#6B7280",
-  primary:  "#F97316",
+  bg: "#0F1117",
+  surface: "#161B22",
+  border: "#252D3A",
+  text: "#E2E8F0",
+  muted: "#6B7280",
+  primary: "#F97316",
   primaryD: "#EA580C",
 };
 
-type ForgotStep = "choose-method" | "send-otp" | "enter-otp" | "new-password" | "totp-verify" | "success";
+type ForgotStep =
+  | "choose-method"
+  | "send-otp"
+  | "enter-otp"
+  | "new-password"
+  | "totp-verify"
+  | "success";
 
-function getPasswordStrength(pw: string): { level: number; label: TranslationKey; color: string; pct: string } {
+function getPasswordStrength(pw: string): {
+  level: number;
+  label: TranslationKey;
+  color: string;
+  pct: string;
+} {
   let score = 0;
   if (pw.length >= 8) score++;
   if (pw.length >= 12) score++;
   if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
   if (/\d/.test(pw)) score++;
   if (/[^A-Za-z0-9]/.test(pw)) score++;
-  if (score <= 1) return { level: 1, label: "passwordWeak",   color: "#ef4444", pct: "25%"  };
-  if (score <= 2) return { level: 2, label: "passwordFair",   color: "#f97316", pct: "50%"  };
-  if (score <= 3) return { level: 3, label: "passwordGood",   color: "#eab308", pct: "75%"  };
-  return              { level: 4, label: "passwordStrong", color: "#22c55e", pct: "100%" };
+  if (score <= 1) return { level: 1, label: "passwordWeak", color: "#ef4444", pct: "25%" };
+  if (score <= 2) return { level: 2, label: "passwordFair", color: "#f97316", pct: "50%" };
+  if (score <= 3) return { level: 3, label: "passwordGood", color: "#eab308", pct: "75%" };
+  return { level: 4, label: "passwordStrong", color: "#22c55e", pct: "100%" };
 }
 
 /* ── Shared input style ── */
 const inputCss: React.CSSProperties = {
-  width: "100%", height: 48, padding: "0 16px", borderRadius: 12,
-  background: T_.bg, border: `1.5px solid ${T_.border}`,
-  color: T_.text, fontSize: 14, outline: "none", boxSizing: "border-box",
+  width: "100%",
+  height: 48,
+  padding: "0 16px",
+  borderRadius: 12,
+  background: T_.bg,
+  border: `1.5px solid ${T_.border}`,
+  color: T_.text,
+  fontSize: 14,
+  outline: "none",
+  boxSizing: "border-box",
 };
 
 /* ── Primary button style ── */
-function BtnPrimary({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) {
+function BtnPrimary({
+  children,
+  onClick,
+  disabled,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+}) {
   return (
-    <button onClick={onClick} disabled={disabled}
-      style={{ width: "100%", height: 48, borderRadius: 12, border: "none",
-        background: disabled ? `${T_.primary}60` : `linear-gradient(135deg, ${T_.primary}, ${T_.primaryD})`,
-        color: "#fff", fontSize: 15, fontWeight: 700,
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        width: "100%",
+        height: 48,
+        borderRadius: 12,
+        border: "none",
+        background: disabled
+          ? `${T_.primary}60`
+          : `linear-gradient(135deg, ${T_.primary}, ${T_.primaryD})`,
+        color: "#fff",
+        fontSize: 15,
+        fontWeight: 700,
         cursor: disabled ? "not-allowed" : "pointer",
-        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
         opacity: disabled ? 0.7 : 1,
-      }}>
+      }}
+    >
       {children}
     </button>
   );
@@ -76,9 +116,24 @@ function BtnPrimary({ children, onClick, disabled }: { children: React.ReactNode
 /* ── Spinner ── */
 function Spin() {
   return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#fff"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+    >
       <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83">
-        <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite" />
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from="0 12 12"
+          to="360 12 12"
+          dur="0.8s"
+          repeatCount="indefinite"
+        />
       </path>
     </svg>
   );
@@ -110,16 +165,30 @@ function OtpBoxes({ value, onChange }: { value: string; onChange: (v: string) =>
   return (
     <div style={{ display: "flex", gap: 8, justifyContent: "center" }} onPaste={handlePaste}>
       {Array.from({ length: 6 }).map((_, i) => (
-        <input key={i} ref={el => { refs.current[i] = el; }}
-          type="text" inputMode="numeric" maxLength={1} value={value[i] ?? ""}
-          onChange={e => handleChange(i, e.target.value)}
-          onKeyDown={e => handleKeyDown(i, e)}
+        <input
+          key={i}
+          ref={(el) => {
+            refs.current[i] = el;
+          }}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={value[i] ?? ""}
+          onChange={(e) => handleChange(i, e.target.value)}
+          onKeyDown={(e) => handleKeyDown(i, e)}
           style={{
-            width: 44, height: 52, borderRadius: 12, textAlign: "center",
-            fontSize: 22, fontWeight: 700, outline: "none",
+            width: 44,
+            height: 52,
+            borderRadius: 12,
+            textAlign: "center",
+            fontSize: 22,
+            fontWeight: 700,
+            outline: "none",
             background: value[i] ? `${T_.primary}18` : T_.bg,
             border: `1.5px solid ${value[i] ? T_.primary : T_.border}`,
-            color: T_.text, transition: "all 0.15s", boxSizing: "border-box",
+            color: T_.text,
+            transition: "all 0.15s",
+            boxSizing: "border-box",
           }}
         />
       ))}
@@ -141,7 +210,9 @@ export default function ForgotPassword() {
         const re = new RegExp(config.regional.phoneFormat);
         return (p: string) => re.test(p);
       }
-    } catch (err) { log.warn("phoneFormat regex compilation failed, using default:", err); }
+    } catch (err) {
+      log.warn("phoneFormat regex compilation failed, using default:", err);
+    }
     return (p: string) => /^0?3\d{9}$/.test(p.replace(/[\s\-()+]/g, ""));
   })();
 
@@ -172,26 +243,43 @@ export default function ForgotPassword() {
   const sendOtp = async () => {
     clearError();
     if (isRateLimited) return;
-    if (method === "phone" && (!phone || !isValidPhone(phone))) { setError(`${T("enterValidPhone")} (e.g. ${phoneHint})`); return; }
-    if (method === "email" && (!email || !email.includes("@"))) { setError(T("enterValidEmail")); return; }
+    if (method === "phone" && (!phone || !isValidPhone(phone))) {
+      setError(`${T("enterValidPhone")} (e.g. ${phoneHint})`);
+      return;
+    }
+    if (method === "email" && (!email || !email.includes("@"))) {
+      setError(T("enterValidEmail"));
+      return;
+    }
     setLoading(true);
     try {
       let captchaToken: string | undefined;
       if (auth.captchaEnabled) {
-        try { captchaToken = await executeCaptcha("forgot_password", captchaSiteKey); } catch (err) { log.warn("captcha failed:", err); }
-        if (!captchaToken) { setError(T("captchaRequired")); setLoading(false); return; }
+        try {
+          captchaToken = await executeCaptcha("forgot_password", captchaSiteKey);
+        } catch (err) {
+          log.warn("captcha failed:", err);
+        }
+        if (!captchaToken) {
+          setError(T("captchaRequired"));
+          setLoading(false);
+          return;
+        }
       }
       const forgotPayload = {
         ...(method === "phone" ? { phone: formatPhoneForApi(phone) } : { email }),
         ...(captchaToken ? { captchaToken } : {}),
       } as unknown as Parameters<typeof api.forgotPassword>[0];
       const res = await api.forgotPassword(forgotPayload);
-      if ((res as Record<string, unknown>).otp) setDevOtp((res as Record<string, unknown>).otp as string);
+      if ((res as Record<string, unknown>).otp)
+        setDevOtp((res as Record<string, unknown>).otp as string);
       setStep("enter-otp");
     } catch (e: unknown) {
       const errMsg = e instanceof Error ? e.message : T("sendOtpFailed");
       const status = (e as Record<string, unknown>)?.status as number | undefined;
-      const retryAfter = ((e as Record<string, unknown>)?.responseData as Record<string, unknown> | undefined)?.retryAfter;
+      const retryAfter = (
+        (e as Record<string, unknown>)?.responseData as Record<string, unknown> | undefined
+      )?.retryAfter;
       if (status === 429 || /too many|rate limit|lockout/.test(errMsg.toLowerCase())) {
         triggerRateLimit(typeof retryAfter === "number" ? retryAfter : 60);
       }
@@ -202,65 +290,109 @@ export default function ForgotPassword() {
 
   const verifyOtpAndSetPassword = async (totpCode?: string) => {
     clearError();
-    if (!otp || otp.length < 6) { setError(T("enterOtpDigits")); return; }
-    if (newPassword.length < 8) { setError(T("passwordMinLength")); return; }
-    if (newPassword !== confirmPw) { setError(T("passwordsDoNotMatch")); return; }
+    if (!otp || otp.length < 6) {
+      setError(T("enterOtpDigits"));
+      return;
+    }
+    if (newPassword.length < 8) {
+      setError(T("passwordMinLength"));
+      return;
+    }
+    if (newPassword !== confirmPw) {
+      setError(T("passwordsDoNotMatch"));
+      return;
+    }
     setLoading(true);
     try {
       let captchaToken: string | undefined;
       if (auth.captchaEnabled) {
-        try { captchaToken = await executeCaptcha("reset_password", captchaSiteKey); } catch (err) { log.warn("captcha failed:", err); }
-        if (!captchaToken) { setError(T("captchaRequired")); setLoading(false); return; }
+        try {
+          captchaToken = await executeCaptcha("reset_password", captchaSiteKey);
+        } catch (err) {
+          log.warn("captcha failed:", err);
+        }
+        if (!captchaToken) {
+          setError(T("captchaRequired"));
+          setLoading(false);
+          return;
+        }
       }
       const resetPayload = {
         ...(method === "phone" ? { phone: formatPhoneForApi(phone) } : { email }),
-        otp, newPassword,
-        ...(totpCode    ? { totpCode }    : {}),
+        otp,
+        newPassword,
+        ...(totpCode ? { totpCode } : {}),
         ...(captchaToken ? { captchaToken } : {}),
       } as Parameters<typeof api.resetPassword>[0];
       await api.resetPassword(resetPayload);
       setStep("success");
     } catch (e: unknown) {
       const errObj = e as { responseData?: { requires2FA?: boolean } };
-      if (errObj?.responseData?.requires2FA) { setStep("totp-verify"); setLoading(false); return; }
+      if (errObj?.responseData?.requires2FA) {
+        setStep("totp-verify");
+        setLoading(false);
+        return;
+      }
       setError(e instanceof Error ? e.message : T("verificationFailed"));
     }
     setLoading(false);
   };
 
-  const handle2faVerify = useCallback(async (code: string) => {
-    setTwoFaLoading(true); setTwoFaError("");
-    try {
-      let captchaToken: string | undefined;
-      if (auth.captchaEnabled) {
-        try { captchaToken = await executeCaptcha("reset_password_2fa", captchaSiteKey); } catch (err) { log.warn("captcha failed:", err); }
+  const handle2faVerify = useCallback(
+    async (code: string) => {
+      setTwoFaLoading(true);
+      setTwoFaError("");
+      try {
+        let captchaToken: string | undefined;
+        if (auth.captchaEnabled) {
+          try {
+            captchaToken = await executeCaptcha("reset_password_2fa", captchaSiteKey);
+          } catch (err) {
+            log.warn("captcha failed:", err);
+          }
+        }
+        const r2Payload = {
+          ...(method === "phone" ? { phone: formatPhoneForApi(phone) } : { email }),
+          otp,
+          newPassword,
+          totpCode: code,
+          ...(captchaToken ? { captchaToken } : {}),
+        } as Parameters<typeof api.resetPassword>[0];
+        await api.resetPassword(r2Payload);
+        setStep("success");
+      } catch (e: unknown) {
+        setTwoFaError(e instanceof Error ? e.message : T("verificationFailed"));
       }
-      const r2Payload = {
-        ...(method === "phone" ? { phone: formatPhoneForApi(phone) } : { email }),
-        otp, newPassword, totpCode: code,
-        ...(captchaToken ? { captchaToken } : {}),
-      } as Parameters<typeof api.resetPassword>[0];
-      await api.resetPassword(r2Payload);
-      setStep("success");
-    } catch (e: unknown) {
-      setTwoFaError(e instanceof Error ? e.message : T("verificationFailed"));
-    }
-    setTwoFaLoading(false);
-  }, [method, phone, email, otp, newPassword, auth.captchaEnabled, captchaSiteKey, T]);
+      setTwoFaLoading(false);
+    },
+    [method, phone, email, otp, newPassword, auth.captchaEnabled, captchaSiteKey, T]
+  );
 
-  const handle2faBackup = useCallback(async (code: string) => { handle2faVerify(code); }, [handle2faVerify]);
+  const handle2faBackup = useCallback(
+    async (code: string) => {
+      handle2faVerify(code);
+    },
+    [handle2faVerify]
+  );
 
   /* ── Shared wrapper ── */
   const pageStyle: React.CSSProperties = {
-    minHeight: "100vh", background: T_.bg,
-    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+    minHeight: "100vh",
+    background: T_.bg,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
     padding: "24px 16px",
   };
 
   const cardStyle: React.CSSProperties = {
-    background: T_.surface, border: `1px solid ${T_.border}`,
-    borderRadius: 20, padding: "24px 22px",
-    width: "100%", maxWidth: 400,
+    background: T_.surface,
+    border: `1px solid ${T_.border}`,
+    borderRadius: 20,
+    padding: "24px 22px",
+    width: "100%",
+    maxWidth: 400,
     boxShadow: "0 24px 64px rgba(0,0,0,0.5)",
   };
 
@@ -269,12 +401,44 @@ export default function ForgotPassword() {
     return (
       <div style={pageStyle}>
         <div style={{ ...cardStyle, textAlign: "center" }}>
-          <div style={{ width: 72, height: 72, borderRadius: "50%", background: `${T_.primary}15`, border: `2px solid ${T_.primary}40`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+          <div
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: "50%",
+              background: `${T_.primary}15`,
+              border: `2px solid ${T_.primary}40`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 20px",
+            }}
+          >
             <CheckCircle size={36} color={T_.primary} />
           </div>
-          <h2 style={{ color: T_.text, fontSize: 22, fontWeight: 800, margin: "0 0 8px" }}>{T("passwordResetSuccess")}</h2>
-          <p style={{ color: T_.muted, fontSize: 14, lineHeight: 1.6, margin: "0 0 24px" }}>{T("passwordResetSuccessMsg")}</p>
-          <Link href="/login" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", height: 48, borderRadius: 12, background: `linear-gradient(135deg, ${T_.primary}, ${T_.primaryD})`, color: "#fff", fontWeight: 700, fontSize: 15, textDecoration: "none" }}>
+          <h2 style={{ color: T_.text, fontSize: 22, fontWeight: 800, margin: "0 0 8px" }}>
+            {T("passwordResetSuccess")}
+          </h2>
+          <p style={{ color: T_.muted, fontSize: 14, lineHeight: 1.6, margin: "0 0 24px" }}>
+            {T("passwordResetSuccessMsg")}
+          </p>
+          <Link
+            href="/login"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              width: "100%",
+              height: 48,
+              borderRadius: 12,
+              background: `linear-gradient(135deg, ${T_.primary}, ${T_.primaryD})`,
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: 15,
+              textDecoration: "none",
+            }}
+          >
             <ArrowLeft size={15} /> {T("goToLogin")}
           </Link>
         </div>
@@ -287,8 +451,22 @@ export default function ForgotPassword() {
     return (
       <div style={pageStyle}>
         <div style={cardStyle}>
-          <button onClick={() => setStep("new-password")}
-            style={{ background: "none", border: "none", color: T_.muted, fontSize: 13, fontWeight: 600, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4, marginBottom: 16 }}>
+          <button
+            onClick={() => setStep("new-password")}
+            style={{
+              background: "none",
+              border: "none",
+              color: T_.muted,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              padding: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              marginBottom: 16,
+            }}
+          >
             <ArrowLeft size={14} /> {T("back")}
           </button>
           <TwoFactorVerify
@@ -315,30 +493,64 @@ export default function ForgotPassword() {
     <div style={pageStyle}>
       {/* Header */}
       <div style={{ textAlign: "center", marginBottom: 28 }}>
-        <div style={{
-          width: 68, height: 68, borderRadius: 20,
-          background: `linear-gradient(135deg, ${T_.primary}, ${T_.primaryD})`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          margin: "0 auto 14px", boxShadow: `0 8px 28px ${T_.primary}45`,
-        }}>
+        <div
+          style={{
+            width: 68,
+            height: 68,
+            borderRadius: 20,
+            background: `linear-gradient(135deg, ${T_.primary}, ${T_.primaryD})`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto 14px",
+            boxShadow: `0 8px 28px ${T_.primary}45`,
+          }}
+        >
           <KeyRound size={32} color="#fff" />
         </div>
-        <h1 style={{ color: T_.text, fontSize: 24, fontWeight: 800, margin: "0 0 4px" }}>{T("forgotPassword")}</h1>
+        <h1 style={{ color: T_.text, fontSize: 24, fontWeight: 800, margin: "0 0 4px" }}>
+          {T("forgotPassword")}
+        </h1>
         <p style={{ color: T_.muted, fontSize: 13, margin: 0 }}>{T("forgotPasswordDesc")}</p>
       </div>
 
       <div style={cardStyle}>
         {/* Back button */}
         {step !== "choose-method" && (
-          <button onClick={goBack}
-            style={{ background: "none", border: "none", color: T_.muted, fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "0 0 16px", display: "flex", alignItems: "center", gap: 4 }}>
+          <button
+            onClick={goBack}
+            style={{
+              background: "none",
+              border: "none",
+              color: T_.muted,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              padding: "0 0 16px",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
             <ArrowLeft size={14} /> {T("back")}
           </button>
         )}
 
         {/* Error banner */}
         {(error || isRateLimited) && (
-          <div role="alert" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, color: "#fca5a5", fontSize: 13, fontWeight: 500 }}>
+          <div
+            role="alert"
+            style={{
+              background: "rgba(239,68,68,0.08)",
+              border: "1px solid rgba(239,68,68,0.25)",
+              borderRadius: 10,
+              padding: "10px 14px",
+              marginBottom: 16,
+              color: "#fca5a5",
+              fontSize: 13,
+              fontWeight: 500,
+            }}
+          >
             {isRateLimited ? `⏳ Too many attempts. Try again in ${secondsLeft}s` : error}
           </div>
         )}
@@ -346,12 +558,34 @@ export default function ForgotPassword() {
         {/* ── Step: choose-method ── */}
         {step === "choose-method" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <h3 style={{ color: T_.text, fontSize: 17, fontWeight: 700, margin: "0 0 4px" }}>{T("chooseResetMethod")}</h3>
+            <h3 style={{ color: T_.text, fontSize: 17, fontWeight: 700, margin: "0 0 4px" }}>
+              {T("chooseResetMethod")}
+            </h3>
             {hasPhoneOtp && (
-              <button onClick={() => { setMethod("phone"); setStep("send-otp"); }}
-                style={{ width: "100%", height: 56, border: `1.5px solid ${T_.border}`, borderRadius: 14, background: T_.bg, color: T_.text, fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 14, padding: "0 16px", transition: "border-color 0.15s" }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = T_.primary)}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = T_.border)}>
+              <button
+                onClick={() => {
+                  setMethod("phone");
+                  setStep("send-otp");
+                }}
+                style={{
+                  width: "100%",
+                  height: 56,
+                  border: `1.5px solid ${T_.border}`,
+                  borderRadius: 14,
+                  background: T_.bg,
+                  color: T_.text,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  padding: "0 16px",
+                  transition: "border-color 0.15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = T_.primary)}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = T_.border)}
+              >
                 <Phone size={20} color={T_.primary} />
                 <div style={{ textAlign: "left" }}>
                   <div style={{ fontWeight: 700, fontSize: 14 }}>{T("resetViaPhone")}</div>
@@ -360,10 +594,30 @@ export default function ForgotPassword() {
               </button>
             )}
             {hasEmailOtp && (
-              <button onClick={() => { setMethod("email"); setStep("send-otp"); }}
-                style={{ width: "100%", height: 56, border: `1.5px solid ${T_.border}`, borderRadius: 14, background: T_.bg, color: T_.text, fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 14, padding: "0 16px", transition: "border-color 0.15s" }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = T_.primary)}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = T_.border)}>
+              <button
+                onClick={() => {
+                  setMethod("email");
+                  setStep("send-otp");
+                }}
+                style={{
+                  width: "100%",
+                  height: 56,
+                  border: `1.5px solid ${T_.border}`,
+                  borderRadius: 14,
+                  background: T_.bg,
+                  color: T_.text,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  padding: "0 16px",
+                  transition: "border-color 0.15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = T_.primary)}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = T_.border)}
+              >
                 <Mail size={20} color={T_.primary} />
                 <div style={{ textAlign: "left" }}>
                   <div style={{ fontWeight: 700, fontSize: 14 }}>{T("resetViaEmail")}</div>
@@ -379,27 +633,97 @@ export default function ForgotPassword() {
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {method === "phone" ? (
               <>
-                <h3 style={{ color: T_.text, fontSize: 17, fontWeight: 700, margin: 0 }}>{T("resetViaPhone")}</h3>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: T_.primary }}>Phone Number *</label>
+                <h3 style={{ color: T_.text, fontSize: 17, fontWeight: 700, margin: 0 }}>
+                  {T("resetViaPhone")}
+                </h3>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: T_.primary,
+                  }}
+                >
+                  Phone Number *
+                </label>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <div style={{ height: 48, padding: "0 12px", background: T_.bg, border: `1.5px solid ${T_.border}`, borderRadius: 12, display: "flex", alignItems: "center", fontSize: 13, fontWeight: 600, color: T_.muted, whiteSpace: "nowrap" }}>+92</div>
-                  <input type="tel" value={phone}
-                    onChange={e => { let v = e.target.value.replace(/\D/g, ""); if (v.startsWith("92")) v = v.slice(2); if (v.startsWith("0")) v = v.slice(1); setPhone(v.slice(0, 10)); clearError(); }}
-                    placeholder={phoneHint} onKeyDown={e => e.key === "Enter" && sendOtp()}
-                    style={{ ...inputCss, flex: 1 }} autoFocus />
+                  <div
+                    style={{
+                      height: 48,
+                      padding: "0 12px",
+                      background: T_.bg,
+                      border: `1.5px solid ${T_.border}`,
+                      borderRadius: 12,
+                      display: "flex",
+                      alignItems: "center",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: T_.muted,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    +92
+                  </div>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/\D/g, "");
+                      if (v.startsWith("92")) v = v.slice(2);
+                      if (v.startsWith("0")) v = v.slice(1);
+                      setPhone(v.slice(0, 10));
+                      clearError();
+                    }}
+                    placeholder={phoneHint}
+                    onKeyDown={(e) => e.key === "Enter" && sendOtp()}
+                    style={{ ...inputCss, flex: 1 }}
+                    autoFocus
+                  />
                 </div>
               </>
             ) : (
               <>
-                <h3 style={{ color: T_.text, fontSize: 17, fontWeight: 700, margin: 0 }}>{T("resetViaEmail")}</h3>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: T_.primary }}>Email Address *</label>
-                <input type="email" value={email} onChange={e => { setEmail(e.target.value); clearError(); }}
-                  placeholder="your@email.com" onKeyDown={e => e.key === "Enter" && sendOtp()}
-                  style={inputCss} autoFocus />
+                <h3 style={{ color: T_.text, fontSize: 17, fontWeight: 700, margin: 0 }}>
+                  {T("resetViaEmail")}
+                </h3>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: T_.primary,
+                  }}
+                >
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    clearError();
+                  }}
+                  placeholder="your@email.com"
+                  onKeyDown={(e) => e.key === "Enter" && sendOtp()}
+                  style={inputCss}
+                  autoFocus
+                />
               </>
             )}
             <BtnPrimary onClick={sendOtp} disabled={loading || isRateLimited}>
-              {loading ? <><Spin /> {T("pleaseWait")}</> : isRateLimited ? `Try again in ${secondsLeft}s` : T("sendResetOtp")}
+              {loading ? (
+                <>
+                  <Spin /> {T("pleaseWait")}
+                </>
+              ) : isRateLimited ? (
+                `Try again in ${secondsLeft}s`
+              ) : (
+                T("sendResetOtp")
+              )}
             </BtnPrimary>
           </div>
         )}
@@ -408,19 +732,54 @@ export default function ForgotPassword() {
         {step === "enter-otp" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ textAlign: "center" }}>
-              <h3 style={{ color: T_.text, fontSize: 17, fontWeight: 700, margin: "0 0 4px" }}>{T("enterResetOtp")}</h3>
-              <p style={{ color: T_.muted, fontSize: 13, margin: 0 }}>{method === "phone" ? `+92 ${phone}` : email}</p>
+              <h3 style={{ color: T_.text, fontSize: 17, fontWeight: 700, margin: "0 0 4px" }}>
+                {T("enterResetOtp")}
+              </h3>
+              <p style={{ color: T_.muted, fontSize: 13, margin: 0 }}>
+                {method === "phone" ? `+92 ${phone}` : email}
+              </p>
             </div>
             {import.meta.env.DEV && devOtp && (
-              <div style={{ background: "#1a2035", border: "1px solid #2d3a55", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#94a3b8" }}>
+              <div
+                style={{
+                  background: "#1a2035",
+                  border: "1px solid #2d3a55",
+                  borderRadius: 8,
+                  padding: "8px 12px",
+                  fontSize: 12,
+                  color: "#94a3b8",
+                }}
+              >
                 Dev OTP: <strong style={{ color: T_.primary }}>{devOtp}</strong>
               </div>
             )}
-            <OtpBoxes value={otp} onChange={v => { setOtp(v); clearError(); }} />
-            <BtnPrimary onClick={() => { if (otp.length >= 6) setStep("new-password"); else setError(T("enterOtpDigits")); }}>
+            <OtpBoxes
+              value={otp}
+              onChange={(v) => {
+                setOtp(v);
+                clearError();
+              }}
+            />
+            <BtnPrimary
+              onClick={() => {
+                if (otp.length >= 6) setStep("new-password");
+                else setError(T("enterOtpDigits"));
+              }}
+            >
               {T("nextStep")}
             </BtnPrimary>
-            <button onClick={sendOtp} style={{ background: "none", border: "none", color: T_.muted, fontSize: 12, cursor: "pointer", padding: 0, textAlign: "center" }}>
+            <button
+              onClick={sendOtp}
+              style={{
+                background: "none",
+                border: "none",
+                color: T_.muted,
+                fontSize: 12,
+                cursor: "pointer",
+                padding: 0,
+                textAlign: "center",
+              }}
+            >
               {T("resendOtp")}
             </button>
           </div>
@@ -429,45 +788,128 @@ export default function ForgotPassword() {
         {/* ── Step: new-password ── */}
         {step === "new-password" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <h3 style={{ color: T_.text, fontSize: 17, fontWeight: 700, margin: 0 }}>{T("newPassword")}</h3>
+            <h3 style={{ color: T_.text, fontSize: 17, fontWeight: 700, margin: 0 }}>
+              {T("newPassword")}
+            </h3>
             <div>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: T_.primary, marginBottom: 6 }}>New Password *</label>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: T_.primary,
+                  marginBottom: 6,
+                }}
+              >
+                New Password *
+              </label>
               <div style={{ position: "relative" }}>
-                <input type={showPwd ? "text" : "password"} value={newPassword}
-                  onChange={e => { setNewPassword(e.target.value); clearError(); }}
-                  placeholder="Min 8 characters" style={{ ...inputCss, paddingRight: 44 }} autoFocus />
-                <button type="button" onClick={() => setShowPwd(v => !v)}
-                  style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: T_.muted, cursor: "pointer", padding: 0 }}>
+                <input
+                  type={showPwd ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    clearError();
+                  }}
+                  placeholder="Min 8 characters"
+                  style={{ ...inputCss, paddingRight: 44 }}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwd((v) => !v)}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    color: T_.muted,
+                    cursor: "pointer",
+                    padding: 0,
+                  }}
+                >
                   {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
               {newPassword && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                  <div style={{ flex: 1, height: 4, background: "#252D3A", borderRadius: 4, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: getPasswordStrength(newPassword).pct, background: getPasswordStrength(newPassword).color, borderRadius: 4, transition: "width 0.3s" }} />
+                  <div
+                    style={{
+                      flex: 1,
+                      height: 4,
+                      background: "#252D3A",
+                      borderRadius: 4,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        width: getPasswordStrength(newPassword).pct,
+                        background: getPasswordStrength(newPassword).color,
+                        borderRadius: 4,
+                        transition: "width 0.3s",
+                      }}
+                    />
                   </div>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: T_.muted }}>{T(getPasswordStrength(newPassword).label)}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: T_.muted }}>
+                    {T(getPasswordStrength(newPassword).label)}
+                  </span>
                 </div>
               )}
             </div>
             <div>
-              <label style={{ display: "block", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: T_.primary, marginBottom: 6 }}>Confirm Password *</label>
-              <input type={showPwd ? "text" : "password"} value={confirmPw}
-                onChange={e => { setConfirmPw(e.target.value); clearError(); }}
-                placeholder="Re-enter password" style={inputCss} />
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: T_.primary,
+                  marginBottom: 6,
+                }}
+              >
+                Confirm Password *
+              </label>
+              <input
+                type={showPwd ? "text" : "password"}
+                value={confirmPw}
+                onChange={(e) => {
+                  setConfirmPw(e.target.value);
+                  clearError();
+                }}
+                placeholder="Re-enter password"
+                style={inputCss}
+              />
               {confirmPw && newPassword !== confirmPw && (
-                <p style={{ color: "#ef4444", fontSize: 11, margin: "4px 0 0" }}>{T("passwordsDoNotMatch")}</p>
+                <p style={{ color: "#ef4444", fontSize: 11, margin: "4px 0 0" }}>
+                  {T("passwordsDoNotMatch")}
+                </p>
               )}
             </div>
             <BtnPrimary onClick={() => verifyOtpAndSetPassword()} disabled={loading}>
-              {loading ? <><Spin /> {T("pleaseWait")}</> : T("resetPassword")}
+              {loading ? (
+                <>
+                  <Spin /> {T("pleaseWait")}
+                </>
+              ) : (
+                T("resetPassword")
+              )}
             </BtnPrimary>
           </div>
         )}
 
         {/* Back to login */}
         <div style={{ textAlign: "center", marginTop: 20 }}>
-          <Link href="/login" style={{ fontSize: 13, color: T_.primary, fontWeight: 600, textDecoration: "none" }}>
+          <Link
+            href="/login"
+            style={{ fontSize: 13, color: T_.primary, fontWeight: 600, textDecoration: "none" }}
+          >
             {T("backToLogin")}
           </Link>
         </div>

@@ -1,1 +1,6 @@
-export { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@workspace/ui/components/ui/accordion";
+export {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@workspace/ui/components/ui/accordion";

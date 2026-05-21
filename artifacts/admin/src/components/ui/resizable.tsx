@@ -1,1 +1,5 @@
-export { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@workspace/ui/components/ui/resizable";
+export {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@workspace/ui/components/ui/resizable";

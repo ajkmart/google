@@ -29,12 +29,12 @@
  *   exportDataLimiter         3 req / 15 min / user — POST /api/users/export-data
  *   registerUploadLimiter    10 req / 60 min / IP  — POST /api/uploads/register (unauthenticated)
  */
+import type { NextFunction, Request, RequestHandler, Response } from "express";
+import rateLimit, { type Options } from "express-rate-limit";
 import crypto from "node:crypto";
-import rateLimit, { type Options, type Store } from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
-import { redisClient } from "../lib/redis.js";
 import { logger } from "../lib/logger.js";
-import type { Request, Response, NextFunction, RequestHandler } from "express";
+import { redisClient } from "../lib/redis.js";
 
 /* ── Lua sliding-window script ───────────────────────────────────────────────
  *
@@ -117,9 +117,9 @@ export interface RateLimiterOptions {
 }
 
 const TIER_MESSAGES: Record<NonNullable<RateLimiterOptions["tier"]>, string> = {
-  strict:   "Too many attempts. Please wait before trying again.",
+  strict: "Too many attempts. Please wait before trying again.",
   standard: "Too many requests. Please slow down.",
-  lenient:  "You're making requests too fast. Please wait a moment.",
+  lenient: "You're making requests too fast. Please wait a moment.",
 };
 
 /* ── IP helper (shared by key generators) ───────────────────────────────── */
@@ -140,7 +140,7 @@ function makeFallbackLimiter(options: RateLimiterOptions): RequestHandler {
   if (process.env["MULTI_INSTANCE"] === "true") {
     logger.warn(
       { prefix },
-      "[rate-limit] Redis unavailable in multi-instance mode — counters are per-instance and not shared across replicas",
+      "[rate-limit] Redis unavailable in multi-instance mode — counters are per-instance and not shared across replicas"
     );
   }
 
@@ -167,7 +167,15 @@ function makeFallbackLimiter(options: RateLimiterOptions): RequestHandler {
 
 /* ── Redis sliding-window middleware ────────────────────────────────────── */
 function makeRedisSlidingLimiter(options: RateLimiterOptions): RequestHandler {
-  const { prefix, max, windowMs, tier = "standard", keyGenerator, skipOnSuccess = false, message } = options;
+  const {
+    prefix,
+    max,
+    windowMs,
+    tier = "standard",
+    keyGenerator,
+    skipOnSuccess = false,
+    message,
+  } = options;
 
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     if (!redisClient) {
@@ -176,12 +184,12 @@ function makeRedisSlidingLimiter(options: RateLimiterOptions): RequestHandler {
     }
 
     const clientKey = keyGenerator ? keyGenerator(req) : ipKey(req);
-    const redisKey  = `rl:${prefix}:${clientKey}`;
-    const member    = crypto.randomUUID();
-    const now       = Date.now();
+    const redisKey = `rl:${prefix}:${clientKey}`;
+    const member = crypto.randomUUID();
+    const now = Date.now();
 
     try {
-      const result = await (redisClient as import("ioredis").Redis).eval(
+      const result = (await (redisClient as import("ioredis").Redis).eval(
         SLIDING_WINDOW_LUA,
         1,
         redisKey,
@@ -189,17 +197,17 @@ function makeRedisSlidingLimiter(options: RateLimiterOptions): RequestHandler {
         String(windowMs),
         String(max),
         member,
-        "1",
-      ) as [number, number, number];
+        "1"
+      )) as [number, number, number];
 
-      const allowed      = result[0] === 1;
-      const retryAfter   = result[1] ?? Math.ceil(windowMs / 1000);
+      const allowed = result[0] === 1;
+      const retryAfter = result[1] ?? Math.ceil(windowMs / 1000);
       const currentCount = result[2] ?? 0;
 
       /* Standard rate-limit headers */
-      res.setHeader("RateLimit-Limit",     String(max));
+      res.setHeader("RateLimit-Limit", String(max));
       res.setHeader("RateLimit-Remaining", String(Math.max(0, max - currentCount)));
-      res.setHeader("RateLimit-Reset",     String(Math.ceil((now + windowMs) / 1000)));
+      res.setHeader("RateLimit-Reset", String(Math.ceil((now + windowMs) / 1000)));
 
       if (!allowed) {
         res.setHeader("Retry-After", String(retryAfter));
@@ -263,16 +271,27 @@ export function createRateLimiter(options: RateLimiterOptions): RequestHandler {
   const { prefix, tier = "standard" } = options;
 
   if (redisClient) {
-    logger.info({ prefix, store: "Redis (sliding-window)", tier }, "[rate-limit] limiter configured");
+    logger.info(
+      { prefix, store: "Redis (sliding-window)", tier },
+      "[rate-limit] limiter configured"
+    );
     return makeRedisSlidingLimiter(options);
   }
 
-  logger.info({ prefix, store: "in-memory (fixed-window)", tier }, "[rate-limit] limiter configured");
+  logger.info(
+    { prefix, store: "in-memory (fixed-window)", tier },
+    "[rate-limit] limiter configured"
+  );
   return makeFallbackLimiter(options);
 }
 
 /** @deprecated Use `createRateLimiter()` instead. */
-function makeOptions(prefix: string, max: number, windowMs: number, extra?: Partial<Options>): Partial<Options> {
+function makeOptions(
+  prefix: string,
+  max: number,
+  windowMs: number,
+  extra?: Partial<Options>
+): Partial<Options> {
   return {
     windowMs,
     max,
@@ -284,11 +303,18 @@ function makeOptions(prefix: string, max: number, windowMs: number, extra?: Part
         return new RedisStore({
           prefix: `rl:${prefix}:`,
           sendCommand: (...args: string[]) => {
-            if (!redisClient) return Promise.reject(new Error("[rate-limit] Redis client not available")) as ReturnType<import("rate-limit-redis").SendCommandFn>;
-            return (redisClient.call as (...a: string[]) => Promise<unknown>)(...args) as ReturnType<import("rate-limit-redis").SendCommandFn>;
+            if (!redisClient)
+              return Promise.reject(
+                new Error("[rate-limit] Redis client not available")
+              ) as ReturnType<import("rate-limit-redis").SendCommandFn>;
+            return (redisClient.call as (...a: string[]) => Promise<unknown>)(
+              ...args
+            ) as ReturnType<import("rate-limit-redis").SendCommandFn>;
           },
         });
-      } catch { return undefined; }
+      } catch {
+        return undefined;
+      }
     })(),
     handler: (_req: Request, res: Response) => {
       res.status(429).json({
@@ -305,12 +331,16 @@ function makeOptions(prefix: string, max: number, windowMs: number, extra?: Part
 
 const WINDOW_60_MIN = 60 * 60 * 1000;
 const WINDOW_15_MIN = 15 * 60 * 1000;
-const WINDOW_1_MIN  = 60 * 1000;
+const WINDOW_1_MIN = 60 * 1000;
 
 /* ── Broad traffic limiters ──────────────────────────────────────────────── */
 
 /** 500 req / 15 min (5000 in non-production) — blanket guard for all /api traffic. */
-export const globalLimiter = createRateLimiter({ prefix: "global", max: process.env.NODE_ENV !== "production" ? 5000 : 500, windowMs: WINDOW_15_MIN });
+export const globalLimiter = createRateLimiter({
+  prefix: "global",
+  max: process.env.NODE_ENV !== "production" ? 5000 : 500,
+  windowMs: WINDOW_15_MIN,
+});
 
 /** 20 req / 15 min — legacy guard for OTP/login/social-auth routes (use specific limiters where possible). */
 export const authLimiter = createRateLimiter({ prefix: "auth", max: 20, windowMs: WINDOW_15_MIN });
@@ -324,14 +354,22 @@ export const adminAuthLimiter = createRateLimiter({
 });
 
 /** 30 req / 15 min — wallet and payment routes. */
-export const paymentLimiter = createRateLimiter({ prefix: "payment", max: 30, windowMs: WINDOW_15_MIN });
+export const paymentLimiter = createRateLimiter({
+  prefix: "payment",
+  max: 30,
+  windowMs: WINDOW_15_MIN,
+});
 
 /**
  * publicLimiter — 60 req / 15 min for public, scraping-prone endpoints.
  * Applied to banners, categories, products, promotions/public,
  * recommendations, public-vendors, and deep-links endpoints.
  */
-export const publicLimiter = createRateLimiter({ prefix: "public", max: 60, windowMs: WINDOW_15_MIN });
+export const publicLimiter = createRateLimiter({
+  prefix: "public",
+  max: 60,
+  windowMs: WINDOW_15_MIN,
+});
 
 /* ── Auth-specific tight limiters ────────────────────────────────────────── */
 
@@ -340,7 +378,10 @@ export const publicLimiter = createRateLimiter({ prefix: "public", max: 60, wind
  * Apply to POST /api/auth/login and similar credential-checking endpoints.
  */
 export const loginLimiter = createRateLimiter({
-  prefix: "login", max: 5, windowMs: WINDOW_1_MIN, tier: "strict",
+  prefix: "login",
+  max: 5,
+  windowMs: WINDOW_1_MIN,
+  tier: "strict",
   keyGenerator: (req) => ipKey(req),
 });
 
@@ -349,7 +390,10 @@ export const loginLimiter = createRateLimiter({
  * Apply to POST /api/auth/send-otp and POST /api/auth/verify-otp.
  */
 export const otpLimiter = createRateLimiter({
-  prefix: "otp", max: 3, windowMs: WINDOW_1_MIN, tier: "strict",
+  prefix: "otp",
+  max: 3,
+  windowMs: WINDOW_1_MIN,
+  tier: "strict",
   keyGenerator: (req) => {
     const phone = req.body?.phone ?? req.body?.identifier;
     if (phone && typeof phone === "string" && phone.length > 0) {
@@ -364,7 +408,10 @@ export const otpLimiter = createRateLimiter({
  * Apply to POST /api/auth/send-email-otp and POST /api/auth/verify-email-otp.
  */
 export const emailOtpLimiter = createRateLimiter({
-  prefix: "email-otp", max: 5, windowMs: WINDOW_1_MIN, tier: "strict",
+  prefix: "email-otp",
+  max: 5,
+  windowMs: WINDOW_1_MIN,
+  tier: "strict",
   keyGenerator: (req) => {
     const email = req.body?.email ?? req.body?.identifier;
     if (email && typeof email === "string" && (email as string).includes("@")) {
@@ -379,7 +426,10 @@ export const emailOtpLimiter = createRateLimiter({
  * Apply to POST /api/auth/magic-link/send to prevent spam.
  */
 export const magicLinkLimiter = createRateLimiter({
-  prefix: "magic-link", max: 3, windowMs: WINDOW_15_MIN, tier: "strict",
+  prefix: "magic-link",
+  max: 3,
+  windowMs: WINDOW_15_MIN,
+  tier: "strict",
   keyGenerator: (req) => {
     const email = req.body?.email;
     if (email && typeof email === "string" && (email as string).includes("@")) {
@@ -394,7 +444,10 @@ export const magicLinkLimiter = createRateLimiter({
  * Apply to POST /api/auth/register, /api/auth/email-register, /api/auth/vendor-register.
  */
 export const registrationLimiter = createRateLimiter({
-  prefix: "registration", max: 10, windowMs: WINDOW_60_MIN, tier: "standard",
+  prefix: "registration",
+  max: 10,
+  windowMs: WINDOW_60_MIN,
+  tier: "standard",
   keyGenerator: (req) => ipKey(req),
 });
 
@@ -403,7 +456,10 @@ export const registrationLimiter = createRateLimiter({
  * Apply to POST /api/auth/refresh to prevent token-cycling abuse.
  */
 export const refreshTokenLimiter = createRateLimiter({
-  prefix: "refresh-token", max: 30, windowMs: WINDOW_15_MIN, tier: "lenient",
+  prefix: "refresh-token",
+  max: 30,
+  windowMs: WINDOW_15_MIN,
+  tier: "lenient",
   keyGenerator: (req) => userOrIpKey(req),
 });
 
@@ -412,7 +468,10 @@ export const refreshTokenLimiter = createRateLimiter({
  * Apply to POST /api/auth/forgot-password to prevent account enumeration.
  */
 export const passwordResetLimiter = createRateLimiter({
-  prefix: "password-reset", max: 5, windowMs: WINDOW_60_MIN, tier: "strict",
+  prefix: "password-reset",
+  max: 5,
+  windowMs: WINDOW_60_MIN,
+  tier: "strict",
   keyGenerator: (req) => ipKey(req),
 });
 
@@ -421,7 +480,10 @@ export const passwordResetLimiter = createRateLimiter({
  * Apply to POST /api/loyalty/redeem to prevent rapid point farming.
  */
 export const redeemLimiter = createRateLimiter({
-  prefix: "redeem", max: 5, windowMs: WINDOW_15_MIN, tier: "standard",
+  prefix: "redeem",
+  max: 5,
+  windowMs: WINDOW_15_MIN,
+  tier: "standard",
   keyGenerator: (req) => userOrIpKey(req),
 });
 
@@ -430,7 +492,10 @@ export const redeemLimiter = createRateLimiter({
  * Apply to POST /api/users/export-data to prevent bulk personal data extraction.
  */
 export const exportDataLimiter = createRateLimiter({
-  prefix: "export-data", max: 3, windowMs: WINDOW_15_MIN, tier: "standard",
+  prefix: "export-data",
+  max: 3,
+  windowMs: WINDOW_15_MIN,
+  tier: "standard",
   keyGenerator: (req) => userOrIpKey(req),
 });
 
@@ -440,7 +505,10 @@ export const exportDataLimiter = createRateLimiter({
  * Prevents storage/bandwidth exhaustion by anonymous callers.
  */
 export const registerUploadLimiter = createRateLimiter({
-  prefix: "register-upload", max: 10, windowMs: WINDOW_60_MIN, tier: "standard",
+  prefix: "register-upload",
+  max: 10,
+  windowMs: WINDOW_60_MIN,
+  tier: "standard",
   keyGenerator: (req) => ipKey(req),
 });
 
@@ -449,7 +517,10 @@ export const registerUploadLimiter = createRateLimiter({
  * Apply to authenticated /api/* routes that should be throttled per-user.
  */
 export const userApiLimiter = createRateLimiter({
-  prefix: "user-api", max: 100, windowMs: WINDOW_1_MIN, tier: "lenient",
+  prefix: "user-api",
+  max: 100,
+  windowMs: WINDOW_1_MIN,
+  tier: "lenient",
   keyGenerator: (req) => userOrIpKey(req),
   extra: { skip: (req: Request) => req.method === "OPTIONS" },
 });

@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { ImageOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ImageOff } from "lucide-react";
+import { useState } from "react";
 
 export interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
@@ -37,11 +37,11 @@ export function SafeImage({
         role="img"
         aria-label={alt || "Image unavailable"}
         className={cn(
-          "inline-flex items-center justify-center bg-muted text-muted-foreground",
-          fallbackClassName ?? className,
+          "bg-muted text-muted-foreground inline-flex items-center justify-center",
+          fallbackClassName ?? className
         )}
       >
-        <ImageOff className="h-1/2 w-1/2 max-h-8 max-w-8 opacity-50" aria-hidden="true" />
+        <ImageOff className="h-1/2 max-h-8 w-1/2 max-w-8 opacity-50" aria-hidden="true" />
       </span>
     );
   }

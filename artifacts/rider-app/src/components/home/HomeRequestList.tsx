@@ -1,6 +1,6 @@
 import { AlertTriangle, Bike, Eye } from "lucide-react";
-import { OrderRequestCard, RideRequestCard } from "../dashboard";
 import type { Order, Ride } from "../../lib/api";
+import { OrderRequestCard, RideRequestCard } from "../dashboard";
 
 function getDeliveryEarn(type: string, config: any): number {
   const df = config.deliveryFee;
@@ -47,42 +47,66 @@ interface HomeRequestListProps {
 }
 
 export function HomeRequestList({
-  requestsLoading, requestsError, totalRequests, dismissed, onClearDismissed,
-  orders, rides, currency, config,
-  onAcceptOrder, onRejectOrder, onAcceptRide, onCounterRide, onRejectOffer, onIgnoreRide, onDismiss,
-  acceptOrderPending, rejectOrderPending, acceptRidePending, counterRidePending,
-  rejectOfferPending, ignoreRidePending, requestsServerTime, userId, isRestricted, onRetry, T,
+  requestsLoading,
+  requestsError,
+  totalRequests,
+  dismissed,
+  onClearDismissed,
+  orders,
+  rides,
+  currency,
+  config,
+  onAcceptOrder,
+  onRejectOrder,
+  onAcceptRide,
+  onCounterRide,
+  onRejectOffer,
+  onIgnoreRide,
+  onDismiss,
+  acceptOrderPending,
+  rejectOrderPending,
+  acceptRidePending,
+  counterRidePending,
+  rejectOfferPending,
+  ignoreRidePending,
+  requestsServerTime,
+  userId,
+  isRestricted,
+  onRetry,
+  T,
 }: HomeRequestListProps) {
   if (requestsLoading) {
     return (
       <div className="bg-white p-10 text-center">
-        <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-gray-400 text-xs font-medium">Loading requests…</p>
+        <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
+        <p className="text-xs font-medium text-gray-400">Loading requests…</p>
       </div>
     );
   }
   if (requestsError) {
     return (
       <div className="bg-white p-8 text-center">
-        <AlertTriangle size={28} className="text-red-300 mx-auto mb-3" />
-        <p className="text-gray-600 font-bold text-sm">Could not load requests</p>
-        <p className="text-gray-400 text-xs mt-1">Check your connection and try again.</p>
-        <button onClick={onRetry} className="mt-3 text-xs text-indigo-600 font-bold underline">Retry</button>
+        <AlertTriangle size={28} className="mx-auto mb-3 text-red-300" />
+        <p className="text-sm font-bold text-gray-600">Could not load requests</p>
+        <p className="mt-1 text-xs text-gray-400">Check your connection and try again.</p>
+        <button onClick={onRetry} className="mt-3 text-xs font-bold text-indigo-600 underline">
+          Retry
+        </button>
       </div>
     );
   }
   if (totalRequests === 0) {
     return (
-      <div className="bg-white p-8 sm:p-10 text-center">
-        <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gray-50 rounded-3xl flex items-center justify-center mx-auto mb-4">
+      <div className="bg-white p-8 text-center sm:p-10">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-3xl bg-gray-50 sm:h-16 sm:w-16">
           <Bike size={28} className="text-gray-300" />
         </div>
-        <p className="text-gray-600 font-bold text-sm sm:text-base">{T("noRequestsNow")}</p>
-        <p className="text-gray-400 text-xs mt-1.5">{T("autoRefreshes")}</p>
+        <p className="text-sm font-bold text-gray-600 sm:text-base">{T("noRequestsNow")}</p>
+        <p className="mt-1.5 text-xs text-gray-400">{T("autoRefreshes")}</p>
         {dismissed.size > 0 && (
           <button
             onClick={onClearDismissed}
-            className="mt-4 text-xs text-gray-900 font-bold bg-gray-100 border border-gray-200 px-4 py-2 rounded-full inline-flex items-center gap-1.5 hover:bg-gray-200 transition-colors"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-100 px-4 py-2 text-xs font-bold text-gray-900 transition-colors hover:bg-gray-200"
             aria-label={`Show ${dismissed.size} hidden requests`}
           >
             <Eye size={12} /> Show {dismissed.size} hidden request{dismissed.size > 1 ? "s" : ""}
@@ -92,7 +116,7 @@ export function HomeRequestList({
     );
   }
   return (
-    <div className="bg-white divide-y divide-gray-100">
+    <div className="divide-y divide-gray-100 bg-white">
       {orders.map((o) => (
         <OrderRequestCard
           key={o.id}

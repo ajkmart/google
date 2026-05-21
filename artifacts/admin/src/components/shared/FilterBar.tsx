@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
-import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
+import type { ReactNode } from "react";
 
 /**
  * Shared filter bar used across list/table pages.
@@ -35,27 +35,23 @@ export function FilterBar({
   className = "",
 }: FilterBarProps) {
   return (
-    <div className={`flex flex-col sm:flex-row gap-2 ${className}`}>
+    <div className={`flex flex-col gap-2 sm:flex-row ${className}`}>
       {onSearch !== undefined && (
-        <div className="relative flex-1 min-w-0">
+        <div className="relative min-w-0 flex-1">
           <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none"
+            className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
             aria-hidden="true"
           />
           <Input
             value={search}
-            onChange={e => onSearch(e.target.value)}
+            onChange={(e) => onSearch(e.target.value)}
             placeholder={placeholder}
-            className="pl-9 h-10 rounded-xl bg-white"
+            className="h-10 rounded-xl bg-white pl-9"
             aria-label={placeholder}
           />
         </div>
       )}
-      {filters && (
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {filters}
-        </div>
-      )}
+      {filters && <div className="flex shrink-0 flex-wrap items-center gap-2">{filters}</div>}
     </div>
   );
 }

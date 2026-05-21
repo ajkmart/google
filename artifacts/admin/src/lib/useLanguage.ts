@@ -1,12 +1,12 @@
-import { useState, useCallback, useEffect } from "react";
+import { createLogger } from "@/lib/logger";
 import type { Language } from "@workspace/i18n";
 import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, isRTL } from "@workspace/i18n";
+import { useCallback, useEffect, useState } from "react";
 import { adminFetch, getAdminAccessToken } from "./adminFetcher";
 import { safeLocalGet, safeLocalSet } from "./safeStorage";
-import { createLogger } from "@/lib/logger";
 const log = createLogger("[useLanguage]");
 
-const VALID_LANGS = new Set<string>(LANGUAGE_OPTIONS.map(o => o.value));
+const VALID_LANGS = new Set<string>(LANGUAGE_OPTIONS.map((o) => o.value));
 const STORAGE_KEY = "ajkmart_admin_language";
 
 function applyRTL(lang: Language) {
@@ -68,9 +68,11 @@ export function useLanguage() {
       }
 
       try {
-        const data = await adminFetch("/platform-settings") as { settings?: { key: string; value: string }[] };
+        const data = (await adminFetch("/platform-settings")) as {
+          settings?: { key: string; value: string }[];
+        };
         const settings: { key: string; value: string }[] = data?.settings || [];
-        const platformLang = settings.find(s => s.key === "default_language")?.value;
+        const platformLang = settings.find((s) => s.key === "default_language")?.value;
         if (platformLang && VALID_LANGS.has(platformLang)) {
           setLang(platformLang as Language);
           applyRTL(platformLang as Language);
@@ -91,7 +93,10 @@ export function useLanguage() {
     applyRTL(lang);
     safeLocalSet(STORAGE_KEY, lang);
     try {
-      await adminFetch("/auth/me/language", { method: "PUT", body: JSON.stringify({ language: lang }) });
+      await adminFetch("/auth/me/language", {
+        method: "PUT",
+        body: JSON.stringify({ language: lang }),
+      });
     } catch (err) {
       log.error("/me/language PUT failed:", err);
     }

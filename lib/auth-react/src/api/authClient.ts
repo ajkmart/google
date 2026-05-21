@@ -1,5 +1,5 @@
-import { isTokenExpired } from '../utils/jwtUtils';
-import type { TokenStorage } from './tokenStorage';
+import { isTokenExpired } from "../utils/jwtUtils";
+import type { TokenStorage } from "./tokenStorage";
 
 export interface AuthClientOptions {
   baseURL: string;
@@ -8,7 +8,7 @@ export interface AuthClientOptions {
   refreshEndpoint?: string;
 }
 
-type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 interface RequestOptions {
   headers?: Record<string, string>;
@@ -29,9 +29,9 @@ interface AuthClient {
  * `withRetry` checks for this type and does NOT retry — 401 is not transient.
  */
 export class UnauthorizedError extends Error {
-  constructor(message = 'Unauthorized') {
+  constructor(message = "Unauthorized") {
     super(message);
-    this.name = 'UnauthorizedError';
+    this.name = "UnauthorizedError";
   }
 }
 
@@ -41,8 +41,10 @@ export class UnauthorizedError extends Error {
  */
 export class JsonParseError extends Error {
   constructor(cause?: unknown) {
-    super(`Response body is not valid JSON: ${cause instanceof Error ? cause.message : String(cause)}`);
-    this.name = 'JsonParseError';
+    super(
+      `Response body is not valid JSON: ${cause instanceof Error ? cause.message : String(cause)}`
+    );
+    this.name = "JsonParseError";
   }
 }
 
@@ -54,11 +56,7 @@ function isNonRetryableError(err: unknown): boolean {
   return err instanceof UnauthorizedError || err instanceof JsonParseError;
 }
 
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries = 3,
-  baseDelayMs = 300
-): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3, baseDelayMs = 300): Promise<T> {
   let lastError: unknown;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -76,12 +74,7 @@ async function withRetry<T>(
 }
 
 export function createAuthClient(options: AuthClientOptions): AuthClient {
-  const {
-    baseURL,
-    tokenStorage,
-    onUnauthorized,
-    refreshEndpoint = '/api/auth/refresh',
-  } = options;
+  const { baseURL, tokenStorage, onUnauthorized, refreshEndpoint = "/api/auth/refresh" } = options;
 
   let isRefreshing = false;
   let refreshPromise: Promise<string | null> | null = null;
@@ -93,9 +86,9 @@ export function createAuthClient(options: AuthClientOptions): AuthClient {
     refreshPromise = (async () => {
       try {
         const res = await fetch(`${baseURL}${refreshEndpoint}`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
         });
         if (!res.ok) return null;
         const text = await res.text();
@@ -129,15 +122,15 @@ export function createAuthClient(options: AuthClientOptions): AuthClient {
   ): Promise<T> {
     const doRequest = async (token: string | null): Promise<Response> => {
       const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...options.headers,
       };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (token) headers["Authorization"] = `Bearer ${token}`;
 
       return fetch(`${baseURL}${path}`, {
         method,
         headers,
-        credentials: 'include',
+        credentials: "include",
         signal: options.signal,
         body: body !== undefined ? JSON.stringify(body) : undefined,
       });
@@ -182,10 +175,10 @@ export function createAuthClient(options: AuthClientOptions): AuthClient {
   }
 
   return {
-    get: (path, options) => request('GET', path, undefined, options),
-    post: (path, body, options) => request('POST', path, body, options),
-    put: (path, body, options) => request('PUT', path, body, options),
-    patch: (path, body, options) => request('PATCH', path, body, options),
-    delete: (path, options) => request('DELETE', path, undefined, options),
+    get: (path, options) => request("GET", path, undefined, options),
+    post: (path, body, options) => request("POST", path, body, options),
+    put: (path, body, options) => request("PUT", path, body, options),
+    patch: (path, body, options) => request("PATCH", path, body, options),
+    delete: (path, options) => request("DELETE", path, undefined, options),
   };
 }

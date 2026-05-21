@@ -7,7 +7,10 @@ import { formatCurrency as _sharedFc } from "@workspace/api-zod";
  *
  * Accepts string (from API) or number (from local calculations like riderEarningPct).
  */
-export function formatCurrency(value: string | number | null | undefined, currencySymbol = "Rs."): string {
+export function formatCurrency(
+  value: string | number | null | undefined,
+  currencySymbol = "Rs."
+): string {
   return _sharedFc(value != null ? String(value) : (value as null | undefined), currencySymbol);
 }
 
@@ -22,7 +25,7 @@ export function timeAgo(d: string | Date): string {
 export function buildMapsDeepLink(
   lat: number | null | undefined,
   lng: number | null | undefined,
-  address?: string | null,
+  address?: string | null
 ): string {
   if (lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)) {
     const ua = navigator.userAgent || "";
@@ -50,12 +53,12 @@ export const ACCEPT_TIMEOUT_SEC = 90;
    All hardcoded pricing constants live here so they can be updated in one
    place without hunting through individual card components. */
 export const PRICING_DEFAULTS = {
-  bikeMinFare:          50,
-  carMinFare:           80,
-  rickshawMinFare:      50,
-  dabaMinFare:          60,
+  bikeMinFare: 50,
+  carMinFare: 80,
+  rickshawMinFare: 50,
+  dabaMinFare: 60,
   counterMaxMultiplier: 3,
-  defaultDeliveryFee:   0,
+  defaultDeliveryFee: 0,
   defaultRiderEarningPct: 80,
 } as const;
 
@@ -67,12 +70,7 @@ export const PRICING_DEFAULTS = {
 const _haversineCache = new Map<string, number>();
 const _MAX_CACHE_ENTRIES = 512;
 
-export function haversineKm(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): number {
+export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const k1 = lat1.toFixed(4);
   const k2 = lon1.toFixed(4);
   const k3 = lat2.toFixed(4);
@@ -86,9 +84,7 @@ export function haversineKm(
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
   const result = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   if (_haversineCache.size >= _MAX_CACHE_ENTRIES) {
@@ -99,11 +95,6 @@ export function haversineKm(
   return result;
 }
 
-export function haversineMeters(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): number {
+export function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   return haversineKm(lat1, lon1, lat2, lon2) * 1000;
 }

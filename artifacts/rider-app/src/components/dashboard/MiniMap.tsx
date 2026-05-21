@@ -1,8 +1,11 @@
-import { memo, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { Maximize2, Navigation, X } from "lucide-react";
+import { memo, useEffect, useState } from "react";
+import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
+import { riderEnv } from "../../lib/envValidation";
+import { buildMapsDeepLink } from "./helpers";
 
 /* ── Static icon instances — created once at module load, never recreated ── */
 const PICKUP_ICON_MINI = L.divIcon({
@@ -29,9 +32,6 @@ const DROP_ICON_FULL = L.divIcon({
   iconSize: [18, 18],
   iconAnchor: [9, 9],
 });
-import { Maximize2, X, Navigation } from "lucide-react";
-import { buildMapsDeepLink } from "./helpers";
-import { riderEnv } from "../../lib/envValidation";
 
 interface AppOverride {
   provider: string;
@@ -69,14 +69,14 @@ function MiniMapFitter({
           [pickupLat, pickupLng],
           [dropLat, dropLng],
         ],
-        { padding: [20, 20], maxZoom: 15 },
+        { padding: [20, 20], maxZoom: 15 }
       );
     } else if (hasPick) {
       map.setView([pickupLat, pickupLng], 14);
     } else if (hasDrop) {
       map.setView([dropLat, dropLng], 14);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pickupLat, pickupLng, dropLat, dropLng, hasPick, hasDrop]);
   return null;
 }
@@ -151,30 +151,34 @@ function FullscreenMap({
     : buildMapsDeepLink(pickupLat, pickupLng);
 
   return (
-    <div className="fixed inset-0 z-[2000] bg-black/80 flex flex-col" role="dialog" aria-label="Route map fullscreen">
-      <div className="flex items-center justify-between px-4 py-3 bg-gray-900 text-white flex-shrink-0">
-        <p className="font-extrabold text-sm tracking-tight">Route Preview</p>
+    <div
+      className="fixed inset-0 z-[2000] flex flex-col bg-black/80"
+      role="dialog"
+      aria-label="Route map fullscreen"
+    >
+      <div className="flex flex-shrink-0 items-center justify-between bg-gray-900 px-4 py-3 text-white">
+        <p className="text-sm font-extrabold tracking-tight">Route Preview</p>
         <div className="flex items-center gap-2">
           {mapsHref !== "#" && (
             <a
               href={mapsHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg"
+              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white"
             >
               <Navigation size={12} /> Open in Maps
             </a>
           )}
           <button
             onClick={onClose}
-            className="bg-white/10 rounded-lg p-1.5"
+            className="rounded-lg bg-white/10 p-1.5"
             aria-label="Close fullscreen map"
           >
             <X size={18} />
           </button>
         </div>
       </div>
-      <div className="flex-1 relative">
+      <div className="relative flex-1">
         <MapContainer
           center={[centerLat, centerLng]}
           zoom={13}
@@ -195,12 +199,16 @@ function FullscreenMap({
             hasDrop={hasDrop}
           />
         </MapContainer>
-        <div className="absolute bottom-2 left-2 flex gap-1.5 z-[1000] pointer-events-none">
+        <div className="pointer-events-none absolute bottom-2 left-2 z-[1000] flex gap-1.5">
           {hasPick && (
-            <span className="bg-green-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">PICKUP</span>
+            <span className="rounded-full bg-green-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
+              PICKUP
+            </span>
           )}
           {hasDrop && (
-            <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">DROP</span>
+            <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
+              DROP
+            </span>
           )}
         </div>
       </div>
@@ -227,17 +235,9 @@ export const MiniMap = memo(function MiniMap({
   if (!hasPick && !hasDrop) return null;
 
   const centerLat =
-    hasPick && hasDrop
-      ? (pickupLat! + dropLat!) / 2
-      : hasPick
-        ? pickupLat!
-        : dropLat!;
+    hasPick && hasDrop ? (pickupLat! + dropLat!) / 2 : hasPick ? pickupLat! : dropLat!;
   const centerLng =
-    hasPick && hasDrop
-      ? (pickupLng! + dropLng!) / 2
-      : hasPick
-        ? pickupLng!
-        : dropLng!;
+    hasPick && hasDrop ? (pickupLng! + dropLng!) / 2 : hasPick ? pickupLng! : dropLng!;
 
   const pickupIcon = PICKUP_ICON_MINI;
   const dropIcon = DROP_ICON_MINI;
@@ -257,7 +257,7 @@ export const MiniMap = memo(function MiniMap({
           onClose={() => setFullscreen(false)}
         />
       )}
-      <div className="w-full h-28 rounded-2xl overflow-hidden bg-gray-100 relative mt-3 shadow-inner border border-gray-100">
+      <div className="relative mt-3 h-28 w-full overflow-hidden rounded-2xl border border-gray-100 bg-gray-100 shadow-inner">
         <MapContainer
           center={[centerLat!, centerLng!]}
           zoom={13}
@@ -282,23 +282,23 @@ export const MiniMap = memo(function MiniMap({
           />
         </MapContainer>
 
-        <div className="absolute bottom-1.5 right-1.5 bg-black/40 backdrop-blur-sm text-white text-[9px] font-bold px-1.5 py-0.5 rounded pointer-events-none z-[1000]">
+        <div className="pointer-events-none absolute right-1.5 bottom-1.5 z-[1000] rounded bg-black/40 px-1.5 py-0.5 text-[9px] font-bold text-white backdrop-blur-sm">
           {attribution}
         </div>
         {hasPick && (
-          <div className="absolute top-1.5 left-1.5 bg-green-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full pointer-events-none z-[1000]">
+          <div className="pointer-events-none absolute top-1.5 left-1.5 z-[1000] rounded-full bg-green-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
             PICKUP
           </div>
         )}
         {hasDrop && (
-          <div className="absolute bottom-1.5 left-1.5 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full pointer-events-none z-[1000]">
+          <div className="pointer-events-none absolute bottom-1.5 left-1.5 z-[1000] rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
             DROP
           </div>
         )}
 
         <button
           onClick={() => setFullscreen(true)}
-          className="absolute top-1.5 right-1.5 z-[1001] bg-white/80 backdrop-blur-sm text-gray-700 rounded-lg p-1 shadow-sm hover:bg-white transition-colors"
+          className="absolute top-1.5 right-1.5 z-[1001] rounded-lg bg-white/80 p-1 text-gray-700 shadow-sm backdrop-blur-sm transition-colors hover:bg-white"
           aria-label="Expand map fullscreen"
         >
           <Maximize2 size={13} />

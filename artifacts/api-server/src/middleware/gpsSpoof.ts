@@ -19,9 +19,9 @@
  * It sets req.gpsAntiSpoofPassed = true when all checks pass.
  */
 
-import type { Request, Response, NextFunction } from "express";
-import { getClientIp, addSecurityEvent } from "./security.js";
+import type { NextFunction, Request, Response } from "express";
 import { logger } from "../lib/logger.js";
+import { addSecurityEvent, getClientIp } from "./security.js";
 
 declare global {
   namespace Express {
@@ -33,14 +33,18 @@ declare global {
 
 /** Known emulator/simulator default coordinate signatures */
 const EMULATOR_COORDS: Array<{ lat: number; lon: number; label: string }> = [
-  { lat: 37.4219983, lon: -122.084,    label: "Android emulator (Googleplex)" },
-  { lat: 48.8534,   lon: 2.3488,       label: "Genymotion (Paris)"            },
-  { lat: 37.3861,   lon: -122.0839,    label: "BlueStacks (San Francisco)"     },
+  { lat: 37.4219983, lon: -122.084, label: "Android emulator (Googleplex)" },
+  { lat: 48.8534, lon: 2.3488, label: "Genymotion (Paris)" },
+  { lat: 37.3861, lon: -122.0839, label: "BlueStacks (San Francisco)" },
 ];
 
 const EMULATOR_COORD_TOLERANCE = 0.0001; /* ~11 metres */
 
-function isEmulatorCoordinate(lat: number, lon: number, accuracy?: number): { flagged: boolean; label: string } {
+function isEmulatorCoordinate(
+  lat: number,
+  lon: number,
+  accuracy?: number
+): { flagged: boolean; label: string } {
   /* Exact origin (0, 0) — equator/prime meridian, impossible for a real moving device */
   if (lat === 0 && lon === 0) {
     return { flagged: true, label: "Exact origin (0,0)" };
@@ -52,8 +56,10 @@ function isEmulatorCoordinate(lat: number, lon: number, accuracy?: number): { fl
   }
 
   for (const ec of EMULATOR_COORDS) {
-    if (Math.abs(lat - ec.lat) < EMULATOR_COORD_TOLERANCE &&
-        Math.abs(lon - ec.lon) < EMULATOR_COORD_TOLERANCE) {
+    if (
+      Math.abs(lat - ec.lat) < EMULATOR_COORD_TOLERANCE &&
+      Math.abs(lon - ec.lon) < EMULATOR_COORD_TOLERANCE
+    ) {
       return { flagged: true, label: ec.label };
     }
   }
@@ -87,17 +93,20 @@ export function gpsAntiSpoofMiddleware(req: Request, res: Response, next: NextFu
      This is a reliable emulator/mock-provider hardware signature and is checked
      before the platform-settings-based accuracy threshold so it is always enforced. */
   if (acc !== undefined && acc === 0) {
-    logger.warn({ ip, userId }, "[gps-spoof] GPS accuracy === 0 — mock provider hardware signature");
+    logger.warn(
+      { ip, userId },
+      "[gps-spoof] GPS accuracy === 0 — mock provider hardware signature"
+    );
     addSecurityEvent({
-      type:     "gps_spoof_detected",
+      type: "gps_spoof_detected",
       ip,
-      userId:   userId !== "unknown" ? userId : undefined,
-      details:  "GPS accuracy === 0 — physically impossible from real hardware",
+      userId: userId !== "unknown" ? userId : undefined,
+      details: "GPS accuracy === 0 — physically impossible from real hardware",
       severity: "medium",
     });
     res.status(422).json({
       error: "GPS location rejected: mock GPS provider detected. Please disable fake GPS apps.",
-      code:  "GPS_SPOOF_DETECTED",
+      code: "GPS_SPOOF_DETECTED",
     });
     return;
   }
@@ -107,15 +116,15 @@ export function gpsAntiSpoofMiddleware(req: Request, res: Response, next: NextFu
   if (mockFlagged) {
     logger.warn({ ip, userId }, "[gps-spoof] Mock GPS provider flag set");
     addSecurityEvent({
-      type:     "gps_spoof_detected",
+      type: "gps_spoof_detected",
       ip,
-      userId:   userId !== "unknown" ? userId : undefined,
-      details:  "Mock GPS provider flag set by client",
+      userId: userId !== "unknown" ? userId : undefined,
+      details: "Mock GPS provider flag set by client",
       severity: "medium",
     });
     res.status(422).json({
       error: "GPS location rejected: mock GPS provider detected. Please disable fake GPS apps.",
-      code:  "GPS_SPOOF_DETECTED",
+      code: "GPS_SPOOF_DETECTED",
     });
     return;
   }
@@ -125,15 +134,15 @@ export function gpsAntiSpoofMiddleware(req: Request, res: Response, next: NextFu
   if (emulator.flagged) {
     logger.warn({ ip, userId, label: emulator.label }, "[gps-spoof] Emulator signature detected");
     addSecurityEvent({
-      type:     "gps_spoof_detected",
+      type: "gps_spoof_detected",
       ip,
-      userId:   userId !== "unknown" ? userId : undefined,
-      details:  `Emulator signature: ${emulator.label}`,
+      userId: userId !== "unknown" ? userId : undefined,
+      details: `Emulator signature: ${emulator.label}`,
       severity: "high",
     });
     res.status(422).json({
       error: "GPS location rejected: emulator or fake GPS coordinates detected.",
-      code:  "GPS_SPOOF_DETECTED",
+      code: "GPS_SPOOF_DETECTED",
     });
     return;
   }

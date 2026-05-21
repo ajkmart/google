@@ -14,52 +14,71 @@ interface HomeGoalModalProps {
   T: (key: import("@workspace/i18n").TranslationKey) => string;
 }
 
-export function HomeGoalModal({ onClose, goalInput, setGoalInput, handleSaveGoal, goalMutation, config, currency, earningsData, user, T }: HomeGoalModalProps) {
+export function HomeGoalModal({
+  onClose,
+  goalInput,
+  setGoalInput,
+  handleSaveGoal,
+  goalMutation,
+  config,
+  currency,
+  earningsData,
+  user,
+  T,
+}: HomeGoalModalProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl">
-        <div className="flex items-center justify-between mb-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center">
+      <div className="w-full max-w-sm rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl">
+        <div className="mb-4 flex items-center justify-between">
           <div>
-            <h3 className="font-extrabold text-gray-900 text-base">{T("setDailyGoalTitle")}</h3>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <h3 className="text-base font-extrabold text-gray-900">{T("setDailyGoalTitle")}</h3>
+            <p className="mt-0.5 text-xs text-gray-400">
               Admin default: {formatCurrency(config.rider?.dailyGoal ?? 5000, currency)}/day
             </p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors">
-            <X size={16}/>
+          <button
+            onClick={onClose}
+            className="rounded-xl bg-gray-100 p-2 text-gray-500 transition-colors hover:bg-gray-200"
+          >
+            <X size={16} />
           </button>
         </div>
 
         <div className="mb-4">
-          <label className="text-xs font-bold text-gray-600 uppercase tracking-wider block mb-1.5">
+          <label className="mb-1.5 block text-xs font-bold tracking-wider text-gray-600 uppercase">
             Your Personal Goal ({currency})
           </label>
-          <div className="flex items-center border-2 border-gray-200 rounded-2xl overflow-hidden focus-within:border-gray-900 transition-colors">
-            <span className="px-3 text-gray-400 font-bold text-sm">{currency}</span>
+          <div className="flex items-center overflow-hidden rounded-2xl border-2 border-gray-200 transition-colors focus-within:border-gray-900">
+            <span className="px-3 text-sm font-bold text-gray-400">{currency}</span>
             <input
               type="number"
               min="1"
               step="100"
               value={goalInput}
-              onChange={e => setGoalInput(e.target.value)}
+              onChange={(e) => setGoalInput(e.target.value)}
               placeholder={String(Math.round(config.rider?.dailyGoal ?? 5000))}
-              className="flex-1 py-3 pr-3 text-gray-900 font-extrabold text-lg outline-none bg-transparent"
+              className="flex-1 bg-transparent py-3 pr-3 text-lg font-extrabold text-gray-900 outline-none"
               autoFocus
             />
           </div>
-          <p className="text-xs text-gray-400 mt-1.5">
-            Leave blank to use the admin default ({formatCurrency(config.rider?.dailyGoal ?? 5000, currency)}).
+          <p className="mt-1.5 text-xs text-gray-400">
+            Leave blank to use the admin default (
+            {formatCurrency(config.rider?.dailyGoal ?? 5000, currency)}).
           </p>
         </div>
 
         <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 py-3 rounded-2xl border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50 transition-colors">
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-2xl border border-gray-200 py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
+          >
             Cancel
           </button>
           <button
             onClick={handleSaveGoal}
             disabled={goalMutation.isPending}
-            className="flex-1 py-3 rounded-2xl bg-gray-900 text-white font-bold text-sm hover:bg-gray-800 transition-colors disabled:opacity-60">
+            className="flex-1 rounded-2xl bg-gray-900 py-3 text-sm font-bold text-white transition-colors hover:bg-gray-800 disabled:opacity-60"
+          >
             {goalMutation.isPending ? "Saving…" : T("saveGoal")}
           </button>
         </div>
@@ -68,7 +87,8 @@ export function HomeGoalModal({ onClose, goalInput, setGoalInput, handleSaveGoal
           <button
             onClick={() => goalMutation.mutate(null)}
             disabled={goalMutation.isPending}
-            className="w-full mt-2 py-2.5 text-xs font-bold text-red-500 hover:text-red-700 transition-colors disabled:opacity-60">
+            className="mt-2 w-full py-2.5 text-xs font-bold text-red-500 transition-colors hover:text-red-700 disabled:opacity-60"
+          >
             {T("resetToAdminDefault")}
           </button>
         )}

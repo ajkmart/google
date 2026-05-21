@@ -9,7 +9,7 @@
  *    unknown receiver, and idempotency replay.
  */
 
-import { vi, describe, it, expect, beforeAll, afterAll } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 // ── Mocks (hoisted before all imports) ────────────────────────────────────────
 vi.mock("../../../services/sms.js", () => ({
@@ -42,20 +42,19 @@ vi.mock("../../../modules/otp/otp.deliver.js", () => ({
 }));
 
 // ── Imports ────────────────────────────────────────────────────────────────────
-import request from "supertest";
 import { randomUUID } from "crypto";
+import request from "supertest";
 import { createServer } from "../../../app.js";
 import { signAccessToken } from "../../../middleware/security.js";
 import {
   createTestUser,
   deleteTestUser,
-  generateTestPhone,
-  generateTestAjkId,
-  toCanonicalPhone,
-  setWalletBalance,
-  getWalletBalance,
   freezeWallet,
+  generateTestPhone,
+  getWalletBalance,
   seedPlatformSetting,
+  setWalletBalance,
+  toCanonicalPhone,
 } from "../helpers/db-helpers.js";
 
 // ── Test Suite ─────────────────────────────────────────────────────────────────

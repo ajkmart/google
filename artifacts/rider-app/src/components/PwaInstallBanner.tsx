@@ -2,7 +2,8 @@ import type { CSSProperties } from "react";
 import { usePwaInstall } from "../hooks/usePwaInstall";
 
 export function PwaInstallBanner() {
-  const { isInstallable, isInstalled, isIOS, isStandalone, isDismissed, promptInstall, dismiss } = usePwaInstall();
+  const { isInstallable, isInstalled, isIOS, isStandalone, isDismissed, promptInstall, dismiss } =
+    usePwaInstall();
 
   if (isInstalled || isStandalone || isDismissed) return null;
   if (!isInstallable && !isIOS) return null;
@@ -17,9 +18,7 @@ export function PwaInstallBanner() {
           <div>
             <div style={styles.title}>Install Rider App</div>
             <div style={styles.subtitle}>
-              {isIOS
-                ? "Tap Share → Add to Home Screen"
-                : "Install for quick access & offline use"}
+              {isIOS ? "Tap Share → Add to Home Screen" : "Install for quick access & offline use"}
             </div>
           </div>
         </div>

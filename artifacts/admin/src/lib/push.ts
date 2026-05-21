@@ -13,7 +13,9 @@ export async function registerPush(): Promise<void> {
     const vapidRes = await fetch(`${BASE}/api/push/vapid-key`);
     if (!vapidRes.ok) return;
     const vj = await vapidRes.json();
-    const { publicKey } = (vj?.success === true && "data" in vj ? vj.data : vj) as { publicKey: string };
+    const { publicKey } = (vj?.success === true && "data" in vj ? vj.data : vj) as {
+      publicKey: string;
+    };
     if (!publicKey) return;
 
     const decoded = urlBase64ToUint8Array(publicKey);
@@ -27,7 +29,12 @@ export async function registerPush(): Promise<void> {
     const { fetchAdminAbsolute } = await import("./adminFetcher");
     await fetchAdminAbsolute(`${BASE}/api/push/subscribe`, {
       method: "POST",
-      body: JSON.stringify({ endpoint: sub.endpoint, p256dh: sub.toJSON().keys?.p256dh, auth: sub.toJSON().keys?.auth, role: "admin" }),
+      body: JSON.stringify({
+        endpoint: sub.endpoint,
+        p256dh: sub.toJSON().keys?.p256dh,
+        auth: sub.toJSON().keys?.auth,
+        role: "admin",
+      }),
     });
   } catch (e) {
     log.warn("registration failed:", e);
@@ -47,7 +54,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> | 
     log.warn("vapid key has invalid characters");
     return null;
   }
-  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
   let rawData: string;
   try {

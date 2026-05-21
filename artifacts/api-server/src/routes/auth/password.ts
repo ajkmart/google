@@ -1,57 +1,61 @@
-import { Router, type IRouter, type Request, type Response } from "express";
-import jwt from "jsonwebtoken";
-import rateLimit from "express-rate-limit";
-import crypto, { randomBytes, createHash, randomInt } from "crypto";
-import { z } from "zod";
+import { isAuthMethodEnabled } from "@workspace/auth-utils/server";
 import { db } from "@workspace/db";
-import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
-import { eq, and, sql, lt, or, desc, ilike, isNull } from "drizzle-orm";
-import { generateId } from "../../lib/id.js";
-import { getPlatformSettings } from "../admin.js";
-import { emitWebhookEvent } from "../../lib/webhook-emitter.js";
-import { fireAndForget } from "../../lib/fireAndForget.js";
-import { checkLockout, recordFailedAttempt, resetAttempts, addSecurityEvent, getClientIp, getCachedSettings, signUserJwt, signAccessToken, sign2faChallengeToken, verify2faChallengeToken, generateRefreshToken, hashRefreshToken, isRefreshTokenValid, revokeRefreshToken, revokeAllUserRefreshTokens, verifyUserJwt, blacklistJti, writeAuthAuditLog, getRefreshTokenTtlDays, getAccessTokenTtlSec, verifyCaptcha, checkAvailableRateLimit } from "../../middleware/security.js";
-import { sendOtpSMS, isSMSProviderConfigured, isSMSConsoleActive } from "../../services/sms.js";
-import { sendOtpWithFailover, getWhitelistBypass } from "../../services/smsGateway.js";
-import { sendWhatsAppOTP, isWhatsAppProviderConfigured } from "../../services/whatsapp.js";
-import { hashPassword, verifyPassword, validatePasswordStrength, generateSecureOtp } from "../../services/password.js";
-import { generateTotpSecret, verifyTotpToken, generateQRCodeDataURL, getTotpUri, encryptTotpSecret, decryptTotpSecret } from "../../services/totp.js";
-import { sendVerificationEmail, sendPasswordResetEmail, sendMagicLinkEmail, alertNewVendor, isEmailProviderConfigured } from "../../services/email.js";
-import { getUserLanguage, getPlatformDefaultLanguage } from "../../lib/getUserLanguage.js";
+import { rateLimitsTable, usersTable } from "@workspace/db/schema";
 import { t } from "@workspace/i18n";
-import { logger } from "../../lib/logger.js";
-import { sendError, sendErrorWithData, sendUnauthorized, sendForbidden, sendNotFound, sendInternalError, sendTooManyRequests, sendSuccess, sendCreated } from "../../lib/response.js";
-import { logAuthEvent, AUTH_ERROR_CODES } from "../../lib/auth-response.js";
-import { clearSpoofHits } from "../rider/index.js";
 import { canonicalizePhone } from "@workspace/phone-utils";
-import { isAuthMethodEnabled, isAuthMethodEnabledStrict } from "@workspace/auth-utils/server";
+import { eq, sql } from "drizzle-orm";
+import { Router, type IRouter } from "express";
+import jwt from "jsonwebtoken";
+import { logAuthEvent } from "../../lib/auth-response.js";
+import { fireAndForget } from "../../lib/fireAndForget.js";
+import { getPlatformDefaultLanguage, getUserLanguage } from "../../lib/getUserLanguage.js";
+import { generateId } from "../../lib/id.js";
+import { logger } from "../../lib/logger.js";
+import {
+  sendError,
+  sendErrorWithData,
+  sendForbidden,
+  sendNotFound,
+  sendSuccess,
+  sendTooManyRequests,
+  sendUnauthorized,
+} from "../../lib/response.js";
+import { loginLimiter, otpLimiter, passwordResetLimiter } from "../../middleware/rate-limit.js";
+import {
+  checkLockout,
+  getCachedSettings,
+  getClientIp,
+  recordFailedAttempt,
+  resetAttempts,
+  revokeAllUserRefreshTokens,
+  verifyCaptcha,
+  verifyUserJwt,
+  writeAuthAuditLog,
+} from "../../middleware/security.js";
 import { validateBody as sharedValidateBody } from "../../middleware/validate.js";
-import { authLimiter, loginLimiter, otpLimiter, passwordResetLimiter } from "../../middleware/rate-limit.js";
-import { hashOtp, isValidCanonicalPhone, normalizeVehicleTypeForStorage, generateVerificationToken, hashVerificationToken, tryEncrypt, decryptPii, setRiderRefreshCookie, clearRiderRefreshCookie, setVendorRefreshCookie, clearVendorRefreshCookie, RIDER_REFRESH_COOKIE, RIDER_REFRESH_COOKIE_PATH, VENDOR_REFRESH_COOKIE, VENDOR_REFRESH_COOKIE_PATH } from "./helpers.js";
-import { saveOtpToken, getActiveOtpToken, markOtpUsed } from "../../modules/otp/otp.store.js";
 import { hashOtpCode, verifyOtpHash } from "../../modules/otp/otp.generate.js";
-import { OtpBlockedError, OtpInvalidError, OtpExpiredError } from "../../modules/otp/otp.types.js";
-import { verifyOtp } from "../../modules/otp/otp.verify.js";
-import { rotateRefreshToken, invalidateTokenFamily } from "../../services/auth/tokenRotation.js";
+import { getActiveOtpToken, saveOtpToken } from "../../modules/otp/otp.store.js";
 import { AuditService } from "../../services/admin-audit.service.js";
+import { sendPasswordResetEmail } from "../../services/email.js";
+import {
+  generateSecureOtp,
+  hashPassword,
+  validatePasswordStrength,
+  verifyPassword,
+} from "../../services/password.js";
+import { sendOtpSMS } from "../../services/sms.js";
+import { decryptTotpSecret } from "../../services/totp.js";
+import { sendWhatsAppOTP } from "../../services/whatsapp.js";
+import { handleUnifiedLogin } from "./auth-common.js";
 import {
   AUTH_OTP_TTL_MS,
-  CNIC_REGEX,
-  PHONE_REGEX,
-  forgotPasswordSchema,
-  registerSchema,
-  refreshTokenSchema,
-  checkIdentifierSchema,
-  sendOtpSchema,
-  verifyOtpSchema,
-  loginSchema,
-  UserLoginSchema,
-  SetPasswordSchema,
-  VerifyResetOtpSchema,
-  ResetPasswordSchema,
   findUserByIdentifier,
+  forgotPasswordSchema,
+  ResetPasswordSchema,
+  SetPasswordSchema,
+  UserLoginSchema,
+  VerifyResetOtpSchema,
 } from "./helpers.js";
-import { handleUnifiedLogin } from "./auth-common.js";
 
 const router: IRouter = Router();
 
@@ -104,9 +108,21 @@ const router: IRouter = Router();
  *       429:
  *         description: Too many login attempts
  */
-router.post("/login/username", loginLimiter, verifyCaptcha, sharedValidateBody(UserLoginSchema), handleUnifiedLogin);
+router.post(
+  "/login/username",
+  loginLimiter,
+  verifyCaptcha,
+  sharedValidateBody(UserLoginSchema),
+  handleUnifiedLogin
+);
 
-router.post("/login", loginLimiter, verifyCaptcha, sharedValidateBody(UserLoginSchema), handleUnifiedLogin);
+router.post(
+  "/login",
+  loginLimiter,
+  verifyCaptcha,
+  sharedValidateBody(UserLoginSchema),
+  handleUnifiedLogin
+);
 
 /* ══════════════════════════════════════════════════════════════
    POST /auth/login/verify-otp
@@ -115,69 +131,109 @@ router.post("/login", loginLimiter, verifyCaptcha, sharedValidateBody(UserLoginS
    Returns JWT token on success.
 ══════════════════════════════════════════════════════════════ */
 
-router.post("/set-password", loginLimiter, sharedValidateBody(SetPasswordSchema), async (req, res) => {
-  try {
-  /* Accept token ONLY from Authorization: Bearer header — body token is rejected
+router.post(
+  "/set-password",
+  loginLimiter,
+  sharedValidateBody(SetPasswordSchema),
+  async (req, res) => {
+    try {
+      /* Accept token ONLY from Authorization: Bearer header — body token is rejected
      to prevent token leakage via request logging, proxies, or CSRF-style attacks. */
-  const authHeader = req.headers["authorization"] as string | undefined;
-  const rawToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  const { password, currentPassword } = req.body;
-  if (!rawToken || !password) { sendError(res, "Token and password required", 400); return; }
+      const authHeader = req.headers["authorization"] as string | undefined;
+      const rawToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+      const { password, currentPassword } = req.body;
+      if (!rawToken || !password) {
+        sendError(res, "Token and password required", 400);
+        return;
+      }
 
-  const payload = verifyUserJwt(rawToken);
-  if (!payload) { sendUnauthorized(res, "Invalid or expired token. Please log in again."); return; }
-  const userId = payload.userId;
+      const payload = verifyUserJwt(rawToken);
+      if (!payload) {
+        sendUnauthorized(res, "Invalid or expired token. Please log in again.");
+        return;
+      }
+      const userId = payload.userId;
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-  if (!user)         { sendNotFound(res, "User not found"); return; }
-  if (user.isBanned) { sendForbidden(res, "Account suspended. Contact support."); return; }
-  /* Inactive users are blocked from setting a password — UNLESS they have a
+      const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+      if (!user) {
+        sendNotFound(res, "User not found");
+        return;
+      }
+      if (user.isBanned) {
+        sendForbidden(res, "Account suspended. Contact support.");
+        return;
+      }
+      /* Inactive users are blocked from setting a password — UNLESS they have a
      pending approval status (vendor/rider onboarding). Pending accounts are
      inactive by design (isActive = false) until approved, but they still need
      to set a password during onboarding. */
-  if (!user.isActive && user.approvalStatus !== "pending") {
-    sendForbidden(res, "Account inactive. Contact support."); return;
-  }
+      if (!user.isActive && user.approvalStatus !== "pending") {
+        sendForbidden(res, "Account inactive. Contact support.");
+        return;
+      }
 
-  /* If user has a non-temporary password, ALWAYS require the current password — no bypass.
+      /* If user has a non-temporary password, ALWAYS require the current password — no bypass.
      If requirePasswordChange is true (admin set a temp password), skip current-password
      check to allow the user to change it on first login without knowing the old hash. */
-  const isTempPasswordChange = user.requirePasswordChange === true;
-  if (user.passwordHash && !isTempPasswordChange) {
-    if (!currentPassword) {
-      sendError(res, "Current password required to change password", 400); return;
-    }
-    if (!verifyPassword(currentPassword, user.passwordHash)) {
-        const lang = await getPlatformDefaultLanguage();
-        sendUnauthorized(res, t("currentPasswordIncorrect", lang)); return;
-    }
-  }
+      const isTempPasswordChange = user.requirePasswordChange === true;
+      if (user.passwordHash && !isTempPasswordChange) {
+        if (!currentPassword) {
+          sendError(res, "Current password required to change password", 400);
+          return;
+        }
+        if (!verifyPassword(currentPassword, user.passwordHash)) {
+          const lang = await getPlatformDefaultLanguage();
+          sendUnauthorized(res, t("currentPasswordIncorrect", lang));
+          return;
+        }
+      }
 
-  const check = validatePasswordStrength(password);
-  if (!check.ok) { sendError(res, check.message, 400); return; }
+      const check = validatePasswordStrength(password);
+      if (!check.ok) {
+        sendError(res, check.message, 400);
+        return;
+      }
 
-  /* Bump tokenVersion to invalidate all outstanding JWTs on password change;
+      /* Bump tokenVersion to invalidate all outstanding JWTs on password change;
      also clear requirePasswordChange now that the user has set their own password. */
-  await db.update(usersTable).set({
-    passwordHash: hashPassword(password),
-    requirePasswordChange: false,
-    tokenVersion: sql`token_version + 1`,
-    updatedAt: new Date(),
-  }).where(eq(usersTable.id, userId));
-  /* Revoke all active refresh tokens BEFORE responding so stolen tokens cannot
+      await db
+        .update(usersTable)
+        .set({
+          passwordHash: hashPassword(password),
+          requirePasswordChange: false,
+          tokenVersion: sql`token_version + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(usersTable.id, userId));
+      /* Revoke all active refresh tokens BEFORE responding so stolen tokens cannot
      survive a password change. Awaited intentionally — same rationale as in
      complete-profile: issuing a success response before revocation completes
      creates a session-integrity window. */
-  await revokeAllUserRefreshTokens(userId, "PASSWORD_CHANGED").catch((err: unknown) => {
-    logger.warn({ userId, err }, "[auth] revokeAllUserRefreshTokens after set-password failed");
-  });
-  writeAuthAuditLog("password_changed", { userId, ip: getClientIp(req), userAgent: req.headers["user-agent"] ?? undefined });
-  sendSuccess(res, { success: true, message: t("passwordUpdated", await getPlatformDefaultLanguage()), requirePasswordChange: false });
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
+      await revokeAllUserRefreshTokens(userId, "PASSWORD_CHANGED").catch((err: unknown) => {
+        logger.warn({ userId, err }, "[auth] revokeAllUserRefreshTokens after set-password failed");
+      });
+      writeAuthAuditLog("password_changed", {
+        userId,
+        ip: getClientIp(req),
+        userAgent: req.headers["user-agent"] ?? undefined,
+      });
+      sendSuccess(res, {
+        success: true,
+        message: t("passwordUpdated", await getPlatformDefaultLanguage()),
+        requirePasswordChange: false,
+      });
+    } catch (err) {
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
   }
-});
+);
 
 function issueResetToken(userId: string): string {
   const jti = generateId();
@@ -198,116 +254,183 @@ function issueResetToken(userId: string): string {
    Keys: otp_acct:<identifier>  and  otp_ip:<ip>
 ══════════════════════════════════════════════════════════════════════ */
 
-router.post("/forgot-password", passwordResetLimiter, verifyCaptcha, sharedValidateBody(forgotPasswordSchema), async (req, res) => {
-  try {
-  let { phone, email, identifier } = req.body;
-  const ip = getClientIp(req);
-  const settings = await getCachedSettings();
+router.post(
+  "/forgot-password",
+  passwordResetLimiter,
+  verifyCaptcha,
+  sharedValidateBody(forgotPasswordSchema),
+  async (req, res) => {
+    try {
+      let { phone, email, identifier } = req.body;
+      const ip = getClientIp(req);
+      const settings = await getCachedSettings();
 
-  if (identifier && !phone && !email) {
-    const resolved = await findUserByIdentifier(identifier);
-    if (resolved.user) {
-      if (resolved.idType === "phone") {
-        phone = resolved.user.phone ?? undefined;
-      } else if (resolved.idType === "email") {
-        email = resolved.user.email ?? undefined;
-      } else if (resolved.idType === "username") {
-        if (resolved.user.email) {
-          email = resolved.user.email ?? undefined;
-        } else if (resolved.user.phone) {
-          phone = resolved.user.phone ?? undefined;
+      if (identifier && !phone && !email) {
+        const resolved = await findUserByIdentifier(identifier);
+        if (resolved.user) {
+          if (resolved.idType === "phone") {
+            phone = resolved.user.phone ?? undefined;
+          } else if (resolved.idType === "email") {
+            email = resolved.user.email ?? undefined;
+          } else if (resolved.idType === "username") {
+            if (resolved.user.email) {
+              email = resolved.user.email ?? undefined;
+            } else if (resolved.user.phone) {
+              phone = resolved.user.phone ?? undefined;
+            }
+          }
         }
       }
-    }
-  }
 
-  if (!phone && !email) {
-    sendError(res, "Phone, email, or username is required", 400);
-    return;
-  }
+      if (!phone && !email) {
+        sendError(res, "Phone, email, or username is required", 400);
+        return;
+      }
 
-  if (phone && !isAuthMethodEnabled(settings, "auth_phone_otp_enabled")) {
-    sendForbidden(res, "Phone-based password reset is currently disabled");
-    return;
-  }
-  if (email && !phone && !isAuthMethodEnabled(settings, "auth_email_otp_enabled")) {
-    sendForbidden(res, "Email-based password reset is currently disabled");
-    return;
-  }
+      if (phone && !isAuthMethodEnabled(settings, "auth_phone_otp_enabled")) {
+        sendForbidden(res, "Phone-based password reset is currently disabled");
+        return;
+      }
+      if (email && !phone && !isAuthMethodEnabled(settings, "auth_email_otp_enabled")) {
+        sendForbidden(res, "Email-based password reset is currently disabled");
+        return;
+      }
 
-  let user;
-  if (phone) {
-    const canonPhone = canonicalizePhone(phone);
-    const [found] = await db.select().from(usersTable).where(eq(usersTable.phone, canonPhone)).limit(1);
-    user = found;
-  } else {
-    const normalized = email!.toLowerCase().trim();
-    const [found] = await db.select().from(usersTable).where(eq(usersTable.email, normalized)).limit(1);
-    user = found;
-  }
+      let user;
+      if (phone) {
+        const canonPhone = canonicalizePhone(phone);
+        const [found] = await db
+          .select()
+          .from(usersTable)
+          .where(eq(usersTable.phone, canonPhone))
+          .limit(1);
+        user = found;
+      } else {
+        const normalized = email!.toLowerCase().trim();
+        const [found] = await db
+          .select()
+          .from(usersTable)
+          .where(eq(usersTable.email, normalized))
+          .limit(1);
+        user = found;
+      }
 
-  if (!user) {
-    sendSuccess(res, { message: "If an account exists, a reset code has been sent." });
-    return;
-  }
+      if (!user) {
+        sendSuccess(res, { message: "If an account exists, a reset code has been sent." });
+        return;
+      }
 
-  const forgotRole = user.roles ?? "customer";
-  if (phone && !isAuthMethodEnabled(settings, "auth_phone_otp_enabled", forgotRole)) {
-    sendForbidden(res, "Phone-based password reset is currently disabled for your account type.");
-    return;
-  }
-  if (email && !phone && !isAuthMethodEnabled(settings, "auth_email_otp_enabled", forgotRole)) {
-    sendForbidden(res, "Email-based password reset is currently disabled for your account type.");
-    return;
-  }
+      const forgotRole = user.roles ?? "customer";
+      if (phone && !isAuthMethodEnabled(settings, "auth_phone_otp_enabled", forgotRole)) {
+        sendForbidden(
+          res,
+          "Phone-based password reset is currently disabled for your account type."
+        );
+        return;
+      }
+      if (email && !phone && !isAuthMethodEnabled(settings, "auth_email_otp_enabled", forgotRole)) {
+        sendForbidden(
+          res,
+          "Email-based password reset is currently disabled for your account type."
+        );
+        return;
+      }
 
-  if (user.isBanned) { sendForbidden(res, "Account suspended."); return; }
-  if (!user.isActive && user.approvalStatus !== "pending") { sendForbidden(res, "Account inactive."); return; }
+      if (user.isBanned) {
+        sendForbidden(res, "Account suspended.");
+        return;
+      }
+      if (!user.isActive && user.approvalStatus !== "pending") {
+        sendForbidden(res, "Account inactive.");
+        return;
+      }
 
-  const maxAttempts = parseInt(settings["security_login_max_attempts"] ?? "5", 10);
-  const lockoutMinutes = parseInt(settings["security_lockout_minutes"] ?? "30", 10);
-  const lockoutKey = `reset:${user.id}`;
-  const lockout = await checkLockout(lockoutKey, maxAttempts, lockoutMinutes);
-  if (lockout.locked) {
-    sendTooManyRequests(res, `Too many attempts. Try again in ${lockout.minutesLeft} minute(s).`);
-    return;
-  }
+      const maxAttempts = parseInt(settings["security_login_max_attempts"] ?? "5", 10);
+      const lockoutMinutes = parseInt(settings["security_lockout_minutes"] ?? "30", 10);
+      const lockoutKey = `reset:${user.id}`;
+      const lockout = await checkLockout(lockoutKey, maxAttempts, lockoutMinutes);
+      if (lockout.locked) {
+        sendTooManyRequests(
+          res,
+          `Too many attempts. Try again in ${lockout.minutesLeft} minute(s).`
+        );
+        return;
+      }
 
-  const otp = generateSecureOtp();
-  const otpExpiry = new Date(Date.now() + AUTH_OTP_TTL_MS);
+      const otp = generateSecureOtp();
+      const otpExpiry = new Date(Date.now() + AUTH_OTP_TTL_MS);
 
-  const forgotLang = await getUserLanguage(user.id);
+      const forgotLang = await getUserLanguage(user.id);
 
-  if (phone) {
-    const targetPhone = canonicalizePhone(phone);
-    await saveOtpToken({ identifier: targetPhone, identifierType: "phone", otpType: "reset", otpHash: hashOtpCode(otp), channel: "sms", userId: user.id, ttlMs: AUTH_OTP_TTL_MS });
-    await sendOtpSMS(targetPhone, otp, settings, forgotLang);
-    if (settings["integration_whatsapp"] === "on") {
-      fireAndForget(
-        sendWhatsAppOTP(targetPhone, otp, settings, forgotLang),
-        "auth:whatsapp-otp:forgot-password",
-        logger,
-        { code: "AUTH_WHATSAPP_OTP_FAILED" },
+      if (phone) {
+        const targetPhone = canonicalizePhone(phone);
+        await saveOtpToken({
+          identifier: targetPhone,
+          identifierType: "phone",
+          otpType: "reset",
+          otpHash: hashOtpCode(otp),
+          channel: "sms",
+          userId: user.id,
+          ttlMs: AUTH_OTP_TTL_MS,
+        });
+        await sendOtpSMS(targetPhone, otp, settings, forgotLang);
+        if (settings["integration_whatsapp"] === "on") {
+          fireAndForget(
+            sendWhatsAppOTP(targetPhone, otp, settings, forgotLang),
+            "auth:whatsapp-otp:forgot-password",
+            logger,
+            { code: "AUTH_WHATSAPP_OTP_FAILED" }
+          );
+        }
+      } else {
+        const targetEmail = email!.toLowerCase().trim();
+        await saveOtpToken({
+          identifier: targetEmail,
+          identifierType: "email",
+          otpType: "reset",
+          otpHash: hashOtpCode(otp),
+          channel: "email",
+          userId: user.id,
+          ttlMs: AUTH_OTP_TTL_MS,
+        });
+
+        await sendPasswordResetEmail(email!, otp, user.name ?? undefined, forgotLang);
+      }
+
+      writeAuthAuditLog("forgot_password", {
+        userId: user.id,
+        ip,
+        userAgent: req.headers["user-agent"] ?? undefined,
+      });
+      logAuthEvent({
+        eventType: "password_reset_requested",
+        userId: user.id,
+        ip,
+        userAgent: req.headers["user-agent"] as string | undefined,
+        channel: phone ? "sms" : "email",
+        role: user.roles ?? "customer",
+        success: true,
+        metadata: {
+          identifier: phone ? canonicalizePhone(phone) : email!.toLowerCase().trim(),
+          expiresAt: otpExpiry.toISOString(),
+        },
+      });
+
+      sendSuccess(res, {
+        message: "If an account exists, a reset code has been sent.",
+      });
+    } catch (err) {
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
       );
+      res.status(500).json({ success: false, error: "Internal server error" });
     }
-  } else {
-    const targetEmail = email!.toLowerCase().trim();
-    await saveOtpToken({ identifier: targetEmail, identifierType: "email", otpType: "reset", otpHash: hashOtpCode(otp), channel: "email", userId: user.id, ttlMs: AUTH_OTP_TTL_MS });
-
-    await sendPasswordResetEmail(email!, otp, user.name ?? undefined, forgotLang);
   }
-
-  writeAuthAuditLog("forgot_password", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined });
-  logAuthEvent({ eventType: "password_reset_requested", userId: user.id, ip, userAgent: req.headers["user-agent"] as string | undefined, channel: phone ? "sms" : "email", role: user.roles ?? "customer", success: true, metadata: { identifier: phone ? canonicalizePhone(phone) : email!.toLowerCase().trim(), expiresAt: otpExpiry.toISOString() } });
-
-  sendSuccess(res, {
-    message: "If an account exists, a reset code has been sent.",
-  });
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
-});
+);
 
 /* ══════════════════════════════════════════════════════════════
    POST /auth/verify-reset-otp
@@ -316,232 +439,349 @@ router.post("/forgot-password", passwordResetLimiter, verifyCaptcha, sharedValid
    Returns: { valid: true } or 400/422 with error
 ══════════════════════════════════════════════════════════════ */
 
-router.post("/verify-reset-otp", otpLimiter, verifyCaptcha, sharedValidateBody(VerifyResetOtpSchema), async (req, res) => {
-  try {
-  let { phone, email, otp } = req.body;
-  const ip = getClientIp(req);
+router.post(
+  "/verify-reset-otp",
+  otpLimiter,
+  verifyCaptcha,
+  sharedValidateBody(VerifyResetOtpSchema),
+  async (req, res) => {
+    try {
+      let { phone, email, otp } = req.body;
+      const ip = getClientIp(req);
 
-  if (!otp || typeof otp !== "string" || !/^\d{6}$/.test(otp)) {
-    sendError(res, "OTP must be exactly 6 digits", 400);
-    return;
+      if (!otp || typeof otp !== "string" || !/^\d{6}$/.test(otp)) {
+        sendError(res, "OTP must be exactly 6 digits", 400);
+        return;
+      }
+      if (!phone && !email) {
+        sendError(res, "Phone or email is required", 400);
+        return;
+      }
+
+      let user: typeof usersTable.$inferSelect | undefined;
+      if (phone) {
+        const canonPhone = canonicalizePhone(phone);
+        const [found] = await db
+          .select()
+          .from(usersTable)
+          .where(eq(usersTable.phone, canonPhone))
+          .limit(1);
+        user = found;
+      } else {
+        const normalized = (email as string).toLowerCase().trim();
+        const [found] = await db
+          .select()
+          .from(usersTable)
+          .where(eq(usersTable.email, normalized))
+          .limit(1);
+        user = found;
+      }
+
+      if (!user) {
+        sendError(res, "Invalid or expired code", 422);
+        return;
+      }
+
+      const identifier = phone ? canonicalizePhone(phone) : (email as string).toLowerCase().trim();
+      const identifierType = phone ? "phone" : "email";
+      const activeToken = await getActiveOtpToken({ identifier, identifierType, otpType: "reset" });
+      if (!activeToken || !verifyOtpHash(otp, activeToken.otpHash)) {
+        sendError(res, "Invalid or expired verification code", 422);
+        return;
+      }
+
+      const settings = await getCachedSettings();
+      const maxAttempts = parseInt(settings["security_login_max_attempts"] ?? "5", 10);
+      const lockoutMinutes = parseInt(settings["security_lockout_minutes"] ?? "30", 10);
+      const lockoutKey = `reset:${user.id}`;
+      const lockout = await checkLockout(lockoutKey, maxAttempts, lockoutMinutes);
+      if (lockout.locked) {
+        sendTooManyRequests(
+          res,
+          `Too many attempts. Try again in ${lockout.minutesLeft} minute(s).`
+        );
+        return;
+      }
+
+      const resetToken = issueResetToken(user.id);
+      await db
+        .insert(rateLimitsTable)
+        .values({
+          key: `reset_token:${user.id}:${resetToken.slice(0, 16)}`,
+          attempts: 1,
+          windowStart: new Date(),
+          updatedAt: new Date(),
+        })
+        .catch(() => undefined);
+      writeAuthAuditLog("verify_reset_otp", {
+        userId: user.id,
+        ip,
+        userAgent: req.headers["user-agent"] ?? undefined,
+      });
+      sendSuccess(res, {
+        resetToken,
+        requires2FA: !!(
+          user.totpEnabled &&
+          isAuthMethodEnabled(settings, "auth_2fa_enabled", user.roles ?? undefined)
+        ),
+      });
+    } catch (err) {
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
   }
-  if (!phone && !email) {
-    sendError(res, "Phone or email is required", 400);
-    return;
-  }
+);
 
-  let user: (typeof usersTable.$inferSelect) | undefined;
-  if (phone) {
-    const canonPhone = canonicalizePhone(phone);
-    const [found] = await db.select().from(usersTable).where(eq(usersTable.phone, canonPhone)).limit(1);
-    user = found;
-  } else {
-    const normalized = (email as string).toLowerCase().trim();
-    const [found] = await db.select().from(usersTable).where(eq(usersTable.email, normalized)).limit(1);
-    user = found;
-  }
+router.post(
+  "/reset-password",
+  verifyCaptcha,
+  sharedValidateBody(ResetPasswordSchema),
+  async (req, res) => {
+    try {
+      let { phone, email, identifier, resetToken, newPassword, totpCode } = req.body;
+      const ip = getClientIp(req);
+      const settings = await getCachedSettings();
 
-  if (!user) {
-    sendError(res, "Invalid or expired code", 422);
-    return;
-  }
+      if (!resetToken || typeof resetToken !== "string") {
+        sendError(res, "resetToken is required", 400);
+        return;
+      }
+      if (!newPassword) {
+        sendError(res, "New password is required", 400);
+        return;
+      }
 
-  const identifier = phone ? canonicalizePhone(phone) : (email as string).toLowerCase().trim();
-  const identifierType = phone ? "phone" : "email";
-  const activeToken = await getActiveOtpToken({ identifier, identifierType, otpType: "reset" });
-  if (!activeToken || !verifyOtpHash(otp, activeToken.otpHash)) {
-    sendError(res, "Invalid or expired verification code", 422);
-    return;
-  }
-
-  const settings = await getCachedSettings();
-  const maxAttempts = parseInt(settings["security_login_max_attempts"] ?? "5", 10);
-  const lockoutMinutes = parseInt(settings["security_lockout_minutes"] ?? "30", 10);
-  const lockoutKey = `reset:${user.id}`;
-  const lockout = await checkLockout(lockoutKey, maxAttempts, lockoutMinutes);
-  if (lockout.locked) {
-    sendTooManyRequests(res, `Too many attempts. Try again in ${lockout.minutesLeft} minute(s).`);
-    return;
-  }
-
-  const resetToken = issueResetToken(user.id);
-  await db.insert(rateLimitsTable).values({
-    key: `reset_token:${user.id}:${resetToken.slice(0, 16)}`,
-    attempts: 1,
-    windowStart: new Date(),
-    updatedAt: new Date(),
-  }).catch(() => undefined);
-  writeAuthAuditLog("verify_reset_otp", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined });
-  sendSuccess(res, { resetToken, requires2FA: !!(user.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", user.roles ?? undefined)) });
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
-});
-
-
-router.post("/reset-password", verifyCaptcha, sharedValidateBody(ResetPasswordSchema), async (req, res) => {
-  try {
-  let { phone, email, identifier, resetToken, newPassword, totpCode } = req.body;
-  const ip = getClientIp(req);
-  const settings = await getCachedSettings();
-
-  if (!resetToken || typeof resetToken !== "string") {
-    sendError(res, "resetToken is required", 400);
-    return;
-  }
-  if (!newPassword) {
-    sendError(res, "New password is required", 400);
-    return;
-  }
-
-  if (identifier && !phone && !email) {
-    const resolved = await findUserByIdentifier(identifier);
-    if (resolved.user) {
-      if (resolved.idType === "phone") {
-        phone = resolved.user.phone ?? undefined;
-      } else if (resolved.idType === "email") {
-        email = resolved.user.email ?? undefined;
-      } else if (resolved.idType === "username") {
-        if (resolved.user.email) {
-          email = resolved.user.email ?? undefined;
-        } else if (resolved.user.phone) {
-          phone = resolved.user.phone ?? undefined;
+      if (identifier && !phone && !email) {
+        const resolved = await findUserByIdentifier(identifier);
+        if (resolved.user) {
+          if (resolved.idType === "phone") {
+            phone = resolved.user.phone ?? undefined;
+          } else if (resolved.idType === "email") {
+            email = resolved.user.email ?? undefined;
+          } else if (resolved.idType === "username") {
+            if (resolved.user.email) {
+              email = resolved.user.email ?? undefined;
+            } else if (resolved.user.phone) {
+              phone = resolved.user.phone ?? undefined;
+            }
+          }
         }
       }
-    }
-  }
 
-  if (!phone && !email) {
-    sendError(res, "Phone, email, or username is required", 400);
-    return;
-  }
+      if (!phone && !email) {
+        sendError(res, "Phone, email, or username is required", 400);
+        return;
+      }
 
-  const pwCheck = validatePasswordStrength(newPassword);
-  if (!pwCheck.ok) {
-    sendError(res, pwCheck.message, 400);
-    return;
-  }
+      const pwCheck = validatePasswordStrength(newPassword);
+      if (!pwCheck.ok) {
+        sendError(res, pwCheck.message, 400);
+        return;
+      }
 
-  let user;
-  if (phone) {
-    const canonPhone = canonicalizePhone(phone);
-    const [found] = await db.select().from(usersTable).where(eq(usersTable.phone, canonPhone)).limit(1);
-    user = found;
-  } else {
-    const normalized = email!.toLowerCase().trim();
-    const [found] = await db.select().from(usersTable).where(eq(usersTable.email, normalized)).limit(1);
-    user = found;
-  }
+      let user;
+      if (phone) {
+        const canonPhone = canonicalizePhone(phone);
+        const [found] = await db
+          .select()
+          .from(usersTable)
+          .where(eq(usersTable.phone, canonPhone))
+          .limit(1);
+        user = found;
+      } else {
+        const normalized = email!.toLowerCase().trim();
+        const [found] = await db
+          .select()
+          .from(usersTable)
+          .where(eq(usersTable.email, normalized))
+          .limit(1);
+        user = found;
+      }
 
-  if (!user) {
-    sendNotFound(res, "Account not found");
-    return;
-  }
+      if (!user) {
+        sendNotFound(res, "Account not found");
+        return;
+      }
 
-  const userRole = user.roles ?? "customer";
+      const userRole = user.roles ?? "customer";
 
-  if (phone && !isAuthMethodEnabled(settings, "auth_phone_otp_enabled", userRole)) {
-    sendForbidden(res, "Phone-based password reset is currently disabled for your account type.");
-    return;
-  }
-  if (email && !phone && !isAuthMethodEnabled(settings, "auth_email_otp_enabled", userRole)) {
-    sendForbidden(res, "Email-based password reset is currently disabled for your account type.");
-    return;
-  }
+      if (phone && !isAuthMethodEnabled(settings, "auth_phone_otp_enabled", userRole)) {
+        sendForbidden(
+          res,
+          "Phone-based password reset is currently disabled for your account type."
+        );
+        return;
+      }
+      if (email && !phone && !isAuthMethodEnabled(settings, "auth_email_otp_enabled", userRole)) {
+        sendForbidden(
+          res,
+          "Email-based password reset is currently disabled for your account type."
+        );
+        return;
+      }
 
-  if (user.isBanned) { sendForbidden(res, "Account suspended."); return; }
+      if (user.isBanned) {
+        sendForbidden(res, "Account suspended.");
+        return;
+      }
 
-  const maxAttempts = parseInt(settings["security_login_max_attempts"] ?? "5", 10);
-  const lockoutMinutes = parseInt(settings["security_lockout_minutes"] ?? "30", 10);
-  const lockoutKey = `reset:${user.id}`;
-  const lockout = await checkLockout(lockoutKey, maxAttempts, lockoutMinutes);
-  if (lockout.locked) {
-    sendTooManyRequests(res, `Too many attempts. Try again in ${lockout.minutesLeft} minute(s).`);
-    return;
-  }
+      const maxAttempts = parseInt(settings["security_login_max_attempts"] ?? "5", 10);
+      const lockoutMinutes = parseInt(settings["security_lockout_minutes"] ?? "30", 10);
+      const lockoutKey = `reset:${user.id}`;
+      const lockout = await checkLockout(lockoutKey, maxAttempts, lockoutMinutes);
+      if (lockout.locked) {
+        sendTooManyRequests(
+          res,
+          `Too many attempts. Try again in ${lockout.minutesLeft} minute(s).`
+        );
+        return;
+      }
 
-  let payload: { userId: string; purpose: string; jti: string };
-  try {
-    payload = jwt.verify(resetToken, process.env["JWT_SECRET"]!) as { userId: string; purpose: string; jti: string };
-  } catch {
-    sendUnauthorized(res, "Invalid or expired reset token");
-    return;
-  }
-  if (payload.purpose !== "password_reset" || payload.userId !== user.id) {
-    sendUnauthorized(res, "Invalid or expired reset token");
-    return;
-  }
-  /* Persist the used JTI to the DB so the token cannot be reused even after a
+      let payload: { userId: string; purpose: string; jti: string };
+      try {
+        payload = jwt.verify(resetToken, process.env["JWT_SECRET"]!) as {
+          userId: string;
+          purpose: string;
+          jti: string;
+        };
+      } catch {
+        sendUnauthorized(res, "Invalid or expired reset token");
+        return;
+      }
+      if (payload.purpose !== "password_reset" || payload.userId !== user.id) {
+        sendUnauthorized(res, "Invalid or expired reset token");
+        return;
+      }
+      /* Persist the used JTI to the DB so the token cannot be reused even after a
      server restart (the in-memory blacklist would be cleared on restart). */
-  const jtiKey = `reset_jti:${payload.jti}`;
-  const [usedJti] = await db.select({ key: rateLimitsTable.key }).from(rateLimitsTable).where(eq(rateLimitsTable.key, jtiKey)).limit(1);
-  if (usedJti) {
-    sendUnauthorized(res, "Invalid or expired reset token");
-    return;
-  }
-  await db.insert(rateLimitsTable).values({
-    key: jtiKey,
-    attempts: 1,
-    windowStart: new Date(),
-    updatedAt: new Date(),
-  }).catch((err: unknown) => {
-    logger.warn({ err }, "[auth] reset token JTI persist failed");
-  });
+      const jtiKey = `reset_jti:${payload.jti}`;
+      const [usedJti] = await db
+        .select({ key: rateLimitsTable.key })
+        .from(rateLimitsTable)
+        .where(eq(rateLimitsTable.key, jtiKey))
+        .limit(1);
+      if (usedJti) {
+        sendUnauthorized(res, "Invalid or expired reset token");
+        return;
+      }
+      await db
+        .insert(rateLimitsTable)
+        .values({
+          key: jtiKey,
+          attempts: 1,
+          windowStart: new Date(),
+          updatedAt: new Date(),
+        })
+        .catch((err: unknown) => {
+          logger.warn({ err }, "[auth] reset token JTI persist failed");
+        });
 
-  if (user.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", userRole)) {
-    if (!totpCode) {
-      sendErrorWithData(res, "Two-factor authentication code required", { requires2FA: true }, 400);
-      return;
-    }
-    if (!/^\d{6}$/.test(totpCode)) {
-      sendError(res, "TOTP code must be 6 digits", 400);
-      return;
-    }
-    if (!user.totpSecret) {
-      sendError(res, "2FA is not properly configured for this account. Please contact support.", 400);
-      return;
-    }
-    const { verifyTotpCode } = await import("../../services/password.js");
-    let decryptedSecret: string;
-    try {
-      decryptedSecret = decryptTotpSecret(user.totpSecret);
-    } catch (decryptErr) {
-      logger.error({ error: decryptErr instanceof Error ? decryptErr.message : String(decryptErr), userId: user.id }, "[reset-password] TOTP secret decryption failed");
-      sendUnauthorized(res, "Two-factor authentication is not properly configured. Please contact support.");
-      return;
-    }
-    if (!verifyTotpCode(decryptedSecret, totpCode)) {
-      await recordFailedAttempt(lockoutKey, maxAttempts, lockoutMinutes);
-      AuditService.log({ action: "reset_password_2fa_failed", ip, details: `Invalid TOTP for password reset: ${user.id}`, result: "fail" });
-      sendUnauthorized(res, "Invalid two-factor authentication code");
-      return;
-    }
-  }
+      if (user.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", userRole)) {
+        if (!totpCode) {
+          sendErrorWithData(
+            res,
+            "Two-factor authentication code required",
+            { requires2FA: true },
+            400
+          );
+          return;
+        }
+        if (!/^\d{6}$/.test(totpCode)) {
+          sendError(res, "TOTP code must be 6 digits", 400);
+          return;
+        }
+        if (!user.totpSecret) {
+          sendError(
+            res,
+            "2FA is not properly configured for this account. Please contact support.",
+            400
+          );
+          return;
+        }
+        const { verifyTotpCode } = await import("../../services/password.js");
+        let decryptedSecret: string;
+        try {
+          decryptedSecret = decryptTotpSecret(user.totpSecret);
+        } catch (decryptErr) {
+          logger.error(
+            {
+              error: decryptErr instanceof Error ? decryptErr.message : String(decryptErr),
+              userId: user.id,
+            },
+            "[reset-password] TOTP secret decryption failed"
+          );
+          sendUnauthorized(
+            res,
+            "Two-factor authentication is not properly configured. Please contact support."
+          );
+          return;
+        }
+        if (!verifyTotpCode(decryptedSecret, totpCode)) {
+          await recordFailedAttempt(lockoutKey, maxAttempts, lockoutMinutes);
+          AuditService.log({
+            action: "reset_password_2fa_failed",
+            ip,
+            details: `Invalid TOTP for password reset: ${user.id}`,
+            result: "fail",
+          });
+          sendUnauthorized(res, "Invalid two-factor authentication code");
+          return;
+        }
+      }
 
-  await db.update(usersTable).set({
-    passwordHash: hashPassword(newPassword),
-    requirePasswordChange: false,
-    tokenVersion: sql`token_version + 1`,
-    updatedAt: new Date(),
-  }).where(eq(usersTable.id, user.id));
+      await db
+        .update(usersTable)
+        .set({
+          passwordHash: hashPassword(newPassword),
+          requirePasswordChange: false,
+          tokenVersion: sql`token_version + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(usersTable.id, user.id));
 
-  /* Revoke all active refresh tokens immediately after reset so any previously
+      /* Revoke all active refresh tokens immediately after reset so any previously
      stolen token cannot be used to obtain a new access token post-reset. */
-  await revokeAllUserRefreshTokens(user.id, "PASSWORD_CHANGED").catch((err: unknown) => {
-    logger.warn({ userId: user.id, err }, "[auth] revokeAllUserRefreshTokens after reset-password failed");
-  });
+      await revokeAllUserRefreshTokens(user.id, "PASSWORD_CHANGED").catch((err: unknown) => {
+        logger.warn(
+          { userId: user.id, err },
+          "[auth] revokeAllUserRefreshTokens after reset-password failed"
+        );
+      });
 
-  await resetAttempts(lockoutKey);
+      await resetAttempts(lockoutKey);
 
-  writeAuthAuditLog("password_reset", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined });
-  logAuthEvent({ eventType: "password_reset_completed", userId: user.id, ip, userAgent: req.headers["user-agent"] as string | undefined, channel: phone ? "sms" : "email", role: user.roles ?? "customer", success: true });
-  sendSuccess(res, undefined, "Password updated. Please login again.");
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
+      writeAuthAuditLog("password_reset", {
+        userId: user.id,
+        ip,
+        userAgent: req.headers["user-agent"] ?? undefined,
+      });
+      logAuthEvent({
+        eventType: "password_reset_completed",
+        userId: user.id,
+        ip,
+        userAgent: req.headers["user-agent"] as string | undefined,
+        channel: phone ? "sms" : "email",
+        role: user.roles ?? "customer",
+        success: true,
+      });
+      sendSuccess(res, undefined, "Password updated. Please login again.");
+    } catch (err) {
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
   }
-});
-
+);
 
 export default router;

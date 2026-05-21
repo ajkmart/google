@@ -1,5 +1,4 @@
-import React from 'react';
-import { useAuthTheme } from '../context/ThemeContext';
+import { useAuthTheme } from "../context/ThemeContext";
 
 export interface WrongAppScreenProps {
   /** Name of the app the user is currently in (wrong one). */
@@ -42,17 +41,56 @@ export function WrongAppScreen({
   const showButton = !!(redirectUrl || onSwitchPress);
 
   return (
-    <div className={className} style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: '24px', background: theme.background }}>
-      <div style={{ maxWidth: '440px', width: '100%', background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: '20px', padding: '28px 24px', textAlign: 'center' }}>
-        <div style={{ fontSize: '44px', marginBottom: '14px' }}>📱</div>
-        <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: theme.text }}>Wrong app</h2>
-        <p style={{ margin: '10px 0 0', color: theme.textMuted, fontSize: '14px', lineHeight: 1.6 }}>
-          {displayCorrect ? `Please use ${displayCorrect} instead.` : 'Please open this link in the correct app.'}
-          {displayCurrent ? ` You are currently in ${displayCurrent}.` : ''}
+    <div
+      className={className}
+      style={{
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        padding: "24px",
+        background: theme.background,
+      }}
+    >
+      <div
+        style={{
+          maxWidth: "440px",
+          width: "100%",
+          background: theme.surface,
+          border: `1px solid ${theme.border}`,
+          borderRadius: "20px",
+          padding: "28px 24px",
+          textAlign: "center",
+        }}
+      >
+        <div style={{ fontSize: "44px", marginBottom: "14px" }}>📱</div>
+        <h2 style={{ margin: 0, fontSize: "24px", fontWeight: 800, color: theme.text }}>
+          Wrong app
+        </h2>
+        <p
+          style={{ margin: "10px 0 0", color: theme.textMuted, fontSize: "14px", lineHeight: 1.6 }}
+        >
+          {displayCorrect
+            ? `Please use ${displayCorrect} instead.`
+            : "Please open this link in the correct app."}
+          {displayCurrent ? ` You are currently in ${displayCurrent}.` : ""}
         </p>
         {showButton && (
-          <button type="button" onClick={handleSwitch} style={{ marginTop: '18px', width: '100%', border: 'none', borderRadius: '12px', padding: '12px 16px', background: theme.primary, color: theme.onPrimary, fontWeight: 700, cursor: 'pointer' }}>
-            Switch to {displayCorrect ?? 'correct app'}
+          <button
+            type="button"
+            onClick={handleSwitch}
+            style={{
+              marginTop: "18px",
+              width: "100%",
+              border: "none",
+              borderRadius: "12px",
+              padding: "12px 16px",
+              background: theme.primary,
+              color: theme.onPrimary,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Switch to {displayCorrect ?? "correct app"}
           </button>
         )}
       </div>

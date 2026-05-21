@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { parseApiError } from "@/lib/errorParser";
 import { useToast } from "@/hooks/use-toast";
+import { parseApiError } from "@/lib/errorParser";
+import { Download, Loader2 } from "lucide-react";
+import { useState } from "react";
 
 export interface ExportDataProps {
   onExport: () => Promise<Blob | void>;
@@ -66,9 +66,9 @@ export function ExportData({
       className={className}
     >
       {isPending ? (
-        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
       ) : (
-        <Download className="h-4 w-4 mr-2" />
+        <Download className="mr-2 h-4 w-4" />
       )}
       {label}
     </Button>

@@ -31,22 +31,22 @@ export default defineConfig({
     // skipped during test runs — Replit sets NODE_ENV=production globally.
     env: {
       NODE_ENV: "test",
-      TOTP_ENCRYPTION_KEY:        TEST_SECRET,
+      TOTP_ENCRYPTION_KEY: TEST_SECRET,
       // Secrets required by module-level resolveAdminSecret() calls in
       // admin-shared.ts and admin-jwt.ts.  Tests that need these values use
       // the same resolution logic so their signed tokens always match.
-      ADMIN_ACCESS_TOKEN_SECRET:  TEST_SECRET,
+      ADMIN_ACCESS_TOKEN_SECRET: TEST_SECRET,
       ADMIN_REFRESH_TOKEN_SECRET: TEST_SECRET,
-      ADMIN_REFRESH_SECRET:       TEST_SECRET,
-      ADMIN_JWT_REFRESH_SECRET:   TEST_SECRET,
-      ADMIN_JWT_SECRET:           TEST_SECRET,
-      ADMIN_SECRET:               TEST_SECRET,
-      ADMIN_CSRF_SECRET:          TEST_SECRET,
-      JWT_SECRET:                 TEST_SECRET,
-      VENDOR_JWT_SECRET:          TEST_SECRET,
-      RIDER_JWT_SECRET:           TEST_SECRET,
-      ERROR_REPORT_HMAC_SECRET:   TEST_SECRET,
-      ENCRYPTION_MASTER_KEY:      TEST_SECRET,
+      ADMIN_REFRESH_SECRET: TEST_SECRET,
+      ADMIN_JWT_REFRESH_SECRET: TEST_SECRET,
+      ADMIN_JWT_SECRET: TEST_SECRET,
+      ADMIN_SECRET: TEST_SECRET,
+      ADMIN_CSRF_SECRET: TEST_SECRET,
+      JWT_SECRET: TEST_SECRET,
+      VENDOR_JWT_SECRET: TEST_SECRET,
+      RIDER_JWT_SECRET: TEST_SECRET,
+      ERROR_REPORT_HMAC_SECRET: TEST_SECRET,
+      ENCRYPTION_MASTER_KEY: TEST_SECRET,
     },
   },
 });

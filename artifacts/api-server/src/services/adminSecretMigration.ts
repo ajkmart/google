@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { adminAccountsTable } from "@workspace/db/schema";
-import { hashAdminSecret } from "./password.js";
+import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
+import { hashAdminSecret } from "./password.js";
 
 const BCRYPT_PREFIX = "$2b$";
 
@@ -24,13 +24,12 @@ export async function migrateAdminSecrets(): Promise<void> {
     if (acc.secret.startsWith(BCRYPT_PREFIX)) continue;
 
     // Scrypt records look like "32-hex-chars:128-hex-chars"
-    const looksLikeScrypt =
-      acc.secret.includes(":") && acc.secret.split(":")[0]!.length === 32;
+    const looksLikeScrypt = acc.secret.includes(":") && acc.secret.split(":")[0]!.length === 32;
 
     if (looksLikeScrypt) {
       logger.warn(
         { id: acc.id },
-        "Admin sub-account has legacy scrypt secret — cannot auto-migrate; admin must reset secret",
+        "Admin sub-account has legacy scrypt secret — cannot auto-migrate; admin must reset secret"
       );
       continue;
     }

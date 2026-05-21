@@ -10,17 +10,17 @@ import { index, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core
 export const termsVersionsTable = pgTable(
   "terms_versions",
   {
-    policy:       text("policy").notNull(),
-    version:      text("version").notNull(),
-    effectiveAt:  timestamp("effective_at").notNull().defaultNow(),
+    policy: text("policy").notNull(),
+    version: text("version").notNull(),
+    effectiveAt: timestamp("effective_at").notNull().defaultNow(),
     bodyMarkdown: text("body_markdown"),
-    changelog:    text("changelog"),
-    createdAt:    timestamp("created_at").notNull().defaultNow(),
+    changelog: text("changelog"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
     primaryKey({ columns: [t.policy, t.version] }),
     index("terms_versions_policy_effective_idx").on(t.policy, t.effectiveAt),
-  ],
+  ]
 );
 
 export type TermsVersion = typeof termsVersionsTable.$inferSelect;

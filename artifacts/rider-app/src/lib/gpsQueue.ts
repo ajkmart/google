@@ -24,7 +24,6 @@ export interface QueuedPing {
   mockProvider?: boolean;
   suspicious?: boolean;
   suspicionReason?: string;
-
 }
 
 interface DismissedEntry {
@@ -32,10 +31,10 @@ interface DismissedEntry {
   expiresAt: number;
 }
 
-const DB_NAME    = "ajkmart_gps_queue";
-const STORE      = "pings";
-const DISMISSED  = "dismissed";
-const DB_VER     = 2;
+const DB_NAME = "ajkmart_gps_queue";
+const STORE = "pings";
+const DISMISSED = "dismissed";
+const DB_VER = 2;
 
 let DISMISSED_TTL_MS = 90_000;
 
@@ -87,12 +86,27 @@ function openDB(): Promise<IDBDatabase> {
     };
     req.onsuccess = () => {
       const db = req.result;
-      db.onclose = () => { _dbPromise = null; };
-      db.onversionchange = () => { try { db.close(); } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } _dbPromise = null; }; // eslint-disable-line no-console
+      db.onclose = () => {
+        _dbPromise = null;
+      };
+      db.onversionchange = () => {
+        try {
+          db.close();
+        } catch (err) {
+          console.warn("[artifacts/rider-app/src/lib/gpsQueue.ts]", err);
+        }
+        _dbPromise = null;
+      }; // eslint-disable-line no-console
       resolve(db);
     };
-    req.onerror = () => { _dbPromise = null; reject(req.error); };
-  }).catch((err) => { _dbPromise = null; throw err; });
+    req.onerror = () => {
+      _dbPromise = null;
+      reject(req.error);
+    };
+  }).catch((err) => {
+    _dbPromise = null;
+    throw err;
+  });
   return _dbPromise;
 }
 
@@ -105,7 +119,6 @@ export async function enqueue(ping: QueuedPing): Promise<void> {
     speed: ping.speed,
     heading: ping.heading,
     isMockProvider: ping.mockProvider,
-
   });
   if (!result.valid) {
     /* Rejected pings are silently dropped from the queue.
@@ -126,7 +139,6 @@ export async function enqueue(ping: QueuedPing): Promise<void> {
     speed: ping.speed,
     heading: ping.heading,
     isMockProvider: ping.mockProvider,
-
   };
   try {
     const db = await openDB();
@@ -148,7 +160,9 @@ export async function enqueue(ping: QueuedPing): Promise<void> {
               /* G2: Wait for delete to complete before put — sequencing
                  these in the same onsuccess broke older Firefox builds. */
               const delReq = cursor.delete();
-              delReq.onsuccess = () => { store.put(ping); };
+              delReq.onsuccess = () => {
+                store.put(ping);
+              };
               delReq.onerror = () => tx.abort();
             } else {
               tx.abort();
@@ -161,7 +175,9 @@ export async function enqueue(ping: QueuedPing): Promise<void> {
       };
       countReq.onerror = () => tx.abort();
     });
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/gpsQueue.ts]", err);
+  } // eslint-disable-line no-console
 }
 
 export async function dequeueAll(): Promise<QueuedPing[]> {
@@ -173,9 +189,12 @@ export async function dequeueAll(): Promise<QueuedPing[]> {
       const index = store.index("timestamp");
       const req = index.getAll();
       req.onsuccess = () => resolve((req.result ?? []) as QueuedPing[]);
-      req.onerror   = () => reject(req.error);
+      req.onerror = () => reject(req.error);
     });
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); return []; } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/gpsQueue.ts]", err);
+    return [];
+  } // eslint-disable-line no-console
 }
 
 export async function clearQueue(ids: string[]): Promise<void> {
@@ -185,11 +204,13 @@ export async function clearQueue(ids: string[]): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE, "readwrite");
       const store = tx.objectStore(STORE);
-      ids.forEach(id => store.delete(id));
+      ids.forEach((id) => store.delete(id));
       tx.oncomplete = () => resolve();
-      tx.onerror    = () => reject(tx.error);
+      tx.onerror = () => reject(tx.error);
     });
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/gpsQueue.ts]", err);
+  } // eslint-disable-line no-console
 }
 
 export async function queueSize(): Promise<number> {
@@ -200,9 +221,12 @@ export async function queueSize(): Promise<number> {
       const store = tx.objectStore(STORE);
       const req = store.count();
       req.onsuccess = () => resolve(req.result);
-      req.onerror   = () => reject(req.error);
+      req.onerror = () => reject(req.error);
     });
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); return 0; } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/gpsQueue.ts]", err);
+    return 0;
+  } // eslint-disable-line no-console
 }
 
 /* ── Dismissed-request store ──────────────────────────────────────────────────
@@ -217,9 +241,11 @@ export async function addDismissed(id: string): Promise<void> {
       const tx = db.transaction(DISMISSED, "readwrite");
       tx.objectStore(DISMISSED).put(entry);
       tx.oncomplete = () => resolve();
-      tx.onerror    = () => reject(tx.error);
+      tx.onerror = () => reject(tx.error);
     });
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/gpsQueue.ts]", err);
+  } // eslint-disable-line no-console
 }
 
 export async function removeDismissed(id: string): Promise<void> {
@@ -229,9 +255,11 @@ export async function removeDismissed(id: string): Promise<void> {
       const tx = db.transaction(DISMISSED, "readwrite");
       tx.objectStore(DISMISSED).delete(id);
       tx.oncomplete = () => resolve();
-      tx.onerror    = () => reject(tx.error);
+      tx.onerror = () => reject(tx.error);
     });
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/gpsQueue.ts]", err);
+  } // eslint-disable-line no-console
 }
 
 export async function loadDismissed(): Promise<Set<string>> {
@@ -242,15 +270,18 @@ export async function loadDismissed(): Promise<Set<string>> {
       const tx = db.transaction(DISMISSED, "readonly");
       const req = tx.objectStore(DISMISSED).getAll();
       req.onsuccess = () => resolve((req.result ?? []) as DismissedEntry[]);
-      req.onerror   = () => reject(req.error);
+      req.onerror = () => reject(req.error);
     });
-    const valid = entries.filter(e => e.expiresAt > now);
-    const expired = entries.filter(e => e.expiresAt <= now);
+    const valid = entries.filter((e) => e.expiresAt > now);
+    const expired = entries.filter((e) => e.expiresAt <= now);
     if (expired.length) {
-      purgeExpiredDismissed(expired.map(e => e.id));
+      purgeExpiredDismissed(expired.map((e) => e.id));
     }
-    return new Set(valid.map(e => e.id));
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); return new Set(); } // eslint-disable-line no-console
+    return new Set(valid.map((e) => e.id));
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/gpsQueue.ts]", err);
+    return new Set();
+  } // eslint-disable-line no-console
 }
 
 /** Purge expired entries from the dismissed store (fire-and-forget) */
@@ -261,11 +292,13 @@ async function purgeExpiredDismissed(ids: string[]): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(DISMISSED, "readwrite");
       const store = tx.objectStore(DISMISSED);
-      ids.forEach(id => store.delete(id));
+      ids.forEach((id) => store.delete(id));
       tx.oncomplete = () => resolve();
-      tx.onerror    = () => reject(tx.error);
+      tx.onerror = () => reject(tx.error);
     });
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/gpsQueue.ts]", err);
+  } // eslint-disable-line no-console
 }
 
 /**
@@ -284,9 +317,11 @@ export async function clearAllDismissed(): Promise<void> {
       const tx = db.transaction(DISMISSED, "readwrite");
       tx.objectStore(DISMISSED).clear();
       tx.oncomplete = () => resolve();
-      tx.onerror    = () => reject(tx.error);
+      tx.onerror = () => reject(tx.error);
     });
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/gpsQueue.ts]", err);
+  } // eslint-disable-line no-console
 }
 
 /* ── Drain handler ────────────────────────────────────────────────────────────
@@ -304,7 +339,9 @@ export function registerDrainHandler(fn: (pings: QueuedPing[]) => Promise<void>)
   if (typeof navigator !== "undefined" && navigator.onLine) {
     drainQueue();
   }
-  return () => { if (_drainFn === fn) _drainFn = null; };
+  return () => {
+    if (_drainFn === fn) _drainFn = null;
+  };
 }
 
 async function drainQueue(): Promise<void> {
@@ -318,7 +355,7 @@ async function drainQueue(): Promise<void> {
       const chunk = pings.slice(i, i + CHUNK);
       try {
         await _drainFn(chunk);
-        await clearQueue(chunk.map(p => p.id));
+        await clearQueue(chunk.map((p) => p.id));
       } catch (rawErr: unknown) {
         const err = rawErr as Record<string, unknown>;
         const responseData = err.responseData as Record<string, unknown> | undefined;
@@ -329,7 +366,7 @@ async function drainQueue(): Promise<void> {
           responseDataNested?.code === "GPS_SPOOF_DETECTED" ||
           err.spoofDetected === true;
         if (isSpoofRejection) {
-          await clearQueue(chunk.map(p => p.id));
+          await clearQueue(chunk.map((p) => p.id));
           continue;
         }
         /* G1: For non-spoof transient failures (network/5xx), keep the rest of
@@ -341,8 +378,12 @@ async function drainQueue(): Promise<void> {
         continue;
       }
     }
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
-  finally { _draining = false; }
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/lib/gpsQueue.ts]", err);
+  } finally {
+    // eslint-disable-line no-console
+    _draining = false;
+  }
 }
 
 if (typeof window !== "undefined") {

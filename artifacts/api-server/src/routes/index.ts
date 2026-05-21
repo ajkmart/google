@@ -1,42 +1,42 @@
+import type { NextFunction, Request, Response } from "express";
 import { Router, type IRouter } from "express";
-import type { Request, Response, NextFunction } from "express";
 
+import { checkSessionRevocation, verifyTokenFamily } from "../middleware/auth.js";
+import { publicLimiter, userApiLimiter } from "../middleware/rate-limit.js";
 import { adminAuth } from "./admin-shared.js";
-import { userApiLimiter, publicLimiter } from "../middleware/rate-limit.js";
-import { verifyTokenFamily, checkSessionRevocation } from "../middleware/auth.js";
 
 // ── Infrastructure / health ────────────────────────────────────────────────
 import healthRouter from "./health.js";
 
 // ── Auth ───────────────────────────────────────────────────────────────────
-import authRouter from "./auth/index.js";
 import adminAuthV2Router from "./admin-auth-v2.js";
+import authRouter from "./auth/index.js";
 
 // ── Customer-facing routers ────────────────────────────────────────────────
-import usersRouter from "./users.js";
-import productsRouter from "./products.js";
-import ordersRouter from "./orders.js";
-import cartRouter from "./cart.js";
-import walletRouter from "./wallet.js";
-import ridesRouter from "./rides/index.js";
-import locationsRouter from "./locations.js";
-import categoriesRouter from "./categories.js";
-import pharmacyRouter from "./pharmacy.js";
-import parcelRouter from "./parcel.js";
-import notificationsRouter from "./notifications.js";
 import addressesRouter from "./addresses.js";
-import settingsRouter from "./settings.js";
-import paymentsRouter from "./payments.js";
-import reviewsRouter from "./reviews.js";
-import sosRouter from "./sos.js";
 import bannersRouter from "./banners.js";
-import variantsRouter from "./variants.js";
-import pushRouter from "./push.js";
+import cartRouter from "./cart.js";
+import categoriesRouter from "./categories.js";
 import kycRouter from "./kyc.js";
-import wishlistRouter from "./wishlist.js";
-import referralsRouter from "./referrals.js";
-import loyaltyRouter from "./loyalty.js";
+import locationsRouter from "./locations.js";
 import loyaltyFullRouter from "./loyalty-full.js";
+import loyaltyRouter from "./loyalty.js";
+import notificationsRouter from "./notifications.js";
+import ordersRouter from "./orders.js";
+import parcelRouter from "./parcel.js";
+import paymentsRouter from "./payments.js";
+import pharmacyRouter from "./pharmacy.js";
+import productsRouter from "./products.js";
+import pushRouter from "./push.js";
+import referralsRouter from "./referrals.js";
+import reviewsRouter from "./reviews.js";
+import ridesRouter from "./rides/index.js";
+import settingsRouter from "./settings.js";
+import sosRouter from "./sos.js";
+import usersRouter from "./users.js";
+import variantsRouter from "./variants.js";
+import walletRouter from "./wallet.js";
+import wishlistRouter from "./wishlist.js";
 
 // ── Rider routers ──────────────────────────────────────────────────────────
 // rider/index.ts is the single canonical rider router — rider.ts (root-level)
@@ -45,39 +45,39 @@ import loyaltyFullRouter from "./loyalty-full.js";
 import riderRouter from "./rider/index.js";
 
 // ── Vendor routers ─────────────────────────────────────────────────────────
-import vendorRouter from "./vendor.js";
 import publicVendorsRouter from "./public-vendors.js";
+import vendorRouter from "./vendor.js";
 
 // ── Shared / public surface ────────────────────────────────────────────────
-import mapsRouter, { adminMapsRouter } from "./maps.js";
-import schoolRouter, { adminSchoolRouter } from "./school.js";
-import uploadsRouter from "./uploads.js";
-import recommendationsRouter from "./recommendations.js";
 import deepLinksPublicRouter from "./deep-links-public.js";
-import platformConfigRouter from "./platform-config.js";
-import statsRouter from "./stats.js";
-import metricsRouter from "./metrics.js";
 import docsRouter from "./docs.js";
+import mapsRouter, { adminMapsRouter } from "./maps.js";
+import metricsRouter from "./metrics.js";
+import platformConfigRouter from "./platform-config.js";
+import recommendationsRouter from "./recommendations.js";
+import schoolRouter, { adminSchoolRouter } from "./school.js";
+import statsRouter from "./stats.js";
+import uploadsRouter from "./uploads.js";
 
 // ── Admin routers ──────────────────────────────────────────────────────────
 import adminRouter from "./admin.js";
-import systemRouter from "./system.js";
-import sentryWebhookRouter from "./sentry-webhook.js";
-import legalRouter from "./legal.js";
 import errorReportsRouter from "./error-reports.js";
+import legalRouter from "./legal.js";
+import sentryWebhookRouter from "./sentry-webhook.js";
+import systemRouter from "./system.js";
 
 // ── Feature / domain routers ───────────────────────────────────────────────
-import vanRouter from "./van.js";
-import webhooksRouter from "./webhooks.js";
+import businessRulesRouter from "./business-rules.js";
+import communicationRouter from "./communication.js";
 import deliveryEligibilityRouter from "./delivery-eligibility.js";
+import experimentsRouter from "./experiments.js";
 import popupsRouter from "./popups.js";
 import promotionsRouter from "./promotions/index.js";
 import supportChatRouter from "./support-chat.js";
-import communicationRouter from "./communication.js";
+import vanRouter from "./van.js";
 import weatherConfigRouter from "./weather-config.js";
-import experimentsRouter from "./experiments.js";
+import webhooksRouter from "./webhooks.js";
 import whatsappDeliveryRouter from "./whatsapp-delivery.js";
-import businessRulesRouter from "./business-rules.js";
 
 // ── Dev-only ───────────────────────────────────────────────────────────────
 import seedRouter from "./seed.js";
@@ -88,7 +88,10 @@ import seedRouter from "./seed.js";
  * so mutation endpoints are not subject to the read-scraping limit.
  */
 function publicGetLimiter(req: Request, res: Response, next: NextFunction): void {
-  if (req.method !== "GET" && req.method !== "HEAD") { next(); return; }
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    next();
+    return;
+  }
   publicLimiter(req, res, next);
 }
 
@@ -185,53 +188,84 @@ router.use("/riders", riderRouter);
  * Express walks middleware in order so the public router short-circuits on
  * GET/HEAD and falls through to vendorRouter for mutating methods.
  */
-router.use("/vendors", publicGetLimiter, (req: Request, res: Response, next: NextFunction): void => {
-  if (req.method === "GET" || req.method === "HEAD") { publicVendorsRouter(req, res, next); return; }
-  next();
-});
+router.use(
+  "/vendors",
+  publicGetLimiter,
+  (req: Request, res: Response, next: NextFunction): void => {
+    if (req.method === "GET" || req.method === "HEAD") {
+      publicVendorsRouter(req, res, next);
+      return;
+    }
+    next();
+  }
+);
 router.use("/vendors", vendorRouter);
 
 // ── 6. Customer-facing authenticated routes ────────────────────────────────
-router.use("/users",           checkSessionRevocation, verifyTokenFamily, usersRouter);
-router.use("/orders",          checkSessionRevocation, verifyTokenFamily, userApiLimiter, ordersRouter);
-router.use("/cart",            checkSessionRevocation, verifyTokenFamily, userApiLimiter, cartRouter);
-router.use("/wallet",          checkSessionRevocation, verifyTokenFamily, userApiLimiter, walletRouter);
-router.use("/rides",           checkSessionRevocation, verifyTokenFamily, userApiLimiter, ridesRouter);
-router.use("/pharmacy-orders", checkSessionRevocation, verifyTokenFamily, userApiLimiter, pharmacyRouter);
-router.use("/parcel-bookings", checkSessionRevocation, verifyTokenFamily, userApiLimiter, parcelRouter);
-router.use("/notifications",   checkSessionRevocation, verifyTokenFamily, userApiLimiter, notificationsRouter);
-router.use("/addresses",       checkSessionRevocation, verifyTokenFamily, userApiLimiter, addressesRouter);
-router.use("/sos",             checkSessionRevocation, verifyTokenFamily, userApiLimiter, sosRouter);
-router.use("/push",            checkSessionRevocation, verifyTokenFamily, userApiLimiter, pushRouter);
-router.use("/kyc",             checkSessionRevocation, verifyTokenFamily, userApiLimiter, kycRouter);
-router.use("/wishlist",        checkSessionRevocation, verifyTokenFamily, userApiLimiter, wishlistRouter);
-router.use("/referrals",       userApiLimiter, referralsRouter);
+router.use("/users", checkSessionRevocation, verifyTokenFamily, usersRouter);
+router.use("/orders", checkSessionRevocation, verifyTokenFamily, userApiLimiter, ordersRouter);
+router.use("/cart", checkSessionRevocation, verifyTokenFamily, userApiLimiter, cartRouter);
+router.use("/wallet", checkSessionRevocation, verifyTokenFamily, userApiLimiter, walletRouter);
+router.use("/rides", checkSessionRevocation, verifyTokenFamily, userApiLimiter, ridesRouter);
+router.use(
+  "/pharmacy-orders",
+  checkSessionRevocation,
+  verifyTokenFamily,
+  userApiLimiter,
+  pharmacyRouter
+);
+router.use(
+  "/parcel-bookings",
+  checkSessionRevocation,
+  verifyTokenFamily,
+  userApiLimiter,
+  parcelRouter
+);
+router.use(
+  "/notifications",
+  checkSessionRevocation,
+  verifyTokenFamily,
+  userApiLimiter,
+  notificationsRouter
+);
+router.use(
+  "/addresses",
+  checkSessionRevocation,
+  verifyTokenFamily,
+  userApiLimiter,
+  addressesRouter
+);
+router.use("/sos", checkSessionRevocation, verifyTokenFamily, userApiLimiter, sosRouter);
+router.use("/push", checkSessionRevocation, verifyTokenFamily, userApiLimiter, pushRouter);
+router.use("/kyc", checkSessionRevocation, verifyTokenFamily, userApiLimiter, kycRouter);
+router.use("/wishlist", checkSessionRevocation, verifyTokenFamily, userApiLimiter, wishlistRouter);
+router.use("/referrals", userApiLimiter, referralsRouter);
 
 // ── 7. Public / lightly-gated customer routes ─────────────────────────────
-router.use("/products",       publicGetLimiter, productsRouter);
-router.use("/categories",     publicGetLimiter, categoriesRouter);
-router.use("/banners",        publicGetLimiter, bannersRouter);
-router.use("/recommendations",publicGetLimiter, userApiLimiter, recommendationsRouter);
-router.use("/locations",      locationsRouter);
-router.use("/settings",       settingsRouter);
-router.use("/payments",       paymentsRouter);
-router.use("/reviews",        userApiLimiter, reviewsRouter);
-router.use("/maps",           mapsRouter);
-router.use("/school",         schoolRouter);
-router.use("/uploads",        uploadsRouter);
-router.use("/variants",       variantsRouter);
-router.use("/platform-config",platformConfigRouter);
-router.use("/dl",             publicGetLimiter, deepLinksPublicRouter);
+router.use("/products", publicGetLimiter, productsRouter);
+router.use("/categories", publicGetLimiter, categoriesRouter);
+router.use("/banners", publicGetLimiter, bannersRouter);
+router.use("/recommendations", publicGetLimiter, userApiLimiter, recommendationsRouter);
+router.use("/locations", locationsRouter);
+router.use("/settings", settingsRouter);
+router.use("/payments", paymentsRouter);
+router.use("/reviews", userApiLimiter, reviewsRouter);
+router.use("/maps", mapsRouter);
+router.use("/school", schoolRouter);
+router.use("/uploads", uploadsRouter);
+router.use("/variants", variantsRouter);
+router.use("/platform-config", platformConfigRouter);
+router.use("/dl", publicGetLimiter, deepLinksPublicRouter);
 
 // ── 8. Feature domains ─────────────────────────────────────────────────────
-router.use("/van",                vanRouter);
-router.use("/webhooks",           webhooksRouter);
+router.use("/van", vanRouter);
+router.use("/webhooks", webhooksRouter);
 router.use("/delivery/eligibility", deliveryEligibilityRouter);
-router.use("/popups",             popupsRouter);
-router.use("/support-chat",       supportChatRouter);
-router.use("/communication",      communicationRouter);
-router.use("/weather-config",     weatherConfigRouter);
-router.use("/experiments",        experimentsRouter);
+router.use("/popups", popupsRouter);
+router.use("/support-chat", supportChatRouter);
+router.use("/communication", communicationRouter);
+router.use("/weather-config", weatherConfigRouter);
+router.use("/experiments", experimentsRouter);
 
 /**
  * Promotions dual mount:
@@ -243,8 +277,8 @@ router.use("/experiments",        experimentsRouter);
  * carries its own adminAuth / marketingAuth guard so mutations remain protected
  * even when reached via the public /api/promotions prefix.
  */
-router.use("/promotions",       publicGetLimiter, promotionsRouter);
-router.use("/admin/promotions", adminAuth,         promotionsRouter);
+router.use("/promotions", publicGetLimiter, promotionsRouter);
+router.use("/admin/promotions", adminAuth, promotionsRouter);
 
 /**
  * Error reports dual mount:
@@ -257,13 +291,13 @@ router.use("/admin/promotions", adminAuth,         promotionsRouter);
  * The router enforces adminAuth internally on every admin-only handler so the
  * dual mount does not expose management endpoints to unauthenticated callers.
  */
-router.use("/error-reports",       errorReportsRouter);
+router.use("/error-reports", errorReportsRouter);
 router.use("/admin/error-reports", errorReportsRouter);
 
 // ── 9. Stats / metrics / docs ──────────────────────────────────────────────
-router.use("/stats",   statsRouter);
+router.use("/stats", statsRouter);
 router.use("/metrics", metricsRouter);
-router.use("/docs",    docsRouter);
+router.use("/docs", docsRouter);
 
 // ── 10. Loyalty (two complementary routers — no path overlap) ─────────────
 /**
@@ -273,7 +307,7 @@ router.use("/docs",    docsRouter);
  * Express resolves sequentially; the first router to match wins, so there are
  * no handler collisions between the two.
  */
-router.use("/loyalty",      userApiLimiter, loyaltyRouter);
+router.use("/loyalty", userApiLimiter, loyaltyRouter);
 router.use("/loyalty-full", userApiLimiter, loyaltyFullRouter);
 
 // ── 11. Dev / seed (non-production only) ──────────────────────────────────

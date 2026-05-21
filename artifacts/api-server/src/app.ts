@@ -1,46 +1,43 @@
-import express from "express";
-import cors from "cors";
-import cookieParser from "cookie-parser";
-import compression from "compression";
-import helmet from "helmet";
-import pinoHttp from "pino-http";
-import { pinoInstance, logger } from "./lib/logger.js";
-import { requestContext, requestContextMiddleware } from "./middleware/request-context.js";
-import { createProxyMiddleware } from "http-proxy-middleware";
-import { readFileSync, existsSync, mkdirSync } from "fs";
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
-import { runSqlMigrations } from "./services/sqlMigrationRunner.js";
 import { db } from "@workspace/db";
 import { platformSettingsTable } from "@workspace/db/schema";
-import { DEFAULT_PLATFORM_SETTINGS, getCachedSettings } from "./routes/admin-shared.js";
-import { sendAdminAlert } from "./services/email.js";
-import {
-  seedPermissionCatalog,
-  seedDefaultRoles,
-  backfillAdminRoleAssignments,
-} from "./services/permissions.service.js";
-import {
-  seedDefaultSuperAdmin,
-  reconcileSeededSuperAdmin,
-} from "./services/admin-seed.service.js";
-import { purgeStaleAdminPasswordResetTokens } from "./services/admin-password.service.js";
-import { detectAndNotifyOutOfBandPasswordResets } from "./services/admin-password-watch.service.js";
-import { ensureErrorResolutionTables } from "./routes/error-reports.js";
-import { ensureCartSnapshotTable } from "./services/cartSnapshotMigration.js";
-import { ensureReferralAndPrescriptionTables } from "./services/referralPrescriptionMigration.js";
-import { ensureUserTotpSetupTable } from "./services/userTotpSetupMigration.js";
-import { startHealthMonitor } from "./services/healthAlertMonitor.js";
-import { checkDbOnStartup, startDbMonitor } from "./services/dbConnectivityMonitor.js";
+import compression from "compression";
+import cookieParser from "cookie-parser";
+import cors from "cors";
+import express from "express";
+import { existsSync, mkdirSync, readFileSync } from "fs";
+import helmet from "helmet";
+import { createProxyMiddleware } from "http-proxy-middleware";
+import { dirname, resolve } from "path";
+import pinoHttp from "pino-http";
+import swaggerUi from "swagger-ui-express";
+import { fileURLToPath } from "url";
+import { swaggerSpec } from "./docs/swagger.js";
+import { logger, pinoInstance } from "./lib/logger.js";
 import { recordResponseTime } from "./lib/metrics/responseTime.js";
-import { checkSchemaDrift } from "./services/schemaDrift.service.js";
-import { checkMigrationGuard } from "./services/migrationGuard.service.js";
-import router from "./routes/index.js";
 import { globalLimiter, uploadLimiter } from "./middleware/rate-limit.js";
+import { requestContext, requestContextMiddleware } from "./middleware/request-context.js";
 import { sanitizeBody } from "./middleware/sanitize.js";
 import { suspiciousPatternDetector } from "./middleware/suspiciousPatternDetector.js";
-import swaggerUi from "swagger-ui-express";
-import { swaggerSpec } from "./docs/swagger.js";
+import { DEFAULT_PLATFORM_SETTINGS, getCachedSettings } from "./routes/admin-shared.js";
+import { ensureErrorResolutionTables } from "./routes/error-reports.js";
+import router from "./routes/index.js";
+import { detectAndNotifyOutOfBandPasswordResets } from "./services/admin-password-watch.service.js";
+import { purgeStaleAdminPasswordResetTokens } from "./services/admin-password.service.js";
+import { reconcileSeededSuperAdmin, seedDefaultSuperAdmin } from "./services/admin-seed.service.js";
+import { ensureCartSnapshotTable } from "./services/cartSnapshotMigration.js";
+import { checkDbOnStartup, startDbMonitor } from "./services/dbConnectivityMonitor.js";
+import { sendAdminAlert } from "./services/email.js";
+import { startHealthMonitor } from "./services/healthAlertMonitor.js";
+import { checkMigrationGuard } from "./services/migrationGuard.service.js";
+import {
+  backfillAdminRoleAssignments,
+  seedDefaultRoles,
+  seedPermissionCatalog,
+} from "./services/permissions.service.js";
+import { ensureReferralAndPrescriptionTables } from "./services/referralPrescriptionMigration.js";
+import { checkSchemaDrift } from "./services/schemaDrift.service.js";
+import { runSqlMigrations } from "./services/sqlMigrationRunner.js";
+import { ensureUserTotpSetupTable } from "./services/userTotpSetupMigration.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -64,15 +61,15 @@ export async function runStartupTasks(): Promise<void> {
     if (process.env.NODE_ENV === "production") {
       logger.fatal(
         "[startup] FATAL CONFIG ERROR: ERROR_REPORT_HMAC_SECRET is not set. " +
-        "Error reports from rider/vendor/customer apps cannot be verified. " +
-        "Set this secret in your environment before deploying."
+          "Error reports from rider/vendor/customer apps cannot be verified. " +
+          "Set this secret in your environment before deploying."
       );
       throw new Error("ERROR_REPORT_HMAC_SECRET must be set in production");
     } else {
       logger.warn(
         "[startup] WARNING: ERROR_REPORT_HMAC_SECRET is not set. " +
-        "Error report HMAC verification will be skipped. " +
-        "Set this secret before deploying to production."
+          "Error report HMAC verification will be skipped. " +
+          "Set this secret before deploying to production."
       );
     }
   } else {
@@ -130,7 +127,9 @@ export async function runStartupTasks(): Promise<void> {
   }
   try {
     await ensureReferralAndPrescriptionTables();
-    logger.info("[startup] referral_codes, referral_usages, pharmacy_prescription_refs tables ready");
+    logger.info(
+      "[startup] referral_codes, referral_usages, pharmacy_prescription_refs tables ready"
+    );
   } catch (err) {
     logger.error({ err }, "[startup] referral/prescription table migration failed (continuing)");
   }
@@ -142,8 +141,14 @@ export async function runStartupTasks(): Promise<void> {
   }
   try {
     if (DEFAULT_PLATFORM_SETTINGS.length > 0) {
-      await db.insert(platformSettingsTable).values(DEFAULT_PLATFORM_SETTINGS).onConflictDoNothing();
-      logger.info({ count: DEFAULT_PLATFORM_SETTINGS.length }, "[startup] platform settings defaults ensured");
+      await db
+        .insert(platformSettingsTable)
+        .values(DEFAULT_PLATFORM_SETTINGS)
+        .onConflictDoNothing();
+      logger.info(
+        { count: DEFAULT_PLATFORM_SETTINGS.length },
+        "[startup] platform settings defaults ensured"
+      );
     }
   } catch (err) {
     logger.error({ err }, "[startup] platform settings seed failed (continuing)");
@@ -169,20 +174,25 @@ export async function runStartupTasks(): Promise<void> {
       // Build a clear email body with actionable ALTER TABLE commands.
       const hostname = process.env["HOST"] ?? process.env["HOSTNAME"] ?? "unknown-host";
       const timestamp = new Date().toISOString();
-      const columnGaps = driftReport.columnDrift.filter(d => d.missingInDb.length > 0);
+      const columnGaps = driftReport.columnDrift.filter((d) => d.missingInDb.length > 0);
 
-      const missingTableLines = driftReport.missingTables.length > 0
-        ? driftReport.missingTables.map(t => `  • ${t}`).join("\n")
-        : "  (none)";
+      const missingTableLines =
+        driftReport.missingTables.length > 0
+          ? driftReport.missingTables.map((t) => `  • ${t}`).join("\n")
+          : "  (none)";
 
-      const columnGapLines = columnGaps.length > 0
-        ? columnGaps.map(d =>
-            `  Table: ${d.table}\n` +
-            d.missingInDb.map(col =>
-              `    ALTER TABLE "${d.table}" ADD COLUMN "${col}" TEXT;`
-            ).join("\n")
-          ).join("\n\n")
-        : "  (none)";
+      const columnGapLines =
+        columnGaps.length > 0
+          ? columnGaps
+              .map(
+                (d) =>
+                  `  Table: ${d.table}\n` +
+                  d.missingInDb
+                    .map((col) => `    ALTER TABLE "${d.table}" ADD COLUMN "${col}" TEXT;`)
+                    .join("\n")
+              )
+              .join("\n\n")
+          : "  (none)";
 
       const htmlBody = `
         <h2>Schema Drift Detected on Startup</h2>
@@ -199,20 +209,20 @@ export async function runStartupTasks(): Promise<void> {
       `.trim();
 
       getCachedSettings()
-        .then(settings =>
+        .then((settings) =>
           sendAdminAlert(
             "schema_drift",
             `[AJKMart] Schema drift detected — ${driftReport.missingTables.length} missing table(s), ${columnGaps.length} column gap(s)`,
             htmlBody,
-            settings,
+            settings
           )
         )
-        .then(result => {
+        .then((result) => {
           if (result.sent) {
             logger.info("[startup] schema drift alert sent");
           }
         })
-        .catch(err => {
+        .catch((err) => {
           logger.error({ err }, "[startup] schema drift alert email failed (non-fatal)");
         });
     } else {
@@ -232,9 +242,9 @@ export async function runStartupTasks(): Promise<void> {
  *   developers can work without setting every env var upfront.
  */
 function validateCORS(): string[] {
-  const fromEnv = (process.env.ALLOWED_ORIGINS ?? '')
-    .split(',')
-    .map(o => o.trim())
+  const fromEnv = (process.env.ALLOWED_ORIGINS ?? "")
+    .split(",")
+    .map((o) => o.trim())
     .filter(Boolean);
 
   // Always include the Replit dev domain if running on Replit.
@@ -246,16 +256,17 @@ function validateCORS(): string[] {
     ? (() => {
         // Derive the .expo. subdomain variant (e.g. "abc-00-xyz.pike.replit.dev"
         // → "abc-00-xyz.expo.pike.replit.dev") used by the Expo dev client.
-        const dotIdx = replitDomain.indexOf('.');
-        const expoOrigin = dotIdx !== -1
-          ? `https://${replitDomain.slice(0, dotIdx)}.expo${replitDomain.slice(dotIdx)}`
-          : null;
+        const dotIdx = replitDomain.indexOf(".");
+        const expoOrigin =
+          dotIdx !== -1
+            ? `https://${replitDomain.slice(0, dotIdx)}.expo${replitDomain.slice(dotIdx)}`
+            : null;
         return [
           `https://${replitDomain}`,
           // External port variants mapped in .replit [[ports]] blocks
-          ...[3000, 3001, 3002, 8000].map(p => `https://${replitDomain}:${p}`),
+          ...[3000, 3001, 3002, 8000].map((p) => `https://${replitDomain}:${p}`),
           // Expo web dev server ports
-          ...[19006, 8081].map(p => `https://${replitDomain}:${p}`),
+          ...[19006, 8081].map((p) => `https://${replitDomain}:${p}`),
           // Expo .expo. subdomain variant used by Expo Go / dev client
           ...(expoOrigin ? [expoOrigin] : []),
         ];
@@ -272,29 +283,29 @@ function validateCORS(): string[] {
   // so the server can still start; operators should set ALLOWED_ORIGINS for
   // tighter control.
   const replitPortVariants = replitDomain
-    ? [3000, 3001, 3002, 8000].map(p => `https://${replitDomain}:${p}`)
+    ? [3000, 3001, 3002, 8000].map((p) => `https://${replitDomain}:${p}`)
     : [];
   const fallback = [
-    'http://localhost:5000',
-    'http://localhost:5173',
-    'http://localhost:3001',
-    'http://localhost:3002',
-    'http://localhost:3003',
-    'http://127.0.0.1:5000',
+    "http://localhost:5000",
+    "http://localhost:5173",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://localhost:3003",
+    "http://127.0.0.1:5000",
     ...replitOrigins,
     ...replitPortVariants,
   ];
 
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === "production") {
     logger.warn(
       { allowedOrigins: fallback },
-      '[SECURITY:CORS] ALLOWED_ORIGINS is not set in production — falling back to Replit-derived origins. ' +
-      'Set ALLOWED_ORIGINS to a comma-separated list of your production URLs for tighter CORS control.'
+      "[SECURITY:CORS] ALLOWED_ORIGINS is not set in production — falling back to Replit-derived origins. " +
+        "Set ALLOWED_ORIGINS to a comma-separated list of your production URLs for tighter CORS control."
     );
   } else {
     logger.info(
       { allowedOrigins: fallback },
-      '[SECURITY:CORS] ALLOWED_ORIGINS not set — using localhost-only whitelist for development. Set ALLOWED_ORIGINS before deploying to production.'
+      "[SECURITY:CORS] ALLOWED_ORIGINS not set — using localhost-only whitelist for development. Set ALLOWED_ORIGINS before deploying to production."
     );
   }
   return fallback;
@@ -302,9 +313,9 @@ function validateCORS(): string[] {
 
 export async function createServer() {
   const app = express();
-  
+
   // Trust proxy (for proper IP detection behind reverse proxy/load balancer)
-  app.set('trust proxy', 1);
+  app.set("trust proxy", 1);
 
   /* ── Request/response timing logger (pino-http) — MUST be first middleware ──
      Emits one structured JSON log line per request/response with:
@@ -313,38 +324,39 @@ export async function createServer() {
      attached to req so Sentry / audit / downstream middleware can reference it.
      Position: first, so every request including 404s and proxy responses is
      captured and the requestId is available to all later middleware. */
-  app.use(pinoHttp({
-    logger: pinoInstance,
-    genReqId: (req, res) => {
-      const existing = req.headers["x-request-id"] as string | undefined;
-      const id = existing || crypto.randomUUID();
-      res.setHeader("x-request-id", id);
-      return id;
-    },
-    customLogLevel: (_req, res, err) => {
-      if (err || res.statusCode >= 500) return "error";
-      if (res.statusCode >= 400) return "warn";
-      return "info";
-    },
-    serializers: {
-      req: (req) => ({
-        id:        req.id,
-        method:    req.method,
-        url:       req.url,
-        userAgent: (req.raw as { headers?: Record<string, string> })?.headers?.["user-agent"],
-      }),
-      res: (res) => ({
-        statusCode: res.statusCode,
-      }),
-    },
-    customSuccessMessage: (req, res) => {
-      const ctx = requestContext.getStore();
-      const ms = ctx ? Date.now() - ctx.startMs : 0;
-      return `${req.method} ${(req as { url?: string }).url ?? ""} → ${res.statusCode} (${ms}ms)`;
-    },
-    customErrorMessage: (_req, _res, err) =>
-      `ERROR: ${(err as Error).message ?? String(err)}`,
-  }));
+  app.use(
+    pinoHttp({
+      logger: pinoInstance,
+      genReqId: (req, res) => {
+        const existing = req.headers["x-request-id"] as string | undefined;
+        const id = existing || crypto.randomUUID();
+        res.setHeader("x-request-id", id);
+        return id;
+      },
+      customLogLevel: (_req, res, err) => {
+        if (err || res.statusCode >= 500) return "error";
+        if (res.statusCode >= 400) return "warn";
+        return "info";
+      },
+      serializers: {
+        req: (req) => ({
+          id: req.id,
+          method: req.method,
+          url: req.url,
+          userAgent: (req.raw as { headers?: Record<string, string> })?.headers?.["user-agent"],
+        }),
+        res: (res) => ({
+          statusCode: res.statusCode,
+        }),
+      },
+      customSuccessMessage: (req, res) => {
+        const ctx = requestContext.getStore();
+        const ms = ctx ? Date.now() - ctx.startMs : 0;
+        return `${req.method} ${(req as { url?: string }).url ?? ""} → ${res.statusCode} (${ms}ms)`;
+      },
+      customErrorMessage: (_req, _res, err) => `ERROR: ${(err as Error).message ?? String(err)}`,
+    })
+  );
 
   /* ── Per-request AsyncLocalStorage context ──────────────────────────────
      Mount AFTER pinoHttp (so genReqId has fired and req.id is set) and
@@ -360,14 +372,17 @@ export async function createServer() {
   if (!process.env.DATABASE_URL || !process.env.JWT_SECRET) {
     const missing: string[] = [];
     if (!process.env.DATABASE_URL) missing.push("DATABASE_URL");
-    if (!process.env.JWT_SECRET)   missing.push("JWT_SECRET");
+    if (!process.env.JWT_SECRET) missing.push("JWT_SECRET");
 
     const missingRows = missing
-      .map(k => `<tr><td class="var">${k}</td><td class="desc">${
-        k === "DATABASE_URL"
-          ? "PostgreSQL connection string — create a free Replit PostgreSQL database or paste your own URL"
-          : "JWT signing secret — generate with: <code>node -e \"console.log(require('crypto').randomBytes(64).toString('hex'))\"</code>"
-      }</td></tr>`)
+      .map(
+        (k) =>
+          `<tr><td class="var">${k}</td><td class="desc">${
+            k === "DATABASE_URL"
+              ? "PostgreSQL connection string — create a free Replit PostgreSQL database or paste your own URL"
+              : "JWT signing secret — generate with: <code>node -e \"console.log(require('crypto').randomBytes(64).toString('hex'))\"</code>"
+          }</td></tr>`
+      )
       .join("\n");
 
     const setupHtml = `<!DOCTYPE html>
@@ -446,7 +461,14 @@ export async function createServer() {
     const start = Date.now();
     res.on("finish", () => {
       const url = req.originalUrl ?? req.url ?? "";
-      if (url.startsWith("/api/health") || url === "/" || url.startsWith("/admin") || url.startsWith("/vendor") || url.startsWith("/rider")) return;
+      if (
+        url.startsWith("/api/health") ||
+        url === "/" ||
+        url.startsWith("/admin") ||
+        url.startsWith("/vendor") ||
+        url.startsWith("/rider")
+      )
+        return;
       recordResponseTime(Date.now() - start);
     });
     next();
@@ -458,7 +480,9 @@ export async function createServer() {
      attach request context (url, method, headers, user) to every captured
      event. Falls back silently if Sentry is not installed. */
   {
-    const sentryMod = (globalThis as Record<string, unknown>)["__sentryInstance"] as Record<string, unknown> | undefined;
+    const sentryMod = (globalThis as Record<string, unknown>)["__sentryInstance"] as
+      | Record<string, unknown>
+      | undefined;
     if (sentryMod && typeof sentryMod["Handlers"] === "object" && sentryMod["Handlers"]) {
       const handlers = sentryMod["Handlers"] as Record<string, unknown>;
       if (typeof handlers["requestHandler"] === "function") {
@@ -475,15 +499,21 @@ export async function createServer() {
    ──────────────────────────────────────────────────────────────────────── */
   if (process.env.NODE_ENV === "production") {
     const staticApps: Array<{ prefix: string; dir: string; spa?: boolean }> = [
-      { prefix: "/admin",    dir: resolve(__dirname, "../../admin/dist/public"),         spa: true },
-      { prefix: "/vendor",   dir: resolve(__dirname, "../../vendor-app/dist/public"),    spa: true },
-      { prefix: "/rider",    dir: resolve(__dirname, "../../rider-app/dist/public"),     spa: true },
-      { prefix: "/customer", dir: resolve(__dirname, "../../../artifacts/ajkmart/static-build/web"), spa: true },
+      { prefix: "/admin", dir: resolve(__dirname, "../../admin/dist/public"), spa: true },
+      { prefix: "/vendor", dir: resolve(__dirname, "../../vendor-app/dist/public"), spa: true },
+      { prefix: "/rider", dir: resolve(__dirname, "../../rider-app/dist/public"), spa: true },
+      {
+        prefix: "/customer",
+        dir: resolve(__dirname, "../../../artifacts/ajkmart/static-build/web"),
+        spa: true,
+      },
     ];
 
     for (const { prefix, dir, spa } of staticApps) {
       if (!existsSync(dir)) {
-        logger.warn(`[prod:static] ${prefix} dist not found at ${dir} — returning 503 for these routes. Run the build for this app.`);
+        logger.warn(
+          `[prod:static] ${prefix} dist not found at ${dir} — returning 503 for these routes. Run the build for this app.`
+        );
         app.use(prefix, (_req: express.Request, res: express.Response) => {
           res.status(503).send(`${prefix} app not built. Run pnpm build in the workspace.`);
         });
@@ -501,7 +531,9 @@ export async function createServer() {
         });
       }
     }
-    logger.info("[prod:static] Sub-app static serving configured for /admin /vendor /rider /customer");
+    logger.info(
+      "[prod:static] Sub-app static serving configured for /admin /vendor /rider /customer"
+    );
   }
 
   /* ── Dev-only: serve sw.js files directly with Clear-Site-Data so the
@@ -510,9 +542,9 @@ export async function createServer() {
         ALWAYS received by the browser regardless of any cached SW. ──────── */
   if (process.env.NODE_ENV !== "production") {
     const swFiles: Record<string, string> = {
-      "/admin/sw.js":  resolve(__dirname, "../../admin/public/sw.js"),
+      "/admin/sw.js": resolve(__dirname, "../../admin/public/sw.js"),
       "/vendor/sw.js": resolve(__dirname, "../../vendor-app/public/sw.js"),
-      "/rider/sw.js":  resolve(__dirname, "../../rider-app/public/sw.js"),
+      "/rider/sw.js": resolve(__dirname, "../../rider-app/public/sw.js"),
     };
     for (const [urlPath, filePath] of Object.entries(swFiles)) {
       app.get(urlPath, (_req, res) => {
@@ -523,7 +555,13 @@ export async function createServer() {
           res.setHeader("Clear-Site-Data", '"cache", "storage"');
           res.send(content);
         } catch (err) {
-          logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+          logger.error(
+            {
+              error: err instanceof Error ? err.message : String(err),
+              timestamp: new Date().toISOString(),
+            },
+            "[route] unhandled error"
+          );
           res.status(404).send("/* sw.js not found */");
         }
       });
@@ -539,7 +577,11 @@ export async function createServer() {
         the route is effectively inert. maxAge:0 prevents stale caches on
         files that may be overwritten in a no-S3 fallback scenario. ────────── */
   const publicUploadsDir = resolve(process.cwd(), "public", "uploads");
-  try { mkdirSync(publicUploadsDir, { recursive: true }); } catch (err) { logger.warn({ err }, "[uploads] Could not create public/uploads dir — may already exist"); }
+  try {
+    mkdirSync(publicUploadsDir, { recursive: true });
+  } catch (err) {
+    logger.warn({ err }, "[uploads] Could not create public/uploads dir — may already exist");
+  }
   app.use("/uploads", express.static(publicUploadsDir, { maxAge: "0", etag: false }));
 
   /* ── Dev-only: proxy sibling apps so the api-server preview can render
@@ -559,21 +601,48 @@ export async function createServer() {
           target: adminTarget,
           changeOrigin: true,
           logger: undefined,
-          pathFilter: (pathname) => pathname === vp || pathname.startsWith(vp + "/") || pathname.startsWith(vp + "?"),
-          on: { error: (_err, _req, _res) => { /* silently ignore – dev banner is cosmetic */ } },
-        }) as unknown as express.RequestHandler,
+          pathFilter: (pathname) =>
+            pathname === vp || pathname.startsWith(vp + "/") || pathname.startsWith(vp + "?"),
+          on: {
+            error: (_err, _req, _res) => {
+              /* silently ignore – dev banner is cosmetic */
+            },
+          },
+        }) as unknown as express.RequestHandler
       );
     }
 
-    const devProxies: Array<{ prefix: string; target: string; ws?: boolean; rewriteToRoot?: boolean }> = [
-      { prefix: "/admin",    target: adminTarget, ws: true },
-      { prefix: "/vendor",   target: `http://127.0.0.1:${process.env.VENDOR_DEV_PORT ?? "3001"}`, ws: true },
-      { prefix: "/rider",    target: `http://127.0.0.1:${process.env.RIDER_DEV_PORT  ?? "3002"}`, ws: true },
-      { prefix: "/__mockup", target: `http://127.0.0.1:${process.env.MOCKUP_DEV_PORT ?? "8081"}`,  ws: true },
+    const devProxies: Array<{
+      prefix: string;
+      target: string;
+      ws?: boolean;
+      rewriteToRoot?: boolean;
+    }> = [
+      { prefix: "/admin", target: adminTarget, ws: true },
+      {
+        prefix: "/vendor",
+        target: `http://127.0.0.1:${process.env.VENDOR_DEV_PORT ?? "3001"}`,
+        ws: true,
+      },
+      {
+        prefix: "/rider",
+        target: `http://127.0.0.1:${process.env.RIDER_DEV_PORT ?? "3002"}`,
+        ws: true,
+      },
+      {
+        prefix: "/__mockup",
+        target: `http://127.0.0.1:${process.env.MOCKUP_DEV_PORT ?? "8081"}`,
+        ws: true,
+      },
       // Expo customer app serves at "/", so /customer/* → strip prefix.
       // Absolute asset URLs Expo embeds (e.g. /_expo/static/...) are caught
       // by the Expo fallback proxy registered at the bottom of this file.
-      { prefix: "/customer", target: `http://localhost:${process.env.EXPO_DEV_PORT   ?? "20716"}`, ws: true, rewriteToRoot: true },
+      {
+        prefix: "/customer",
+        target: `http://localhost:${process.env.EXPO_DEV_PORT ?? "20716"}`,
+        ws: true,
+        rewriteToRoot: true,
+      },
     ];
     for (const p of devProxies) {
       // Mount at root with a path filter so the original `/admin/...` URL is
@@ -601,16 +670,24 @@ export async function createServer() {
             : {}),
           on: {
             error: (err, _req, res) => {
-              if (res && "writeHead" in res && !(res as unknown as { headersSent?: boolean }).headersSent) {
-                (res as unknown as { writeHead: (code: number, headers: Record<string, string>) => void }).writeHead(502, { "Content-Type": "text/plain" });
+              if (
+                res &&
+                "writeHead" in res &&
+                !(res as unknown as { headersSent?: boolean }).headersSent
+              ) {
+                (
+                  res as unknown as {
+                    writeHead: (code: number, headers: Record<string, string>) => void;
+                  }
+                ).writeHead(502, { "Content-Type": "text/plain" });
                 (res as unknown as { end: (body: string) => void }).end(
                   `Dev proxy error for ${p.prefix} → ${p.target}\n${(err as Error).message}\n` +
-                  `Make sure the corresponding workflow is running.`
+                    `Make sure the corresponding workflow is running.`
                 );
               }
             },
           },
-        }) as unknown as express.RequestHandler,
+        }) as unknown as express.RequestHandler
       );
     }
     logger.info("[dev] Sibling app proxies enabled at /admin /vendor /rider /customer /__mockup");
@@ -625,33 +702,35 @@ export async function createServer() {
   //  - upgradeInsecureRequests: [] — browsers auto-upgrade http:// subresources.
   //  - crossOriginEmbedderPolicy: false — Socket.IO requires this to be off.
   //  - hidePoweredBy: true — suppress X-Powered-By: Express fingerprinting.
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc:              ["'self'"],
-        scriptSrc:               ["'self'", "https://www.gstatic.com"],
-        styleSrc:                ["'self'", "'unsafe-inline'"],
-        imgSrc:                  ["'self'", "data:", "https:"],
-        fontSrc:                 ["'self'", "data:"],
-        connectSrc:              ["'self'", "wss:", "https:"],
-        workerSrc:               ["'self'", "blob:"],
-        frameSrc:                ["'none'"],
-        objectSrc:               ["'none'"],
-        upgradeInsecureRequests: [],
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "https://www.gstatic.com"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", "data:", "https:"],
+          fontSrc: ["'self'", "data:"],
+          connectSrc: ["'self'", "wss:", "https:"],
+          workerSrc: ["'self'", "blob:"],
+          frameSrc: ["'none'"],
+          objectSrc: ["'none'"],
+          upgradeInsecureRequests: [],
+        },
       },
-    },
-    crossOriginEmbedderPolicy: false,
-    hsts: {
-      maxAge: 31_536_000,
-      includeSubDomains: true,
-      preload: true,
-    },
-    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-    frameguard: { action: "deny" },
-    noSniff: true,
-    xssFilter: true,
-    hidePoweredBy: true,
-  }));
+      crossOriginEmbedderPolicy: false,
+      hsts: {
+        maxAge: 31_536_000,
+        includeSubDomains: true,
+        preload: true,
+      },
+      referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+      frameguard: { action: "deny" },
+      noSniff: true,
+      xssFilter: true,
+      hidePoweredBy: true,
+    })
+  );
 
   // Explicit Permissions-Policy listing only modern, well-supported features.
   // Omitting deprecated/unrecognised directives (e.g. interest-cohort,
@@ -664,40 +743,48 @@ export async function createServer() {
     res.setHeader("X-Permitted-Cross-Domain-Policies", "none");
     next();
   });
-  
+
   // CORS with strict origin whitelist.
   // validateCORS() enforces production-fatal / dev-fallback logic and returns
   // the final allowed-origins list. The callback never falls through to allow-all.
   const allowedOrigins = validateCORS();
-  logger.info({ allowedOrigins }, '[SECURITY:CORS] Active allowed origins');
+  logger.info({ allowedOrigins }, "[SECURITY:CORS] Active allowed origins");
 
   // RegExp patterns for dynamic Replit preview subdomains that cannot be
   // enumerated as exact strings at startup time.
-  const ORIGIN_PATTERNS: RegExp[] = [
-    /\.replit\.dev$/,
-    /\.pike\.replit\.dev$/,
-  ];
+  const ORIGIN_PATTERNS: RegExp[] = [/\.replit\.dev$/, /\.pike\.replit\.dev$/];
 
-  app.use(cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, curl, server-to-server)
-      if (!origin) return callback(null, true);
-      // Exact string match from env-derived whitelist
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      // Pattern match for dynamic Replit subdomains
-      if (ORIGIN_PATTERNS.some(re => re.test(origin))) return callback(null, true);
-      logger.warn({ blockedOrigin: origin }, '[SECURITY:CORS] Request blocked — origin not in whitelist');
-      // Return callback(null, false) — lets cors emit the correct 403 itself
-      // without leaking an error stack into the response body.
-      callback(null, false);
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token", "X-Report-Signature", "X-Request-ID"],
-    exposedHeaders: ["X-Request-ID", "X-RateLimit-Remaining"],
-    maxAge: 86_400,
-  }));
-  
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        // Allow requests with no origin (mobile apps, curl, server-to-server)
+        if (!origin) return callback(null, true);
+        // Exact string match from env-derived whitelist
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        // Pattern match for dynamic Replit subdomains
+        if (ORIGIN_PATTERNS.some((re) => re.test(origin))) return callback(null, true);
+        logger.warn(
+          { blockedOrigin: origin },
+          "[SECURITY:CORS] Request blocked — origin not in whitelist"
+        );
+        // Return callback(null, false) — lets cors emit the correct 403 itself
+        // without leaking an error stack into the response body.
+        callback(null, false);
+      },
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: [
+        "Content-Type",
+        "Authorization",
+        "X-CSRF-Token",
+        "X-Report-Signature",
+        "X-Request-ID",
+      ],
+      exposedHeaders: ["X-Request-ID", "X-RateLimit-Remaining"],
+      maxAge: 86_400,
+    })
+  );
+
   app.use(cookieParser());
 
   /* ── HTTP response compression (gzip/brotli) ──────────────────────────────
@@ -708,25 +795,27 @@ export async function createServer() {
        their own compression or need raw bytes (e.g. binary stream proxies)
      - Proxy paths skipped: already served by upstream Vite dev servers. */
   // @ts-expect-error -- compression types don't fully align with Express 5 overloads at compile time; runtime behavior is correct
-  app.use(compression({
-    level: 6,
-    threshold: 1024,
-    filter: (req, res) => {
-      if (req.headers["x-no-compression"]) return false;
-      const url = req.originalUrl ?? req.url ?? "";
-      if (
-        url === "/health" ||
-        url.startsWith("/admin") ||
-        url.startsWith("/vendor") ||
-        url.startsWith("/rider") ||
-        url.startsWith("/customer") ||
-        url.startsWith("/__mockup")
-      ) {
-        return false;
-      }
-      return compression.filter(req, res);
-    },
-  }));
+  app.use(
+    compression({
+      level: 6,
+      threshold: 1024,
+      filter: (req, res) => {
+        if (req.headers["x-no-compression"]) return false;
+        const url = req.originalUrl ?? req.url ?? "";
+        if (
+          url === "/health" ||
+          url.startsWith("/admin") ||
+          url.startsWith("/vendor") ||
+          url.startsWith("/rider") ||
+          url.startsWith("/customer") ||
+          url.startsWith("/__mockup")
+        ) {
+          return false;
+        }
+        return compression.filter(req, res);
+      },
+    })
+  );
 
   /* Capture raw body bytes on every JSON request so endpoints that rely on
      request signing (e.g. /api/error-reports HMAC-SHA256 verification) can
@@ -741,7 +830,7 @@ export async function createServer() {
   };
   app.use(
     ["/api/error-reports", "/api/admin/error-reports"],
-    express.json({ limit: "256kb", verify: rawBodyCapture }),
+    express.json({ limit: "256kb", verify: rawBodyCapture })
   );
   app.use(express.json({ limit: "10kb", verify: rawBodyCapture }));
   app.use(express.urlencoded({ extended: true, limit: "10kb" }));
@@ -751,7 +840,7 @@ export async function createServer() {
      so downstream handlers never see <script>, event handlers, or any markup.
      Runs after body parsers (needs a parsed object) and before all routes. */
   app.use(sanitizeBody);
-  
+
   /* ── Root /health — rich DB+Redis check (same as /api/health) ───────────
      Uptime monitors and load balancers often probe the root /health path.
      We proxy to the full /api/health logic so both endpoints are meaningful. */
@@ -777,18 +866,24 @@ export async function createServer() {
   app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
     const isSSE = req.headers["accept"] === "text/event-stream";
     const isWsUpgrade = req.headers["upgrade"]?.toLowerCase() === "websocket";
-    if (isSSE || isWsUpgrade) { next(); return; }
+    if (isSSE || isWsUpgrade) {
+      next();
+      return;
+    }
 
     const timer = setTimeout(() => {
       if (!res.headersSent) {
-        logger.warn({ method: req.method, url: req.originalUrl, timeoutMs: REQUEST_TIMEOUT_MS }, "[timeout] Request timed out — returning 503");
+        logger.warn(
+          { method: req.method, url: req.originalUrl, timeoutMs: REQUEST_TIMEOUT_MS },
+          "[timeout] Request timed out — returning 503"
+        );
         res.status(503).json({ success: false, error: "Request timeout. Please try again." });
       }
     }, REQUEST_TIMEOUT_MS);
     timer.unref();
 
     res.on("finish", () => clearTimeout(timer));
-    res.on("close",  () => clearTimeout(timer));
+    res.on("close", () => clearTimeout(timer));
     next();
   });
 
@@ -822,7 +917,7 @@ export async function createServer() {
         tryItOutEnabled: false,
         deepLinking: true,
       },
-    }),
+    })
   );
 
   /* ── Cache-Control headers for public / private API routes ───────────────
@@ -840,10 +935,7 @@ export async function createServer() {
       res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=60");
     } else if (req.path.startsWith("/api/auth")) {
       res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-    } else if (
-      req.path.startsWith("/api/wallet") ||
-      req.path.startsWith("/api/orders")
-    ) {
+    } else if (req.path.startsWith("/api/wallet") || req.path.startsWith("/api/orders")) {
       res.setHeader("Cache-Control", "private, no-store");
     }
     next();
@@ -867,7 +959,9 @@ export async function createServer() {
 
   /* ── Sentry error handler (must be mounted BEFORE the generic error handler) */
   {
-    const sentryMod = (globalThis as Record<string, unknown>)["__sentryInstance"] as Record<string, unknown> | undefined;
+    const sentryMod = (globalThis as Record<string, unknown>)["__sentryInstance"] as
+      | Record<string, unknown>
+      | undefined;
     if (sentryMod && typeof sentryMod["Handlers"] === "object" && sentryMod["Handlers"]) {
       const handlers = sentryMod["Handlers"] as Record<string, unknown>;
       if (typeof handlers["errorHandler"] === "function") {
@@ -879,15 +973,22 @@ export async function createServer() {
   /* ── Global Express error handler ──────────────────────────────────────
      Catches any error passed to next(err) from route handlers or middleware.
      Never leaks stack traces or internal messages to the client in production. */
-  app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    logger.error({ err, method: req.method, url: req.originalUrl }, "[error] Unhandled route error");
-    if (!res.headersSent) {
-      res.status(500).json({ success: false, error: "Internal server error" });
+  app.use(
+    (err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+      logger.error(
+        { err, method: req.method, url: req.originalUrl },
+        "[error] Unhandled route error"
+      );
+      if (!res.headersSent) {
+        res.status(500).json({ success: false, error: "Internal server error" });
+      }
     }
-  });
+  );
 
   /* ── Favicon: return 204 so browsers stop logging 502 errors ─────────── */
-  app.get("/favicon.ico", (_req, res) => { res.status(204).end(); });
+  app.get("/favicon.ico", (_req, res) => {
+    res.status(204).end();
+  });
 
   /* ── Dev-only fallback: proxy any remaining non-/api request to the
         Expo (customer / ajkmart) dev server, which serves the customer app
@@ -912,11 +1013,19 @@ export async function createServer() {
         !pathname.startsWith("/__mockup"),
       on: {
         error: (err, _req, res) => {
-          if (res && "writeHead" in res && !(res as unknown as { headersSent?: boolean }).headersSent) {
-            (res as unknown as { writeHead: (code: number, headers: Record<string, string>) => void }).writeHead(502, { "Content-Type": "text/plain" });
+          if (
+            res &&
+            "writeHead" in res &&
+            !(res as unknown as { headersSent?: boolean }).headersSent
+          ) {
+            (
+              res as unknown as {
+                writeHead: (code: number, headers: Record<string, string>) => void;
+              }
+            ).writeHead(502, { "Content-Type": "text/plain" });
             (res as unknown as { end: (body: string) => void }).end(
               `Dev proxy error for EXPO → ${expoTarget}\n${(err as Error).message}\n` +
-              `Make sure the ajkmart (expo) workflow is running.`
+                `Make sure the ajkmart (expo) workflow is running.`
             );
           }
         },

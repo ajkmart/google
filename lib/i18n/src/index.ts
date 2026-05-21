@@ -1,9 +1,14 @@
 export type Language = "en" | "ur" | "roman";
 
-export const LANGUAGE_OPTIONS: { value: Language; label: string; nativeLabel: string; rtl: boolean }[] = [
-  { value: "en",    label: "English", nativeLabel: "English",    rtl: false },
-  { value: "ur",    label: "Urdu",    nativeLabel: "اردو",       rtl: true  },
-  { value: "roman", label: "Roman",   nativeLabel: "Roman Urdu", rtl: false },
+export const LANGUAGE_OPTIONS: {
+  value: Language;
+  label: string;
+  nativeLabel: string;
+  rtl: boolean;
+}[] = [
+  { value: "en", label: "English", nativeLabel: "English", rtl: false },
+  { value: "ur", label: "Urdu", nativeLabel: "اردو", rtl: true },
+  { value: "roman", label: "Roman", nativeLabel: "Roman Urdu", rtl: false },
 ];
 
 export const DEFAULT_LANGUAGE: Language = "en";
@@ -303,7 +308,8 @@ const translations = {
     allCaughtUp: "All caught up",
     readAll: "Read All",
     noNotificationsYet: "No notifications yet",
-    orderAlertsAppearHere: "Order & delivery alerts will appear here when you start accepting tasks",
+    orderAlertsAppearHere:
+      "Order & delivery alerts will appear here when you start accepting tasks",
     tryDifferentFilter: "Try a different filter to find what you're looking for",
     alerts: "Alerts",
     system: "System",
@@ -353,7 +359,8 @@ const translations = {
     approvalTakes: "This typically takes 24-48 hours.",
     alreadyApproved: "If you've already been approved, try logging in again.",
     approvalRejected: "Application Rejected",
-    approvalRejectedMsg: "Your rider application was not approved. Please contact support for more information.",
+    approvalRejectedMsg:
+      "Your rider application was not approved. Please contact support for more information.",
     accessDenied: "Access denied. This app is only for riders.",
     enterValidPhone: "Enter a valid phone number",
     enterOtpDigits: "Enter the 6-digit OTP",
@@ -580,7 +587,8 @@ const translations = {
     adminVerify24h: "Admin will verify within 24 hours.",
     adminProcess24h: "Admin will process within 24-48 hours.",
     trackRequestStatus: "You can track your request status on the Wallet page.",
-    wrongAccountWarning: "Wrong account details may cause payment failure. Cannot cancel after submission.",
+    wrongAccountWarning:
+      "Wrong account details may cause payment failure. Cannot cancel after submission.",
     wrongTxIdWarning: "Wrong TxID may cause deposit rejection. Enter a real transaction ID.",
     savedAccount: "Saved Account",
     use: "Use",
@@ -600,7 +608,8 @@ const translations = {
     toCollect: "to collect",
     noNotificationsDesc: "Order updates and alerts will appear here",
     welcomeBack: "Welcome back",
-    manageDescription: "Manage orders, products, and earnings — all from one powerful vendor dashboard.",
+    manageDescription:
+      "Manage orders, products, and earnings — all from one powerful vendor dashboard.",
     orderManagement: "Order Management",
     productControl: "Product Control",
     instantEarnings: "Instant Earnings",
@@ -718,7 +727,8 @@ const translations = {
     sentTo_: "Sent to",
     welcomeBackExcl: "Welcome Back!",
     loginWith: "Login with your",
-    vendorApprovalMsg: "Your vendor account is awaiting admin approval. You will be notified once approved.",
+    vendorApprovalMsg:
+      "Your vendor account is awaiting admin approval. You will be notified once approved.",
     manageOrdersDesc: "Accept & track orders in real-time",
     productControlDesc: "Add, edit & manage your menu easily",
     instantEarningsDesc: "Wallet credited after every delivery",
@@ -1286,7 +1296,8 @@ const translations = {
     confirmNewPassword: "Confirm New Password",
     resetPassword: "Reset Password",
     passwordResetSuccess: "Password Reset Successful!",
-    passwordResetSuccessMsg: "Your password has been changed. You can now login with your new password.",
+    passwordResetSuccessMsg:
+      "Your password has been changed. You can now login with your new password.",
     goToLogin: "Go to Login",
     securitySettings: "Security Settings",
     twoFactorAuthentication: "Two-Factor Authentication",
@@ -1337,7 +1348,8 @@ const translations = {
     usernameTakenShort: "Username already taken",
     phoneAlreadyExists: "An account already exists with this phone number.",
     emailAlreadyExists: "An account already exists with this email address.",
-    noUpdateProvided: "No fields to update — please provide at least a name, email, username, or password.",
+    noUpdateProvided:
+      "No fields to update — please provide at least a name, email, username, or password.",
     currentPasswordIncorrect: "Current password is incorrect.",
     passwordUpdated: "Password updated successfully.",
     profileUpdated: "Profile updated successfully.",
@@ -1510,15 +1522,18 @@ const translations = {
     notifWalletCredited: "Wallet Credited",
     notifWalletCreditedBody: "Rs. {amount} has been added to your wallet.",
     notifWalletPending: "Deposit Request Submitted",
-    notifWalletPendingBody: "Rs. {amount} deposit request received. Admin will verify and credit your wallet.",
+    notifWalletPendingBody:
+      "Rs. {amount} deposit request received. Admin will verify and credit your wallet.",
     notifWalletReceivedBody: "Rs. {amount} received from {sender}",
     notifWithdrawalPending: "Withdrawal Request Submitted",
-    notifWithdrawalPendingBody: "Rs. {amount} withdrawal request is pending. Admin will process within 1-2 business days.",
+    notifWithdrawalPendingBody:
+      "Rs. {amount} withdrawal request is pending. Admin will process within 1-2 business days.",
     notifProductApproved: "Product Approved ✅",
-    notifProductApprovedBody: "\"{name}\" has been approved and is now visible in the store.",
-    notifProductApprovedBodyNote: "\"{name}\" has been approved and is now visible in the store. Note: {note}",
+    notifProductApprovedBody: '"{name}" has been approved and is now visible in the store.',
+    notifProductApprovedBodyNote:
+      '"{name}" has been approved and is now visible in the store. Note: {note}',
     notifProductRejected: "Product Rejected ❌",
-    notifProductRejectedBody: "\"{name}\" has been rejected. Reason: {reason}",
+    notifProductRejectedBody: '"{name}" has been rejected. Reason: {reason}',
     notifDepositCredited: "Deposit Credited ✅",
     notifDepositCreditedBody: "Rs. {amount} has been added to your wallet. Thank you!",
     notifDepositRejected: "Deposit Rejected ❌",
@@ -1526,9 +1541,11 @@ const translations = {
     notifDocumentCorrection: "Document Correction Required 📄",
     notifDocumentCorrectionBody: "Please re-upload your {field} for verification.",
     notifDebtWaived: "Cancellation Debt Waived ✅",
-    notifDebtWaivedBody: "Your outstanding cancellation fee of Rs. {amount} has been waived by support.",
+    notifDebtWaivedBody:
+      "Your outstanding cancellation fee of Rs. {amount} has been waived by support.",
     notifVendorWithdrawal: "Withdrawal Requested ✅",
-    notifVendorWithdrawalBody: "Rs. {amount} withdrawal requested. Admin will process within 24-48 hours.",
+    notifVendorWithdrawalBody:
+      "Rs. {amount} withdrawal requested. Admin will process within 24-48 hours.",
     notifOrderConfirmed: "Order Confirmed! ✅",
     notifOrderConfirmedBody: "Your order has been confirmed and is being prepared.",
     notifOrderPreparing: "Order Being Prepared 🍳",
@@ -1550,7 +1567,8 @@ const translations = {
     notifRideCancelled: "Ride Cancelled ❌",
     notifRideCancelledBody: "Your ride has been cancelled.",
     notifRideCancelledFeeBody: "A cancellation fee of Rs. {fee} has been applied.",
-    notifRideCancelledFeeDebtBody: "A cancellation fee of Rs. {fee} has been applied. Remaining balance will be deducted from future wallet top-ups.",
+    notifRideCancelledFeeDebtBody:
+      "A cancellation fee of Rs. {fee} has been applied. Remaining balance will be deducted from future wallet top-ups.",
     notifRidePaymentReceived: "Ride Payment Received 💰",
     notifRidePaymentReceivedBody: "Rs. {amount} has been added to your wallet.",
     notifPharmacyConfirmed: "Pharmacy Order Confirmed ✅",
@@ -1576,13 +1594,15 @@ const translations = {
     notifParcelRefund: "Parcel Refund 📦💰",
     notifParcelRefundBody: "Rs. {amount} refunded to your wallet.",
     notifParcelBookingConfirmed: "Parcel Booking Confirmed 📦",
-    notifParcelBookingConfirmedBody: "Your {type} parcel is booked. Rs. {amount} — to {receiver}. ETA: {eta}",
+    notifParcelBookingConfirmedBody:
+      "Your {type} parcel is booked. Rs. {amount} — to {receiver}. ETA: {eta}",
     notifPharmacyOrderPlaced: "Pharmacy Order Placed 💊",
     notifPharmacyOrderPlacedBody: "Your pharmacy order is placed. Rs. {amount} — ETA: {eta}",
     notifWithdrawalApproved: "Withdrawal Approved ✅",
     notifWithdrawalApprovedBody: "Rs. {amount} has been transferred to your account.{ref}{note}",
     notifWithdrawalRejected: "Withdrawal Rejected ❌",
-    notifWithdrawalRejectedBody: "Rs. {amount} withdrawal rejected. Reason: {reason}. Amount returned to wallet.",
+    notifWithdrawalRejectedBody:
+      "Rs. {amount} withdrawal rejected. Reason: {reason}. Amount returned to wallet.",
     sosAlert: "SOS Alert",
     notifOrderOnWay: "Your order has been picked up. Rider is on the way!",
     notifAccountRestricted: "Account Restricted",
@@ -1602,13 +1622,16 @@ const translations = {
     notifRefundProcessed: "Refund Processed",
     notifRefundProcessedBody: "Rs. {amount} refunded to your wallet.",
     notifWalletDeposit: "Deposit Request Submitted",
-    notifWalletDepositBody: "Rs. {amount} deposit request received. Admin will verify within 1-2 hours.",
+    notifWalletDepositBody:
+      "Rs. {amount} deposit request received. Admin will verify within 1-2 hours.",
     notifWalletAutoApproved: "Wallet Credited! ✅",
     notifWalletAutoApprovedBody: "Rs. {amount} has been added to your wallet.",
     notifWalletP2PTopup: "P2P Topup Request Submitted",
-    notifWalletP2PTopupBody: "Rs. {amount} P2P topup request pending. Wallet will be credited after admin approval.",
+    notifWalletP2PTopupBody:
+      "Rs. {amount} P2P topup request pending. Wallet will be credited after admin approval.",
     notifWalletWithdrawal: "Withdrawal Request Submitted",
-    notifWalletWithdrawalBody: "Rs. {amount} withdrawal request is under review. You will be notified once processed.",
+    notifWalletWithdrawalBody:
+      "Rs. {amount} withdrawal request is under review. You will be notified once processed.",
     notifWalletSendReceived: "Money Received",
     notifWalletSendReceivedBody: "Rs. {amount} received from {sender}",
     notifOrderStatusTitle: "Order Update",
@@ -1618,7 +1641,8 @@ const translations = {
     platformLanguage: "Platform Default Language",
     platformLanguageDesc: "Default language for users who have not set a preference",
     notifRideRefundBody: "Rs. {refund} refunded to your wallet.",
-    notifRideRefundWithFeeBody: "Rs. {refund} refunded to your wallet. Rs. {fee} cancellation fee applied.",
+    notifRideRefundWithFeeBody:
+      "Rs. {refund} refunded to your wallet. Rs. {fee} cancellation fee applied.",
     emailVerifySubject: "Verify your AJKMart account",
     emailVerifyHeading: "Welcome to AJKMart{name}!",
     emailVerifyBody: "Please verify your email address by clicking the link below:",
@@ -1631,7 +1655,8 @@ const translations = {
     emailResetExpiry: "This code expires in 10 minutes.",
     emailResetIgnore: "If you did not request a password reset, please ignore this email.",
     emailMagicSubject: "{app} — Your Login Link",
-    emailMagicBody: "Click the button below to sign in to your account. This link expires in 15 minutes.",
+    emailMagicBody:
+      "Click the button below to sign in to your account. This link expires in 15 minutes.",
     emailMagicButton: "Sign In",
     emailMagicIgnore: "If you didn't request this, you can safely ignore this email.",
     notifWelcomeTitle: "Welcome to AJKMart!",
@@ -1639,22 +1664,31 @@ const translations = {
     notifWelcomeBonusTitle: "Welcome Bonus!",
     notifWelcomeBonusBody: "Rs. {amount} has been added to your wallet as a welcome bonus!",
     notifSchoolSubscribedTitle: "School Shuttle Subscribed!",
-    notifSchoolSubscribedBody: "{student} has been subscribed for {school}. Route: {route}. Monthly: Rs. {amount}",
+    notifSchoolSubscribedBody:
+      "{student} has been subscribed for {school}. Route: {route}. Monthly: Rs. {amount}",
     notifWalletReadyTitle: "Wallet Feature Active",
     notifWalletReadyBody: "Your AJKMart Wallet is ready. Top up and enjoy cashless payments.",
     notifRideServiceTitle: "Ride Service Available",
-    notifRideServiceBody: "Bike and car booking available in Muzaffarabad, Mirpur, Rawalakot. Try it now!",
+    notifRideServiceBody:
+      "Bike and car booking available in Muzaffarabad, Mirpur, Rawalakot. Try it now!",
     smsOtpText: "Your AJKMart OTP is {otp}. Valid for 5 minutes. Do not share with anyone.",
     smsOrderText: "Your order #{id} status: {status}. AJKMart",
     languageSelector: "Language",
     languageSelectorSub: "Choose your preferred language",
-    notifCancelPenaltyBody: "You cancelled {count} times today (limit: {limit}). Rs. {amount} penalty applied.",
-    notifCancelRestrictedBody: "You cancelled {count} times today (limit: {limit}). Rs. {amount} penalty applied and your account has been restricted. Contact support to re-activate.",
-    notifCancelWarningBody: "You have cancelled {count}/{limit} times today. Next cancellation will incur a Rs. {amount} penalty and possible account restriction.",
-    notifIgnorePenaltyBody: "You ignored {count} requests today (limit: {limit}). Rs. {amount} penalty applied.",
-    notifIgnoreRestrictedBody: "You ignored {count} requests today (limit: {limit}). Rs. {amount} penalty applied and your account has been restricted. Contact support.",
-    notifIgnoreWarningBody: "You have ignored {count}/{limit} requests today. Next ignore will incur a Rs. {amount} penalty and possible account restriction.",
-    notifCashFeeDeductedBody: "Rs. {fee} platform fee deducted from wallet. Cash collected: Rs. {cash}.",
+    notifCancelPenaltyBody:
+      "You cancelled {count} times today (limit: {limit}). Rs. {amount} penalty applied.",
+    notifCancelRestrictedBody:
+      "You cancelled {count} times today (limit: {limit}). Rs. {amount} penalty applied and your account has been restricted. Contact support to re-activate.",
+    notifCancelWarningBody:
+      "You have cancelled {count}/{limit} times today. Next cancellation will incur a Rs. {amount} penalty and possible account restriction.",
+    notifIgnorePenaltyBody:
+      "You ignored {count} requests today (limit: {limit}). Rs. {amount} penalty applied.",
+    notifIgnoreRestrictedBody:
+      "You ignored {count} requests today (limit: {limit}). Rs. {amount} penalty applied and your account has been restricted. Contact support.",
+    notifIgnoreWarningBody:
+      "You have ignored {count}/{limit} requests today. Next ignore will incur a Rs. {amount} penalty and possible account restriction.",
+    notifCashFeeDeductedBody:
+      "Rs. {fee} platform fee deducted from wallet. Cash collected: Rs. {cash}.",
     notifNewBidBody: "{name} placed a bid of Rs. {amount}. View and choose!",
     reorder: "Reorder",
     cancelWindowPassed: "Cancellation window passed",
@@ -1670,7 +1704,8 @@ const translations = {
     cart: "Cart",
     addItemsHint: "Add items from Mart or Food section",
     orderConfirmDelayed: "Order confirmation delayed",
-    orderConfirmDelayedDesc: "The server is taking longer than expected. Your order may have been placed — check your orders before retrying.",
+    orderConfirmDelayedDesc:
+      "The server is taking longer than expected. Your order may have been placed — check your orders before retrying.",
     checkMyOrders: "Check My Orders",
     retryAgain: "Retry / Try Again",
     confirmingOrder: "Confirming your order…",
@@ -1692,11 +1727,13 @@ const translations = {
     fareLabel: "Fare",
     refundDescText: "Submit a refund request. Refunds are processed within 3–5 business days.",
     mapUnavailableMsg: "Map unavailable — your order is still on the way",
-    trackingUnavailableMsg: "Live tracking temporarily unavailable. Your order is still on the way.",
+    trackingUnavailableMsg:
+      "Live tracking temporarily unavailable. Your order is still on the way.",
     payWithLabel: "Pay with",
     mobileNumberLabel: "Mobile Number",
     etaLabel: "ETA",
-    cityNotServiceable: "Delivery is currently only available in: {cities}. Your address is in {city}.",
+    cityNotServiceable:
+      "Delivery is currently only available in: {cities}. Your address is in {city}.",
     minOrderToast: "Minimum order Rs.{min} — add Rs.{diff} more",
     browseMart: "Browse Mart",
     browseFood: "Browse Food",
@@ -1704,7 +1741,8 @@ const translations = {
     invalidPhoneNumber: "Phone must be a valid Pakistani number (03XXXXXXXXX or +92XXXXXXXXXX)",
     sameLocationError: "Pickup and drop-off cannot be the same location",
     couldNotBookParcel: "Could not book parcel. Please try again.",
-    addressNotFound: "Could not locate this address. Try a more specific address or use the map picker.",
+    addressNotFound:
+      "Could not locate this address. Try a more specific address or use the map picker.",
     dimensionsLabel: "Dimensions (cm) — Optional",
     lengthLabel: "Length",
     widthLabel: "Width",
@@ -1729,7 +1767,8 @@ const translations = {
     signInWalletSub: "Sign in to access your wallet, top up, send money, and manage transactions.",
     signInProfileSub: "Sign in to manage your account, settings, addresses, and more.",
     signInPlaceOrders: "Sign in to place orders & track deliveries",
-    signInDefaultMsg: "You need to be signed in to perform this action. Create an account or log in to get started.",
+    signInDefaultMsg:
+      "You need to be signed in to perform this action. Create an account or log in to get started.",
     customerAccountRequired: "Customer Account Required",
     dismiss: "Dismiss",
     martTitle: "Mart",
@@ -1762,7 +1801,8 @@ const translations = {
     revokeAllSessionsBody: "Are you sure? You will be logged out of all devices.",
     sendResetLinkTitle: "Send reset link?",
     restoreSettingsTitle: "Restore settings backup?",
-    restoreSettingsBody: "This will overwrite existing values with the backup. Your current settings will be replaced.",
+    restoreSettingsBody:
+      "This will overwrite existing values with the backup. Your current settings will be replaced.",
     newRoleSlugTitle: "New role",
     newRoleSlugLabel: "Role slug",
     newRoleSlugPlaceholder: "letters, digits, underscores",
@@ -1794,7 +1834,8 @@ const translations = {
     secureYourAccount: "Secure your account with a strong password",
     passwordHint: "Use at least 8 characters with a mix of letters and numbers",
     riderApprovalMsg: "Your rider application is under review by our team",
-    approvalReviewMsg: "We will notify you once your documents have been verified. This usually takes 1-2 business days.",
+    approvalReviewMsg:
+      "We will notify you once your documents have been verified. This usually takes 1-2 business days.",
     registrationComplete: "Registration Complete",
     registrationFailed: "Registration failed. Please try again.",
     nextSteps: "Next Steps",
@@ -1805,7 +1846,8 @@ const translations = {
     ownerName: "Owner Name",
     documents: "Documents",
     uploadRequiredDocuments: "Upload Required Documents",
-    documentUploadComingSoon: "Document upload coming soon — you can submit documents after approval",
+    documentUploadComingSoon:
+      "Document upload coming soon — you can submit documents after approval",
     addPaymentDetails: "Add Payment Details",
     verifyAndSecure: "Verify & Secure",
     enterOtpAndPassword: "Enter OTP and set your password",
@@ -1992,7 +2034,8 @@ const translations = {
     emergencyContact: "ہنگامی رابطہ",
     profileCompletion: "پروفائل کی تکمیل",
     approvalPending: "منظوری زیر التوا",
-    approvalMsg: "آپ کا اکاؤنٹ ایڈمن کی منظوری کے لیے جمع ہو گیا ہے۔ منظوری کے بعد لاگ ان کر سکیں گے۔",
+    approvalMsg:
+      "آپ کا اکاؤنٹ ایڈمن کی منظوری کے لیے جمع ہو گیا ہے۔ منظوری کے بعد لاگ ان کر سکیں گے۔",
     approved: "منظور",
     rejected: "مسترد",
     backToLogin: "لاگ ان پر واپس",
@@ -2156,7 +2199,8 @@ const translations = {
     approvalTakes: "عام طور پر ۲۴-۴۸ گھنٹے لگتے ہیں۔",
     alreadyApproved: "اگر منظوری ہو چکی ہے تو دوبارہ لاگ ان کریں۔",
     approvalRejected: "درخواست مسترد",
-    approvalRejectedMsg: "آپ کی رائڈر درخواست منظور نہیں ہوئی۔ مزید معلومات کے لیے سپورٹ سے رابطہ کریں۔",
+    approvalRejectedMsg:
+      "آپ کی رائڈر درخواست منظور نہیں ہوئی۔ مزید معلومات کے لیے سپورٹ سے رابطہ کریں۔",
     accessDenied: "رسائی مسترد۔ یہ ایپ صرف رائڈرز کے لیے ہے۔",
     enterValidPhone: "درست فون نمبر درج کریں",
     enterOtpDigits: "۶ ہندسوں کا او ٹی پی درج کریں",
@@ -2391,7 +2435,8 @@ const translations = {
     adminVerify24h: "ایڈمن ۲۴ گھنٹے میں تصدیق کرے گا۔",
     adminProcess24h: "ایڈمن ۲۴-۴۸ گھنٹوں میں پروسیس کرے گا۔",
     trackRequestStatus: "آپ والیٹ صفحے پر اپنی درخواست کی حالت دیکھ سکتے ہیں۔",
-    wrongAccountWarning: "غلط اکاؤنٹ تفصیلات سے ادائیگی ناکام ہو سکتی ہے۔ جمع کرنے کے بعد منسوخ نہیں ہوگا۔",
+    wrongAccountWarning:
+      "غلط اکاؤنٹ تفصیلات سے ادائیگی ناکام ہو سکتی ہے۔ جمع کرنے کے بعد منسوخ نہیں ہوگا۔",
     wrongTxIdWarning: "غلط ٹی ایکس آئی ڈی سے جمع مسترد ہو سکتی ہے۔ اصل ٹرانزیکشن آئی ڈی درج کریں۔",
     savedAccount: "محفوظ اکاؤنٹ",
     use: "استعمال کریں",
@@ -2530,7 +2575,8 @@ const translations = {
     sentTo_: "بھیجا گیا",
     welcomeBackExcl: "واپسی پر خوش آمدید!",
     loginWith: "لاگ ان کریں اپنے",
-    vendorApprovalMsg: "آپ کا وینڈر اکاؤنٹ ایڈمن منظوری کا منتظر ہے۔ منظوری کے بعد اطلاع دی جائے گی۔",
+    vendorApprovalMsg:
+      "آپ کا وینڈر اکاؤنٹ ایڈمن منظوری کا منتظر ہے۔ منظوری کے بعد اطلاع دی جائے گی۔",
     manageOrdersDesc: "ریئل ٹائم میں آرڈرز قبول اور ٹریک کریں",
     productControlDesc: "آسانی سے مینو شامل، ترمیم اور منظم کریں",
     instantEarningsDesc: "ہر ڈلیوری کے بعد والیٹ میں رقم جمع",
@@ -3089,11 +3135,13 @@ const translations = {
     confirmNewPassword: "نئے پاس ورڈ کی تصدیق",
     resetPassword: "پاس ورڈ ری سیٹ کریں",
     passwordResetSuccess: "پاس ورڈ ری سیٹ کامیاب!",
-    passwordResetSuccessMsg: "آپ کا پاس ورڈ تبدیل ہو گیا ہے۔ اب آپ نئے پاس ورڈ سے لاگ ان کر سکتے ہیں۔",
+    passwordResetSuccessMsg:
+      "آپ کا پاس ورڈ تبدیل ہو گیا ہے۔ اب آپ نئے پاس ورڈ سے لاگ ان کر سکتے ہیں۔",
     goToLogin: "لاگ ان پر جائیں",
     securitySettings: "سیکیورٹی ترتیبات",
     twoFactorAuthentication: "دو عنصری تصدیق",
-    twoFactorDesc: "تصدیق کنندہ ایپ کا استعمال کرتے ہوئے اپنے اکاؤنٹ میں سیکیورٹی کی اضافی تہہ شامل کریں۔",
+    twoFactorDesc:
+      "تصدیق کنندہ ایپ کا استعمال کرتے ہوئے اپنے اکاؤنٹ میں سیکیورٹی کی اضافی تہہ شامل کریں۔",
     enable2fa: "دو عنصری تصدیق فعال کریں",
     disable2fa: "دو عنصری تصدیق غیر فعال کریں",
     twoFactorEnabled: "دو عنصری تصدیق فعال ہے",
@@ -3140,7 +3188,8 @@ const translations = {
     usernameTakenShort: "یوزرنیم پہلے سے لیا گیا",
     phoneAlreadyExists: "اس فون نمبر سے پہلے سے ایک اکاؤنٹ موجود ہے۔",
     emailAlreadyExists: "اس ای میل سے پہلے سے ایک اکاؤنٹ موجود ہے۔",
-    noUpdateProvided: "کوئی تبدیلی نہیں کی گئی — براہ کرم نام، ای میل، یوزرنیم یا پاس ورڈ فراہم کریں۔",
+    noUpdateProvided:
+      "کوئی تبدیلی نہیں کی گئی — براہ کرم نام، ای میل، یوزرنیم یا پاس ورڈ فراہم کریں۔",
     currentPasswordIncorrect: "موجودہ پاس ورڈ غلط ہے۔",
     passwordUpdated: "پاس ورڈ کامیابی سے اپڈیٹ ہو گیا۔",
     profileUpdated: "پروفائل کامیابی سے اپڈیٹ ہو گئی۔",
@@ -3313,15 +3362,17 @@ const translations = {
     notifWalletCredited: "والیٹ میں رقم آ گئی",
     notifWalletCreditedBody: "Rs. {amount} آپ کے والیٹ میں شامل ہو گئے ہیں۔",
     notifWalletPending: "ڈپازٹ درخواست موصول",
-    notifWalletPendingBody: "Rs. {amount} ڈپازٹ درخواست موصول ہو گئی۔ ایڈمن تصدیق کے بعد والیٹ کریڈٹ کرے گا۔",
+    notifWalletPendingBody:
+      "Rs. {amount} ڈپازٹ درخواست موصول ہو گئی۔ ایڈمن تصدیق کے بعد والیٹ کریڈٹ کرے گا۔",
     notifWalletReceivedBody: "{sender} سے Rs. {amount} موصول ہوئے",
     notifWithdrawalPending: "نکاسی درخواست جمع",
-    notifWithdrawalPendingBody: "Rs. {amount} نکاسی درخواست زیر غور ہے۔ ایڈمن 1-2 کاروباری دنوں میں کارروائی کرے گا۔",
+    notifWithdrawalPendingBody:
+      "Rs. {amount} نکاسی درخواست زیر غور ہے۔ ایڈمن 1-2 کاروباری دنوں میں کارروائی کرے گا۔",
     notifProductApproved: "پروڈکٹ منظور ✅",
-    notifProductApprovedBody: "\"{name}\" منظور ہو گیا اور اب اسٹور میں نظر آتا ہے۔",
-    notifProductApprovedBodyNote: "\"{name}\" منظور ہو گیا اور اب اسٹور میں نظر آتا ہے۔ نوٹ: {note}",
+    notifProductApprovedBody: '"{name}" منظور ہو گیا اور اب اسٹور میں نظر آتا ہے۔',
+    notifProductApprovedBodyNote: '"{name}" منظور ہو گیا اور اب اسٹور میں نظر آتا ہے۔ نوٹ: {note}',
     notifProductRejected: "پروڈکٹ مسترد ❌",
-    notifProductRejectedBody: "\"{name}\" مسترد ہو گیا۔ وجہ: {reason}",
+    notifProductRejectedBody: '"{name}" مسترد ہو گیا۔ وجہ: {reason}',
     notifDepositCredited: "ڈپازٹ جمع ✅",
     notifDepositCreditedBody: "Rs. {amount} آپ کے والیٹ میں جمع ہو گئے۔ شکریہ!",
     notifDepositRejected: "ڈپازٹ مسترد ❌",
@@ -3331,7 +3382,8 @@ const translations = {
     notifDebtWaived: "منسوخی واجب الادا معاف ✅",
     notifDebtWaivedBody: "آپ کا Rs. {amount} واجب الادا منسوخی فیس سپورٹ نے معاف کر دیا ہے۔",
     notifVendorWithdrawal: "نکاسی درخواست ✅",
-    notifVendorWithdrawalBody: "Rs. {amount} نکاسی درخواست موصول۔ ایڈمن 24-48 گھنٹوں میں کارروائی کرے گا۔",
+    notifVendorWithdrawalBody:
+      "Rs. {amount} نکاسی درخواست موصول۔ ایڈمن 24-48 گھنٹوں میں کارروائی کرے گا۔",
     notifOrderConfirmed: "آرڈر تصدیق ✅",
     notifOrderConfirmedBody: "آپ کا آرڈر تصدیق ہو گیا اور تیاری شروع ہو گئی ہے۔",
     notifOrderPreparing: "آرڈر تیار ہو رہا ہے 🍳",
@@ -3353,7 +3405,8 @@ const translations = {
     notifRideCancelled: "سواری منسوخ ❌",
     notifRideCancelledBody: "آپ کی سواری منسوخ ہو گئی ہے۔",
     notifRideCancelledFeeBody: "Rs. {fee} کی منسوخی فیس لگائی گئی ہے۔",
-    notifRideCancelledFeeDebtBody: "Rs. {fee} کی منسوخی فیس لگائی گئی ہے۔ بقایا رقم آئندہ والٹ ٹاپ اپ سے کاٹی جائے گی۔",
+    notifRideCancelledFeeDebtBody:
+      "Rs. {fee} کی منسوخی فیس لگائی گئی ہے۔ بقایا رقم آئندہ والٹ ٹاپ اپ سے کاٹی جائے گی۔",
     notifRidePaymentReceived: "سواری ادائیگی موصول 💰",
     notifRidePaymentReceivedBody: "Rs. {amount} آپ کے والیٹ میں جمع ہو گئے۔",
     notifPharmacyConfirmed: "فارمیسی آرڈر تصدیق ✅",
@@ -3379,13 +3432,15 @@ const translations = {
     notifParcelRefund: "پارسل واپسی 📦💰",
     notifParcelRefundBody: "Rs. {amount} آپ کے والیٹ میں واپس کر دیے گئے ہیں۔",
     notifParcelBookingConfirmed: "پارسل بکنگ تصدیق 📦",
-    notifParcelBookingConfirmedBody: "آپ کا {type} پارسل بک ہو گیا۔ Rs. {amount} — {receiver} تک۔ ETA: {eta}",
+    notifParcelBookingConfirmedBody:
+      "آپ کا {type} پارسل بک ہو گیا۔ Rs. {amount} — {receiver} تک۔ ETA: {eta}",
     notifPharmacyOrderPlaced: "فارمیسی آرڈر دے دیا 💊",
     notifPharmacyOrderPlacedBody: "آپ کا فارمیسی آرڈر دے دیا گیا ہے۔ Rs. {amount} — ETA: {eta}",
     notifWithdrawalApproved: "نکاسی منظور ✅",
     notifWithdrawalApprovedBody: "Rs. {amount} آپ کے اکاؤنٹ میں منتقل کر دیے گئے ہیں۔{ref}{note}",
     notifWithdrawalRejected: "نکاسی مسترد ❌",
-    notifWithdrawalRejectedBody: "Rs. {amount} نکاسی مسترد ہوئی۔ وجہ: {reason}۔ رقم والیٹ میں واپس آ گئی۔",
+    notifWithdrawalRejectedBody:
+      "Rs. {amount} نکاسی مسترد ہوئی۔ وجہ: {reason}۔ رقم والیٹ میں واپس آ گئی۔",
     sosAlert: "ایس او ایس الرٹ",
     notifOrderOnWay: "آپ کا آرڈر اٹھا لیا گیا۔ رائیڈر راستے میں ہے!",
     notifAccountRestricted: "اکاؤنٹ معطل",
@@ -3405,13 +3460,16 @@ const translations = {
     notifRefundProcessed: "ریفنڈ ہو گیا",
     notifRefundProcessedBody: "Rs. {amount} آپ کے والیٹ میں واپس آ گئے۔",
     notifWalletDeposit: "ڈپازٹ درخواست جمع",
-    notifWalletDepositBody: "Rs. {amount} ڈپازٹ درخواست موصول ہوئی۔ ایڈمن 1-2 گھنٹے میں تصدیق کرے گا۔",
+    notifWalletDepositBody:
+      "Rs. {amount} ڈپازٹ درخواست موصول ہوئی۔ ایڈمن 1-2 گھنٹے میں تصدیق کرے گا۔",
     notifWalletAutoApproved: "والیٹ کریڈٹ ہو گئی! ✅",
     notifWalletAutoApprovedBody: "Rs. {amount} آپ کے والیٹ میں شامل ہو گئے ہیں۔",
     notifWalletP2PTopup: "P2P ٹاپ اپ درخواست جمع",
-    notifWalletP2PTopupBody: "Rs. {amount} P2P ٹاپ اپ درخواست زیر التوا ہے۔ ایڈمن کی منظوری کے بعد والیٹ کریڈٹ ہوگی۔",
+    notifWalletP2PTopupBody:
+      "Rs. {amount} P2P ٹاپ اپ درخواست زیر التوا ہے۔ ایڈمن کی منظوری کے بعد والیٹ کریڈٹ ہوگی۔",
     notifWalletWithdrawal: "رقم نکلوانے کی درخواست جمع",
-    notifWalletWithdrawalBody: "Rs. {amount} نکلوانے کی درخواست زیر جائزہ ہے۔ کارروائی ہونے پر آپ کو مطلع کیا جائے گا۔",
+    notifWalletWithdrawalBody:
+      "Rs. {amount} نکلوانے کی درخواست زیر جائزہ ہے۔ کارروائی ہونے پر آپ کو مطلع کیا جائے گا۔",
     notifWalletSendReceived: "رقم موصول ہوئی",
     notifWalletSendReceivedBody: "Rs. {amount} {sender} سے موصول ہوئے",
     notifOrderStatusTitle: "آرڈر اپڈیٹ",
@@ -3421,7 +3479,8 @@ const translations = {
     platformLanguage: "پلیٹ فارم کی ڈیفالٹ زبان",
     platformLanguageDesc: "ان صارفین کے لیے ڈیفالٹ زبان جنہوں نے ترجیح مقرر نہیں کی",
     notifRideRefundBody: "Rs. {refund} آپ کے والٹ میں واپس کر دیے گئے۔",
-    notifRideRefundWithFeeBody: "Rs. {refund} والٹ میں واپس ہوئے۔ Rs. {fee} منسوخی فیس لاگو کی گئی۔",
+    notifRideRefundWithFeeBody:
+      "Rs. {refund} والٹ میں واپس ہوئے۔ Rs. {fee} منسوخی فیس لاگو کی گئی۔",
     emailVerifySubject: "اپنا اے جے کے مارٹ اکاؤنٹ تصدیق کریں",
     emailVerifyHeading: "اے جے کے مارٹ میں خوش آمدید{name}!",
     emailVerifyBody: "اپنا ای میل ایڈریس تصدیق کرنے کے لیے نیچے دیے گئے لنک پر کلک کریں:",
@@ -3434,29 +3493,39 @@ const translations = {
     emailResetExpiry: "یہ کوڈ 10 منٹ میں ختم ہو جائے گا۔",
     emailResetIgnore: "اگر آپ نے پاس ورڈ ری سیٹ کی درخواست نہیں کی تو اس ای میل کو نظرانداز کریں۔",
     emailMagicSubject: "{app} — آپ کا لاگ ان لنک",
-    emailMagicBody: "اپنے اکاؤنٹ میں لاگ ان کرنے کے لیے نیچے دیے گئے بٹن پر کلک کریں۔ یہ لنک 15 منٹ میں ختم ہو جائے گا۔",
+    emailMagicBody:
+      "اپنے اکاؤنٹ میں لاگ ان کرنے کے لیے نیچے دیے گئے بٹن پر کلک کریں۔ یہ لنک 15 منٹ میں ختم ہو جائے گا۔",
     emailMagicButton: "لاگ ان کریں",
     emailMagicIgnore: "اگر آپ نے یہ درخواست نہیں کی تو اس ای میل کو نظرانداز کریں۔",
     notifWelcomeTitle: "اے جے کے مارٹ میں خوش آمدید!",
     notifWelcomeBody: "اے جے کے کی پہلی سپر ایپ! گروسری، کھانا، سواری، فارمیسی — سب ایک جگہ۔",
     notifWelcomeBonusTitle: "ویلکم بونس!",
-    notifWelcomeBonusBody: "Rs. {amount} آپ کے والٹ میں خوش آمدید بونس کے طور پر شامل کر دیے گئے ہیں!",
+    notifWelcomeBonusBody:
+      "Rs. {amount} آپ کے والٹ میں خوش آمدید بونس کے طور پر شامل کر دیے گئے ہیں!",
     notifSchoolSubscribedTitle: "اسکول شٹل سبسکرائب ہو گئی!",
-    notifSchoolSubscribedBody: "{student} کو {school} کے لیے سبسکرائب کر دیا گیا ہے۔ روٹ: {route}۔ ماہانہ: Rs. {amount}",
+    notifSchoolSubscribedBody:
+      "{student} کو {school} کے لیے سبسکرائب کر دیا گیا ہے۔ روٹ: {route}۔ ماہانہ: Rs. {amount}",
     notifWalletReadyTitle: "والٹ فیچر فعال",
     notifWalletReadyBody: "آپ کا اے جے کے مارٹ والٹ تیار ہے۔ ٹاپ اپ کریں اور کیشلیس ادائیگی کریں۔",
     notifRideServiceTitle: "سواری سروس دستیاب",
-    notifRideServiceBody: "مظفرآباد، میرپور، راولاکوٹ میں بائیک اور کار بکنگ دستیاب ہے۔ ابھی آزمائیں!",
+    notifRideServiceBody:
+      "مظفرآباد، میرپور، راولاکوٹ میں بائیک اور کار بکنگ دستیاب ہے۔ ابھی آزمائیں!",
     smsOtpText: "آپ کا اے جے کے مارٹ OTP ہے {otp}۔ 5 منٹ تک درست ہے۔ کسی سے شیئر نہ کریں۔",
     smsOrderText: "آپ کے آرڈر #{id} کی حالت: {status}۔ اے جے کے مارٹ",
     languageSelector: "زبان",
     languageSelectorSub: "اپنی پسندیدہ زبان منتخب کریں",
-    notifCancelPenaltyBody: "آپ نے آج {count} بار منسوخ کیا (حد: {limit})۔ Rs. {amount} جرمانہ لگایا گیا۔",
-    notifCancelRestrictedBody: "آپ نے آج {count} بار منسوخ کیا (حد: {limit})۔ Rs. {amount} جرمانہ لگا اور اکاؤنٹ معطل ہو گیا۔ سپورٹ سے رابطہ کریں۔",
-    notifCancelWarningBody: "آپ نے آج {count}/{limit} بار منسوخ کیا۔ اگلی منسوخی پر Rs. {amount} جرمانہ اور اکاؤنٹ پابندی ممکن ہے۔",
-    notifIgnorePenaltyBody: "آپ نے آج {count} درخواستیں نظرانداز کیں (حد: {limit})۔ Rs. {amount} جرمانہ لگایا گیا۔",
-    notifIgnoreRestrictedBody: "آپ نے آج {count} درخواستیں نظرانداز کیں (حد: {limit})۔ Rs. {amount} جرمانہ لگا اور اکاؤنٹ معطل ہو گیا۔ سپورٹ سے رابطہ کریں۔",
-    notifIgnoreWarningBody: "آپ نے آج {count}/{limit} درخواستیں نظرانداز کیں۔ اگلی نظراندازی پر Rs. {amount} جرمانہ اور اکاؤنٹ پابندی ممکن ہے۔",
+    notifCancelPenaltyBody:
+      "آپ نے آج {count} بار منسوخ کیا (حد: {limit})۔ Rs. {amount} جرمانہ لگایا گیا۔",
+    notifCancelRestrictedBody:
+      "آپ نے آج {count} بار منسوخ کیا (حد: {limit})۔ Rs. {amount} جرمانہ لگا اور اکاؤنٹ معطل ہو گیا۔ سپورٹ سے رابطہ کریں۔",
+    notifCancelWarningBody:
+      "آپ نے آج {count}/{limit} بار منسوخ کیا۔ اگلی منسوخی پر Rs. {amount} جرمانہ اور اکاؤنٹ پابندی ممکن ہے۔",
+    notifIgnorePenaltyBody:
+      "آپ نے آج {count} درخواستیں نظرانداز کیں (حد: {limit})۔ Rs. {amount} جرمانہ لگایا گیا۔",
+    notifIgnoreRestrictedBody:
+      "آپ نے آج {count} درخواستیں نظرانداز کیں (حد: {limit})۔ Rs. {amount} جرمانہ لگا اور اکاؤنٹ معطل ہو گیا۔ سپورٹ سے رابطہ کریں۔",
+    notifIgnoreWarningBody:
+      "آپ نے آج {count}/{limit} درخواستیں نظرانداز کیں۔ اگلی نظراندازی پر Rs. {amount} جرمانہ اور اکاؤنٹ پابندی ممکن ہے۔",
     notifCashFeeDeductedBody: "Rs. {fee} پلیٹ فارم فیس والٹ سے کاٹی گئی۔ نقد جمع: Rs. {cash}۔",
     notifNewBidBody: "{name} نے Rs. {amount} کا بِڈ دیا۔ دیکھیں اور چنیں!",
     reorder: "دوبارہ آرڈر کریں",
@@ -3473,7 +3542,8 @@ const translations = {
     cart: "کارٹ",
     addItemsHint: "مارٹ یا کھانے سے اشیاء شامل کریں",
     orderConfirmDelayed: "آرڈر تصدیق میں تاخیر",
-    orderConfirmDelayedDesc: "سرور معمول سے زیادہ وقت لے رہا ہے۔ آپ کا آرڈر ہو چکا ہو گا — دوبارہ کوشش سے پہلے اپنے آرڈر دیکھیں۔",
+    orderConfirmDelayedDesc:
+      "سرور معمول سے زیادہ وقت لے رہا ہے۔ آپ کا آرڈر ہو چکا ہو گا — دوبارہ کوشش سے پہلے اپنے آرڈر دیکھیں۔",
     checkMyOrders: "میرے آرڈر دیکھیں",
     retryAgain: "دوبارہ کوشش کریں",
     confirmingOrder: "آپ کا آرڈر تصدیق ہو رہا ہے…",
@@ -3499,7 +3569,8 @@ const translations = {
     payWithLabel: "ادائیگی کریں",
     mobileNumberLabel: "موبائل نمبر",
     etaLabel: "متوقع وقت",
-    cityNotServiceable: "ڈیلیوری ابھی صرف ان شہروں میں دستیاب ہے: {cities}۔ آپ کا پتہ {city} میں ہے۔",
+    cityNotServiceable:
+      "ڈیلیوری ابھی صرف ان شہروں میں دستیاب ہے: {cities}۔ آپ کا پتہ {city} میں ہے۔",
     minOrderToast: "کم از کم آرڈر Rs.{min} — Rs.{diff} مزید شامل کریں",
     browseMart: "مارٹ دیکھیں",
     browseFood: "کھانا دیکھیں",
@@ -3528,11 +3599,14 @@ const translations = {
     signInToContinue: "جاری رکھنے کے لیے سائن ان کریں",
     signInRegister: "سائن ان / رجسٹر",
     continueBrowsing: "براؤز جاری رکھیں",
-    signInOrdersSub: "آرڈرز دیکھنے، ڈیلیوری ٹریک کرنے اور اپنی تمام سرگرمیاں منظم کرنے کے لیے سائن ان کریں۔",
-    signInWalletSub: "اپنا والیٹ استعمال کرنے، ٹاپ اپ کرنے، پیسے بھیجنے اور لین دین منظم کرنے کے لیے سائن ان کریں۔",
+    signInOrdersSub:
+      "آرڈرز دیکھنے، ڈیلیوری ٹریک کرنے اور اپنی تمام سرگرمیاں منظم کرنے کے لیے سائن ان کریں۔",
+    signInWalletSub:
+      "اپنا والیٹ استعمال کرنے، ٹاپ اپ کرنے، پیسے بھیجنے اور لین دین منظم کرنے کے لیے سائن ان کریں۔",
     signInProfileSub: "اپنا اکاؤنٹ، سیٹنگز، پتے اور مزید منظم کرنے کے لیے سائن ان کریں۔",
     signInPlaceOrders: "آرڈر دینے اور ڈیلیوری ٹریک کرنے کے لیے سائن ان کریں",
-    signInDefaultMsg: "یہ کام کرنے کے لیے آپ کو سائن ان ہونا ضروری ہے۔ شروع کرنے کے لیے اکاؤنٹ بنائیں یا لاگ ان کریں۔",
+    signInDefaultMsg:
+      "یہ کام کرنے کے لیے آپ کو سائن ان ہونا ضروری ہے۔ شروع کرنے کے لیے اکاؤنٹ بنائیں یا لاگ ان کریں۔",
     customerAccountRequired: "کسٹمر اکاؤنٹ ضروری ہے",
     dismiss: "برخاست کریں",
     martTitle: "مارٹ",
@@ -3597,7 +3671,8 @@ const translations = {
     secureYourAccount: "ایک مضبوط پاس ورڈ سے اپنا اکاؤنٹ محفوظ کریں",
     passwordHint: "کم از کم 8 حروف، حروف اور اعداد کا مجموعہ استعمال کریں",
     riderApprovalMsg: "آپ کی رائڈر درخواست ہماری ٹیم کے جائزے میں ہے",
-    approvalReviewMsg: "دستاویزات کی تصدیق کے بعد ہم آپ کو مطلع کریں گے۔ عموماً 1-2 کاروباری دن لگتے ہیں۔",
+    approvalReviewMsg:
+      "دستاویزات کی تصدیق کے بعد ہم آپ کو مطلع کریں گے۔ عموماً 1-2 کاروباری دن لگتے ہیں۔",
     registrationComplete: "رجسٹریشن مکمل",
     registrationFailed: "رجسٹریشن ناکام۔ دوبارہ کوشش کریں۔",
     nextSteps: "اگلے اقدامات",
@@ -3781,7 +3856,8 @@ const translations = {
     emergencyContact: "Emergency Contact",
     profileCompletion: "Profile Mukammal",
     approvalPending: "Approval ka Intezaar",
-    approvalMsg: "Aapka account admin approval ke liye submit ho gaya. Approve hone ke baad login kar sakte hain.",
+    approvalMsg:
+      "Aapka account admin approval ke liye submit ho gaya. Approve hone ke baad login kar sakte hain.",
     approved: "Approved",
     rejected: "Rejected",
     backToLogin: "Login par Wapis",
@@ -3945,7 +4021,8 @@ const translations = {
     approvalTakes: "Aam tor par 24-48 ghante lagte hain.",
     alreadyApproved: "Agar approve ho chuka hai to dobara login karein.",
     approvalRejected: "Application Rejected",
-    approvalRejectedMsg: "Aap ki rider application approve nahi hui. Maazeed maloomat ke liye support se rabita karein.",
+    approvalRejectedMsg:
+      "Aap ki rider application approve nahi hui. Maazeed maloomat ke liye support se rabita karein.",
     accessDenied: "Access denied. Ye app sirf riders ke liye hai.",
     enterValidPhone: "Sahi phone number dalein",
     enterOtpDigits: "6-digit OTP dalein",
@@ -4115,7 +4192,8 @@ const translations = {
     changesSaved: "Changes save ho gaye!",
     saveVehicleInfo: "Vehicle Info Save Karein",
     achievements: "Achievements",
-    completeProfileMsg: "Profile mukammal karein customers ka trust barhaye aur sab features unlock karein",
+    completeProfileMsg:
+      "Profile mukammal karein customers ka trust barhaye aur sab features unlock karein",
     orderUpdates: "Order Updates",
     walletActivity: "Wallet Activity",
     dealsOffers: "Deals & Offers",
@@ -4180,7 +4258,8 @@ const translations = {
     adminVerify24h: "Admin 24 ghanton mein verify karega.",
     adminProcess24h: "Admin 24-48 ghanton mein process karega.",
     trackRequestStatus: "Wallet page par apni request ka status dekh sakte hain.",
-    wrongAccountWarning: "Galat account details se payment fail ho sakti hai. Submit ke baad cancel nahi hoga.",
+    wrongAccountWarning:
+      "Galat account details se payment fail ho sakti hai. Submit ke baad cancel nahi hoga.",
     wrongTxIdWarning: "Galat TxID se deposit reject ho sakti hai. Real transaction ID dalein.",
     savedAccount: "Saved Account",
     use: "Use",
@@ -4201,7 +4280,8 @@ const translations = {
     toCollect: "collect karna",
     noNotificationsDesc: "Order updates aur alerts yahan aayenge",
     welcomeBack: "Wapas aaye",
-    manageDescription: "Orders, products aur kamayi ka intezaam — sab ek powerful vendor dashboard se.",
+    manageDescription:
+      "Orders, products aur kamayi ka intezaam — sab ek powerful vendor dashboard se.",
     orderManagement: "Order Management",
     productControl: "Product Control",
     instantEarnings: "Fori Kamayi",
@@ -4253,7 +4333,8 @@ const translations = {
     features: "Features",
     cancelConfirm: "Cancel",
     actionNotReversible: "Ye action wapas nahi ho sakta.",
-    cancelWarning: "Sirf emergency mein cancel karein. Zyada cancellations se account ban ho sakta hai.",
+    cancelWarning:
+      "Sirf emergency mein cancel karein. Zyada cancellations se account ban ho sakta hai.",
     goBack: "Wapas Jao",
     cancelling: "Cancel ho raha hai...",
     yourCut: "Aapka hissa",
@@ -4319,7 +4400,8 @@ const translations = {
     sentTo_: "Bheja gaya",
     welcomeBackExcl: "Wapsi Par Khush Aamdeed!",
     loginWith: "Login karein apne",
-    vendorApprovalMsg: "Aapka vendor account admin approval ka intezar mein hai. Approve hone par aapko bataya jayega.",
+    vendorApprovalMsg:
+      "Aapka vendor account admin approval ka intezar mein hai. Approve hone par aapko bataya jayega.",
     manageOrdersDesc: "Real-time mein orders accept aur track karein",
     productControlDesc: "Aasani se menu add, edit aur manage karein",
     instantEarningsDesc: "Har delivery ke baad wallet mein raqam jama",
@@ -4866,7 +4948,8 @@ const translations = {
     submitRegistration: "Registration Jama Karein",
     registrationSuccess: "Registration Kamyab!",
     pendingAdminApproval: "Admin Manzori Zaroori",
-    pendingApprovalMsg: "Aapki registration review mein hai. Manzori par aapko muttala kiya jayega.",
+    pendingApprovalMsg:
+      "Aapki registration review mein hai. Manzori par aapko muttala kiya jayega.",
     forgotPassword: "Password Bhool Gaye",
     forgotPasswordDesc: "OTP tasdeeq ke zariye password reset karein",
     chooseResetMethod: "Reset ka tariqa chunein",
@@ -4878,11 +4961,13 @@ const translations = {
     confirmNewPassword: "Naye Password ki Tasdeeq",
     resetPassword: "Password Reset Karein",
     passwordResetSuccess: "Password Reset Kamyab!",
-    passwordResetSuccessMsg: "Aapka password badal gaya hai. Ab aap naye password se login kar saktay hain.",
+    passwordResetSuccessMsg:
+      "Aapka password badal gaya hai. Ab aap naye password se login kar saktay hain.",
     goToLogin: "Login Par Jayein",
     securitySettings: "Security Settings",
     twoFactorAuthentication: "Do-Qadam Tasdeeq",
-    twoFactorDesc: "Authenticator app ka istemal karte hue apne account mein security ki izafi teh shamil karein.",
+    twoFactorDesc:
+      "Authenticator app ka istemal karte hue apne account mein security ki izafi teh shamil karein.",
     enable2fa: "2FA Chalu Karein",
     disable2fa: "2FA Band Karein",
     twoFactorEnabled: "2FA chalu hai",
@@ -4949,7 +5034,8 @@ const translations = {
     uploadingPhoto: "Tasveer upload ho rahi hai…",
     connectionLost: "Connection toot gaya — updates mein deri ho sakti hai",
     cityMissingTitle: "Sheher Ghaaib Hai",
-    cityMissingError: "Aapke delivery address mein sheher nahi hai. Jaari rakhne ke liye update karein.",
+    cityMissingError:
+      "Aapke delivery address mein sheher nahi hai. Jaari rakhne ke liye update karein.",
     editAddress: "Address Thik Karein",
     rideUnavailableMsg: "Ride service abhi dastiyab nahi hai. Baad mein dobara koshish karein.",
     rideLoadErrorTitle: "Ride Load Nahi Hui",
@@ -5102,15 +5188,18 @@ const translations = {
     notifWalletCredited: "Wallet Mein Raqam Aa Gayi",
     notifWalletCreditedBody: "Rs. {amount} aapke wallet mein shamil ho gaye hain.",
     notifWalletPending: "Deposit Request Submit Ho Gayi",
-    notifWalletPendingBody: "Rs. {amount} deposit request receive ho gayi. Admin verify karke wallet credit karega.",
+    notifWalletPendingBody:
+      "Rs. {amount} deposit request receive ho gayi. Admin verify karke wallet credit karega.",
     notifWalletReceivedBody: "{sender} se Rs. {amount} receive hue",
     notifWithdrawalPending: "Withdrawal Request Submit Ho Gayi",
-    notifWithdrawalPendingBody: "Rs. {amount} withdrawal request pending hai. Admin 1-2 business days mein process karega.",
+    notifWithdrawalPendingBody:
+      "Rs. {amount} withdrawal request pending hai. Admin 1-2 business days mein process karega.",
     notifProductApproved: "Product Approve Ho Gaya ✅",
-    notifProductApprovedBody: "\"{name}\" approve ho gaya aur ab store mein visible hai.",
-    notifProductApprovedBodyNote: "\"{name}\" approve ho gaya aur ab store mein visible hai. Note: {note}",
+    notifProductApprovedBody: '"{name}" approve ho gaya aur ab store mein visible hai.',
+    notifProductApprovedBodyNote:
+      '"{name}" approve ho gaya aur ab store mein visible hai. Note: {note}',
     notifProductRejected: "Product Reject Ho Gaya ❌",
-    notifProductRejectedBody: "\"{name}\" reject ho gaya. Wajah: {reason}",
+    notifProductRejectedBody: '"{name}" reject ho gaya. Wajah: {reason}',
     notifDepositCredited: "Deposit Credit Ho Gaya ✅",
     notifDepositCreditedBody: "Rs. {amount} aapke wallet mein add kar diya gaya. Shukriya!",
     notifDepositRejected: "Deposit Reject Ho Gaya ❌",
@@ -5120,7 +5209,8 @@ const translations = {
     notifDebtWaived: "Mansookhi Qarz Maaf ✅",
     notifDebtWaivedBody: "Aapki Rs. {amount} mansookhi fee support ne maaf kar di hai.",
     notifVendorWithdrawal: "Withdrawal Request Ho Gayi ✅",
-    notifVendorWithdrawalBody: "Rs. {amount} withdrawal request submit. Admin 24-48 ghante mein process karega.",
+    notifVendorWithdrawalBody:
+      "Rs. {amount} withdrawal request submit. Admin 24-48 ghante mein process karega.",
     notifOrderConfirmed: "Order Confirm Ho Gaya! ✅",
     notifOrderConfirmedBody: "Aapka order confirm ho gaya aur tayari shuru ho gayi hai.",
     notifOrderPreparing: "Order Tayar Ho Raha Hai 🍳",
@@ -5142,7 +5232,8 @@ const translations = {
     notifRideCancelled: "Sawari Mansookh ❌",
     notifRideCancelledBody: "Aapki sawari mansookh ho gayi hai.",
     notifRideCancelledFeeBody: "Rs. {fee} ki mansookhi fee lagai gayi hai.",
-    notifRideCancelledFeeDebtBody: "Rs. {fee} ki mansookhi fee lagai gayi hai. Baqi raqam agle wallet top-up se kati jayegi.",
+    notifRideCancelledFeeDebtBody:
+      "Rs. {fee} ki mansookhi fee lagai gayi hai. Baqi raqam agle wallet top-up se kati jayegi.",
     notifRidePaymentReceived: "Sawari Payment Mili 💰",
     notifRidePaymentReceivedBody: "Rs. {amount} aapke wallet mein add ho gaye.",
     notifPharmacyConfirmed: "Pharmacy Order Confirm ✅",
@@ -5168,20 +5259,25 @@ const translations = {
     notifParcelRefund: "Parcel Wapsi 📦💰",
     notifParcelRefundBody: "Rs. {amount} aapke wallet mein wapas kar diye gaye hain.",
     notifParcelBookingConfirmed: "Parcel Booking Confirm Ho Gayi 📦",
-    notifParcelBookingConfirmedBody: "Aapka {type} parcel book ho gaya. Rs. {amount} — {receiver} tak. ETA: {eta}",
+    notifParcelBookingConfirmedBody:
+      "Aapka {type} parcel book ho gaya. Rs. {amount} — {receiver} tak. ETA: {eta}",
     notifPharmacyOrderPlaced: "Pharmacy Order De Diya 💊",
-    notifPharmacyOrderPlacedBody: "Aapka pharmacy order de diya gaya hai. Rs. {amount} — ETA: {eta}",
+    notifPharmacyOrderPlacedBody:
+      "Aapka pharmacy order de diya gaya hai. Rs. {amount} — ETA: {eta}",
     notifWithdrawalApproved: "Withdrawal Approved ✅",
-    notifWithdrawalApprovedBody: "Rs. {amount} aapke account mein transfer kar diya gaya hai.{ref}{note}",
+    notifWithdrawalApprovedBody:
+      "Rs. {amount} aapke account mein transfer kar diya gaya hai.{ref}{note}",
     notifWithdrawalRejected: "Withdrawal Reject Ho Gaya ❌",
-    notifWithdrawalRejectedBody: "Rs. {amount} withdrawal reject hua. Wajah: {reason}. Raqam wallet mein wapas aa gayi.",
+    notifWithdrawalRejectedBody:
+      "Rs. {amount} withdrawal reject hua. Wajah: {reason}. Raqam wallet mein wapas aa gayi.",
     sosAlert: "SOS Alert",
     notifOrderOnWay: "Aapka order utha liya gaya. Rider raaste mein hai!",
     notifAccountRestricted: "Account Restricted",
     notifCancelPenalty: "Mansookhi Jurmana",
     notifCancelWarning: "Mansookhi Intibah",
     notifRiderChange: "Rider Tabdeel",
-    notifRiderChangeBody: "Aapke rider ne cancel kar diya. Hum aapke liye naya rider dhoondh rahe hain.",
+    notifRiderChangeBody:
+      "Aapke rider ne cancel kar diya. Hum aapke liye naya rider dhoondh rahe hain.",
     orderDeliveredEnjoy: "Aapka order deliver ho gaya. Maza lijiye!",
     notifLoyaltyEarned: "Loyalty Points Mile",
     notifLoyaltyEarnedBody: "Aapke order par +{points} loyalty points shamil hue!",
@@ -5194,13 +5290,16 @@ const translations = {
     notifRefundProcessed: "Refund Ho Gaya",
     notifRefundProcessedBody: "Rs. {amount} aapke wallet mein wapas aa gaye.",
     notifWalletDeposit: "Deposit Darkhwast Jama",
-    notifWalletDepositBody: "Rs. {amount} deposit darkhwast mili. Admin 1-2 ghante mein tasdeeq karega.",
+    notifWalletDepositBody:
+      "Rs. {amount} deposit darkhwast mili. Admin 1-2 ghante mein tasdeeq karega.",
     notifWalletAutoApproved: "Wallet Credit Ho Gayi! ✅",
     notifWalletAutoApprovedBody: "Rs. {amount} aapke wallet mein shamil ho gaye hain.",
     notifWalletP2PTopup: "P2P Topup Darkhwast Jama",
-    notifWalletP2PTopupBody: "Rs. {amount} P2P topup darkhwast zair-e-iltawa hai. Admin ki manzouri ke baad wallet credit hogi.",
+    notifWalletP2PTopupBody:
+      "Rs. {amount} P2P topup darkhwast zair-e-iltawa hai. Admin ki manzouri ke baad wallet credit hogi.",
     notifWalletWithdrawal: "Raqam Nikalne ki Darkhwast Jama",
-    notifWalletWithdrawalBody: "Rs. {amount} nikalne ki darkhwast zair-e-jaiza hai. Karwahi hone par atla kiya jaega.",
+    notifWalletWithdrawalBody:
+      "Rs. {amount} nikalne ki darkhwast zair-e-jaiza hai. Karwahi hone par atla kiya jaega.",
     notifWalletSendReceived: "Raqam Mili",
     notifWalletSendReceivedBody: "Rs. {amount} {sender} se mili",
     notifOrderStatusTitle: "Order Update",
@@ -5210,10 +5309,12 @@ const translations = {
     platformLanguage: "Platform Ki Default Zaban",
     platformLanguageDesc: "Un users ke liye default zaban jo apni pasand set nahi kar chuke",
     notifRideRefundBody: "Rs. {refund} aapke wallet mein wapas kar diye gaye.",
-    notifRideRefundWithFeeBody: "Rs. {refund} wallet mein wapas hue. Rs. {fee} mansookhi fee lagai gayi.",
+    notifRideRefundWithFeeBody:
+      "Rs. {refund} wallet mein wapas hue. Rs. {fee} mansookhi fee lagai gayi.",
     emailVerifySubject: "Apna AJKMart account verify karein",
     emailVerifyHeading: "AJKMart mein khush aamdeed{name}!",
-    emailVerifyBody: "Apna email address verify karne ke liye neeche diye gaye link par click karein:",
+    emailVerifyBody:
+      "Apna email address verify karne ke liye neeche diye gaye link par click karein:",
     emailVerifyButton: "Email Verify Karein",
     emailVerifyExpiry: "Yeh link 24 ghanton mein expire ho jayega.",
     emailVerifyIgnore: "Agar aapne account nahi banaya to is email ko nazar-andaz karein.",
@@ -5221,31 +5322,44 @@ const translations = {
     emailResetHeading: "Password Reset{name}",
     emailResetBody: "Aapka password reset code yeh hai:",
     emailResetExpiry: "Yeh code 10 minute mein expire ho jayega.",
-    emailResetIgnore: "Agar aapne password reset ki request nahi ki to is email ko nazar-andaz karein.",
+    emailResetIgnore:
+      "Agar aapne password reset ki request nahi ki to is email ko nazar-andaz karein.",
     emailMagicSubject: "{app} — Aapka Login Link",
-    emailMagicBody: "Apne account mein login karne ke liye neeche diye gaye button par click karein. Yeh link 15 minute mein expire ho jayega.",
+    emailMagicBody:
+      "Apne account mein login karne ke liye neeche diye gaye button par click karein. Yeh link 15 minute mein expire ho jayega.",
     emailMagicButton: "Sign In Karein",
     emailMagicIgnore: "Agar aapne yeh request nahi ki to is email ko nazar-andaz karein.",
     notifWelcomeTitle: "AJKMart Mein Khush Aamdeed!",
     notifWelcomeBody: "AJK ki pehli Super App! Grocery, Khana, Ride, Pharmacy — sab ek jagah.",
     notifWelcomeBonusTitle: "Welcome Bonus!",
-    notifWelcomeBonusBody: "Rs. {amount} aapke wallet mein welcome bonus ke taur par add kar diye gaye hain!",
+    notifWelcomeBonusBody:
+      "Rs. {amount} aapke wallet mein welcome bonus ke taur par add kar diye gaye hain!",
     notifSchoolSubscribedTitle: "School Shuttle Subscribe Ho Gaya!",
-    notifSchoolSubscribedBody: "{student} ko {school} ke liye subscribe kar diya gaya. Route: {route}. Monthly: Rs. {amount}",
+    notifSchoolSubscribedBody:
+      "{student} ko {school} ke liye subscribe kar diya gaya. Route: {route}. Monthly: Rs. {amount}",
     notifWalletReadyTitle: "Wallet Feature Active",
-    notifWalletReadyBody: "Aapka AJKMart Wallet ready hai. Top up karein aur cashless payments enjoy karein.",
+    notifWalletReadyBody:
+      "Aapka AJKMart Wallet ready hai. Top up karein aur cashless payments enjoy karein.",
     notifRideServiceTitle: "Ride Service Dastiyab",
-    notifRideServiceBody: "Muzaffarabad, Mirpur, Rawalakot mein bike aur car booking dastiyab hai. Abhi try karein!",
-    smsOtpText: "Aapka AJKMart OTP hai {otp}. 5 minute tak valid hai. Kisi ke saath share na karein.",
+    notifRideServiceBody:
+      "Muzaffarabad, Mirpur, Rawalakot mein bike aur car booking dastiyab hai. Abhi try karein!",
+    smsOtpText:
+      "Aapka AJKMart OTP hai {otp}. 5 minute tak valid hai. Kisi ke saath share na karein.",
     smsOrderText: "Aapke order #{id} ki halat: {status}. AJKMart",
     languageSelector: "Zaban",
     languageSelectorSub: "Apni pasandida zaban chunein",
-    notifCancelPenaltyBody: "Aapne aaj {count} baar mansookh kiya (limit: {limit}). Rs. {amount} jurmana lagaya gaya.",
-    notifCancelRestrictedBody: "Aapne aaj {count} baar mansookh kiya (limit: {limit}). Rs. {amount} jurmana laga aur account restrict ho gaya. Support se contact karein.",
-    notifCancelWarningBody: "Aapne aaj {count}/{limit} baar mansookh kiya. Agla mansookhi Rs. {amount} jurmana aur account restriction ka sabab ban sakti hai.",
-    notifIgnorePenaltyBody: "Aapne aaj {count} requests ignore ki (limit: {limit}). Rs. {amount} jurmana lagaya gaya.",
-    notifIgnoreRestrictedBody: "Aapne aaj {count} requests ignore ki (limit: {limit}). Rs. {amount} jurmana laga aur account restrict ho gaya. Support se contact karein.",
-    notifIgnoreWarningBody: "Aapne aaj {count}/{limit} requests ignore ki. Agla ignore Rs. {amount} jurmana aur account restriction ka sabab ban sakta hai.",
+    notifCancelPenaltyBody:
+      "Aapne aaj {count} baar mansookh kiya (limit: {limit}). Rs. {amount} jurmana lagaya gaya.",
+    notifCancelRestrictedBody:
+      "Aapne aaj {count} baar mansookh kiya (limit: {limit}). Rs. {amount} jurmana laga aur account restrict ho gaya. Support se contact karein.",
+    notifCancelWarningBody:
+      "Aapne aaj {count}/{limit} baar mansookh kiya. Agla mansookhi Rs. {amount} jurmana aur account restriction ka sabab ban sakti hai.",
+    notifIgnorePenaltyBody:
+      "Aapne aaj {count} requests ignore ki (limit: {limit}). Rs. {amount} jurmana lagaya gaya.",
+    notifIgnoreRestrictedBody:
+      "Aapne aaj {count} requests ignore ki (limit: {limit}). Rs. {amount} jurmana laga aur account restrict ho gaya. Support se contact karein.",
+    notifIgnoreWarningBody:
+      "Aapne aaj {count}/{limit} requests ignore ki. Agla ignore Rs. {amount} jurmana aur account restriction ka sabab ban sakta hai.",
     notifCashFeeDeductedBody: "Rs. {fee} platform fee wallet se kaati gayi. Cash jama: Rs. {cash}.",
     notifNewBidBody: "{name} ne Rs. {amount} ka bid diya. Dekhein aur chunein!",
     reorder: "Dobara order karein",
@@ -5262,7 +5376,8 @@ const translations = {
     cart: "Cart",
     addItemsHint: "Mart ya Food se items add karein",
     orderConfirmDelayed: "Order confirm hone mein der",
-    orderConfirmDelayedDesc: "Server thoda time le raha hai. Aapka order ho chuka hoga — dobara try se pehle orders check karein.",
+    orderConfirmDelayedDesc:
+      "Server thoda time le raha hai. Aapka order ho chuka hoga — dobara try se pehle orders check karein.",
     checkMyOrders: "Mere Orders Dekhein",
     retryAgain: "Dobara Try Karein",
     confirmingOrder: "Aapka order confirm ho raha hai…",
@@ -5288,7 +5403,8 @@ const translations = {
     payWithLabel: "Payment Karein",
     mobileNumberLabel: "Mobile Number",
     etaLabel: "ETA",
-    cityNotServiceable: "Delivery abhi sirf in shahron mein dastiyab hai: {cities}. Aapka pata {city} mein hai.",
+    cityNotServiceable:
+      "Delivery abhi sirf in shahron mein dastiyab hai: {cities}. Aapka pata {city} mein hai.",
     minOrderToast: "Minimum order Rs.{min} — Rs.{diff} aur add karein",
     browseMart: "Mart Dekhein",
     browseFood: "Khana Dekhein",
@@ -5317,11 +5433,15 @@ const translations = {
     signInToContinue: "Jari rakhne ke liye sign in karein",
     signInRegister: "Sign In / Register",
     continueBrowsing: "Browse jari rakhein",
-    signInOrdersSub: "Orders dekhne, delivery track karne aur apni tamam sargarmiyan manage karne ke liye sign in karein.",
-    signInWalletSub: "Apna wallet use karne, top up karne, paise bhejna aur transactions manage karne ke liye sign in karein.",
-    signInProfileSub: "Apna account, settings, pate aur mazeed manage karne ke liye sign in karein.",
+    signInOrdersSub:
+      "Orders dekhne, delivery track karne aur apni tamam sargarmiyan manage karne ke liye sign in karein.",
+    signInWalletSub:
+      "Apna wallet use karne, top up karne, paise bhejna aur transactions manage karne ke liye sign in karein.",
+    signInProfileSub:
+      "Apna account, settings, pate aur mazeed manage karne ke liye sign in karein.",
     signInPlaceOrders: "Order dene aur delivery track karne ke liye sign in karein",
-    signInDefaultMsg: "Yeh kaam karne ke liye aapko sign in hona zaroori hai. Shuru karne ke liye account banayein ya log in karein.",
+    signInDefaultMsg:
+      "Yeh kaam karne ke liye aapko sign in hona zaroori hai. Shuru karne ke liye account banayein ya log in karein.",
     customerAccountRequired: "Customer Account Zaroori Hai",
     dismiss: "Hata Dein",
     martTitle: "Mart",
@@ -5391,7 +5511,6 @@ const translations = {
     registrationFailed: "Registration nakam. Dobara koshish karein.",
     nextSteps: "Agle Iqdam",
   },
-
 };
 
 export function t(key: TranslationKey, lang: Language): string {
@@ -5413,9 +5532,7 @@ export function getDir(lang: Language): "ltr" | "rtl" {
 }
 
 export function getUrduFontFamily(lang: Language): string {
-  return lang === "ur"
-    ? "NotoNastaliqUrdu_400Regular"
-    : "Inter_400Regular";
+  return lang === "ur" ? "NotoNastaliqUrdu_400Regular" : "Inter_400Regular";
 }
 
 export const NASTALIQ_FONT = "NotoNastaliqUrdu_400Regular";

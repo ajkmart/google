@@ -5,8 +5,8 @@
  * current rider's approval status via /rider/me.
  */
 import { useCallback } from "react";
-import { usePlatformConfig } from "../useConfig";
 import { api } from "../api";
+import { usePlatformConfig } from "../useConfig";
 
 export interface AppStatus {
   maintenance: boolean;
@@ -26,7 +26,10 @@ export function useAppStatus(): AppStatus & { checkUserStatus: () => Promise<Use
 
   const checkUserStatus = useCallback(async (): Promise<UserStatus> => {
     try {
-      const me = await api.getMe() as { approvalStatus?: string; rejectionReason?: string | null };
+      const me = (await api.getMe()) as {
+        approvalStatus?: string;
+        rejectionReason?: string | null;
+      };
       return { status: me.approvalStatus ?? "approved", rejectionReason: me.rejectionReason };
     } catch {
       return { status: "unknown" };

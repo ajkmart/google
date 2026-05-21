@@ -18,9 +18,7 @@ function loadRecaptchaScript(siteKey: string): Promise<void> {
       return;
     }
 
-    const existing = document.querySelector(
-      'script[src*="recaptcha/api.js"]'
-    );
+    const existing = document.querySelector('script[src*="recaptcha/api.js"]');
     if (existing) {
       scriptLoaded = true;
       resolve();
@@ -40,10 +38,7 @@ function loadRecaptchaScript(siteKey: string): Promise<void> {
   });
 }
 
-export async function executeCaptcha(
-  action: string,
-  siteKey?: string
-): Promise<string> {
+export async function executeCaptcha(action: string, siteKey?: string): Promise<string> {
   const key =
     siteKey ||
     (typeof import.meta !== "undefined" &&
@@ -52,9 +47,7 @@ export async function executeCaptcha(
     "";
 
   if (!key) {
-    throw new Error(
-      "reCAPTCHA site key is required. Set VITE_RECAPTCHA_SITE_KEY or pass siteKey."
-    );
+    throw new Error("reCAPTCHA site key is required. Set VITE_RECAPTCHA_SITE_KEY or pass siteKey.");
   }
 
   await loadRecaptchaScript(key);
@@ -66,10 +59,7 @@ export async function executeCaptcha(
     }
 
     window.grecaptcha.ready(() => {
-      window
-        .grecaptcha!.execute(key, { action })
-        .then(resolve)
-        .catch(reject);
+      window.grecaptcha!.execute(key, { action }).then(resolve).catch(reject);
     });
   });
 }

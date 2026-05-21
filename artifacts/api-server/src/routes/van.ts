@@ -1,69 +1,75 @@
-import { Router } from "express";
-import { z } from "zod";
-import { and, asc, desc, eq, gte, sql, inArray, count, type SQL } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
-  vanRoutesTable,
-  vanVehiclesTable,
-  vanSchedulesTable,
-  vanBookingsTable,
-  vanDriversTable,
-  usersTable,
-  notificationsTable,
-  walletTransactionsTable,
   accountConditionsTable,
   liveLocationsTable,
+  notificationsTable,
+  usersTable,
+  vanBookingsTable,
+  vanDriversTable,
+  vanRoutesTable,
+  vanSchedulesTable,
+  vanVehiclesTable,
+  walletTransactionsTable,
 } from "@workspace/db/schema";
+import { and, asc, count, desc, eq, gte, inArray, sql, type SQL } from "drizzle-orm";
+import type { NextFunction, Request, Response } from "express";
+import { Router } from "express";
+import { z } from "zod";
 import { generateId } from "../lib/id.js";
-import type { Request, Response, NextFunction } from "express";
-import { customerAuth, riderAuth } from "../middleware/security.js";
-import { adminAuth } from "./admin.js";
-import { getCachedSettings } from "./admin-shared.js";
-import { evaluateRulesForUser } from "./admin/conditions.js";
+import { logger } from "../lib/logger.js";
 import {
-  sendSuccess,
   sendCreated,
   sendError,
-  sendNotFound,
   sendForbidden,
+  sendNotFound,
+  sendSuccess,
 } from "../lib/response.js";
-import { paymentLimiter } from "../middleware/rate-limit.js";
-import { logger } from "../lib/logger.js";
-import { sendPushToUser } from "../lib/webpush.js";
 import { emitVanLocation, emitVanTripUpdate } from "../lib/socketio.js";
+import { sendPushToUser } from "../lib/webpush.js";
+import { paymentLimiter } from "../middleware/rate-limit.js";
+import { customerAuth, riderAuth } from "../middleware/security.js";
+import { getCachedSettings } from "./admin-shared.js";
+import { adminAuth } from "./admin.js";
+import { evaluateRulesForUser } from "./admin/conditions.js";
 
 /* ═══════════════════════════════════════════════════════════════
    Helper: get van settings from platform_settings
 ═══════════════════════════════════════════════════════════════ */
 async function getVanSettings() {
   try {
-  const s = await getCachedSettings();
-  return {
-    minAdvanceHours: parseInt(s["van_min_advance_hours"] ?? "2"),
-    maxSeatsPerBooking: parseInt(s["van_max_seats_per_booking"] ?? "4"),
-    cancellationWindowH: parseInt(s["van_cancellation_window_hours"] ?? "1"),
-    refundType: s["van_refund_type"] ?? "full",
-    refundPartialPct: parseInt(s["van_refund_partial_pct"] ?? "50"),
-    seatHoldMinutes: parseInt(s["van_seat_hold_minutes"] ?? "10"),
-    minPassengers: parseInt(s["van_min_passengers"] ?? "3"),
-    minCheckHoursBefore: parseInt(s["van_min_check_hours_before"] ?? "4"),
-    maxDriverTripsDay: parseInt(s["van_max_driver_trips_day"] ?? "5"),
-    driverRestHours: parseInt(s["van_driver_rest_hours"] ?? "2"),
-    peakSurchargePct: parseFloat(s["van_peak_surcharge_pct"] ?? "0"),
-    peakHours: s["van_peak_hours"] ?? "07:00-09:00,17:00-19:00",
-    weekendSurchargePct: parseFloat(s["van_weekend_surcharge_pct"] ?? "0"),
-    holidaySurchargePct: parseFloat(s["van_holiday_surcharge_pct"] ?? "0"),
-    holidayDates: (() => {
-      try {
-        return JSON.parse(s["van_holiday_dates"] ?? "[]") as string[];
-      } catch (err) {
-        logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[van] Invalid holiday_dates JSON — using empty list");
-        return [] as string[];
-      }
-    })(),
-  };
+    const s = await getCachedSettings();
+    return {
+      minAdvanceHours: parseInt(s["van_min_advance_hours"] ?? "2"),
+      maxSeatsPerBooking: parseInt(s["van_max_seats_per_booking"] ?? "4"),
+      cancellationWindowH: parseInt(s["van_cancellation_window_hours"] ?? "1"),
+      refundType: s["van_refund_type"] ?? "full",
+      refundPartialPct: parseInt(s["van_refund_partial_pct"] ?? "50"),
+      seatHoldMinutes: parseInt(s["van_seat_hold_minutes"] ?? "10"),
+      minPassengers: parseInt(s["van_min_passengers"] ?? "3"),
+      minCheckHoursBefore: parseInt(s["van_min_check_hours_before"] ?? "4"),
+      maxDriverTripsDay: parseInt(s["van_max_driver_trips_day"] ?? "5"),
+      driverRestHours: parseInt(s["van_driver_rest_hours"] ?? "2"),
+      peakSurchargePct: parseFloat(s["van_peak_surcharge_pct"] ?? "0"),
+      peakHours: s["van_peak_hours"] ?? "07:00-09:00,17:00-19:00",
+      weekendSurchargePct: parseFloat(s["van_weekend_surcharge_pct"] ?? "0"),
+      holidaySurchargePct: parseFloat(s["van_holiday_surcharge_pct"] ?? "0"),
+      holidayDates: (() => {
+        try {
+          return JSON.parse(s["van_holiday_dates"] ?? "[]") as string[];
+        } catch (err) {
+          logger.warn(
+            { err: err instanceof Error ? err.message : String(err) },
+            "[van] Invalid holiday_dates JSON — using empty list"
+          );
+          return [] as string[];
+        }
+      })(),
+    };
   } catch (err) {
-    logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[van] getVanSettings failed");
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[van] getVanSettings failed"
+    );
     throw err;
   }
 }
@@ -90,7 +96,7 @@ function calculateSurcharge(
   seatCount: number,
   departureTime: string,
   travelDate: string,
-  vs: Awaited<ReturnType<typeof getVanSettings>>,
+  vs: Awaited<ReturnType<typeof getVanSettings>>
 ): number {
   let surchargeMultiplier = 1;
   if (vs.peakSurchargePct > 0 && isInPeakHours(departureTime, vs.peakHours)) {
@@ -123,12 +129,7 @@ async function vanDriverAuth(req: Request, res: Response, next: NextFunction) {
           isActive: vanDriversTable.isActive,
         })
         .from(vanDriversTable)
-        .where(
-          and(
-            eq(vanDriversTable.userId, driverId),
-            eq(vanDriversTable.isActive, true),
-          ),
-        )
+        .where(and(eq(vanDriversTable.userId, driverId), eq(vanDriversTable.isActive, true)))
         .limit(1);
       if (!driver) {
         sendForbidden(res, "You are not registered as a van driver.");
@@ -152,8 +153,8 @@ async function vanDriverAuth(req: Request, res: Response, next: NextFunction) {
         .where(
           and(
             eq(accountConditionsTable.userId, driverId),
-            eq(accountConditionsTable.isActive, true),
-          ),
+            eq(accountConditionsTable.isActive, true)
+          )
         );
 
       const now = Date.now();
@@ -170,7 +171,7 @@ async function vanDriverAuth(req: Request, res: Response, next: NextFunction) {
       if (blocker) {
         sendForbidden(
           res,
-          `Van driver mode unavailable: ${blocker.reason || blocker.conditionType}`,
+          `Van driver mode unavailable: ${blocker.reason || blocker.conditionType}`
         );
         return;
       }
@@ -202,8 +203,7 @@ function parseSeatLayout(raw: unknown, totalSeats: number): SeatLayoutInfo {
       const posInRow = (i - 1) % seatsPerRow;
       const isLastRow = i > totalSeats - seatsPerRow;
       if (isLastRow) seats[String(i)] = "economy";
-      else if (posInRow === 0 || posInRow === seatsPerRow - 1)
-        seats[String(i)] = "window";
+      else if (posInRow === 0 || posInRow === seatsPerRow - 1) seats[String(i)] = "window";
       else seats[String(i)] = "aisle";
     }
   }
@@ -217,24 +217,18 @@ function getSeatFare(
     fareWindow?: string | null;
     fareAisle?: string | null;
     fareEconomy?: string | null;
-  },
+  }
 ): number {
-  if (tier === "window" && route.fareWindow)
-    return parseFloat(String(route.fareWindow));
-  if (tier === "aisle" && route.fareAisle)
-    return parseFloat(String(route.fareAisle));
-  if (tier === "economy" && route.fareEconomy)
-    return parseFloat(String(route.fareEconomy));
+  if (tier === "window" && route.fareWindow) return parseFloat(String(route.fareWindow));
+  if (tier === "aisle" && route.fareAisle) return parseFloat(String(route.fareAisle));
+  if (tier === "economy" && route.fareEconomy) return parseFloat(String(route.fareEconomy));
   return parseFloat(String(route.farePerSeat));
 }
 
 /* ═══════════════════════════════════════════════════════════════
    Helper: get confirmed seat count for a schedule on a date
 ═══════════════════════════════════════════════════════════════ */
-async function getBookedSeats(
-  scheduleId: string,
-  travelDate: string,
-): Promise<number[]> {
+async function getBookedSeats(scheduleId: string, travelDate: string): Promise<number[]> {
   const bookings = await db
     .select({ seatNumbers: vanBookingsTable.seatNumbers })
     .from(vanBookingsTable)
@@ -242,22 +236,18 @@ async function getBookedSeats(
       and(
         eq(vanBookingsTable.scheduleId, scheduleId),
         eq(vanBookingsTable.travelDate, travelDate),
-        sql`status NOT IN ('cancelled')`,
-      ),
+        sql`status NOT IN ('cancelled')`
+      )
     );
   const booked: number[] = [];
   for (const b of bookings) {
-    const seats = Array.isArray(b.seatNumbers)
-      ? (b.seatNumbers as number[])
-      : [];
+    const seats = Array.isArray(b.seatNumbers) ? (b.seatNumbers as number[]) : [];
     booked.push(...seats);
   }
   return booked;
 }
 
-async function getVanCodeForSchedule(
-  scheduleId: string,
-): Promise<string | null> {
+async function getVanCodeForSchedule(scheduleId: string): Promise<string | null> {
   const [schedule] = await db
     .select({ driverId: vanSchedulesTable.driverId })
     .from(vanSchedulesTable)
@@ -316,22 +306,14 @@ router.get("/routes/:id", async (req, res, next) => {
         seatLayout: vanVehiclesTable.seatLayout,
       })
       .from(vanSchedulesTable)
-      .leftJoin(
-        vanVehiclesTable,
-        eq(vanSchedulesTable.vehicleId, vanVehiclesTable.id),
-      )
-      .where(
-        and(
-          eq(vanSchedulesTable.routeId, route.id),
-          eq(vanSchedulesTable.isActive, true),
-        ),
-      );
+      .leftJoin(vanVehiclesTable, eq(vanSchedulesTable.vehicleId, vanVehiclesTable.id))
+      .where(and(eq(vanSchedulesTable.routeId, route.id), eq(vanSchedulesTable.isActive, true)));
 
     const enrichedSchedules = await Promise.all(
       schedules.map(async (s) => {
         const vanCode = await getVanCodeForSchedule(s.id);
         return { ...s, vanCode };
-      }),
+      })
     );
 
     sendSuccess(res, { ...route, schedules: enrichedSchedules });
@@ -364,10 +346,7 @@ router.get("/schedules/:id/availability", async (req, res, next) => {
         vehicleModel: vanVehiclesTable.model,
       })
       .from(vanSchedulesTable)
-      .leftJoin(
-        vanVehiclesTable,
-        eq(vanSchedulesTable.vehicleId, vanVehiclesTable.id),
-      )
+      .leftJoin(vanVehiclesTable, eq(vanSchedulesTable.vehicleId, vanVehiclesTable.id))
       .where(eq(vanSchedulesTable.id, scheduleId))
       .limit(1);
 
@@ -378,9 +357,7 @@ router.get("/schedules/:id/availability", async (req, res, next) => {
 
     const reqDate = new Date(date + "T00:00:00");
     const dayOfWeek = reqDate.getDay() === 0 ? 7 : reqDate.getDay();
-    const daysArr = Array.isArray(schedule.daysOfWeek)
-      ? (schedule.daysOfWeek as number[])
-      : [];
+    const daysArr = Array.isArray(schedule.daysOfWeek) ? (schedule.daysOfWeek as number[]) : [];
     const totalSeats = schedule.totalSeats ?? 12;
     const layoutInfo = parseSeatLayout(schedule.seatLayout, totalSeats);
 
@@ -435,9 +412,7 @@ router.get("/schedules/:id/availability", async (req, res, next) => {
       fareWindow,
       fareAisle,
       fareEconomy,
-      farePerSeat: route?.farePerSeat
-        ? parseFloat(String(route.farePerSeat))
-        : 0,
+      farePerSeat: route?.farePerSeat ? parseFloat(String(route.farePerSeat)) : 0,
       departureTime: schedule.departureTime,
       returnTime: schedule.returnTime,
       vehiclePlate: schedule.vehiclePlate,
@@ -456,9 +431,7 @@ router.get("/schedules/:id/availability", async (req, res, next) => {
 
 const bookVanSchema = z.object({
   scheduleId: z.string().min(1),
-  travelDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "travelDate must be YYYY-MM-DD"),
+  travelDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "travelDate must be YYYY-MM-DD"),
   seatNumbers: z.array(z.number().int().min(1)).min(1).max(10),
   paymentMethod: z.enum(["cash", "wallet"]).default("cash"),
   passengerName: z.string().max(80).optional(),
@@ -469,20 +442,12 @@ router.post("/bookings", customerAuth, paymentLimiter, async (req, res, next) =>
   const userId = req.customerId!;
   const parsed = bookVanSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
-    const msg = parsed.error.issues
-      .map((i) => `${i.path.join(".")}: ${i.message}`)
-      .join("; ");
+    const msg = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
     sendError(res, msg, 422);
     return;
   }
-  const {
-    scheduleId,
-    travelDate,
-    seatNumbers,
-    paymentMethod,
-    passengerName,
-    passengerPhone,
-  } = parsed.data;
+  const { scheduleId, travelDate, seatNumbers, paymentMethod, passengerName, passengerPhone } =
+    parsed.data;
 
   try {
     /* ── Feature flag + maintenance gate (mirrors orders/rides/pharmacy/parcel) ── */
@@ -493,15 +458,12 @@ router.post("/bookings", customerAuth, paymentLimiter, async (req, res, next) =>
     }
     if ((ps["app_status"] ?? "active") === "maintenance") {
       const mainKey = (ps["security_maintenance_key"] ?? "").trim();
-      const bypass = (
-        (req.headers["x-maintenance-key"] as string) ?? ""
-      ).trim();
+      const bypass = ((req.headers["x-maintenance-key"] as string) ?? "").trim();
       if (!mainKey || bypass !== mainKey) {
         sendError(
           res,
-          ps["content_maintenance_msg"] ??
-            "We're performing scheduled maintenance. Back soon!",
-          503,
+          ps["content_maintenance_msg"] ?? "We're performing scheduled maintenance. Back soon!",
+          503
         );
         return;
       }
@@ -511,11 +473,7 @@ router.post("/bookings", customerAuth, paymentLimiter, async (req, res, next) =>
 
     /* Enforce max seats per booking */
     if (seatNumbers.length > vs.maxSeatsPerBooking) {
-      sendError(
-        res,
-        `Maximum ${vs.maxSeatsPerBooking} seats per booking allowed.`,
-        400,
-      );
+      sendError(res, `Maximum ${vs.maxSeatsPerBooking} seats per booking allowed.`, 400);
       return;
     }
 
@@ -539,10 +497,7 @@ router.post("/bookings", customerAuth, paymentLimiter, async (req, res, next) =>
         seatLayout: vanVehiclesTable.seatLayout,
       })
       .from(vanSchedulesTable)
-      .leftJoin(
-        vanVehiclesTable,
-        eq(vanSchedulesTable.vehicleId, vanVehiclesTable.id),
-      )
+      .leftJoin(vanVehiclesTable, eq(vanSchedulesTable.vehicleId, vanVehiclesTable.id))
       .where(eq(vanSchedulesTable.id, scheduleId))
       .limit(1);
 
@@ -552,16 +507,13 @@ router.post("/bookings", customerAuth, paymentLimiter, async (req, res, next) =>
     }
 
     /* Enforce advance booking window */
-    const departureDateTime = new Date(
-      `${travelDate}T${schedule.departureTime ?? "00:00"}:00`,
-    );
-    const hoursUntilDeparture =
-      (departureDateTime.getTime() - Date.now()) / 3_600_000;
+    const departureDateTime = new Date(`${travelDate}T${schedule.departureTime ?? "00:00"}:00`);
+    const hoursUntilDeparture = (departureDateTime.getTime() - Date.now()) / 3_600_000;
     if (vs.minAdvanceHours > 0 && hoursUntilDeparture < vs.minAdvanceHours) {
       sendError(
         res,
         `Booking must be made at least ${vs.minAdvanceHours} hour(s) before departure.`,
-        400,
+        400
       );
       return;
     }
@@ -569,9 +521,7 @@ router.post("/bookings", customerAuth, paymentLimiter, async (req, res, next) =>
     /* Validate day of week */
     const reqDate = new Date(travelDate + "T00:00:00");
     const dayOfWeek = reqDate.getDay() === 0 ? 7 : reqDate.getDay();
-    const daysArr = Array.isArray(schedule.daysOfWeek)
-      ? (schedule.daysOfWeek as number[])
-      : [];
+    const daysArr = Array.isArray(schedule.daysOfWeek) ? (schedule.daysOfWeek as number[]) : [];
     if (!daysArr.includes(dayOfWeek)) {
       sendError(res, "Van does not operate on this day.", 400);
       return;
@@ -606,7 +556,7 @@ router.post("/bookings", customerAuth, paymentLimiter, async (req, res, next) =>
       seatNumbers.length,
       schedule.departureTime,
       travelDate,
-      vs,
+      vs
     );
 
     const booking = await db.transaction(async (tx) => {
@@ -633,7 +583,7 @@ router.post("/bookings", customerAuth, paymentLimiter, async (req, res, next) =>
         const balance = parseFloat(String(userRow?.walletBalance ?? "0"));
         if (balance < totalFare) {
           throw new Error(
-            `Insufficient wallet balance. Required: Rs ${totalFare.toFixed(0)}, Available: Rs ${balance.toFixed(0)}.`,
+            `Insufficient wallet balance. Required: Rs ${totalFare.toFixed(0)}, Available: Rs ${balance.toFixed(0)}.`
           );
         }
         await tx
@@ -686,8 +636,8 @@ router.post("/bookings", customerAuth, paymentLimiter, async (req, res, next) =>
           .where(
             and(
               eq(walletTransactionsTable.userId, userId),
-              eq(walletTransactionsTable.reference, "van:pending"),
-            ),
+              eq(walletTransactionsTable.reference, "van:pending")
+            )
           );
       }
 
@@ -708,7 +658,17 @@ router.post("/bookings", customerAuth, paymentLimiter, async (req, res, next) =>
         link: `/van/bookings`,
       })
       .catch((err: unknown) => {
-        logger.warn({ message: "[van] booking-confirmed notification insert failed", error: err instanceof Error ? err.message : String(err), code: "VAN_NOTIF_INSERT_FAILED", correlationId: null, timestamp: new Date().toISOString(), userId }, "[van] booking-confirmed notification insert failed");
+        logger.warn(
+          {
+            message: "[van] booking-confirmed notification insert failed",
+            error: err instanceof Error ? err.message : String(err),
+            code: "VAN_NOTIF_INSERT_FAILED",
+            correlationId: null,
+            timestamp: new Date().toISOString(),
+            userId,
+          },
+          "[van] booking-confirmed notification insert failed"
+        );
       });
 
     sendPushToUser(userId, {
@@ -716,7 +676,18 @@ router.post("/bookings", customerAuth, paymentLimiter, async (req, res, next) =>
       body: `${seatNumbers.length} seat(s) on ${route.name} for ${travelDate}. Rs ${totalFare.toFixed(0)}.`,
       data: { type: "van_booking_confirmed", bookingId: booking.id },
     }).catch((err: unknown) => {
-      logger.warn({ message: "[van] booking-confirmed push to passenger failed", error: err instanceof Error ? err.message : String(err), code: "VAN_PUSH_PASSENGER_FAILED", correlationId: null, timestamp: new Date().toISOString(), userId, bookingId: booking.id }, "[van] booking-confirmed push to passenger failed");
+      logger.warn(
+        {
+          message: "[van] booking-confirmed push to passenger failed",
+          error: err instanceof Error ? err.message : String(err),
+          code: "VAN_PUSH_PASSENGER_FAILED",
+          correlationId: null,
+          timestamp: new Date().toISOString(),
+          userId,
+          bookingId: booking.id,
+        },
+        "[van] booking-confirmed push to passenger failed"
+      );
     });
 
     if (schedule.driverId) {
@@ -725,7 +696,18 @@ router.post("/bookings", customerAuth, paymentLimiter, async (req, res, next) =>
         body: `${seatNumbers.length} seat(s) booked on ${route.name} for ${travelDate}. Seats: ${seatNumbers.join(", ")}.`,
         data: { type: "van_new_passenger", scheduleId, travelDate },
       }).catch((err: unknown) => {
-        logger.warn({ message: "[van] new-passenger push to driver failed", error: err instanceof Error ? err.message : String(err), code: "VAN_PUSH_DRIVER_FAILED", correlationId: null, timestamp: new Date().toISOString(), driverId: schedule.driverId, scheduleId }, "[van] new-passenger push to driver failed");
+        logger.warn(
+          {
+            message: "[van] new-passenger push to driver failed",
+            error: err instanceof Error ? err.message : String(err),
+            code: "VAN_PUSH_DRIVER_FAILED",
+            correlationId: null,
+            timestamp: new Date().toISOString(),
+            driverId: schedule.driverId,
+            scheduleId,
+          },
+          "[van] new-passenger push to driver failed"
+        );
       });
     }
 
@@ -771,10 +753,7 @@ router.get("/bookings", customerAuth, async (req, res, next) => {
       })
       .from(vanBookingsTable)
       .leftJoin(vanRoutesTable, eq(vanBookingsTable.routeId, vanRoutesTable.id))
-      .leftJoin(
-        vanSchedulesTable,
-        eq(vanBookingsTable.scheduleId, vanSchedulesTable.id),
-      )
+      .leftJoin(vanSchedulesTable, eq(vanBookingsTable.scheduleId, vanSchedulesTable.id))
       .where(eq(vanBookingsTable.userId, userId))
       .orderBy(desc(vanBookingsTable.createdAt));
 
@@ -782,7 +761,7 @@ router.get("/bookings", customerAuth, async (req, res, next) => {
       bookings.map(async (b) => {
         const vanCode = await getVanCodeForSchedule(b.scheduleId);
         return { ...b, vanCode };
-      }),
+      })
     );
 
     sendSuccess(res, enriched);
@@ -800,12 +779,7 @@ router.patch("/bookings/:id/cancel", customerAuth, async (req, res, next) => {
     const [booking] = await db
       .select()
       .from(vanBookingsTable)
-      .where(
-        and(
-          eq(vanBookingsTable.id, bookingId),
-          eq(vanBookingsTable.userId, userId),
-        ),
-      )
+      .where(and(eq(vanBookingsTable.id, bookingId), eq(vanBookingsTable.userId, userId)))
       .limit(1);
 
     if (!booking) {
@@ -830,15 +804,14 @@ router.patch("/bookings/:id/cancel", customerAuth, async (req, res, next) => {
       .where(eq(vanSchedulesTable.id, booking.scheduleId))
       .limit(1);
     const departureDateTime = new Date(
-      `${booking.travelDate}T${schedule?.departureTime ?? "00:00"}:00`,
+      `${booking.travelDate}T${schedule?.departureTime ?? "00:00"}:00`
     );
-    const hoursBeforeDeparture =
-      (departureDateTime.getTime() - Date.now()) / 3_600_000;
+    const hoursBeforeDeparture = (departureDateTime.getTime() - Date.now()) / 3_600_000;
     if (hoursBeforeDeparture < vs.cancellationWindowH) {
       sendError(
         res,
         `Cannot cancel less than ${vs.cancellationWindowH} hour(s) before departure.`,
-        400,
+        400
       );
       return;
     }
@@ -896,7 +869,17 @@ router.patch("/bookings/:id/cancel", customerAuth, async (req, res, next) => {
       body: `Your van booking has been cancelled.${refundAmount > 0 ? ` Refund of Rs ${refundAmount.toFixed(0)} (${vs.refundType}) has been processed.` : ""}`,
       data: { type: "van_refund" },
     }).catch((err: unknown) => {
-      logger.warn({ message: "[van] booking-cancelled push failed", error: err instanceof Error ? err.message : String(err), code: "VAN_PUSH_CANCEL_FAILED", correlationId: null, timestamp: new Date().toISOString(), userId }, "[van] booking-cancelled push failed");
+      logger.warn(
+        {
+          message: "[van] booking-cancelled push failed",
+          error: err instanceof Error ? err.message : String(err),
+          code: "VAN_PUSH_CANCEL_FAILED",
+          correlationId: null,
+          timestamp: new Date().toISOString(),
+          userId,
+        },
+        "[van] booking-cancelled push failed"
+      );
     });
 
     sendSuccess(res, {
@@ -942,25 +925,12 @@ router.get("/driver/today", vanDriverAuth, async (req, res, next) => {
         seatLayout: vanVehiclesTable.seatLayout,
       })
       .from(vanSchedulesTable)
-      .leftJoin(
-        vanRoutesTable,
-        eq(vanSchedulesTable.routeId, vanRoutesTable.id),
-      )
-      .leftJoin(
-        vanVehiclesTable,
-        eq(vanSchedulesTable.vehicleId, vanVehiclesTable.id),
-      )
-      .where(
-        and(
-          eq(vanSchedulesTable.driverId, driverId),
-          eq(vanSchedulesTable.isActive, true),
-        ),
-      );
+      .leftJoin(vanRoutesTable, eq(vanSchedulesTable.routeId, vanRoutesTable.id))
+      .leftJoin(vanVehiclesTable, eq(vanSchedulesTable.vehicleId, vanVehiclesTable.id))
+      .where(and(eq(vanSchedulesTable.driverId, driverId), eq(vanSchedulesTable.isActive, true)));
 
     const todaySchedules = schedules.filter((s) => {
-      const days = Array.isArray(s.daysOfWeek)
-        ? (s.daysOfWeek as number[])
-        : [];
+      const days = Array.isArray(s.daysOfWeek) ? (s.daysOfWeek as number[]) : [];
       return days.includes(todayDow);
     });
 
@@ -977,7 +947,7 @@ router.get("/driver/today", vanDriverAuth, async (req, res, next) => {
           vanCode: vanDriver?.vanCode ?? null,
           seatTiers: layoutInfo.seats,
         };
-      }),
+      })
     );
 
     sendSuccess(res, enriched);
@@ -1004,12 +974,7 @@ router.get(
           vehicleId: vanSchedulesTable.vehicleId,
         })
         .from(vanSchedulesTable)
-        .where(
-          and(
-            eq(vanSchedulesTable.id, scheduleId),
-            eq(vanSchedulesTable.driverId, driverId),
-          ),
-        )
+        .where(and(eq(vanSchedulesTable.id, scheduleId), eq(vanSchedulesTable.driverId, driverId)))
         .limit(1);
       if (!schedule) {
         sendForbidden(res, "Not your schedule.");
@@ -1036,8 +1001,8 @@ router.get(
           and(
             eq(vanBookingsTable.scheduleId, scheduleId),
             eq(vanBookingsTable.travelDate, date),
-            sql`${vanBookingsTable.status} NOT IN ('cancelled')`,
-          ),
+            sql`${vanBookingsTable.status} NOT IN ('cancelled')`
+          )
         )
         .orderBy(asc(vanBookingsTable.createdAt));
 
@@ -1045,7 +1010,7 @@ router.get(
     } catch (e) {
       next(e);
     }
-  },
+  }
 );
 
 router.patch("/driver/bookings/:id/board", vanDriverAuth, async (req, res, next) => {
@@ -1094,7 +1059,18 @@ router.patch("/driver/bookings/:id/board", vanDriverAuth, async (req, res, next)
       body: "You have been marked as boarded on the van. Enjoy your ride!",
       data: { type: "van_boarded" },
     }).catch((err: unknown) => {
-      logger.warn({ message: "[van] boarded push failed", error: err instanceof Error ? err.message : String(err), code: "VAN_PUSH_BOARDED_FAILED", correlationId: null, timestamp: new Date().toISOString(), userId: booking.userId, bookingId }, "[van] boarded push failed");
+      logger.warn(
+        {
+          message: "[van] boarded push failed",
+          error: err instanceof Error ? err.message : String(err),
+          code: "VAN_PUSH_BOARDED_FAILED",
+          correlationId: null,
+          timestamp: new Date().toISOString(),
+          userId: booking.userId,
+          bookingId,
+        },
+        "[van] boarded push failed"
+      );
     });
 
     emitVanTripUpdate(booking.scheduleId, booking.travelDate, {
@@ -1147,8 +1123,8 @@ router.post(
           and(
             eq(vanBookingsTable.scheduleId, scheduleId),
             eq(vanBookingsTable.travelDate, date),
-            sql`${vanBookingsTable.status} NOT IN ('cancelled')`,
-          ),
+            sql`${vanBookingsTable.status} NOT IN ('cancelled')`
+          )
         );
 
       for (const b of bookings) {
@@ -1158,7 +1134,18 @@ router.post(
             body: "Your van has started the trip. Track it live in the app.",
             data: { type: "van_trip_started", scheduleId, date },
           }).catch((err: unknown) => {
-            logger.warn({ message: "[van] trip-started push to boarded passenger failed", error: err instanceof Error ? err.message : String(err), code: "VAN_PUSH_TRIP_STARTED_FAILED", correlationId: null, timestamp: new Date().toISOString(), userId: b.userId, scheduleId }, "[van] trip-started push to boarded passenger failed");
+            logger.warn(
+              {
+                message: "[van] trip-started push to boarded passenger failed",
+                error: err instanceof Error ? err.message : String(err),
+                code: "VAN_PUSH_TRIP_STARTED_FAILED",
+                correlationId: null,
+                timestamp: new Date().toISOString(),
+                userId: b.userId,
+                scheduleId,
+              },
+              "[van] trip-started push to boarded passenger failed"
+            );
           });
         } else {
           sendPushToUser(b.userId, {
@@ -1166,7 +1153,18 @@ router.post(
             body: "Your van is departing now! Please board immediately or track the van live.",
             data: { type: "van_departure_reminder", scheduleId, date },
           }).catch((err: unknown) => {
-            logger.warn({ message: "[van] departure-reminder push failed", error: err instanceof Error ? err.message : String(err), code: "VAN_PUSH_DEPARTURE_REMINDER_FAILED", correlationId: null, timestamp: new Date().toISOString(), userId: b.userId, scheduleId }, "[van] departure-reminder push failed");
+            logger.warn(
+              {
+                message: "[van] departure-reminder push failed",
+                error: err instanceof Error ? err.message : String(err),
+                code: "VAN_PUSH_DEPARTURE_REMINDER_FAILED",
+                correlationId: null,
+                timestamp: new Date().toISOString(),
+                userId: b.userId,
+                scheduleId,
+              },
+              "[van] departure-reminder push failed"
+            );
           });
         }
       }
@@ -1177,7 +1175,7 @@ router.post(
     } catch (e) {
       next(e);
     }
-  },
+  }
 );
 
 const vanDriverLocationSchema = z.object({
@@ -1194,15 +1192,10 @@ router.post("/driver/location", vanDriverAuth, async (req, res, next) => {
     const driverId = req.riderId!;
     const parsed = vanDriverLocationSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
-      sendError(
-        res,
-        parsed.error.issues[0]?.message || "Missing location data.",
-        400,
-      );
+      sendError(res, parsed.error.issues[0]?.message || "Missing location data.", 400);
       return;
     }
-    const { scheduleId, date, latitude, longitude, speed, heading } =
-      parsed.data;
+    const { scheduleId, date, latitude, longitude, speed, heading } = parsed.data;
 
     const [schedule] = await db
       .select({
@@ -1250,8 +1243,8 @@ router.post("/driver/location", vanDriverAuth, async (req, res, next) => {
       .catch((e: Error) =>
         logger.warn(
           { err: e.message, driverId },
-          "[van/driver/location] live_locations upsert failed",
-        ),
+          "[van/driver/location] live_locations upsert failed"
+        )
       );
 
     sendSuccess(res, { ok: true });
@@ -1292,8 +1285,8 @@ router.patch(
           and(
             eq(vanBookingsTable.scheduleId, scheduleId),
             eq(vanBookingsTable.travelDate, date),
-            sql`${vanBookingsTable.status} NOT IN ('cancelled', 'completed')`,
-          ),
+            sql`${vanBookingsTable.status} NOT IN ('cancelled', 'completed')`
+          )
         );
 
       await db
@@ -1308,8 +1301,8 @@ router.patch(
           and(
             eq(vanBookingsTable.scheduleId, scheduleId),
             eq(vanBookingsTable.travelDate, date),
-            eq(vanBookingsTable.status, "completed"),
-          ),
+            eq(vanBookingsTable.status, "completed")
+          )
         );
 
       for (const b of bookings) {
@@ -1318,7 +1311,18 @@ router.patch(
           body: "Your van trip has been completed. Thank you for riding with us!",
           data: { type: "van_completed" },
         }).catch((err: unknown) => {
-          logger.warn({ message: "[van] trip-completed push failed", error: err instanceof Error ? err.message : String(err), code: "VAN_PUSH_TRIP_COMPLETED_FAILED", correlationId: null, timestamp: new Date().toISOString(), userId: b.userId, scheduleId }, "[van] trip-completed push failed");
+          logger.warn(
+            {
+              message: "[van] trip-completed push failed",
+              error: err instanceof Error ? err.message : String(err),
+              code: "VAN_PUSH_TRIP_COMPLETED_FAILED",
+              correlationId: null,
+              timestamp: new Date().toISOString(),
+              userId: b.userId,
+              scheduleId,
+            },
+            "[van] trip-completed push failed"
+          );
         });
       }
 
@@ -1328,7 +1332,7 @@ router.patch(
     } catch (e) {
       next(e);
     }
-  },
+  }
 );
 
 /* ─── Driver eligibility: returns active blocking conditions + triggers rule engine ─── */
@@ -1341,12 +1345,7 @@ router.get("/driver/eligibility", riderAuth, async (req, res, next) => {
         isActive: vanDriversTable.isActive,
       })
       .from(vanDriversTable)
-      .where(
-        and(
-          eq(vanDriversTable.userId, driverId),
-          eq(vanDriversTable.isActive, true),
-        ),
-      )
+      .where(and(eq(vanDriversTable.userId, driverId), eq(vanDriversTable.isActive, true)))
       .limit(1);
 
     if (!driver) {
@@ -1386,8 +1385,7 @@ router.get("/driver/eligibility", riderAuth, async (req, res, next) => {
       logger.error({ err }, "[van] rule evaluation failed — denying van mode");
       sendSuccess(res, {
         eligible: false,
-        reason:
-          "Eligibility check failed. Please retry shortly or contact support.",
+        reason: "Eligibility check failed. Please retry shortly or contact support.",
         conditions: [],
         triggered: [],
         triggeredCount: 0,
@@ -1406,10 +1404,7 @@ router.get("/driver/eligibility", riderAuth, async (req, res, next) => {
       })
       .from(accountConditionsTable)
       .where(
-        and(
-          eq(accountConditionsTable.userId, driverId),
-          eq(accountConditionsTable.isActive, true),
-        ),
+        and(eq(accountConditionsTable.userId, driverId), eq(accountConditionsTable.isActive, true))
       );
 
     const now = Date.now();
@@ -1481,26 +1476,22 @@ router.get("/driver/metrics", vanDriverAuth, async (req, res, next) => {
       .where(
         and(
           inArray(vanBookingsTable.scheduleId, scheduleIds),
-          eq(vanBookingsTable.travelDate, today),
-        ),
+          eq(vanBookingsTable.travelDate, today)
+        )
       );
 
     const boardedToday = todayBookings.filter(
-      (b) => b.status === "boarded" || b.status === "completed",
+      (b) => b.status === "boarded" || b.status === "completed"
     );
     const passengersToday = boardedToday.length;
-    const earningsToday = boardedToday.reduce(
-      (sum, b) => sum + parseFloat(b.fare ?? "0"),
-      0,
-    );
+    const earningsToday = boardedToday.reduce((sum, b) => sum + parseFloat(b.fare ?? "0"), 0);
     const tripsToday = new Set(boardedToday.map((b) => b.scheduleId)).size;
 
     let onlineMs = 0;
     const tripGroups = new Map<string, { firstBoard?: Date; lastEnd?: Date }>();
     for (const b of boardedToday) {
       const g = tripGroups.get(b.scheduleId) ?? {};
-      if (b.boardedAt && (!g.firstBoard || b.boardedAt < g.firstBoard))
-        g.firstBoard = b.boardedAt;
+      if (b.boardedAt && (!g.firstBoard || b.boardedAt < g.firstBoard)) g.firstBoard = b.boardedAt;
       const endAt = b.completedAt ?? (b.status === "boarded" ? now : undefined);
       if (endAt && (!g.lastEnd || endAt > g.lastEnd)) g.lastEnd = endAt;
       tripGroups.set(b.scheduleId, g);
@@ -1525,19 +1516,15 @@ router.get("/driver/metrics", vanDriverAuth, async (req, res, next) => {
       .where(
         and(
           inArray(vanBookingsTable.scheduleId, scheduleIds),
-          gte(vanBookingsTable.travelDate, startOfMonthDate),
-        ),
+          gte(vanBookingsTable.travelDate, startOfMonthDate)
+        )
       );
     const monthCompleted = monthBookings.filter(
-      (b) => b.status === "boarded" || b.status === "completed",
+      (b) => b.status === "boarded" || b.status === "completed"
     );
-    const earningsThisMonth = monthCompleted.reduce(
-      (sum, b) => sum + parseFloat(b.fare ?? "0"),
-      0,
-    );
-    const tripsThisMonth = new Set(
-      monthCompleted.map((b) => `${b.scheduleId}|${b.travelDate}`),
-    ).size;
+    const earningsThisMonth = monthCompleted.reduce((sum, b) => sum + parseFloat(b.fare ?? "0"), 0);
+    const tripsThisMonth = new Set(monthCompleted.map((b) => `${b.scheduleId}|${b.travelDate}`))
+      .size;
 
     const [{ c: cancellationsLast30d } = { c: 0 }] = await db
       .select({ c: sql<number>`count(*)::int` })
@@ -1546,8 +1533,8 @@ router.get("/driver/metrics", vanDriverAuth, async (req, res, next) => {
         and(
           inArray(vanBookingsTable.scheduleId, scheduleIds),
           eq(vanBookingsTable.status, "cancelled"),
-          gte(vanBookingsTable.cancelledAt, ago30),
-        ),
+          gte(vanBookingsTable.cancelledAt, ago30)
+        )
       );
 
     // Only count past-dated trips as no-shows; future confirmed bookings excluded.
@@ -1560,8 +1547,8 @@ router.get("/driver/metrics", vanDriverAuth, async (req, res, next) => {
           eq(vanBookingsTable.status, "confirmed"),
           gte(vanBookingsTable.createdAt, ago30),
           sql`${vanBookingsTable.travelDate} < ${today}`,
-          sql`${vanBookingsTable.boardedAt} IS NULL`,
-        ),
+          sql`${vanBookingsTable.boardedAt} IS NULL`
+        )
       );
 
     void startOfDay;
@@ -1631,11 +1618,9 @@ router.post("/admin/routes", adminAuth, async (req, res, next) => {
         id: generateId(),
         ...p.data,
         farePerSeat: String(p.data.farePerSeat),
-        fareWindow:
-          p.data.fareWindow != null ? String(p.data.fareWindow) : null,
+        fareWindow: p.data.fareWindow != null ? String(p.data.fareWindow) : null,
         fareAisle: p.data.fareAisle != null ? String(p.data.fareAisle) : null,
-        fareEconomy:
-          p.data.fareEconomy != null ? String(p.data.fareEconomy) : null,
+        fareEconomy: p.data.fareEconomy != null ? String(p.data.fareEconomy) : null,
         distanceKm: p.data.distanceKm ? String(p.data.distanceKm) : null,
         fromLat: p.data.fromLat ? String(p.data.fromLat) : null,
         fromLng: p.data.fromLng ? String(p.data.fromLng) : null,
@@ -1660,23 +1645,16 @@ router.patch("/admin/routes/:id", adminAuth, async (req, res, next) => {
       ...p.data,
       updatedAt: new Date(),
     };
-    if (p.data.farePerSeat !== undefined)
-      updates["farePerSeat"] = String(p.data.farePerSeat);
+    if (p.data.farePerSeat !== undefined) updates["farePerSeat"] = String(p.data.farePerSeat);
     if (p.data.fareWindow !== undefined)
-      updates["fareWindow"] =
-        p.data.fareWindow != null ? String(p.data.fareWindow) : null;
+      updates["fareWindow"] = p.data.fareWindow != null ? String(p.data.fareWindow) : null;
     if (p.data.fareAisle !== undefined)
-      updates["fareAisle"] =
-        p.data.fareAisle != null ? String(p.data.fareAisle) : null;
+      updates["fareAisle"] = p.data.fareAisle != null ? String(p.data.fareAisle) : null;
     if (p.data.fareEconomy !== undefined)
-      updates["fareEconomy"] =
-        p.data.fareEconomy != null ? String(p.data.fareEconomy) : null;
-    if (p.data.distanceKm !== undefined)
-      updates["distanceKm"] = String(p.data.distanceKm);
-    if (p.data.fromLat !== undefined)
-      updates["fromLat"] = String(p.data.fromLat);
-    if (p.data.fromLng !== undefined)
-      updates["fromLng"] = String(p.data.fromLng);
+      updates["fareEconomy"] = p.data.fareEconomy != null ? String(p.data.fareEconomy) : null;
+    if (p.data.distanceKm !== undefined) updates["distanceKm"] = String(p.data.distanceKm);
+    if (p.data.fromLat !== undefined) updates["fromLat"] = String(p.data.fromLat);
+    if (p.data.fromLng !== undefined) updates["fromLng"] = String(p.data.fromLng);
     if (p.data.toLat !== undefined) updates["toLat"] = String(p.data.toLat);
     if (p.data.toLng !== undefined) updates["toLng"] = String(p.data.toLng);
     const [route] = await db
@@ -1796,14 +1774,8 @@ router.get("/admin/schedules", adminAuth, async (_req, res, next) => {
         driverName: usersTable.name,
       })
       .from(vanSchedulesTable)
-      .leftJoin(
-        vanRoutesTable,
-        eq(vanSchedulesTable.routeId, vanRoutesTable.id),
-      )
-      .leftJoin(
-        vanVehiclesTable,
-        eq(vanSchedulesTable.vehicleId, vanVehiclesTable.id),
-      )
+      .leftJoin(vanRoutesTable, eq(vanSchedulesTable.routeId, vanRoutesTable.id))
+      .leftJoin(vanVehiclesTable, eq(vanSchedulesTable.vehicleId, vanVehiclesTable.id))
       .leftJoin(usersTable, eq(vanSchedulesTable.driverId, usersTable.id))
       .orderBy(asc(vanSchedulesTable.departureTime));
 
@@ -1816,7 +1788,7 @@ router.get("/admin/schedules", adminAuth, async (_req, res, next) => {
           .where(eq(vanDriversTable.userId, s.driverId))
           .limit(1);
         return { ...s, vanCode: driver?.vanCode ?? null };
-      }),
+      })
     );
 
     sendSuccess(res, enriched);
@@ -1829,9 +1801,7 @@ const scheduleSchema = z.object({
   routeId: z.string().min(1),
   vehicleId: z.string().optional().nullable(),
   driverId: z.string().optional().nullable(),
-  departureTime: z
-    .string()
-    .regex(/^\d{2}:\d{2}$/, "departureTime must be HH:MM"),
+  departureTime: z.string().regex(/^\d{2}:\d{2}$/, "departureTime must be HH:MM"),
   returnTime: z
     .string()
     .regex(/^\d{2}:\d{2}$/)
@@ -1857,17 +1827,12 @@ router.post("/admin/schedules", adminAuth, async (req, res, next) => {
       const [tripCount] = await db
         .select({ count: count() })
         .from(vanSchedulesTable)
-        .where(
-          and(
-            eq(vanSchedulesTable.driverId, driverId),
-            eq(vanSchedulesTable.isActive, true),
-          ),
-        );
+        .where(and(eq(vanSchedulesTable.driverId, driverId), eq(vanSchedulesTable.isActive, true)));
       if ((tripCount?.count ?? 0) >= vs.maxDriverTripsDay) {
         sendError(
           res,
           `Driver already has ${vs.maxDriverTripsDay} active schedules (max per day).`,
-          400,
+          400
         );
         return;
       }
@@ -1881,10 +1846,7 @@ router.post("/admin/schedules", adminAuth, async (req, res, next) => {
           })
           .from(vanSchedulesTable)
           .where(
-            and(
-              eq(vanSchedulesTable.driverId, driverId),
-              eq(vanSchedulesTable.isActive, true),
-            ),
+            and(eq(vanSchedulesTable.driverId, driverId), eq(vanSchedulesTable.isActive, true))
           );
         const newDeptMins = (() => {
           const [h, m] = p.data.departureTime.split(":").map(Number);
@@ -1899,7 +1861,7 @@ router.post("/admin/schedules", adminAuth, async (req, res, next) => {
             sendError(
               res,
               `Driver needs at least ${vs.driverRestHours} hour(s) rest between trips. Conflicts with existing schedule.`,
-              400,
+              400
             );
             return;
           }
@@ -1977,9 +1939,7 @@ router.get("/admin/drivers", adminAuth, async (_req, res, next) => {
 });
 
 async function generateVanCode(): Promise<string> {
-  const [result] = await db
-    .select({ cnt: sql<number>`COUNT(*)` })
-    .from(vanDriversTable);
+  const [result] = await db.select({ cnt: sql<number>`COUNT(*)` }).from(vanDriversTable);
   const num = (result?.cnt ?? 0) + 1;
   return `VAN-${String(num).padStart(3, "0")}`;
 }
@@ -2077,19 +2037,13 @@ router.delete("/admin/drivers/:id", adminAuth, async (req, res, next) => {
 router.get("/admin/bookings", adminAuth, async (req, res, next) => {
   try {
     const dateFilter = req.query["date"] ? String(req.query["date"]) : null;
-    const routeFilter = req.query["routeId"]
-      ? String(req.query["routeId"])
-      : null;
-    const statusFilter = req.query["status"]
-      ? String(req.query["status"])
-      : null;
+    const routeFilter = req.query["routeId"] ? String(req.query["routeId"]) : null;
+    const statusFilter = req.query["status"] ? String(req.query["status"]) : null;
 
     const conditions: SQL[] = []; // drizzle dynamic query
-    if (dateFilter)
-      conditions.push(eq(vanBookingsTable.travelDate, dateFilter));
+    if (dateFilter) conditions.push(eq(vanBookingsTable.travelDate, dateFilter));
     if (routeFilter) conditions.push(eq(vanBookingsTable.routeId, routeFilter));
-    if (statusFilter)
-      conditions.push(sql`${vanBookingsTable.status} = ${statusFilter}`);
+    if (statusFilter) conditions.push(sql`${vanBookingsTable.status} = ${statusFilter}`);
 
     const bookings = await db
       .select({
@@ -2119,10 +2073,7 @@ router.get("/admin/bookings", adminAuth, async (req, res, next) => {
       })
       .from(vanBookingsTable)
       .leftJoin(vanRoutesTable, eq(vanBookingsTable.routeId, vanRoutesTable.id))
-      .leftJoin(
-        vanSchedulesTable,
-        eq(vanBookingsTable.scheduleId, vanSchedulesTable.id),
-      )
+      .leftJoin(vanSchedulesTable, eq(vanBookingsTable.scheduleId, vanSchedulesTable.id))
       .leftJoin(usersTable, eq(vanBookingsTable.userId, usersTable.id))
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(desc(vanBookingsTable.createdAt))
@@ -2169,14 +2120,12 @@ setInterval(
       if (ts < cutoff) sentDepartureReminders.delete(key);
     }
   },
-  30 * 60 * 1000,
+  30 * 60 * 1000
 );
 
 export async function sendVanDepartureReminders() {
   try {
-    const now = new Date(
-      new Date().toLocaleString("en-US", { timeZone: "Asia/Karachi" }),
-    );
+    const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Karachi" }));
     const currentDow = now.getDay() === 0 ? 7 : now.getDay();
     const y = now.getFullYear();
     const m = String(now.getMonth() + 1).padStart(2, "0");
@@ -2191,12 +2140,7 @@ export async function sendVanDepartureReminders() {
         tripStatus: vanSchedulesTable.tripStatus,
       })
       .from(vanSchedulesTable)
-      .where(
-        and(
-          eq(vanSchedulesTable.isActive, true),
-          eq(vanSchedulesTable.tripStatus, "idle"),
-        ),
-      );
+      .where(and(eq(vanSchedulesTable.isActive, true), eq(vanSchedulesTable.tripStatus, "idle")));
 
     for (const sched of schedules) {
       const days = Array.isArray(sched.daysOfWeek) ? sched.daysOfWeek : [];
@@ -2226,8 +2170,8 @@ export async function sendVanDepartureReminders() {
           and(
             eq(vanBookingsTable.scheduleId, sched.id),
             eq(vanBookingsTable.travelDate, todayStr),
-            sql`${vanBookingsTable.status} NOT IN ('cancelled', 'completed')`,
-          ),
+            sql`${vanBookingsTable.status} NOT IN ('cancelled', 'completed')`
+          )
         );
 
       for (const b of bookings) {
@@ -2240,13 +2184,24 @@ export async function sendVanDepartureReminders() {
             date: todayStr,
           },
         }).catch((err: unknown) => {
-          logger.warn({ message: "[van] 1h-departure-reminder push failed", error: err instanceof Error ? err.message : String(err), code: "VAN_PUSH_1H_REMINDER_FAILED", correlationId: null, timestamp: new Date().toISOString(), userId: b.userId, scheduleId: sched.id }, "[van] 1h-departure-reminder push failed");
+          logger.warn(
+            {
+              message: "[van] 1h-departure-reminder push failed",
+              error: err instanceof Error ? err.message : String(err),
+              code: "VAN_PUSH_1H_REMINDER_FAILED",
+              correlationId: null,
+              timestamp: new Date().toISOString(),
+              userId: b.userId,
+              scheduleId: sched.id,
+            },
+            "[van] 1h-departure-reminder push failed"
+          );
         });
       }
 
       logger.info(
         { scheduleId: sched.id, passengers: bookings.length },
-        "[van] sent 1h departure reminders",
+        "[van] sent 1h departure reminders"
       );
     }
   } catch (e) {

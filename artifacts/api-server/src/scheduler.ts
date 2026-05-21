@@ -1,19 +1,23 @@
 import { db } from "@workspace/db";
 import {
-  otpAttemptsTable,
-  otpTokensTable,
-  rideBidsTable,
-  refreshTokensTable,
-  magicLinkTokensTable,
-  userSessionsTable,
   liveLocationsTable,
   locationHistoryTable,
   loginHistoryTable,
+  magicLinkTokensTable,
+  otpAttemptsTable,
+  otpTokensTable,
+  refreshTokensTable,
+  rideBidsTable,
+  userSessionsTable,
 } from "@workspace/db/schema";
-import { sql, lt, isNotNull, or } from "drizzle-orm";
-import { logger } from "./lib/logger.js";
+import { isNotNull, lt, or, sql } from "drizzle-orm";
 import { purgeExpiredIdempotencyKeys } from "./lib/cleanupIdempotencyKeys.js";
-import { startDispatchEngine, stopDispatchEngine, isDispatchEngineRunning } from "./routes/rides/dispatch.js";
+import { logger } from "./lib/logger.js";
+import {
+  isDispatchEngineRunning,
+  startDispatchEngine,
+  stopDispatchEngine,
+} from "./routes/rides/dispatch.js";
 
 /* ══════════════════════════════════════════════════════════════════════════
    scheduler.ts
@@ -46,15 +50,15 @@ const _registeredJobs: RegisteredJob[] = [];
 function register(
   label: string,
   fn: () => Promise<void>,
-  intervalMs: number,
+  intervalMs: number
 ): ReturnType<typeof setInterval> {
   _registeredJobs.push({ name: label, intervalMs, startedAt: new Date() });
-  
+
   // Execute first run with retry logic
   let retries = 0;
   const maxRetries = 3;
   const retryDelay = 5000; // 5 seconds
-  
+
   const executeWithRetry = async (): Promise<void> => {
     try {
       await fn();
@@ -76,9 +80,9 @@ function register(
       }
     }
   };
-  
+
   executeWithRetry();
-  
+
   const handle = setInterval(async () => {
     try {
       await fn();
@@ -90,7 +94,7 @@ function register(
       );
     }
   }, intervalMs);
-  
+
   _timers.push(handle);
   return handle;
 }
@@ -146,7 +150,6 @@ async function purgeExpiredMagicLinkTokens(): Promise<void> {
   }
 }
 
-
 async function purgeExpiredOtpTokens(): Promise<void> {
   const deleted = await db
     .delete(otpTokensTable)
@@ -164,10 +167,7 @@ async function purgeExpiredUserSessions(): Promise<void> {
   const deleted = await db
     .delete(userSessionsTable)
     .where(
-      or(
-        isNotNull(userSessionsTable.revokedAt),
-        lt(userSessionsTable.lastActiveAt, inactiveCutoff),
-      ),
+      or(isNotNull(userSessionsTable.revokedAt), lt(userSessionsTable.lastActiveAt, inactiveCutoff))
     )
     .returning({ id: userSessionsTable.id });
   if (deleted.length > 0) {
@@ -181,12 +181,13 @@ async function purgeStaleLocations(): Promise<void> {
   const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000);
   const deleted = await db
     .delete(liveLocationsTable)
-    .where(
-      sql`role = 'rider' AND updated_at < ${cutoff}`,
-    )
+    .where(sql`role = 'rider' AND updated_at < ${cutoff}`)
     .returning({ userId: liveLocationsTable.userId });
   if (deleted.length > 0) {
-    logger.info({ count: deleted.length }, "[scheduler] purged stale live location rows for inactive riders");
+    logger.info(
+      { count: deleted.length },
+      "[scheduler] purged stale live location rows for inactive riders"
+    );
   } else {
     logger.debug("[scheduler] live-location cleanup ran, 0 rows removed");
   }
@@ -199,7 +200,10 @@ async function purgeOldLocationHistory(): Promise<void> {
     .where(lt(locationHistoryTable.createdAt, cutoff))
     .returning({ id: locationHistoryTable.id });
   if (deleted.length > 0) {
-    logger.info({ count: deleted.length }, "[scheduler] purged old location_history rows (>30 days)");
+    logger.info(
+      { count: deleted.length },
+      "[scheduler] purged old location_history rows (>30 days)"
+    );
   } else {
     logger.debug("[scheduler] location-history cleanup ran, 0 rows removed");
   }
@@ -234,16 +238,16 @@ const ALL_JOBS = [
 ];
 
 export function startScheduler(): void {
-  register("idempotency-key-expiry",    purgeExpiredIdempotencyKeys,  5 * 60_000);
-  register("otp-attempt-cleanup",       purgeExpiredOtpAttempts,      5 * 60_000);
-  register("ride-bid-map-cleanup",      purgeStaleRideBids,           30 * 60_000);
-  register("refresh-token-cleanup",     purgeExpiredRefreshTokens,    60 * 60_000);
-  register("magic-link-token-cleanup",  purgeExpiredMagicLinkTokens,  30 * 60_000);
-  register("otp-token-cleanup",         purgeExpiredOtpTokens,        30 * 60_000);
-  register("user-session-cleanup",      purgeExpiredUserSessions,     60 * 60_000);
-  register("live-location-cleanup",     purgeStaleLocations,          30 * 60_000);
-  register("login-history-archival",    archiveOldLoginHistory,       24 * 60 * 60_000);
-  register("location-history-cleanup", purgeOldLocationHistory,      24 * 60 * 60_000);
+  register("idempotency-key-expiry", purgeExpiredIdempotencyKeys, 5 * 60_000);
+  register("otp-attempt-cleanup", purgeExpiredOtpAttempts, 5 * 60_000);
+  register("ride-bid-map-cleanup", purgeStaleRideBids, 30 * 60_000);
+  register("refresh-token-cleanup", purgeExpiredRefreshTokens, 60 * 60_000);
+  register("magic-link-token-cleanup", purgeExpiredMagicLinkTokens, 30 * 60_000);
+  register("otp-token-cleanup", purgeExpiredOtpTokens, 30 * 60_000);
+  register("user-session-cleanup", purgeExpiredUserSessions, 60 * 60_000);
+  register("live-location-cleanup", purgeStaleLocations, 30 * 60_000);
+  register("login-history-archival", archiveOldLoginHistory, 24 * 60 * 60_000);
+  register("location-history-cleanup", purgeOldLocationHistory, 24 * 60 * 60_000);
   startDispatchEngine();
   logger.info({ jobs: ALL_JOBS }, "[scheduler] started (dispatch engine active)");
 }
@@ -272,7 +276,7 @@ export function getSchedulerStatus(): {
   return {
     running: _timers.length > 0,
     activeTimers: _timers.length,
-    jobs: _registeredJobs.map(j => ({
+    jobs: _registeredJobs.map((j) => ({
       name: j.name,
       intervalLabel: fmtInterval(j.intervalMs),
       startedAt: j.startedAt.toISOString(),

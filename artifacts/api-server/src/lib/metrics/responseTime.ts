@@ -1,6 +1,6 @@
 import { statfsSync } from "fs";
 import os from "os";
-import { logger } from '../logger.js';
+import { logger } from "../logger.js";
 
 /* ══════════════════════════════════════════════════════════════════════════
    responseTime.ts
@@ -42,7 +42,7 @@ export function getSampleCount(): number {
 export function getP50Ms(): number | null {
   if (samples.length < 10) return null;
   const sorted = [...samples].sort((a, b) => a - b);
-  const idx = Math.ceil(sorted.length * 0.50) - 1;
+  const idx = Math.ceil(sorted.length * 0.5) - 1;
   return Math.round(sorted[Math.max(0, idx)]!);
 }
 
@@ -93,7 +93,13 @@ export function getDiskPct(mountPath = "/"): number | null {
     if (s.blocks === 0) return null;
     return Math.round((used / s.blocks) * 100);
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return null;
   }
 }
@@ -102,9 +108,15 @@ export function getDiskPct(mountPath = "/"): number | null {
 export function getDiskFreeGb(mountPath = "/"): number | null {
   try {
     const s = statfsSync(mountPath);
-    return Math.round((s.bavail * s.bsize) / (1024 * 1024 * 1024) * 10) / 10;
+    return Math.round(((s.bavail * s.bsize) / (1024 * 1024 * 1024)) * 10) / 10;
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return null;
   }
 }

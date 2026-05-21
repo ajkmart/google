@@ -1,17 +1,17 @@
 import type { TranslationKey } from "@workspace/i18n";
-import { Link } from "wouter";
 import {
   AlertTriangle,
-  MapPin,
-  WifiOff,
-  X,
-  Ban,
-  Pin,
   ArrowUpRight,
-  XCircle,
+  Ban,
+  MapPin,
+  Pin,
   SkipForward,
   Volume2,
+  WifiOff,
+  X,
+  XCircle,
 } from "lucide-react";
+import { Link } from "wouter";
 
 /* ── Banner height constants — keep in sync with the CSS values below ──────
    Each banner is ~28 px tall (py-1.5 + text-xs = ~28 px). We stack them
@@ -45,8 +45,8 @@ export function FixedBanners({
      without overlap — each one is offset by the cumulative height of those
      above it. */
   const showConnection = !socketConnected && effectiveOnline;
-  const showZone       = !!zoneWarning && effectiveOnline;
-  const showAudio      = audioLocked && effectiveOnline;
+  const showZone = !!zoneWarning && effectiveOnline;
+  const showAudio = audioLocked && effectiveOnline;
 
   /* Safe-area base padding */
   const safeTop = "env(safe-area-inset-top, 0px)";
@@ -54,8 +54,8 @@ export function FixedBanners({
   /* Stack positions (top offset for each banner) */
   let bannerIdx = 0;
   const connectionTop = showConnection ? bannerIdx++ : -1;
-  const zoneTop       = showZone       ? bannerIdx++ : -1;
-  const audioTop      = showAudio      ? bannerIdx++ : -1;
+  const zoneTop = showZone ? bannerIdx++ : -1;
+  const audioTop = showAudio ? bannerIdx++ : -1;
 
   /* Number of top banners currently visible — used to position the bottom WakeLock toast */
   const totalTopBanners = bannerIdx;
@@ -65,7 +65,7 @@ export function FixedBanners({
       {/* ── Connection lost banner ── */}
       {showConnection && (
         <div
-          className="fixed left-0 right-0 z-[50] bg-red-600 text-white text-xs font-bold text-center flex items-center justify-center gap-1.5 shadow-lg animate-pulse"
+          className="fixed right-0 left-0 z-[50] flex animate-pulse items-center justify-center gap-1.5 bg-red-600 text-center text-xs font-bold text-white shadow-lg"
           style={{
             top: `calc(${safeTop} + ${connectionTop * BANNER_H}px)`,
             height: BANNER_H,
@@ -80,7 +80,7 @@ export function FixedBanners({
       {/* ── Zone warning banner ── */}
       {showZone && (
         <div
-          className="fixed left-0 right-0 z-[49] bg-amber-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg px-3"
+          className="fixed right-0 left-0 z-[49] flex items-center justify-center gap-1.5 bg-amber-500 px-3 text-xs font-bold text-white shadow-lg"
           style={{
             top: `calc(${safeTop} + ${zoneTop * BANNER_H}px)`,
             height: BANNER_H,
@@ -92,7 +92,7 @@ export function FixedBanners({
           <span className="truncate">{zoneWarning}</span>
           <button
             onClick={onDismissZone}
-            className="ml-1 bg-white/20 rounded-full p-0.5 flex-shrink-0"
+            className="ml-1 flex-shrink-0 rounded-full bg-white/20 p-0.5"
             aria-label="Dismiss zone warning"
           >
             <X size={11} />
@@ -104,9 +104,12 @@ export function FixedBanners({
       {showAudio && (
         <button
           onClick={onUnlockAudio}
-          onTouchEnd={(e) => { e.preventDefault(); onUnlockAudio(); }}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            onUnlockAudio();
+          }}
           onPointerUp={onUnlockAudio}
-          className="fixed left-0 right-0 z-[48] bg-indigo-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg px-3 w-full"
+          className="fixed right-0 left-0 z-[48] flex w-full items-center justify-center gap-1.5 bg-indigo-600 px-3 text-xs font-bold text-white shadow-lg"
           style={{
             top: `calc(${safeTop} + ${audioTop * BANNER_H}px)`,
             height: BANNER_H,
@@ -121,7 +124,7 @@ export function FixedBanners({
       {/* ── WakeLock toast (bottom, above nav) ── */}
       {wakeLockWarning && effectiveOnline && (
         <div
-          className="fixed left-4 right-4 z-[1050] bg-amber-600 text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-lg flex items-center gap-2.5 animate-[slideUp_0.3s_ease-out]"
+          className="fixed right-4 left-4 z-[1050] flex animate-[slideUp_0.3s_ease-out] items-center gap-2.5 rounded-2xl bg-amber-600 px-4 py-3 text-xs font-bold text-white shadow-lg"
           style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 72px)" }}
           role="alert"
         >
@@ -131,7 +134,7 @@ export function FixedBanners({
           </span>
           <button
             onClick={onDismissWakeLock}
-            className="bg-white/20 rounded-full p-0.5 flex-shrink-0"
+            className="flex-shrink-0 rounded-full bg-white/20 p-0.5"
             aria-label="Dismiss wake lock warning"
           >
             <X size={11} />
@@ -187,16 +190,16 @@ export function InlineWarnings({
   return (
     <>
       {gpsWarning && (
-        <div className="bg-amber-50 border border-amber-200 rounded-3xl px-4 py-3 flex items-start gap-3 shadow-sm animate-[slideUp_0.2s_ease-out]">
-          <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+        <div className="flex animate-[slideUp_0.2s_ease-out] items-start gap-3 rounded-3xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100">
             <AlertTriangle size={16} className="text-amber-500" />
           </div>
-          <p className="text-xs font-bold text-amber-700 flex-1 leading-relaxed pt-1">
+          <p className="flex-1 pt-1 text-xs leading-relaxed font-bold text-amber-700">
             {gpsWarning}
           </p>
           <button
             onClick={onDismissGps}
-            className="text-amber-400 hover:text-amber-600 p-1 rounded-lg hover:bg-amber-100 transition-colors"
+            className="rounded-lg p-1 text-amber-400 transition-colors hover:bg-amber-100 hover:text-amber-600"
             aria-label="Dismiss GPS warning"
           >
             <X size={14} />
@@ -205,31 +208,31 @@ export function InlineWarnings({
       )}
 
       {isRestricted && (
-        <div className="bg-red-50 border-2 border-red-300 rounded-3xl px-4 py-3.5 flex items-start gap-3 shadow-sm animate-[slideUp_0.2s_ease-out]">
-          <div className="w-10 h-10 bg-red-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+        <div className="flex animate-[slideUp_0.2s_ease-out] items-start gap-3 rounded-3xl border-2 border-red-300 bg-red-50 px-4 py-3.5 shadow-sm">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-red-100">
             <Ban size={18} className="text-red-500" />
           </div>
           <div className="flex-1">
             <p className="text-sm font-extrabold text-red-800">Account Restricted</p>
-            <p className="text-xs text-red-600 mt-0.5 leading-relaxed">
-              Your account has been restricted due to excessive cancellations or ignores. You
-              cannot accept new rides. Contact support to resolve.
+            <p className="mt-0.5 text-xs leading-relaxed text-red-600">
+              Your account has been restricted due to excessive cancellations or ignores. You cannot
+              accept new rides. Contact support to resolve.
             </p>
           </div>
         </div>
       )}
 
       {riderNotice && !riderNoticeDismissed && (
-        <div className="bg-blue-50 border border-blue-200 rounded-3xl px-4 py-3 flex items-start gap-3 shadow-sm">
-          <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+        <div className="flex items-start gap-3 rounded-3xl border border-blue-200 bg-blue-50 px-4 py-3 shadow-sm">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-blue-100">
             <Pin size={14} className="text-blue-500" />
           </div>
-          <p className="text-sm text-blue-700 font-medium leading-relaxed flex-1 pt-0.5">
+          <p className="flex-1 pt-0.5 text-sm leading-relaxed font-medium text-blue-700">
             {riderNotice}
           </p>
           <button
             onClick={onDismissRiderNotice}
-            className="text-blue-400 hover:text-blue-600 flex-shrink-0 mt-0.5"
+            className="mt-0.5 flex-shrink-0 text-blue-400 hover:text-blue-600"
             aria-label="Dismiss rider notice"
           >
             <X size={14} />
@@ -244,11 +247,11 @@ export function InlineWarnings({
           const cancelRate: number | null = cancelStatsData.cancelRate ?? null;
           return (
             <div
-              className={`rounded-3xl px-4 py-3.5 shadow-sm border ${atRisk ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"}`}
+              className={`rounded-3xl border px-4 py-3.5 shadow-sm ${atRisk ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"}`}
             >
               <div className="flex items-center gap-3">
                 <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${atRisk ? "bg-red-100" : "bg-amber-100"}`}
+                  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${atRisk ? "bg-red-100" : "bg-amber-100"}`}
                 >
                   <XCircle size={18} className={atRisk ? "text-red-500" : "text-amber-500"} />
                 </div>
@@ -265,7 +268,7 @@ export function InlineWarnings({
                         : ""}
                   </p>
                   {cancelStatsData.dailyLimit != null && (
-                    <p className="text-[10px] text-amber-600 mt-0.5 font-medium">
+                    <p className="mt-0.5 text-[10px] font-medium text-amber-600">
                       Limit: {cancelStatsData.dailyLimit}/day · {cancelStatsData.remaining}{" "}
                       remaining
                       {(cancelStatsData.penaltyAmount ?? 0) > 0 &&
@@ -275,9 +278,9 @@ export function InlineWarnings({
                 </div>
               </div>
               {cancelRate != null && (
-                <div className="mt-2.5 flex items-center gap-3 flex-wrap">
-                  <div className="flex items-center gap-1.5 bg-white/70 rounded-xl px-2.5 py-1.5 border border-amber-200/60">
-                    <span className="text-[10px] text-gray-500 font-semibold">Cancel rate</span>
+                <div className="mt-2.5 flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-1.5 rounded-xl border border-amber-200/60 bg-white/70 px-2.5 py-1.5">
+                    <span className="text-[10px] font-semibold text-gray-500">Cancel rate</span>
                     <span
                       className={`text-[10px] font-extrabold ${cancelRate > 20 ? "text-red-600" : "text-amber-700"}`}
                     >
@@ -296,11 +299,11 @@ export function InlineWarnings({
           const atRisk = ignoreStatsData.remaining <= 1;
           return (
             <div
-              className={`rounded-3xl px-4 py-3.5 shadow-sm border ${atRisk ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"}`}
+              className={`rounded-3xl border px-4 py-3.5 shadow-sm ${atRisk ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"}`}
             >
               <div className="flex items-center gap-3">
                 <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${atRisk ? "bg-red-100" : "bg-amber-100"}`}
+                  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${atRisk ? "bg-red-100" : "bg-amber-100"}`}
                 >
                   <SkipForward size={18} className={atRisk ? "text-red-500" : "text-amber-500"} />
                 </div>
@@ -317,7 +320,7 @@ export function InlineWarnings({
                         : ""}
                   </p>
                   {ignoreStatsData.dailyLimit != null && (
-                    <p className="text-[10px] text-amber-600 mt-0.5 font-medium">
+                    <p className="mt-0.5 text-[10px] font-medium text-amber-600">
                       Limit: {ignoreStatsData.dailyLimit}/day · {ignoreStatsData.remaining}{" "}
                       remaining
                       {(ignoreStatsData.penaltyAmount ?? 0) > 0 &&
@@ -335,13 +338,13 @@ export function InlineWarnings({
         const shortfall = minBalance - walletBalance;
         return (
           <Link href="/wallet">
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-3xl px-4 py-3.5 flex items-start gap-3 cursor-pointer active:scale-[0.98] transition-transform shadow-sm">
-              <div className="w-10 h-10 bg-amber-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+            <div className="flex cursor-pointer items-start gap-3 rounded-3xl border border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3.5 shadow-sm transition-transform active:scale-[0.98]">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-amber-100">
                 <AlertTriangle size={18} className="text-amber-500" />
               </div>
               <div className="flex-1">
                 <p className="text-sm font-extrabold text-amber-800">Low Wallet Balance</p>
-                <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+                <p className="mt-0.5 text-xs leading-relaxed text-amber-700">
                   Minimum{" "}
                   <strong>
                     {currency} {Math.round(minBalance)}
@@ -358,7 +361,7 @@ export function InlineWarnings({
                     </>
                   )}
                 </p>
-                <p className="text-[10px] text-amber-600 mt-1.5 font-bold flex items-center gap-1">
+                <p className="mt-1.5 flex items-center gap-1 text-[10px] font-bold text-amber-600">
                   Tap to deposit <ArrowUpRight size={10} />
                 </p>
               </div>

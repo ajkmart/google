@@ -1,13 +1,4 @@
-import {
-  ShoppingBag,
-  ShoppingCart,
-  Pill,
-  Package,
-  Banana,
-  Car,
-  Bike,
-  Bus,
-} from "lucide-react";
+import { Banana, Bike, Bus, Car, Package, Pill, ShoppingBag, ShoppingCart } from "lucide-react";
 
 export function OrderTypeIcon({ type }: { type: string }) {
   if (type === "food") return <ShoppingBag size={20} className="text-orange-500" />;

@@ -1,7 +1,7 @@
 import { Router } from "express";
-import publicRouter from "./public.js";
 import campaignsRouter from "./campaigns.js";
 import offersRouter from "./offers.js";
+import publicRouter from "./public.js";
 
 const router = Router();
 

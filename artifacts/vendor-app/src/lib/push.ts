@@ -16,17 +16,16 @@
  * project roots before building.
  */
 
-import { Capacitor } from "@capacitor/core";
-import { vendorEnv } from "./envValidation";
 import { createLogger } from "@/lib/logger";
-const log = createLogger("[push]");
+import { Capacitor } from "@capacitor/core";
 import { api } from "./api";
+import { vendorEnv } from "./envValidation";
+const log = createLogger("[push]");
 
 /* API origin for native Capacitor builds; empty string falls through to
    relative paths in web-proxy mode. Sourced from the validated env singleton. */
-const API_ORIGIN = vendorEnv.isCapacitor && vendorEnv.apiBaseUrl
-  ? vendorEnv.apiBaseUrl.replace(/\/+$/, "")
-  : "";
+const API_ORIGIN =
+  vendorEnv.isCapacitor && vendorEnv.apiBaseUrl ? vendorEnv.apiBaseUrl.replace(/\/+$/, "") : "";
 
 /** Listener cleanup handle returned to callers for foreground messages. */
 export interface PushCleanup {
@@ -52,23 +51,31 @@ export function consumePendingNotificationTap(): Record<string, string> | null {
 }
 
 if (Capacitor.isNativePlatform()) {
-  import("@capacitor/push-notifications").then(({ PushNotifications }) => {
-    PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
-      const data = (action.notification?.data ?? {}) as Record<string, string>;
-      if (Object.keys(data).length > 0) {
-        _pendingTapData = data;
-      }
-    }).catch((err) => { console.warn('[artifacts/vendor-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
-  }).catch((err) => { console.warn('[artifacts/vendor-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
+  import("@capacitor/push-notifications")
+    .then(({ PushNotifications }) => {
+      PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
+        const data = (action.notification?.data ?? {}) as Record<string, string>;
+        if (Object.keys(data).length > 0) {
+          _pendingTapData = data;
+        }
+      }).catch((err) => {
+        console.warn("[artifacts/vendor-app/src/lib/push.ts]", err);
+      }); // eslint-disable-line no-console
+    })
+    .catch((err) => {
+      console.warn("[artifacts/vendor-app/src/lib/push.ts]", err);
+    }); // eslint-disable-line no-console
 }
 
 /** Called when push registration fails so the UI can show a re-enable prompt. */
-export type PushErrorHandler = (reason: "permission_denied" | "registration_failed" | "network_error") => void;
+export type PushErrorHandler = (
+  reason: "permission_denied" | "registration_failed" | "network_error"
+) => void;
 
 export async function registerPush(
   onForegroundMessage?: (title: string, body: string, data?: Record<string, string>) => void,
   onNotificationTap?: NotificationTapHandler,
-  onError?: PushErrorHandler,
+  onError?: PushErrorHandler
 ): Promise<PushCleanup | void> {
   if (Capacitor.isNativePlatform()) {
     return registerFcmPush(onForegroundMessage, onNotificationTap, onError);
@@ -88,7 +95,7 @@ function getAuthToken(): string {
 async function registerFcmPush(
   onForegroundMessage?: (title: string, body: string, data?: Record<string, string>) => void,
   onNotificationTap?: NotificationTapHandler,
-  onError?: PushErrorHandler,
+  onError?: PushErrorHandler
 ): Promise<PushCleanup | void> {
   try {
     const { PushNotifications } = await import("@capacitor/push-notifications");
@@ -124,23 +131,33 @@ async function registerFcmPush(
           });
           lastStatus = res.status;
           if (res.ok || res.status === 409) return; /* 409 = already registered, both are success */
-          log.warn(`FCM token registration attempt ${attempt}/${MAX_ATTEMPTS} failed:`, res.status, res.statusText);
+          log.warn(
+            `FCM token registration attempt ${attempt}/${MAX_ATTEMPTS} failed:`,
+            res.status,
+            res.statusText
+          );
           /* 4xx errors are client-side failures — no point retrying */
           if (res.status >= 400 && res.status < 500) {
             onError?.("registration_failed");
             return;
           }
         } catch (fetchErr) {
-          log.warn(`FCM token registration attempt ${attempt}/${MAX_ATTEMPTS} network error:`, fetchErr);
+          log.warn(
+            `FCM token registration attempt ${attempt}/${MAX_ATTEMPTS} network error:`,
+            fetchErr
+          );
           lastStatus = 0;
         }
         if (attempt < MAX_ATTEMPTS) {
           /* Exponential backoff: 500ms, 1000ms */
-          await new Promise(r => setTimeout(r, 500 * attempt));
+          await new Promise((r) => setTimeout(r, 500 * attempt));
         }
       }
       /* All retries exhausted */
-      log.error(`FCM token registration failed after ${MAX_ATTEMPTS} attempts. Last status: ${lastStatus}`, { token: token.slice(0, 20) + "…", apiOrigin: API_ORIGIN || "(relative)" });
+      log.error(
+        `FCM token registration failed after ${MAX_ATTEMPTS} attempts. Last status: ${lastStatus}`,
+        { token: token.slice(0, 20) + "…", apiOrigin: API_ORIGIN || "(relative)" }
+      );
       if (lastStatus === 0) {
         onError?.("network_error");
       } else {
@@ -155,12 +172,20 @@ async function registerFcmPush(
         /* resolve() is idempotent — subsequent calls (token rotation) are no-ops
            on the promise but we still re-register the new token with the server. */
         resolve(newToken.value);
-        await registerTokenWithServer(newToken.value).catch((err) => { console.warn('[artifacts/vendor-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
-      }).then((h) => cleanups.push(h)).catch(reject);
+        await registerTokenWithServer(newToken.value).catch((err) => {
+          console.warn("[artifacts/vendor-app/src/lib/push.ts]", err);
+        }); // eslint-disable-line no-console
+      })
+        .then((h) => cleanups.push(h))
+        .catch(reject);
 
       PushNotifications.addListener("registrationError", (err) => {
         reject(new Error(err.error));
-      }).then((h) => cleanups.push(h)).catch((err) => { console.warn('[artifacts/vendor-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
+      })
+        .then((h) => cleanups.push(h))
+        .catch((err) => {
+          console.warn("[artifacts/vendor-app/src/lib/push.ts]", err);
+        }); // eslint-disable-line no-console
     });
 
     /* Token refresh listener — fires when FCM rotates the device token without
@@ -169,18 +194,35 @@ async function registerFcmPush(
        expose this event yet, but the underlying native layer does emit it on
        some configurations; we handle it defensively alongside the registration
        event so no rotation is missed. */
-    (PushNotifications as unknown as {
-      addListener(e: "tokenRefresh", fn: (t: { registration?: string; value?: string }) => void): Promise<{ remove: () => void }>;
-    }).addListener("tokenRefresh", async (newToken) => {
-      const token = newToken.registration ?? newToken.value;
-      if (token) await registerTokenWithServer(token).catch((err) => { console.warn('[artifacts/vendor-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
-    }).then((h) => cleanups.push(h)).catch((err) => { console.warn('[artifacts/vendor-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
+    (
+      PushNotifications as unknown as {
+        addListener(
+          e: "tokenRefresh",
+          fn: (t: { registration?: string; value?: string }) => void
+        ): Promise<{ remove: () => void }>;
+      }
+    )
+      .addListener("tokenRefresh", async (newToken) => {
+        const token = newToken.registration ?? newToken.value;
+        if (token)
+          await registerTokenWithServer(token).catch((err) => {
+            console.warn("[artifacts/vendor-app/src/lib/push.ts]", err);
+          }); // eslint-disable-line no-console
+      })
+      .then((h) => cleanups.push(h))
+      .catch((err) => {
+        console.warn("[artifacts/vendor-app/src/lib/push.ts]", err);
+      }); // eslint-disable-line no-console
 
     if (onForegroundMessage) {
       PushNotifications.addListener("pushNotificationReceived", (notification) => {
         const data = (notification.data ?? {}) as Record<string, string>;
         onForegroundMessage(notification.title ?? "", notification.body ?? "", data);
-      }).then((h) => cleanups.push(h)).catch((err) => { console.warn('[artifacts/vendor-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
+      })
+        .then((h) => cleanups.push(h))
+        .catch((err) => {
+          console.warn("[artifacts/vendor-app/src/lib/push.ts]", err);
+        }); // eslint-disable-line no-console
     }
 
     /* Handle notification tap — fires when vendor taps the notification in the
@@ -193,7 +235,11 @@ async function registerFcmPush(
         _pendingTapData = null;
         const data = (action.notification?.data ?? {}) as Record<string, string>;
         onNotificationTap(data);
-      }).then((h) => cleanups.push(h)).catch((err) => { console.warn('[artifacts/vendor-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
+      })
+        .then((h) => cleanups.push(h))
+        .catch((err) => {
+          console.warn("[artifacts/vendor-app/src/lib/push.ts]", err);
+        }); // eslint-disable-line no-console
     }
 
     /* Now trigger registration — token/error events may fire after this. */
@@ -205,7 +251,7 @@ async function registerFcmPush(
     await Promise.race<void>([
       tokenPromise.then(() => {}),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("FCM registration timeout")), TOKEN_TIMEOUT_MS),
+        setTimeout(() => reject(new Error("FCM registration timeout")), TOKEN_TIMEOUT_MS)
       ),
     ]);
 
@@ -250,7 +296,9 @@ async function registerVapidPush(onError?: PushErrorHandler): Promise<void> {
           log.warn("VAPID re-registration failed:", res.status);
           if (res.status >= 400 && res.status < 500) {
             /* 4xx: subscription is stale — unsubscribe and force fresh registration */
-            await existing.unsubscribe().catch((err) => { console.warn('[artifacts/vendor-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
+            await existing.unsubscribe().catch((err) => {
+              console.warn("[artifacts/vendor-app/src/lib/push.ts]", err);
+            }); // eslint-disable-line no-console
             onError?.("registration_failed");
           } else if (res.status >= 500) {
             /* 5xx: server error — surface to UI so vendor knows push may be degraded */
@@ -267,7 +315,9 @@ async function registerVapidPush(onError?: PushErrorHandler): Promise<void> {
       return;
     }
     const vj = await vapidRes.json();
-    const { publicKey } = (vj?.success === true && "data" in vj ? vj.data : vj) as { publicKey: string };
+    const { publicKey } = (vj?.success === true && "data" in vj ? vj.data : vj) as {
+      publicKey: string;
+    };
     if (!publicKey) {
       onError?.("registration_failed");
       return;
@@ -303,7 +353,11 @@ async function registerVapidPush(onError?: PushErrorHandler): Promise<void> {
     const msg = e instanceof Error ? e.message : String(e);
     if (msg.includes("permission") || msg.includes("denied") || msg.includes("NotAllowed")) {
       onError?.("permission_denied");
-    } else if (msg.includes("fetch") || msg.includes("network") || msg.includes("Failed to fetch")) {
+    } else if (
+      msg.includes("fetch") ||
+      msg.includes("network") ||
+      msg.includes("Failed to fetch")
+    ) {
       onError?.("network_error");
     } else {
       onError?.("registration_failed");
@@ -312,8 +366,8 @@ async function registerVapidPush(onError?: PushErrorHandler): Promise<void> {
 }
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = window.atob(base64);
-  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }

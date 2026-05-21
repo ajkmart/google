@@ -15,15 +15,20 @@ export function NewOrderBanner({ order, onDismiss }: Props) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (!order) { setVisible(false); return; }
+    if (!order) {
+      setVisible(false);
+      return;
+    }
     setVisible(true);
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       setVisible(false);
       setTimeout(onDismiss, 300);
     }, AUTO_DISMISS_MS);
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order]);
 
   if (!order) return null;
@@ -49,39 +54,43 @@ export function NewOrderBanner({ order, onDismiss }: Props) {
 
   return (
     <div
-      className={`fixed top-0 inset-x-0 z-[9999] transition-transform duration-300 ${visible ? "translate-y-0" : "-translate-y-full"}`}
+      className={`fixed inset-x-0 top-0 z-[9999] transition-transform duration-300 ${visible ? "translate-y-0" : "-translate-y-full"}`}
       role="alert"
       aria-live="assertive"
     >
-      <div className="mx-auto max-w-lg m-2">
-        <div className="bg-white rounded-2xl shadow-2xl border border-blue-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2 flex items-center gap-2">
-            <span className="text-white text-lg">🛍️</span>
-            <span className="text-white font-extrabold text-sm tracking-wide uppercase">New Order Arrived!</span>
-            <span className="ml-auto text-blue-100 text-xs font-medium capitalize">{orderType}</span>
+      <div className="m-2 mx-auto max-w-lg">
+        <div className="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl">
+          <div className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2">
+            <span className="text-lg text-white">🛍️</span>
+            <span className="text-sm font-extrabold tracking-wide text-white uppercase">
+              New Order Arrived!
+            </span>
+            <span className="ml-auto text-xs font-medium text-blue-100 capitalize">
+              {orderType}
+            </span>
           </div>
-          <div className="px-4 py-3 flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-gray-800 font-bold text-sm truncate">
+          <div className="flex items-center gap-3 px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-gray-800">
                 {itemCount > 0 ? `${itemCount} item${itemCount > 1 ? "s" : ""}` : "Order placed"}
                 {" · "}
                 <span className="text-blue-600">Rs {total}</span>
               </p>
               {order.paymentMethod && (
-                <p className="text-gray-400 text-xs mt-0.5 capitalize">
+                <p className="mt-0.5 text-xs text-gray-400 capitalize">
                   Payment: {String(order.paymentMethod).replace(/_/g, " ")}
                 </p>
               )}
             </div>
             <button
               onClick={handleView}
-              className="shrink-0 h-9 px-4 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold rounded-xl text-sm transition-all"
+              className="h-9 shrink-0 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white transition-all hover:bg-blue-700 active:scale-95"
             >
               View
             </button>
             <button
               onClick={handleDismiss}
-              className="shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition-colors text-lg leading-none"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-lg leading-none text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
               aria-label="Dismiss"
             >
               ×
@@ -89,7 +98,7 @@ export function NewOrderBanner({ order, onDismiss }: Props) {
           </div>
           <div className="h-1 bg-blue-100">
             <div
-              className="h-full bg-blue-500 origin-left"
+              className="h-full origin-left bg-blue-500"
               style={{ animation: `shrink ${AUTO_DISMISS_MS}ms linear forwards` }}
             />
           </div>

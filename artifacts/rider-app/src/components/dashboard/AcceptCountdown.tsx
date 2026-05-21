@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useRef } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { ACCEPT_TIMEOUT_SEC } from "./helpers";
 
 export const AcceptCountdown = memo(function AcceptCountdown({
@@ -47,18 +47,19 @@ export const AcceptCountdown = memo(function AcceptCountdown({
       }
     }, 1000);
     return () => clearInterval(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createdAt, onExpired, timeout]);
 
   const pct = secs / timeout;
-  const r = 14, stroke = 3;
+  const r = 14,
+    stroke = 3;
   const circ = 2 * Math.PI * r;
   const dashOffset = circ * (1 - pct);
   const col = secs > 30 ? "#22c55e" : secs > 10 ? "#f59e0b" : "#ef4444";
 
   return (
     <div
-      className="flex-shrink-0 relative flex items-center justify-center"
+      className="relative flex flex-shrink-0 items-center justify-center"
       style={{ width: 36, height: 36 }}
       role="timer"
       aria-label={`${secs} seconds remaining`}

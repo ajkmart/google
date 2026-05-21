@@ -2,7 +2,7 @@ import dns from "dns";
 import { logger } from "./logger.js";
 
 export function isPrivateIpOrHost(host: string): boolean {
-  const h = (host.startsWith("[") && host.endsWith("]")) ? host.slice(1, -1) : host;
+  const h = host.startsWith("[") && host.endsWith("]") ? host.slice(1, -1) : host;
 
   if (h === "localhost" || h === "::1" || h === "0.0.0.0" || h === "::") return true;
 
@@ -45,20 +45,29 @@ export async function isValidWebhookUrl(raw: string): Promise<boolean> {
     try {
       addresses = await dns.promises.lookup(rawHost, { all: true });
     } catch {
-      logger.warn({ host: rawHost }, "[webhook] DNS resolution failed during URL validation — rejecting");
+      logger.warn(
+        { host: rawHost },
+        "[webhook] DNS resolution failed during URL validation — rejecting"
+      );
       return false;
     }
 
     for (const { address } of addresses) {
       if (isPrivateIpOrHost(address)) {
-        logger.warn({ host: rawHost, address }, "[webhook] Resolved address is private — rejecting webhook URL");
+        logger.warn(
+          { host: rawHost, address },
+          "[webhook] Resolved address is private — rejecting webhook URL"
+        );
         return false;
       }
     }
 
     return true;
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err) }, "[webhook] URL validation threw unexpectedly");
+    logger.error(
+      { error: err instanceof Error ? err.message : String(err) },
+      "[webhook] URL validation threw unexpectedly"
+    );
     return false;
   }
 }

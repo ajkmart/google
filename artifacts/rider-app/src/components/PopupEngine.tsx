@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { useAuth } from "../lib/rider-auth";
 import { getRiderApiBase } from "../lib/envValidation";
+import { useAuth } from "../lib/rider-auth";
 import { SafeImage } from "./ui/SafeImage";
 
 const BASE = getRiderApiBase();
@@ -33,7 +33,10 @@ function getOrCreateSessionId(): string {
     const id = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     sessionStorage.setItem(SESSION_KEY, id);
     return id;
-  } catch (err) { console.warn('[artifacts/rider-app/src/components/PopupEngine.tsx]', err); return ""; } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/components/PopupEngine.tsx]", err);
+    return "";
+  } // eslint-disable-line no-console
 }
 
 const sessionSeenIds = new Set<string>();
@@ -53,7 +56,10 @@ function shouldShowPopup(popup: Popup): boolean {
       return !sessionSeenIds.has(popup.id);
     }
     return true;
-  } catch (err) { console.warn('[artifacts/rider-app/src/components/PopupEngine.tsx]', err); return false; } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/components/PopupEngine.tsx]", err);
+    return false;
+  } // eslint-disable-line no-console
 }
 
 function markPopupSeen(popup: Popup): void {
@@ -65,10 +71,17 @@ function markPopupSeen(popup: Popup): void {
     } else if (popup.displayFrequency === "every_session") {
       sessionSeenIds.add(popup.id);
     }
-  } catch (err) { console.warn('[artifacts/rider-app/src/components/PopupEngine.tsx]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/components/PopupEngine.tsx]", err);
+  } // eslint-disable-line no-console
 }
 
-async function sendImpression(popupId: string, action: string, token: string | null, sessionId: string): Promise<void> {
+async function sendImpression(
+  popupId: string,
+  action: string,
+  token: string | null,
+  sessionId: string
+): Promise<void> {
   try {
     await fetch(`${BASE}/popups/impression`, {
       method: "POST",
@@ -78,7 +91,9 @@ async function sendImpression(popupId: string, action: string, token: string | n
       },
       body: JSON.stringify({ popupId, action, sessionId }),
     });
-  } catch (err) { console.warn('[artifacts/rider-app/src/components/PopupEngine.tsx]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn("[artifacts/rider-app/src/components/PopupEngine.tsx]", err);
+  } // eslint-disable-line no-console
 }
 
 function getAnimationClass(animation: string | null, type: string): string {
@@ -104,48 +119,54 @@ export function PopupEngine() {
 
   const dismissCurrentRef = useRef<(action?: "dismiss" | "click") => void>(() => {});
 
-  const showAt = useCallback((q: Popup[], idx: number) => {
-    if (idx >= q.length) return;
-    idxRef.current = idx;
-    const popup = q[idx]!;
-    currentIdRef.current = popup.id;
-    setCurrent(popup);
-    setVisible(true);
-    setLeaving(false);
-    sendImpression(popup.id, "view", token, sessionId.current);
-    markPopupSeen(popup);
-
-    if (popup.popupType === "top_banner") {
-      if (autoDismissTimer.current) clearTimeout(autoDismissTimer.current);
-      const popupId = popup.id;
-      autoDismissTimer.current = setTimeout(() => {
-        autoDismissTimer.current = null;
-        if (currentIdRef.current === popupId) {
-          dismissCurrentRef.current("dismiss");
-        }
-      }, 4000);
-    }
-  }, [token]);
-
-  const dismissCurrent = useCallback((action: "dismiss" | "click" = "dismiss") => {
-    if (!current) return;
-    if (autoDismissTimer.current) {
-      clearTimeout(autoDismissTimer.current);
-      autoDismissTimer.current = null;
-    }
-    sendImpression(current.id, action, token, sessionId.current);
-    setLeaving(true);
-    setTimeout(() => {
-      setVisible(false);
-      setCurrent(null);
-      currentIdRef.current = null;
+  const showAt = useCallback(
+    (q: Popup[], idx: number) => {
+      if (idx >= q.length) return;
+      idxRef.current = idx;
+      const popup = q[idx]!;
+      currentIdRef.current = popup.id;
+      setCurrent(popup);
+      setVisible(true);
       setLeaving(false);
-      const nextIdx = idxRef.current + 1;
-      if (nextIdx < queueRef.current.length) {
-        setTimeout(() => showAt(queueRef.current, nextIdx), 300);
+      sendImpression(popup.id, "view", token, sessionId.current);
+      markPopupSeen(popup);
+
+      if (popup.popupType === "top_banner") {
+        if (autoDismissTimer.current) clearTimeout(autoDismissTimer.current);
+        const popupId = popup.id;
+        autoDismissTimer.current = setTimeout(() => {
+          autoDismissTimer.current = null;
+          if (currentIdRef.current === popupId) {
+            dismissCurrentRef.current("dismiss");
+          }
+        }, 4000);
       }
-    }, 220);
-  }, [current, token, showAt]);
+    },
+    [token]
+  );
+
+  const dismissCurrent = useCallback(
+    (action: "dismiss" | "click" = "dismiss") => {
+      if (!current) return;
+      if (autoDismissTimer.current) {
+        clearTimeout(autoDismissTimer.current);
+        autoDismissTimer.current = null;
+      }
+      sendImpression(current.id, action, token, sessionId.current);
+      setLeaving(true);
+      setTimeout(() => {
+        setVisible(false);
+        setCurrent(null);
+        currentIdRef.current = null;
+        setLeaving(false);
+        const nextIdx = idxRef.current + 1;
+        if (nextIdx < queueRef.current.length) {
+          setTimeout(() => showAt(queueRef.current, nextIdx), 300);
+        }
+      }, 220);
+    },
+    [current, token, showAt]
+  );
 
   useEffect(() => {
     dismissCurrentRef.current = dismissCurrent;
@@ -163,18 +184,20 @@ export function PopupEngine() {
         if (!res.ok) return;
         const data = await res.json();
         const popups: Popup[] = data?.data?.popups ?? data?.popups ?? [];
-        const eligible = popups.filter(p => shouldShowPopup(p)).slice(0, 10);
+        const eligible = popups.filter((p) => shouldShowPopup(p)).slice(0, 10);
         if (eligible.length > 0) {
           queueRef.current = eligible;
           setQueue(eligible);
           showAt(eligible, 0);
         }
-      } catch (err) { console.warn('[artifacts/rider-app/src/components/PopupEngine.tsx]', err); } // eslint-disable-line no-console
+      } catch (err) {
+        console.warn("[artifacts/rider-app/src/components/PopupEngine.tsx]", err);
+      } // eslint-disable-line no-console
     })();
     return () => {
       if (autoDismissTimer.current) clearTimeout(autoDismissTimer.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAt]);
 
   const handleCta = useCallback(() => {
@@ -194,20 +217,21 @@ export function PopupEngine() {
 
   const g = `linear-gradient(135deg, ${current.colorFrom || "#7C3AED"}, ${current.colorTo || "#4F46E5"})`;
   const tc = current.textColor || "#ffffff";
-  const animClass = leaving ? "animate-fade-out" : getAnimationClass(current.animation, current.popupType);
+  const animClass = leaving
+    ? "animate-fade-out"
+    : getAnimationClass(current.animation, current.popupType);
 
   if (current.popupType === "top_banner") {
     return (
-      <div
-        className={`fixed top-0 left-0 right-0 z-[9999] ${animClass}`}
-        style={{ background: g }}
-      >
-        <div className="flex items-center gap-3 px-4 py-3 max-w-2xl mx-auto">
-          <p className="flex-1 text-sm font-bold truncate" style={{ color: tc }}>{current.title}</p>
+      <div className={`fixed top-0 right-0 left-0 z-[9999] ${animClass}`} style={{ background: g }}>
+        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
+          <p className="flex-1 truncate text-sm font-bold" style={{ color: tc }}>
+            {current.title}
+          </p>
           {current.ctaText && (
             <button
               onClick={handleCta}
-              className="px-3 py-1 rounded-full text-xs font-bold bg-white/20 hover:bg-white/30 transition-colors flex-shrink-0"
+              className="flex-shrink-0 rounded-full bg-white/20 px-3 py-1 text-xs font-bold transition-colors hover:bg-white/30"
               style={{ color: tc }}
             >
               {current.ctaText}
@@ -215,7 +239,7 @@ export function PopupEngine() {
           )}
           <button
             onClick={() => dismissCurrent()}
-            className="flex-shrink-0 text-xl font-bold opacity-80 hover:opacity-100 transition-opacity"
+            className="flex-shrink-0 text-xl font-bold opacity-80 transition-opacity hover:opacity-100"
             style={{ color: tc }}
           >
             ×
@@ -233,21 +257,31 @@ export function PopupEngine() {
           onClick={() => dismissCurrent()}
         />
         <div
-          className={`relative rounded-t-3xl overflow-hidden ${animClass}`}
+          className={`relative overflow-hidden rounded-t-3xl ${animClass}`}
           style={{ background: g }}
         >
-          <div className="w-9 h-1 bg-white/30 rounded-full mx-auto mt-3 mb-1" />
-          <div className="px-6 pb-10 pt-4">
+          <div className="mx-auto mt-3 mb-1 h-1 w-9 rounded-full bg-white/30" />
+          <div className="px-6 pt-4 pb-10">
             {current.mediaUrl && (
-              <SafeImage src={current.mediaUrl} alt="" className="w-full h-40 object-cover rounded-2xl mb-4" />
+              <SafeImage
+                src={current.mediaUrl}
+                alt=""
+                className="mb-4 h-40 w-full rounded-2xl object-cover"
+              />
             )}
-            <p className="text-xl font-extrabold mb-2" style={{ color: tc }}>{current.title}</p>
-            {current.body && <p className="text-sm opacity-85 mb-4" style={{ color: tc }}>{current.body}</p>}
+            <p className="mb-2 text-xl font-extrabold" style={{ color: tc }}>
+              {current.title}
+            </p>
+            {current.body && (
+              <p className="mb-4 text-sm opacity-85" style={{ color: tc }}>
+                {current.body}
+              </p>
+            )}
             <div className="flex gap-3">
               {current.ctaText && (
                 <button
                   onClick={handleCta}
-                  className="flex-1 py-3 rounded-2xl text-sm font-bold bg-white/20 hover:bg-white/30 border border-white/30 transition-colors"
+                  className="flex-1 rounded-2xl border border-white/30 bg-white/20 py-3 text-sm font-bold transition-colors hover:bg-white/30"
                   style={{ color: tc }}
                 >
                   {current.ctaText}
@@ -255,7 +289,7 @@ export function PopupEngine() {
               )}
               <button
                 onClick={() => dismissCurrent()}
-                className="flex-1 py-3 rounded-2xl text-sm font-semibold opacity-60 hover:opacity-80 transition-opacity"
+                className="flex-1 rounded-2xl py-3 text-sm font-semibold opacity-60 transition-opacity hover:opacity-80"
                 style={{ color: tc }}
               >
                 Dismiss
@@ -275,26 +309,32 @@ export function PopupEngine() {
           onClick={() => dismissCurrent()}
         />
         <div
-          className={`relative w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl ${animClass}`}
+          className={`relative w-full max-w-sm overflow-hidden rounded-3xl shadow-2xl ${animClass}`}
           style={{ background: g }}
         >
           {current.mediaUrl && (
-            <SafeImage src={current.mediaUrl} alt="" className="w-full h-36 object-cover" />
+            <SafeImage src={current.mediaUrl} alt="" className="h-36 w-full object-cover" />
           )}
           <button
             onClick={() => dismissCurrent()}
-            className="absolute top-3 right-3 w-8 h-8 bg-black/25 rounded-full text-xl font-bold flex items-center justify-center hover:bg-black/40 transition-colors"
+            className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/25 text-xl font-bold transition-colors hover:bg-black/40"
             style={{ color: tc }}
           >
             ×
           </button>
           <div className="p-6">
-            <p className="text-xl font-extrabold mb-2" style={{ color: tc }}>{current.title}</p>
-            {current.body && <p className="text-sm opacity-85 mb-4" style={{ color: tc }}>{current.body}</p>}
+            <p className="mb-2 text-xl font-extrabold" style={{ color: tc }}>
+              {current.title}
+            </p>
+            {current.body && (
+              <p className="mb-4 text-sm opacity-85" style={{ color: tc }}>
+                {current.body}
+              </p>
+            )}
             {current.ctaText && (
               <button
                 onClick={handleCta}
-                className="w-full py-3 rounded-2xl text-sm font-bold bg-white/20 hover:bg-white/30 border border-white/30 transition-colors"
+                className="w-full rounded-2xl border border-white/30 bg-white/20 py-3 text-sm font-bold transition-colors hover:bg-white/30"
                 style={{ color: tc }}
               >
                 {current.ctaText}
@@ -309,22 +349,32 @@ export function PopupEngine() {
   return (
     <div className={`fixed inset-0 z-[9998] ${animClass}`} style={{ background: g }}>
       {current.mediaUrl && (
-        <SafeImage src={current.mediaUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20" />
+        <SafeImage
+          src={current.mediaUrl}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover opacity-20"
+        />
       )}
       <button
         onClick={() => dismissCurrent()}
-        className="absolute top-6 right-6 w-10 h-10 bg-black/20 rounded-full text-2xl font-bold flex items-center justify-center hover:bg-black/30 transition-colors"
+        className="absolute top-6 right-6 flex h-10 w-10 items-center justify-center rounded-full bg-black/20 text-2xl font-bold transition-colors hover:bg-black/30"
         style={{ color: tc }}
       >
         ×
       </button>
-      <div className="relative flex flex-col items-center justify-center h-full px-8 text-center">
-        <p className="text-3xl font-black mb-4 leading-tight" style={{ color: tc }}>{current.title}</p>
-        {current.body && <p className="text-base opacity-85 mb-8 max-w-xs leading-relaxed" style={{ color: tc }}>{current.body}</p>}
+      <div className="relative flex h-full flex-col items-center justify-center px-8 text-center">
+        <p className="mb-4 text-3xl leading-tight font-black" style={{ color: tc }}>
+          {current.title}
+        </p>
+        {current.body && (
+          <p className="mb-8 max-w-xs text-base leading-relaxed opacity-85" style={{ color: tc }}>
+            {current.body}
+          </p>
+        )}
         {current.ctaText && (
           <button
             onClick={handleCta}
-            className="px-8 py-4 rounded-2xl font-bold text-base bg-white/20 hover:bg-white/30 border border-white/30 transition-colors"
+            className="rounded-2xl border border-white/30 bg-white/20 px-8 py-4 text-base font-bold transition-colors hover:bg-white/30"
             style={{ color: tc }}
           >
             {current.ctaText}
@@ -332,7 +382,7 @@ export function PopupEngine() {
         )}
         <button
           onClick={() => dismissCurrent()}
-          className="mt-4 text-sm font-medium opacity-60 hover:opacity-80 transition-opacity"
+          className="mt-4 text-sm font-medium opacity-60 transition-opacity hover:opacity-80"
           style={{ color: tc }}
         >
           Maybe Later

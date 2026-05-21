@@ -1,12 +1,12 @@
 /**
  * AuditService - Admin Action Audit Trail
- * 
+ *
  * Provides higher-order functions to wrap admin operations
  * with automatic audit logging.
  */
 
-import { addAuditEntry } from "../middleware/security.js";
 import { logger } from "../lib/logger.js";
+import { addAuditEntry } from "../middleware/security.js";
 
 export interface AuditWrapperInput {
   adminId?: string;
@@ -244,11 +244,7 @@ export class AuditService {
       action: input.action,
       ip: input.adminIp,
       adminId: input.adminId,
-      details: [
-        input.details,
-        `${input.resourceType}=${input.resource}`,
-        `changed=${changesStr}`,
-      ]
+      details: [input.details, `${input.resourceType}=${input.resource}`, `changed=${changesStr}`]
         .filter(Boolean)
         .join(" | "),
       result: "success",

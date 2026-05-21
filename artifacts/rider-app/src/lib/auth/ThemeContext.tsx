@@ -14,9 +14,9 @@
  *   const theme = useTheme();  // { primary, background, text, … }
  */
 export {
+  DEFAULT_THEMES,
+  ThemeContext,
   ThemeProvider,
   useAuthTheme as useTheme,
-  ThemeContext,
-  DEFAULT_THEMES,
 } from "@workspace/auth-react";
 export type { AuthTheme, ThemeProviderProps } from "@workspace/auth-react";

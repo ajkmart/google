@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import request from "supertest";
-import express from "express";
 import cookieParser from "cookie-parser";
 import { createHash } from "crypto";
+import express from "express";
+import request from "supertest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
@@ -53,9 +53,39 @@ const mockDb = {
 
 vi.mock("@workspace/db", () => ({ db: mockDb }));
 vi.mock("@workspace/db/schema", () => ({
-  usersTable: { id: "id", phone: "phone", email: "email", username: "username", otpCode: "otpCode", otpExpiry: "otpExpiry", otpUsed: "otpUsed", otpBypassUntil: "otpBypassUntil", isBanned: "isBanned", isActive: "isActive", roles: "roles", tokenVersion: "tokenVersion", googleId: "googleId", approvalStatus: "approvalStatus", updatedAt: "updatedAt" },
-  refreshTokensTable: { id: "id", userId: "userId", tokenHash: "tokenHash", revokedAt: "revokedAt", expiresAt: "expiresAt", familyId: "familyId", revokedReason: "revokedReason" },
-  pendingOtpsTable: { id: "id", phone: "phone", otpHash: "otpHash", otpExpiry: "otpExpiry", attempts: "attempts" },
+  usersTable: {
+    id: "id",
+    phone: "phone",
+    email: "email",
+    username: "username",
+    otpCode: "otpCode",
+    otpExpiry: "otpExpiry",
+    otpUsed: "otpUsed",
+    otpBypassUntil: "otpBypassUntil",
+    isBanned: "isBanned",
+    isActive: "isActive",
+    roles: "roles",
+    tokenVersion: "tokenVersion",
+    googleId: "googleId",
+    approvalStatus: "approvalStatus",
+    updatedAt: "updatedAt",
+  },
+  refreshTokensTable: {
+    id: "id",
+    userId: "userId",
+    tokenHash: "tokenHash",
+    revokedAt: "revokedAt",
+    expiresAt: "expiresAt",
+    familyId: "familyId",
+    revokedReason: "revokedReason",
+  },
+  pendingOtpsTable: {
+    id: "id",
+    phone: "phone",
+    otpHash: "otpHash",
+    otpExpiry: "otpExpiry",
+    attempts: "attempts",
+  },
   rateLimitsTable: {},
   userSessionsTable: {},
   loginHistoryTable: {},
@@ -117,7 +147,9 @@ const mockIssueTokensForUser = vi.fn().mockResolvedValue({
   user: { id: "usr_001", phone: "+923001234567", roles: "customer" },
   isNewUser: false,
 });
-const mockCheckAndIncrOtpRateLimit = vi.fn().mockResolvedValue({ blocked: false, retryAfterSeconds: 0 });
+const mockCheckAndIncrOtpRateLimit = vi
+  .fn()
+  .mockResolvedValue({ blocked: false, retryAfterSeconds: 0 });
 const mockGetWhitelistBypass = vi.fn().mockResolvedValue(null);
 
 vi.mock("../../src/routes/auth/helpers.js", () => ({
@@ -206,9 +238,21 @@ vi.mock("../../src/services/totp.js", () => ({
   decryptTotpSecret: vi.fn().mockReturnValue("SECRET"),
 }));
 vi.mock("../../src/services/auth/tokenRotation.js", () => ({
-  rotateRefreshToken: vi.fn().mockResolvedValue({ accessToken: "access_token", refreshToken: "new_refresh", expiresAt: new Date(Date.now() + 86400_000) }),
+  rotateRefreshToken: vi
+    .fn()
+    .mockResolvedValue({
+      accessToken: "access_token",
+      refreshToken: "new_refresh",
+      expiresAt: new Date(Date.now() + 86400_000),
+    }),
   invalidateTokenFamily: vi.fn().mockResolvedValue(undefined),
-  detectAndInvalidateFamily: vi.fn().mockResolvedValue({ userId: "usr_001", expiresAt: new Date(Date.now() + 86400_000), revokedAt: null }),
+  detectAndInvalidateFamily: vi
+    .fn()
+    .mockResolvedValue({
+      userId: "usr_001",
+      expiresAt: new Date(Date.now() + 86400_000),
+      revokedAt: null,
+    }),
 }));
 vi.mock("../../src/lib/id.js", () => ({ generateId: vi.fn().mockReturnValue("gen_id") }));
 vi.mock("../../src/lib/getUserLanguage.js", () => ({
@@ -218,7 +262,9 @@ vi.mock("../../src/lib/getUserLanguage.js", () => ({
 vi.mock("../../src/lib/webhook-emitter.js", () => ({ emitWebhookEvent: vi.fn() }));
 vi.mock("../../src/lib/fireAndForget.js", () => ({ fireAndForget: vi.fn() }));
 vi.mock("../../src/routes/rider/index.js", () => ({ clearSpoofHits: vi.fn() }));
-vi.mock("../../src/routes/admin.js", () => ({ getPlatformSettings: vi.fn().mockResolvedValue(mockSettings) }));
+vi.mock("../../src/routes/admin.js", () => ({
+  getPlatformSettings: vi.fn().mockResolvedValue(mockSettings),
+}));
 vi.mock("../../src/routes/admin-shared.js", () => ({
   getCachedSettings: vi.fn().mockResolvedValue(mockSettings),
   DEFAULT_PLATFORM_SETTINGS: {},
@@ -228,7 +274,14 @@ vi.mock("../../src/routes/auth/auth-common.js", () => ({
   handleUnifiedLogin: vi.fn(),
   consumeRecoveryCode: vi.fn(),
   doRefresh: vi.fn(),
-  issueTokensForUser: vi.fn().mockResolvedValue({ token: "access_token", refreshToken: "refresh_token", user: { id: "usr_001" }, isNewUser: false }),
+  issueTokensForUser: vi
+    .fn()
+    .mockResolvedValue({
+      token: "access_token",
+      refreshToken: "refresh_token",
+      user: { id: "usr_001" },
+      isNewUser: false,
+    }),
 }));
 
 function resetChains() {
@@ -262,9 +315,7 @@ describe("POST /auth/send-otp", () => {
   it("sends OTP to a new user and returns otpRequired:true", async () => {
     mockSelectChain.limit.mockResolvedValue([]);
 
-    const res = await request(app)
-      .post("/auth/send-otp")
-      .send({ phone: "03001234567" });
+    const res = await request(app).post("/auth/send-otp").send({ phone: "03001234567" });
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -278,9 +329,7 @@ describe("POST /auth/send-otp", () => {
       auth_phone_otp_enabled: "off",
     });
 
-    const res = await request(app)
-      .post("/auth/send-otp")
-      .send({ phone: "03001234567" });
+    const res = await request(app).post("/auth/send-otp").send({ phone: "03001234567" });
 
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
@@ -290,9 +339,7 @@ describe("POST /auth/send-otp", () => {
     const { checkLockout } = await import("../../src/middleware/security.js");
     vi.mocked(checkLockout).mockResolvedValueOnce({ locked: true, minutesLeft: 15 });
 
-    const res = await request(app)
-      .post("/auth/send-otp")
-      .send({ phone: "03001234567" });
+    const res = await request(app).post("/auth/send-otp").send({ phone: "03001234567" });
 
     expect(res.status).toBe(429);
   });
@@ -305,9 +352,7 @@ describe("POST /auth/send-otp", () => {
     });
     mockSelectChain.limit.mockResolvedValue([]);
 
-    const res = await request(app)
-      .post("/auth/send-otp")
-      .send({ phone: "03001234567" });
+    const res = await request(app).post("/auth/send-otp").send({ phone: "03001234567" });
 
     expect(res.status).toBe(200);
     expect(res.body.data.otpRequired).toBe(false);
@@ -317,9 +362,7 @@ describe("POST /auth/send-otp", () => {
   it("returns 400 for invalid phone format", async () => {
     mockIsValidCanonicalPhone.mockResolvedValueOnce(false);
 
-    const res = await request(app)
-      .post("/auth/send-otp")
-      .send({ phone: "notaphone" });
+    const res = await request(app).post("/auth/send-otp").send({ phone: "notaphone" });
 
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
@@ -354,14 +397,14 @@ describe("POST /auth/verify-otp — new user path", () => {
   });
 
   it("returns tokens when OTP is correct", async () => {
-    mockSelectChain.limit
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{
+    mockSelectChain.limit.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
         otpHash: validOtpHash,
         otpExpiry: new Date(Date.now() + 300_000),
         attempts: 0,
         phone: "+923001234567",
-      }]);
+      },
+    ]);
 
     const res = await request(app)
       .post("/auth/verify-otp")
@@ -373,14 +416,14 @@ describe("POST /auth/verify-otp — new user path", () => {
   });
 
   it("returns 401 when OTP is wrong", async () => {
-    mockSelectChain.limit
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{
+    mockSelectChain.limit.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
         otpHash: validOtpHash,
         otpExpiry: new Date(Date.now() + 300_000),
         attempts: 0,
         phone: "+923001234567",
-      }]);
+      },
+    ]);
 
     const res = await request(app)
       .post("/auth/verify-otp")
@@ -391,14 +434,14 @@ describe("POST /auth/verify-otp — new user path", () => {
   });
 
   it("returns 401 when OTP is expired", async () => {
-    mockSelectChain.limit
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{
+    mockSelectChain.limit.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
         otpHash: validOtpHash,
         otpExpiry: new Date(Date.now() - 60_000),
         attempts: 0,
         phone: "+923001234567",
-      }]);
+      },
+    ]);
 
     const res = await request(app)
       .post("/auth/verify-otp")

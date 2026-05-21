@@ -1,5 +1,5 @@
-import tseslint from "typescript-eslint";
 import { createRequire } from "module";
+import tseslint from "typescript-eslint";
 
 const require = createRequire(import.meta.url);
 const { rules: localRules } = require("../../eslint-rules/no-silent-catch.cjs");
@@ -25,5 +25,5 @@ export default tseslint.config(
       // Always log errors so failures are observable. See eslint-rules/no-silent-catch.cjs.
       "ajk-local/no-silent-catch": "error",
     },
-  },
+  }
 );

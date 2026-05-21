@@ -1,7 +1,7 @@
-import { logger } from "../lib/logger.js";
-import { createTransport, type Transporter } from "nodemailer";
-import { t } from "@workspace/i18n";
 import type { Language } from "@workspace/i18n";
+import { t } from "@workspace/i18n";
+import { createTransport, type Transporter } from "nodemailer";
+import { logger } from "../lib/logger.js";
 
 let envTransporter: Transporter | null = null;
 
@@ -24,11 +24,11 @@ export function resetTransporter(): void {
 }
 
 function buildTransporterFromSettings(settings: Record<string, string>): Transporter | null {
-  const host     = settings["smtp_host"]?.trim();
-  const port     = parseInt(settings["smtp_port"] ?? "587", 10);
-  const user     = settings["smtp_user"]?.trim();
-  const pass     = settings["smtp_password"]?.trim();
-  const secMode  = settings["smtp_secure"] ?? "tls";
+  const host = settings["smtp_host"]?.trim();
+  const port = parseInt(settings["smtp_port"] ?? "587", 10);
+  const user = settings["smtp_user"]?.trim();
+  const pass = settings["smtp_password"]?.trim();
+  const secMode = settings["smtp_secure"] ?? "tls";
 
   if (!host || !user || !pass) return null;
 
@@ -49,7 +49,7 @@ function buildTransporterFromSettings(settings: Record<string, string>): Transpo
 
 function resolveFrom(settings?: Record<string, string>): string {
   if (settings) {
-    const name  = settings["smtp_from_name"]?.trim()  || "AJKMart";
+    const name = settings["smtp_from_name"]?.trim() || "AJKMart";
     const email = settings["smtp_from_email"]?.trim() || settings["smtp_user"]?.trim() || "";
     if (email) return `${name} <${email}>`;
   }
@@ -95,26 +95,28 @@ export async function sendVerificationEmail(
   verificationLink: string,
   name?: string,
   language?: string,
-  settings?: Record<string, string>,
+  settings?: Record<string, string>
 ): Promise<{ sent: boolean; reason?: string }> {
   const lang = resolveLanguage(language);
   const dir = lang === "ur" ? "rtl" : "ltr";
   const greeting = name ? `, ${name}` : "";
   const appName = settings?.["app_name"] ?? "AJKMart";
 
-  const subject  = t("emailVerifySubject", lang);
-  const heading  = t("emailVerifyHeading", lang).replace("{name}", greeting);
-  const body     = t("emailVerifyBody", lang);
-  const button   = t("emailVerifyButton", lang);
-  const expiry   = t("emailVerifyExpiry", lang);
-  const ignore   = t("emailVerifyIgnore", lang);
+  const subject = t("emailVerifySubject", lang);
+  const heading = t("emailVerifyHeading", lang).replace("{name}", greeting);
+  const body = t("emailVerifyBody", lang);
+  const button = t("emailVerifyButton", lang);
+  const expiry = t("emailVerifyExpiry", lang);
+  const ignore = t("emailVerifyIgnore", lang);
 
   const customTemplate = settings?.["email_template_verify_html"]?.trim();
 
   const tr = settings ? buildTransporterFromSettings(settings) : null;
   const transport = tr || getEnvTransporter();
   if (!transport) {
-    logger.info(`[EMAIL] Verification email for ${to} — SMTP not configured. Link: ${verificationLink}`);
+    logger.info(
+      `[EMAIL] Verification email for ${to} — SMTP not configured. Link: ${verificationLink}`
+    );
     return { sent: false, reason: "SMTP not configured" };
   }
 
@@ -130,7 +132,12 @@ export async function sendVerificationEmail(
       `;
 
   const html = customTemplate
-    ? applyTemplateVars(customTemplate, { link: verificationLink, userName: name || "", appName, otp: "" })
+    ? applyTemplateVars(customTemplate, {
+        link: verificationLink,
+        userName: name || "",
+        appName,
+        otp: "",
+      })
     : defaultHtml;
 
   try {
@@ -153,7 +160,7 @@ export async function sendPasswordResetEmail(
   otp: string,
   name?: string,
   language?: string,
-  settings?: Record<string, string>,
+  settings?: Record<string, string>
 ): Promise<{ sent: boolean; reason?: string }> {
   const lang = resolveLanguage(language);
   const dir = lang === "ur" ? "rtl" : "ltr";
@@ -162,9 +169,9 @@ export async function sendPasswordResetEmail(
 
   const subject = t("emailResetSubject", lang);
   const heading = t("emailResetHeading", lang).replace("{name}", greeting);
-  const body    = t("emailResetBody", lang);
-  const expiry  = t("emailResetExpiry", lang);
-  const ignore  = t("emailResetIgnore", lang);
+  const body = t("emailResetBody", lang);
+  const expiry = t("emailResetExpiry", lang);
+  const ignore = t("emailResetIgnore", lang);
 
   const customTemplate = settings?.["email_template_reset_html"]?.trim();
 
@@ -208,12 +215,13 @@ export async function sendMagicLinkEmail(
   email: string,
   token: string,
   settings: Record<string, string>,
-  language?: string,
+  language?: string
 ): Promise<EmailResult> {
   const appName = settings["app_name"] ?? "AJKMart";
 
-  const baseUrl = process.env["APP_BASE_URL"]
-    ?? (process.env["REPLIT_DEV_DOMAIN"]
+  const baseUrl =
+    process.env["APP_BASE_URL"] ??
+    (process.env["REPLIT_DEV_DOMAIN"]
       ? `https://${process.env["REPLIT_DEV_DOMAIN"]}`
       : "http://localhost:3000");
   const magicUrl = `${baseUrl}/auth/magic-link?token=${encodeURIComponent(token)}`;
@@ -222,9 +230,9 @@ export async function sendMagicLinkEmail(
   const dir = lang === "ur" ? "rtl" : "ltr";
 
   const subject = t("emailMagicSubject", lang).replace("{app}", appName);
-  const body    = t("emailMagicBody", lang);
-  const button  = t("emailMagicButton", lang);
-  const ignore  = t("emailMagicIgnore", lang);
+  const body = t("emailMagicBody", lang);
+  const button = t("emailMagicButton", lang);
+  const ignore = t("emailMagicIgnore", lang);
 
   const customTemplate = settings["email_template_magic_html"]?.trim();
 
@@ -286,7 +294,7 @@ export async function sendRecoveryEmail(
   email: string,
   recoveryUrl: string,
   name?: string,
-  language?: string,
+  language?: string
 ): Promise<{ sent: boolean; reason?: string }> {
   const lang = resolveLanguage(language);
   const dir = lang === "ur" ? "rtl" : "ltr";
@@ -335,7 +343,7 @@ export async function sendAdminAlert(
   alertType: AdminAlertType,
   subject: string,
   htmlBody: string,
-  settings: Record<string, string>,
+  settings: Record<string, string>
 ): Promise<EmailResult> {
   if ((settings["integration_email"] ?? "off") !== "on") {
     return { sent: false, reason: "Email integration disabled" };
@@ -348,13 +356,20 @@ export async function sendAdminAlert(
 
   const to = settings["smtp_admin_alert_email"]?.trim();
   if (!to) {
-    return { sent: false, reason: "Admin alert recipient email not configured (smtp_admin_alert_email)" };
+    return {
+      sent: false,
+      reason: "Admin alert recipient email not configured (smtp_admin_alert_email)",
+    };
   }
 
   const tr = buildTransporterFromSettings(settings);
   if (!tr) {
     logger.info(`[EMAIL:admin-alert] SMTP not configured — logging alert: ${subject}`);
-    return { sent: false, reason: "SMTP credentials not configured. Set smtp_host, smtp_user, smtp_password in Integrations → Email." };
+    return {
+      sent: false,
+      reason:
+        "SMTP credentials not configured. Set smtp_host, smtp_user, smtp_password in Integrations → Email.",
+    };
   }
 
   const appName = settings["app_name"] ?? "AJKMart";
@@ -391,7 +406,7 @@ export async function alertNewVendor(
   vendorName: string,
   vendorPhone: string,
   shopName: string,
-  settings: Record<string, string>,
+  settings: Record<string, string>
 ): Promise<EmailResult> {
   return sendAdminAlert(
     "new_vendor",
@@ -405,7 +420,7 @@ export async function alertNewVendor(
       </table>
       <p>Please review and approve/reject this vendor application from the Admin Panel → Vendors section.</p>
     `,
-    settings,
+    settings
   );
 }
 
@@ -413,7 +428,7 @@ export async function alertHighValueOrder(
   orderId: string,
   amount: number,
   customerPhone: string,
-  settings: Record<string, string>,
+  settings: Record<string, string>
 ): Promise<EmailResult> {
   return sendAdminAlert(
     "high_value_order",
@@ -427,7 +442,7 @@ export async function alertHighValueOrder(
       </table>
       <p>Please verify this order in the Admin Panel → Orders section.</p>
     `,
-    settings,
+    settings
   );
 }
 
@@ -435,7 +450,7 @@ export async function alertFraudSuspect(
   orderId: string,
   reason: string,
   customerPhone: string,
-  settings: Record<string, string>,
+  settings: Record<string, string>
 ): Promise<EmailResult> {
   return sendAdminAlert(
     "fraud",
@@ -449,7 +464,7 @@ export async function alertFraudSuspect(
       </table>
       <p>Please investigate and take appropriate action from the Admin Panel.</p>
     `,
-    settings,
+    settings
   );
 }
 
@@ -457,7 +472,7 @@ export async function alertLowWalletBalance(
   vendorName: string,
   balance: number,
   threshold: number,
-  settings: Record<string, string>,
+  settings: Record<string, string>
 ): Promise<EmailResult> {
   return sendAdminAlert(
     "low_balance",
@@ -471,7 +486,7 @@ export async function alertLowWalletBalance(
       </table>
       <p>The vendor's wallet balance has fallen below the alert threshold.</p>
     `,
-    settings,
+    settings
   );
 }
 
@@ -488,9 +503,18 @@ export interface AccountRestrictionAlertParams {
 
 export async function alertAccountRestriction(
   params: AccountRestrictionAlertParams,
-  settings: Record<string, string>,
+  settings: Record<string, string>
 ): Promise<EmailResult> {
-  const { userId, userName, userPhone, conditionType, severity, reason, appliedBy, triggeredByRule } = params;
+  const {
+    userId,
+    userName,
+    userPhone,
+    conditionType,
+    severity,
+    reason,
+    appliedBy,
+    triggeredByRule,
+  } = params;
   const displayName = userName || userPhone || userId;
   const severityColors: Record<string, string> = {
     ban: "#dc2626",
@@ -517,7 +541,7 @@ export async function alertAccountRestriction(
       </table>
       <p style="margin-top:12px;">Review this condition in the Admin Panel → Users → Conditions section.</p>
     `,
-    settings,
+    settings
   );
 }
 
@@ -536,17 +560,14 @@ export async function sendAdminPasswordResetLinkEmail(
     recipientName?: string;
     expiresAt: Date;
     settings?: Record<string, string>;
-  },
+  }
 ): Promise<{ sent: boolean; reason?: string }> {
   const { resetUrl, recipientName, expiresAt, settings } = options;
   const appName = settings?.["app_name"] ?? "AJKMart";
   const subject = `${appName} admin password reset`;
   const greeting = recipientName ? `Hi ${recipientName},` : "Hello,";
   const expiresIso = expiresAt.toISOString();
-  const expiresMinutes = Math.max(
-    1,
-    Math.round((expiresAt.getTime() - Date.now()) / 60000),
-  );
+  const expiresMinutes = Math.max(1, Math.round((expiresAt.getTime() - Date.now()) / 60000));
 
   const tr = settings ? buildTransporterFromSettings(settings) : null;
   const transport = tr || getEnvTransporter();
@@ -630,16 +651,14 @@ export async function sendAdminPasswordOutOfBandResetEmail(
     detectedAt: Date;
     previousChangedAt?: Date | null;
     settings?: Record<string, string>;
-  },
+  }
 ): Promise<{ sent: boolean; reason?: string }> {
   const { recipientName, detectedAt, previousChangedAt, settings } = options;
   const appName = settings?.["app_name"] ?? "AJKMart";
   const subject = `[${appName}] Your admin password was changed from the database`;
   const greeting = recipientName ? `Hi ${recipientName},` : "Hello,";
   const detectedIso = detectedAt.toISOString();
-  const previousIso = previousChangedAt
-    ? previousChangedAt.toISOString()
-    : "unknown";
+  const previousIso = previousChangedAt ? previousChangedAt.toISOString() : "unknown";
 
   const tr = settings ? buildTransporterFromSettings(settings) : null;
   const transport = tr || getEnvTransporter();
@@ -722,10 +741,7 @@ export async function sendAdminPasswordOutOfBandResetEmail(
     });
     return { sent: true };
   } catch (err: any) {
-    logger.error(
-      `[EMAIL] Failed to send out-of-band reset alert to ${to}:`,
-      err?.message,
-    );
+    logger.error(`[EMAIL] Failed to send out-of-band reset alert to ${to}:`, err?.message);
     return { sent: false, reason: err?.message };
   }
 }
@@ -736,7 +752,7 @@ export async function sendApprovalEmail(
   to: string,
   name: string | null | undefined,
   role: string,
-  settings: Record<string, string>,
+  settings: Record<string, string>
 ): Promise<EmailResult> {
   const tr = buildTransporterFromSettings(settings);
   const transport = tr || getEnvTransporter();
@@ -778,7 +794,7 @@ export async function sendRejectionEmail(
   name: string | null | undefined,
   role: string,
   reason: string,
-  settings: Record<string, string>,
+  settings: Record<string, string>
 ): Promise<EmailResult> {
   const tr = buildTransporterFromSettings(settings);
   const transport = tr || getEnvTransporter();
@@ -787,9 +803,7 @@ export async function sendRejectionEmail(
   const greeting = name ? `Dear ${name}` : "Hello";
 
   const subject = `Your ${roleName} Registration Status — ${appName}`;
-  const reasonLine = reason
-    ? `<p><strong>Reason:</strong> ${reason}</p>`
-    : "";
+  const reasonLine = reason ? `<p><strong>Reason:</strong> ${reason}</p>` : "";
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;">
       <h2 style="color:#EF4444;">Registration Not Approved</h2>
@@ -824,10 +838,12 @@ export async function sendRejectionEmail(
 export async function sendKycApprovalEmail(
   to: string,
   name: string | null | undefined,
-  settings: Record<string, string>,
+  settings: Record<string, string>
 ): Promise<EmailResult> {
   if (!isEmailProviderConfigured(settings)) {
-    logger.info(`[EMAIL] KYC approval email for ${to} — email integration disabled or SMTP not configured`);
+    logger.info(
+      `[EMAIL] KYC approval email for ${to} — email integration disabled or SMTP not configured`
+    );
     return { sent: false, reason: "Email integration disabled or SMTP not configured" };
   }
 
@@ -869,10 +885,12 @@ export async function sendKycRejectionEmail(
   to: string,
   name: string | null | undefined,
   reason: string,
-  settings: Record<string, string>,
+  settings: Record<string, string>
 ): Promise<EmailResult> {
   if (!isEmailProviderConfigured(settings)) {
-    logger.info(`[EMAIL] KYC rejection email for ${to} — email integration disabled or SMTP not configured`);
+    logger.info(
+      `[EMAIL] KYC rejection email for ${to} — email integration disabled or SMTP not configured`
+    );
     return { sent: false, reason: "Email integration disabled or SMTP not configured" };
   }
 
@@ -916,10 +934,12 @@ export async function sendKycResubmitEmail(
   to: string,
   name: string | null | undefined,
   reason: string,
-  settings: Record<string, string>,
+  settings: Record<string, string>
 ): Promise<EmailResult> {
   if (!isEmailProviderConfigured(settings)) {
-    logger.info(`[EMAIL] KYC resubmit email for ${to} — email integration disabled or SMTP not configured`);
+    logger.info(
+      `[EMAIL] KYC resubmit email for ${to} — email integration disabled or SMTP not configured`
+    );
     return { sent: false, reason: "Email integration disabled or SMTP not configured" };
   }
 
@@ -960,12 +980,17 @@ export async function sendKycResubmitEmail(
 }
 
 /* ── Generic transactional email sender (env-var SMTP only) ── */
-export async function sendEmail(
-  input: { to: string; subject: string; html: string; text?: string },
-): Promise<EmailResult> {
+export async function sendEmail(input: {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}): Promise<EmailResult> {
   const transport = getEnvTransporter();
   if (!transport) {
-    logger.info(`[Email:generic] SMTP not configured — logging only. To: ${input.to} | Subject: ${input.subject}`);
+    logger.info(
+      `[Email:generic] SMTP not configured — logging only. To: ${input.to} | Subject: ${input.subject}`
+    );
     return { sent: false, reason: "SMTP not configured" };
   }
   try {

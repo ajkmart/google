@@ -8,14 +8,12 @@ export interface GpsPing {
   isMockProvider?: boolean;
 }
 
-
 export interface GpsValidationResult {
   valid: boolean;
   reason: string;
   suspicious: boolean;
   suspicionReason?: string;
 }
-
 
 interface AuditEntry {
   timestamp: number;
@@ -45,7 +43,12 @@ export function getGpsAuditLog(): readonly AuditEntry[] {
 
 function recordRejection(reason: string, lat: number, lng: number, suspicious = false): void {
   if (_auditLog.length >= MAX_AUDIT_ENTRIES) _auditLog.shift();
-  _auditLog.push({ timestamp: Date.now(), reason: suspicious ? `[suspicious] ${reason}` : reason, lat, lng });
+  _auditLog.push({
+    timestamp: Date.now(),
+    reason: suspicious ? `[suspicious] ${reason}` : reason,
+    lat,
+    lng,
+  });
 }
 
 function haversineDistanceM(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -68,11 +71,11 @@ export function setGeofencePolygon(polygon: Array<[number, number]> | null): voi
 function isInsidePolygon(lat: number, lng: number, polygon: Array<[number, number]>): boolean {
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i]![0], yi = polygon[i]![1];
-    const xj = polygon[j]![0], yj = polygon[j]![1];
-    const intersect =
-      yi > lng !== yj > lng &&
-      lat < ((xj - xi) * (lng - yi)) / (yj - yi) + xi;
+    const xi = polygon[i]![0],
+      yi = polygon[i]![1];
+    const xj = polygon[j]![0],
+      yj = polygon[j]![1];
+    const intersect = yi > lng !== yj > lng && lat < ((xj - xi) * (lng - yi)) / (yj - yi) + xi;
     if (intersect) inside = !inside;
   }
   return inside;
@@ -81,27 +84,23 @@ function isInsidePolygon(lat: number, lng: number, polygon: Array<[number, numbe
 const STALE_PING_THRESHOLD_MS = 30_000;
 
 export function validateGpsPing(prev: GpsPing | null, next: GpsPing): GpsValidationResult {
-
   const nextTime = new Date(next.timestamp).getTime();
   if (isNaN(nextTime)) {
     const reason = "invalid timestamp";
     recordRejection(reason, next.latitude, next.longitude);
     return { valid: false, reason, suspicious: false };
-
   }
 
   if (nextTime > Date.now() + MAX_FUTURE_SECONDS * 1_000) {
     const reason = `future timestamp (${Math.round((nextTime - Date.now()) / 1_000)}s ahead)`;
     recordRejection(reason, next.latitude, next.longitude);
     return { valid: false, reason, suspicious: false };
-
   }
 
   if (typeof next.accuracy === "number" && next.accuracy < MIN_ACCURACY_M) {
     const reason = `accuracy too high (${next.accuracy}m — possible spoof)`;
     recordRejection(reason, next.latitude, next.longitude);
     return { valid: false, reason, suspicious: false };
-
   }
 
   if (prev) {
@@ -109,15 +108,16 @@ export function validateGpsPing(prev: GpsPing | null, next: GpsPing): GpsValidat
     const deltaMs = nextTime - prevTime;
     if (deltaMs > 0) {
       const distM = haversineDistanceM(
-        prev.latitude, prev.longitude,
-        next.latitude, next.longitude,
+        prev.latitude,
+        prev.longitude,
+        next.latitude,
+        next.longitude
       );
       const speedKmh = (distM / deltaMs) * 3_600;
       if (speedKmh > _maxSpeedKmh) {
         const reason = `impossible speed (${Math.round(speedKmh)} km/h)`;
         recordRejection(reason, next.latitude, next.longitude);
         return { valid: false, reason, suspicious: false };
-
       }
     }
   }
@@ -147,4 +147,3 @@ export function validateGpsPing(prev: GpsPing | null, next: GpsPing): GpsValidat
 
   return { valid: true, reason: "ok", suspicious: false };
 }
-

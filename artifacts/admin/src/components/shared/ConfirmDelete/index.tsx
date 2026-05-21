@@ -46,7 +46,12 @@ export function ConfirmDelete({
   onCancel,
 }: ConfirmDeleteProps) {
   return (
-    <AlertDialog open={open} onOpenChange={(o) => { if (!o) onCancel(); }}>
+    <AlertDialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onCancel();
+      }}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

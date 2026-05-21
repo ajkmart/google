@@ -1,5 +1,5 @@
-import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -21,10 +21,10 @@ import { logger } from "../lib/logger.js";
 ══════════════════════════════════════════════════════════════════════════ */
 
 const DB_PING_INTERVAL_MS = 60_000;
-const DB_TIMEOUT_MS       = 3_000;
+const DB_TIMEOUT_MS = 3_000;
 
 let pingTimer: ReturnType<typeof setInterval> | null = null;
-let dbWasDown   = false;
+let dbWasDown = false;
 let downSinceMs = 0;
 
 function dbHost(): string {
@@ -33,7 +33,13 @@ function dbHost(): string {
     const host = new URL(url).hostname;
     return host || "unknown-host";
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return "unknown-host";
   }
 }
@@ -49,7 +55,13 @@ async function pingDb(): Promise<{ ok: boolean; latencyMs: number }> {
     ]);
     return { ok: true, latencyMs: Date.now() - t0 };
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     return { ok: false, latencyMs: Date.now() - t0 };
   }
 }
@@ -59,20 +71,20 @@ async function runPeriodicPing(): Promise<void> {
 
   if (!ok) {
     if (!dbWasDown) {
-      dbWasDown   = true;
+      dbWasDown = true;
       downSinceMs = Date.now();
     }
     const outageSec = Math.round((Date.now() - downSinceMs) / 1000);
     logger.error(
       `[db:monitor] Connection lost — Neon DB unreachable (outage: ${outageSec}s). ` +
-      `Check DATABASE_URL or Neon dashboard.`
+        `Check DATABASE_URL or Neon dashboard.`
     );
   } else if (dbWasDown) {
     const outageSec = Math.round((Date.now() - downSinceMs) / 1000);
     dbWasDown = false;
     logger.info(
       `[db:monitor] Connection restored — Neon DB back online after ${outageSec}s outage. ` +
-      `Latency: ${latencyMs}ms`
+        `Latency: ${latencyMs}ms`
     );
   }
 }
@@ -92,8 +104,8 @@ export async function checkDbOnStartup(): Promise<void> {
   } else {
     logger.error(
       `[db:connect] FAILED to reach Neon PostgreSQL — host: ${host}. ` +
-      `Server will continue but DB operations will fail. ` +
-      `Verify DATABASE_URL in the Replit Secrets panel.`
+        `Server will continue but DB operations will fail. ` +
+        `Verify DATABASE_URL in the Replit Secrets panel.`
     );
   }
 }
@@ -114,10 +126,10 @@ export function startDbMonitor(): void {
     }
   };
   process.once("SIGTERM", cleanup);
-  process.once("SIGINT",  cleanup);
+  process.once("SIGINT", cleanup);
 
   logger.info(
     `[db:monitor] Started — pinging Neon every ${DB_PING_INTERVAL_MS / 1000}s. ` +
-    `Alerts on connection drop / recovery.`
+      `Alerts on connection drop / recovery.`
   );
 }

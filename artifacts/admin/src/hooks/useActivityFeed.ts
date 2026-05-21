@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import { type Socket } from "socket.io-client";
 import { useAdminAuth } from "@/lib/adminAuthContext";
 import { getAdminSocket } from "@/lib/adminSocket";
+import { useEffect, useRef, useState } from "react";
+import { type Socket } from "socket.io-client";
 
 export type ActivityEventType =
   | "order:new"
@@ -29,29 +29,31 @@ const MAX_EVENTS = 50;
 
 function describe(
   type: ActivityEventType,
-  payload: Record<string, unknown>,
+  payload: Record<string, unknown>
 ): { title: string; subtitle: string } {
   const p = payload ?? {};
   switch (type) {
     case "order:new":
       return {
         title: `New ${String(p.type ?? "order")} order`,
-        subtitle: `#${String(p.id ?? "").slice(-6).toUpperCase()} · Rs. ${p.total ?? "?"}`,
+        subtitle: `#${String(p.id ?? "")
+          .slice(-6)
+          .toUpperCase()} · Rs. ${p.total ?? "?"}`,
       };
     case "order:update":
       return {
         title: `Order ${String(p.status ?? "updated").replace(/_/g, " ")}`,
-        subtitle: `#${String(p.id ?? "").slice(-6).toUpperCase()} · ${p.type ?? ""}`,
+        subtitle: `#${String(p.id ?? "")
+          .slice(-6)
+          .toUpperCase()} · ${p.type ?? ""}`,
       };
     case "ride:dispatch_update": {
-      const status = String(
-        p.status ?? p.event ?? "updated",
-      ).replace(/_/g, " ");
+      const status = String(p.status ?? p.event ?? "updated").replace(/_/g, " ");
       const ref = p.rideId
         ? `#${String(p.rideId).slice(-6).toUpperCase()}`
         : p.orderId
-        ? `#${String(p.orderId).slice(-6).toUpperCase()}`
-        : "";
+          ? `#${String(p.orderId).slice(-6).toUpperCase()}`
+          : "";
       return { title: `Ride ${status}`, subtitle: ref };
     }
     case "rider:sos":
@@ -64,9 +66,7 @@ function describe(
     case "rider:status":
       return {
         title: `Rider ${String(p.status ?? "status changed")}`,
-        subtitle: p.riderId
-          ? `#${String(p.riderId).slice(-6).toUpperCase()}`
-          : "Fleet update",
+        subtitle: p.riderId ? `#${String(p.riderId).slice(-6).toUpperCase()}` : "Fleet update",
       };
     case "rider:offline":
       return {
@@ -86,31 +86,30 @@ function describe(
       return {
         title: "Admin wallet top-up",
         subtitle:
-          p.amount != null
-            ? `Rs. ${Number(p.amount).toLocaleString()}`
-            : "Balance credited",
+          p.amount != null ? `Rs. ${Number(p.amount).toLocaleString()}` : "Balance credited",
       };
     case "wallet:deposit-approved":
       return {
         title: "Deposit approved",
-        subtitle:
-          p.amount != null
-            ? `Rs. ${Number(p.amount).toLocaleString()}`
-            : "Wallet credited",
+        subtitle: p.amount != null ? `Rs. ${Number(p.amount).toLocaleString()}` : "Wallet credited",
       };
     case "product:stock_updated":
       return {
         title: "Stock updated",
         subtitle: p.productName
           ? `${String(p.productName)} — ${p.stock ?? 0} units`
-          : `Product ${String(p.productId ?? "").slice(-6).toUpperCase()} — ${p.stock ?? 0} units`,
+          : `Product ${String(p.productId ?? "")
+              .slice(-6)
+              .toUpperCase()} — ${p.stock ?? 0} units`,
       };
     case "product:stock_low":
       return {
         title: (p.stock as number) <= 0 ? "Out of stock!" : "Low stock alert",
         subtitle: p.productName
           ? `${String(p.productName)} — ${p.stock ?? 0} units left`
-          : `Product ${String(p.productId ?? "").slice(-6).toUpperCase()} — ${p.stock ?? 0} units`,
+          : `Product ${String(p.productId ?? "")
+              .slice(-6)
+              .toUpperCase()} — ${p.stock ?? 0} units`,
       };
     default:
       return { title: String(type), subtitle: "" };
@@ -156,9 +155,10 @@ export function useActivityFeed() {
     if (socket.connected) setConnected(true);
 
     function push(type: ActivityEventType, payload: unknown) {
-      const safe = (payload && typeof payload === "object"
-        ? payload
-        : {}) as Record<string, unknown>;
+      const safe = (payload && typeof payload === "object" ? payload : {}) as Record<
+        string,
+        unknown
+      >;
       const { title, subtitle } = describe(type, safe);
       setEvents((prev) => {
         const next: ActivityEvent[] = [

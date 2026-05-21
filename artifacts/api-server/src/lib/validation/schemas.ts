@@ -6,8 +6,8 @@
  * highly route-specific shapes that have no reuse value.
  */
 
-import { z } from "zod";
 import { CNIC_REGEX, PHONE_REGEX } from "@workspace/phone-utils";
+import { z } from "zod";
 
 /* ── Phone number ──────────────────────────────────────────────────── */
 export const PhoneSchema = z
@@ -28,7 +28,10 @@ const positiveAmount = z
 export const UserRegistrationSchema = z
   .object({
     phone: PhoneSchema,
-    password: z.string().min(8, "Password must be at least 8 characters").max(128, "Password must not exceed 128 characters"),
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .max(128, "Password must not exceed 128 characters"),
     name: z.string().max(80).optional(),
     role: z.enum(["customer", "rider", "vendor"]).optional(),
     email: z.string().email().optional().or(z.literal("")),
@@ -467,7 +470,10 @@ export const CompleteProfileSchema = z
 export const SetPasswordSchema = z
   .object({
     token: z.string().optional(),
-    password: z.string().min(1, "Password is required").max(128, "Password must not exceed 128 characters"),
+    password: z
+      .string()
+      .min(1, "Password is required")
+      .max(128, "Password must not exceed 128 characters"),
     currentPassword: z.string().optional(),
   })
   .strip();
@@ -572,7 +578,10 @@ export const ResetPasswordSchema = z
 export const EmailRegisterSchema = z
   .object({
     email: z.string().email("Valid email address required").max(255),
-    password: z.string().min(1, "Password is required").max(128, "Password must not exceed 128 characters"),
+    password: z
+      .string()
+      .min(1, "Password is required")
+      .max(128, "Password must not exceed 128 characters"),
     name: z.string().max(100).optional(),
     role: z.enum(["customer", "rider", "vendor"]).optional(),
     phone: z.string().optional(),
@@ -612,8 +621,7 @@ export const KycAdminReviewSchema = z
   .strip();
 
 /* ── Users: profile update ─────────────────────────────────────────── */
-const sanitizeStr = (v: unknown) =>
-  typeof v === "string" ? v.replace(/<[^>]*>/g, "").trim() : v;
+const sanitizeStr = (v: unknown) => (typeof v === "string" ? v.replace(/<[^>]*>/g, "").trim() : v);
 
 export const ProfileUpdateSchema = z
   .object({
@@ -625,7 +633,7 @@ export const ProfileUpdateSchema = z
         .string()
         .regex(/^\d{13}$/, "CNIC must be 13 digits (e.g. 3740512345678 or 37405-1234567-8)")
         .optional()
-        .or(z.literal("")),
+        .or(z.literal(""))
     ),
     city: z.preprocess(sanitizeStr, z.string().max(80).optional()),
     address: z.preprocess(sanitizeStr, z.string().max(255).optional()),
@@ -651,15 +659,13 @@ export const ExportDataSchema = z.object({}).strip();
 export const LogoutSchema = z.object({ refreshToken: z.string().optional() }).strip();
 
 /* ── Auth: validate-token ──────────────────────────────────────────── */
-export const ValidateTokenSchema = z
-  .object({ token: z.string().optional() })
-  .strip();
+export const ValidateTokenSchema = z.object({ token: z.string().optional() }).strip();
 
 /* ── Auth: check-available ─────────────────────────────────────────── */
 export const CheckAvailableSchema = z
   .object({
-    phone:    z.string().max(20).optional(),
-    email:    z.string().email().max(320).optional(),
+    phone: z.string().max(20).optional(),
+    email: z.string().email().max(320).optional(),
     username: z.string().max(64).optional(),
   })
   .strip()
@@ -671,22 +677,20 @@ export const CheckAvailableSchema = z
 /* ── Auth: magic-link/verify ───────────────────────────────────────── */
 export const MagicLinkVerifySchema = z
   .object({
-    token:             z.string().min(1, "token is required"),
-    totpCode:          z.string().max(6).optional(),
+    token: z.string().min(1, "token is required"),
+    totpCode: z.string().max(6).optional(),
     deviceFingerprint: z.string().max(512).optional(),
   })
   .strip();
 
 /* ── Auth: change-phone/request ────────────────────────────────────── */
-export const ChangePhoneRequestSchema = z
-  .object({ newPhone: z.string().min(7).max(20) })
-  .strip();
+export const ChangePhoneRequestSchema = z.object({ newPhone: z.string().min(7).max(20) }).strip();
 
 /* ── Auth: change-phone/confirm ────────────────────────────────────── */
 export const ChangePhoneConfirmSchema = z
   .object({
     newPhone: z.string().min(7).max(20),
-    otp:      z.string().min(4).max(8),
+    otp: z.string().min(4).max(8),
   })
   .strip();
 
@@ -704,7 +708,7 @@ export const LinkFacebookSchema = z
 export const FirebaseVerifySchema = z
   .object({
     idToken: z.string().min(1, "idToken is required"),
-    role:    z.enum(["customer", "rider", "vendor"]).optional(),
+    role: z.enum(["customer", "rider", "vendor"]).optional(),
   })
   .strip();
 
@@ -717,16 +721,13 @@ export const KycDocumentTypeEnum = z.enum(["cnic", "passport", "nicop", "b_form"
 export const KycSubmitTextSchema = z
   .object({
     documentType: KycDocumentTypeEnum,
-    fullName: z.preprocess(
-      sanitizeStr,
-      z.string().min(1, "Full name is required").max(100),
-    ),
+    fullName: z.preprocess(sanitizeStr, z.string().min(1, "Full name is required").max(100)),
     cnic: z.preprocess(
       (v) => (typeof v === "string" ? v.replace(/[-\s]/g, "") : v),
       z
         .string()
         .min(1, "CNIC number is required")
-        .regex(/^\d{13}$/, "CNIC must be 13 digits (e.g. 3740512345678)"),
+        .regex(/^\d{13}$/, "CNIC must be 13 digits (e.g. 3740512345678)")
     ),
     dateOfBirth: z
       .string()
@@ -748,16 +749,13 @@ export const KycSubmitTextSchema = z
 export const KycSubmitBase64Schema = z
   .object({
     documentType: KycDocumentTypeEnum,
-    fullName: z.preprocess(
-      sanitizeStr,
-      z.string().min(1, "Full name is required").max(100),
-    ),
+    fullName: z.preprocess(sanitizeStr, z.string().min(1, "Full name is required").max(100)),
     cnic: z.preprocess(
       (v) => (typeof v === "string" ? v.replace(/[-\s]/g, "") : v),
       z
         .string()
         .min(1, "CNIC number is required")
-        .regex(/^\d{13}$/, "CNIC must be 13 digits (e.g. 3740512345678)"),
+        .regex(/^\d{13}$/, "CNIC must be 13 digits (e.g. 3740512345678)")
     ),
     dateOfBirth: z
       .string()

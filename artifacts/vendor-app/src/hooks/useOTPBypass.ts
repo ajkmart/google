@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { createLogger } from "@/lib/logger";
+import { useEffect, useState } from "react";
 const log = createLogger("[useOTPBypass]");
 
 export interface AuthConfig {
@@ -15,7 +15,7 @@ export interface AuthConfig {
   bypassMessage?: string | null;
 }
 
-const CACHE_TTL_MS = 5 * 60 * 1000;  // 5 minute cache
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minute cache
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minute poll (was 30s causing 429 errors)
 
 /**
@@ -38,7 +38,14 @@ export const useOTPBypass = (phone?: string) => {
     const cacheKey = phone ? `otpBypassCache_${phone}` : "authConfigCache";
     const cacheTimeKey = phone ? `otpBypassCacheTime_${phone}` : "authConfigCacheTime";
 
-    const applyData = (data: { bypassActive?: boolean; otpBypassActive?: boolean; bypassExpiresAt?: string | null; otpBypassExpiresAt?: string | null; message?: string | null; bypassMessage?: string | null }) => {
+    const applyData = (data: {
+      bypassActive?: boolean;
+      otpBypassActive?: boolean;
+      bypassExpiresAt?: string | null;
+      otpBypassExpiresAt?: string | null;
+      message?: string | null;
+      bypassMessage?: string | null;
+    }) => {
       setBypassActive(!!(data.bypassActive ?? data.otpBypassActive));
       const expiresStr = data.bypassExpiresAt ?? data.otpBypassExpiresAt ?? null;
       setBypassExpiresAt(expiresStr ? new Date(expiresStr) : null);
@@ -54,7 +61,11 @@ export const useOTPBypass = (phone?: string) => {
         if (cacheTime && Date.now() - parseInt(cacheTime, 10) < CACHE_TTL_MS) {
           const cached = localStorage.getItem(cacheKey);
           if (cached) {
-            try { applyData(JSON.parse(cached)); } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOTPBypass.ts]', err); } // eslint-disable-line no-console
+            try {
+              applyData(JSON.parse(cached));
+            } catch (err) {
+              console.warn("[artifacts/vendor-app/src/hooks/useOTPBypass.ts]", err);
+            } // eslint-disable-line no-console
             setLoading(false);
             return;
           }
@@ -64,7 +75,7 @@ export const useOTPBypass = (phone?: string) => {
         const url = phone
           ? `/api/auth/otp-status?phone=${encodeURIComponent(phone)}`
           : "/api/auth/config";
-        const response = await fetch(url, { 
+        const response = await fetch(url, {
           headers: { "Content-Type": "application/json" },
           signal: abortController.signal,
         });
@@ -82,7 +93,11 @@ export const useOTPBypass = (phone?: string) => {
           if (cacheTime && Date.now() - parseInt(cacheTime, 10) < 5 * 60 * 1000) {
             const cached = localStorage.getItem(cacheKey);
             if (cached) {
-              try { applyData(JSON.parse(cached)); } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOTPBypass.ts]', err); } // eslint-disable-line no-console
+              try {
+                applyData(JSON.parse(cached));
+              } catch (err) {
+                console.warn("[artifacts/vendor-app/src/hooks/useOTPBypass.ts]", err);
+              } // eslint-disable-line no-console
             }
           }
         }

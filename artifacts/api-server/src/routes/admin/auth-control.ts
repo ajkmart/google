@@ -1,11 +1,25 @@
-import { Router } from "express";
 import { db } from "@workspace/db";
-import { authEventsTable, otpAttemptsTable, platformSettingsTable, usersTable, refreshTokensTable } from "@workspace/db/schema";
+import {
+  authEventsTable,
+  otpAttemptsTable,
+  platformSettingsTable,
+  refreshTokensTable,
+  usersTable,
+} from "@workspace/db/schema";
 import { and, desc, eq, gte, lte, or, sql } from "drizzle-orm";
-import { adminAuth, addAuditEntry, getCachedSettings, getClientIp, invalidatePlatformSettingsCache, invalidateSettingsCache, type AdminRequest } from "../admin-shared.js";
-import { sendSuccess, sendError, sendValidationError } from "../../lib/response.js";
+import { Router } from "express";
 import { logger } from "../../lib/logger.js";
+import { sendError, sendSuccess, sendValidationError } from "../../lib/response.js";
 import { getIO } from "../../lib/socketio.js";
+import {
+  addAuditEntry,
+  adminAuth,
+  getCachedSettings,
+  getClientIp,
+  invalidatePlatformSettingsCache,
+  invalidateSettingsCache,
+  type AdminRequest,
+} from "../admin-shared.js";
 
 const router = Router();
 
@@ -19,9 +33,9 @@ const ALLOWED_METHODS = [
   "auth_biometric_enabled",
 ] as const;
 
-type AllowedMethod = typeof ALLOWED_METHODS[number];
+type AllowedMethod = (typeof ALLOWED_METHODS)[number];
 const ROLE_KEYS = ["customer", "rider", "vendor"] as const;
-type Role = typeof ROLE_KEYS[number];
+type Role = (typeof ROLE_KEYS)[number];
 
 function parseRoleMap(raw: string | null | undefined): Record<Role, boolean> {
   const fallback = { customer: false, rider: false, vendor: false };
@@ -48,7 +62,7 @@ function serialiseRoleMap(value: Record<Role, boolean>): string {
 }
 
 function mapRowsToMethods(rows: Array<{ key: string; value: string }>) {
-  const map = new Map(rows.map(row => [row.key, row.value]));
+  const map = new Map(rows.map((row) => [row.key, row.value]));
   const methods: Record<string, Record<Role, boolean>> = {};
   for (const method of ALLOWED_METHODS) {
     methods[method] = parseRoleMap(map.get(method));
@@ -59,7 +73,10 @@ function mapRowsToMethods(rows: Array<{ key: string; value: string }>) {
 
 router.get("/auth/methods", adminAuth, async (_req, res, next) => {
   try {
-    const rows = await db.select({ key: platformSettingsTable.key, value: platformSettingsTable.value }).from(platformSettingsTable).where(or(...ALLOWED_METHODS.map(m => eq(platformSettingsTable.key, m))));
+    const rows = await db
+      .select({ key: platformSettingsTable.key, value: platformSettingsTable.value })
+      .from(platformSettingsTable)
+      .where(or(...ALLOWED_METHODS.map((m) => eq(platformSettingsTable.key, m))));
     sendSuccess(res, { methods: mapRowsToMethods(rows) });
   } catch (err) {
     next(err);
@@ -68,7 +85,12 @@ router.get("/auth/methods", adminAuth, async (_req, res, next) => {
 
 router.patch("/auth/methods", adminAuth, async (req, res, next) => {
   try {
-    const body = req.body as { method?: string; role?: string; enabled?: boolean; settings?: Array<{ key: string; value: string }> };
+    const body = req.body as {
+      method?: string;
+      role?: string;
+      enabled?: boolean;
+      settings?: Array<{ key: string; value: string }>;
+    };
     const updates: Array<{ key: string; value: string }> = [];
 
     if (Array.isArray(body.settings)) {
@@ -91,7 +113,10 @@ router.patch("/auth/methods", adminAuth, async (req, res, next) => {
         sendValidationError(res, `Invalid auth method: ${method}`);
         return;
       }
-      const rows = await db.select({ key: platformSettingsTable.key, value: platformSettingsTable.value }).from(platformSettingsTable).where(eq(platformSettingsTable.key, method));
+      const rows = await db
+        .select({ key: platformSettingsTable.key, value: platformSettingsTable.value })
+        .from(platformSettingsTable)
+        .where(eq(platformSettingsTable.key, method));
       const current = parseRoleMap(rows[0]?.value);
       current[role] = enabled;
       updates.push({ key: method, value: serialiseRoleMap(current) });
@@ -102,13 +127,33 @@ router.patch("/auth/methods", adminAuth, async (req, res, next) => {
       return;
     }
 
-    await db.insert(platformSettingsTable).values(updates.map(item => ({ key: item.key, value: item.value, label: item.key, category: "auth", updatedAt: new Date() }))).onConflictDoUpdate({ target: platformSettingsTable.key, set: { value: sql`excluded.value`, updatedAt: sql`excluded.updated_at` } });
+    await db
+      .insert(platformSettingsTable)
+      .values(
+        updates.map((item) => ({
+          key: item.key,
+          value: item.value,
+          label: item.key,
+          category: "auth",
+          updatedAt: new Date(),
+        }))
+      )
+      .onConflictDoUpdate({
+        target: platformSettingsTable.key,
+        set: { value: sql`excluded.value`, updatedAt: sql`excluded.updated_at` },
+      });
     invalidateSettingsCache();
     invalidatePlatformSettingsCache();
-    addAuditEntry({ action: "auth_methods_update", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Updated ${updates.map(u => u.key).join(", ")}`, result: "success" });
+    addAuditEntry({
+      action: "auth_methods_update",
+      ip: getClientIp(req),
+      adminId: (req as AdminRequest).adminId,
+      details: `Updated ${updates.map((u) => u.key).join(", ")}`,
+      result: "success",
+    });
 
     try {
-      getIO()?.emit("platform-config:updated", { scope: "auth", keys: updates.map(u => u.key) });
+      getIO()?.emit("platform-config:updated", { scope: "auth", keys: updates.map((u) => u.key) });
     } catch (err) {
       logger.warn({ err }, "[admin/auth-control] failed to emit platform-config:updated");
     }
@@ -122,7 +167,10 @@ router.patch("/auth/methods", adminAuth, async (req, res, next) => {
 router.get("/auth/events", adminAuth, async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(String(req.query["page"] ?? "1"), 10) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(String(req.query["limit"] ?? "50"), 10) || 50));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(String(req.query["limit"] ?? "50"), 10) || 50)
+    );
     const eventType = String(req.query["event_type"] ?? "").trim();
     const role = String(req.query["role"] ?? "").trim();
     const success = String(req.query["success"] ?? "").trim();
@@ -147,22 +195,32 @@ router.get("/auth/events", adminAuth, async (req, res, next) => {
 
     const where = conditions.length ? and(...conditions) : undefined;
     const [rows, countRows] = await Promise.all([
-      db.select({
-        id: authEventsTable.id,
-        timestamp: authEventsTable.createdAt,
-        userId: authEventsTable.userId,
-        user: usersTable.name,
-        event_type: authEventsTable.eventType,
-        channel: authEventsTable.channel,
-        role: authEventsTable.role,
-        success: authEventsTable.success,
-        ip: authEventsTable.ip,
-      }).from(authEventsTable).leftJoin(usersTable, eq(authEventsTable.userId, usersTable.id)).where(where).orderBy(desc(authEventsTable.createdAt)).limit(limit).offset((page - 1) * limit),
-      db.select({ total: sql<number>`count(*)::int` }).from(authEventsTable).where(where),
+      db
+        .select({
+          id: authEventsTable.id,
+          timestamp: authEventsTable.createdAt,
+          userId: authEventsTable.userId,
+          user: usersTable.name,
+          event_type: authEventsTable.eventType,
+          channel: authEventsTable.channel,
+          role: authEventsTable.role,
+          success: authEventsTable.success,
+          ip: authEventsTable.ip,
+        })
+        .from(authEventsTable)
+        .leftJoin(usersTable, eq(authEventsTable.userId, usersTable.id))
+        .where(where)
+        .orderBy(desc(authEventsTable.createdAt))
+        .limit(limit)
+        .offset((page - 1) * limit),
+      db
+        .select({ total: sql<number>`count(*)::int` })
+        .from(authEventsTable)
+        .where(where),
     ]);
 
     sendSuccess(res, {
-      events: rows.map(row => ({ ...row, timestamp: row.timestamp.toISOString() })),
+      events: rows.map((row) => ({ ...row, timestamp: row.timestamp.toISOString() })),
       page,
       limit,
       total: Number(countRows[0]?.total ?? 0),
@@ -176,16 +234,21 @@ router.get("/auth/locked-users", adminAuth, async (_req, res, next) => {
   try {
     const settings = await getCachedSettings();
     const maxAttempts = parseInt(settings["security_login_max_attempts"] ?? "5", 10);
-    const rows = await db.select({
-      userId: usersTable.id,
-      name: usersTable.name,
-      phone: usersTable.phone,
-      email: usersTable.email,
-      attempts: otpAttemptsTable.count,
-      expiresAt: otpAttemptsTable.expiresAt,
-    }).from(otpAttemptsTable).leftJoin(usersTable, eq(otpAttemptsTable.key, usersTable.phone)).where(gte(otpAttemptsTable.count, maxAttempts)).orderBy(desc(otpAttemptsTable.count));
+    const rows = await db
+      .select({
+        userId: usersTable.id,
+        name: usersTable.name,
+        phone: usersTable.phone,
+        email: usersTable.email,
+        attempts: otpAttemptsTable.count,
+        expiresAt: otpAttemptsTable.expiresAt,
+      })
+      .from(otpAttemptsTable)
+      .leftJoin(usersTable, eq(otpAttemptsTable.key, usersTable.phone))
+      .where(gte(otpAttemptsTable.count, maxAttempts))
+      .orderBy(desc(otpAttemptsTable.count));
     sendSuccess(res, {
-      users: rows.map(row => ({
+      users: rows.map((row) => ({
         ...row,
         expiresAt: row.expiresAt.toISOString(),
       })),
@@ -201,9 +264,25 @@ router.get("/auth/stats", adminAuth, async (_req, res, next) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const [events, registrations, activeSessions] = await Promise.all([
-      db.select({ eventType: authEventsTable.eventType, role: authEventsTable.role, success: authEventsTable.success, channel: authEventsTable.channel }).from(authEventsTable).where(gte(authEventsTable.createdAt, since)),
-      db.select({ count: sql<number>`count(*)::int` }).from(usersTable).where(gte(usersTable.createdAt, today)),
-      db.select({ count: sql<number>`count(*)::int` }).from(refreshTokensTable).where(and(eq(refreshTokensTable.revoked, false), gte(refreshTokensTable.expiresAt, new Date()))),
+      db
+        .select({
+          eventType: authEventsTable.eventType,
+          role: authEventsTable.role,
+          success: authEventsTable.success,
+          channel: authEventsTable.channel,
+        })
+        .from(authEventsTable)
+        .where(gte(authEventsTable.createdAt, since)),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(usersTable)
+        .where(gte(usersTable.createdAt, today)),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(refreshTokensTable)
+        .where(
+          and(eq(refreshTokensTable.revoked, false), gte(refreshTokensTable.expiresAt, new Date()))
+        ),
     ]);
 
     const byMethod: Record<string, { success: number; failure: number }> = {};
@@ -216,8 +295,8 @@ router.get("/auth/stats", adminAuth, async (_req, res, next) => {
 
     sendSuccess(res, {
       methodStats: byMethod,
-      successCount: events.filter(e => e.success).length,
-      failureCount: events.filter(e => !e.success).length,
+      successCount: events.filter((e) => e.success).length,
+      failureCount: events.filter((e) => !e.success).length,
       newRegistrationsToday: Number(registrations[0]?.count ?? 0),
       activeSessions: Number(activeSessions[0]?.count ?? 0),
     });
@@ -239,12 +318,24 @@ router.post("/auth/broadcast-logout", adminAuth, async (req, res, next) => {
       return;
     }
 
-    const rows = await db.select({ id: usersTable.id }).from(usersTable).where(role ? eq(usersTable.roles, role) : undefined);
+    const rows = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(role ? eq(usersTable.roles, role) : undefined);
     if (rows.length > 0) {
-      await db.update(usersTable).set({ tokenVersion: sql`${usersTable.tokenVersion} + 1`, updatedAt: new Date() }).where(role ? eq(usersTable.roles, role) : undefined);
+      await db
+        .update(usersTable)
+        .set({ tokenVersion: sql`${usersTable.tokenVersion} + 1`, updatedAt: new Date() })
+        .where(role ? eq(usersTable.roles, role) : undefined);
     }
 
-    addAuditEntry({ action: "broadcast_logout", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: role ? `Broadcast logout for ${role}` : "Broadcast logout for all users", result: "success" });
+    addAuditEntry({
+      action: "broadcast_logout",
+      ip: getClientIp(req),
+      adminId: (req as AdminRequest).adminId,
+      details: role ? `Broadcast logout for ${role}` : "Broadcast logout for all users",
+      result: "success",
+    });
     sendSuccess(res, { success: true, affected: rows.length });
   } catch (err) {
     next(err);

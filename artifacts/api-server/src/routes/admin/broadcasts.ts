@@ -1,9 +1,9 @@
-import { Router } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
-import { sendSuccess, sendError, sendNotFound, sendValidationError } from "../../lib/response.js";
-import { addAuditEntry, getClientIp, generateId, type AdminRequest } from "../admin-shared.js";
+import { Router } from "express";
 import { logger } from "../../lib/logger.js";
+import { sendError, sendNotFound, sendSuccess, sendValidationError } from "../../lib/response.js";
+import { addAuditEntry, generateId, getClientIp, type AdminRequest } from "../admin-shared.js";
 
 const router = Router();
 
@@ -24,25 +24,42 @@ async function ensureBroadcastsTable(): Promise<void> {
         created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
-    await db.execute(sql`
+    await db
+      .execute(
+        sql`
       ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS delivered_count INTEGER NOT NULL DEFAULT 0
-    `).catch((err: unknown) => {
-      logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[broadcasts] delivered_count column add skipped (may already exist)");
-    });
-    await db.execute(sql`
+    `
+      )
+      .catch((err: unknown) => {
+        logger.debug(
+          { err: err instanceof Error ? err.message : String(err) },
+          "[broadcasts] delivered_count column add skipped (may already exist)"
+        );
+      });
+    await db
+      .execute(
+        sql`
       ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS failed_count INTEGER NOT NULL DEFAULT 0
-    `).catch((err: unknown) => {
-      logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[broadcasts] failed_count column add skipped (may already exist)");
-    });
+    `
+      )
+      .catch((err: unknown) => {
+        logger.debug(
+          { err: err instanceof Error ? err.message : String(err) },
+          "[broadcasts] failed_count column add skipped (may already exist)"
+        );
+      });
   } catch (err) {
-    logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] table may already exist in another form`);
+    logger.debug(
+      { error: err instanceof Error ? err.message : String(err) },
+      `[fn] table may already exist in another form`
+    );
   }
 }
 
 ensureBroadcastsTable().catch((err: unknown) => {
   logger.warn(
     { err: err instanceof Error ? err.message : String(err) },
-    "[broadcasts] ensureBroadcastsTable failed at startup",
+    "[broadcasts] ensureBroadcastsTable failed at startup"
   );
 });
 
@@ -52,12 +69,12 @@ ensureBroadcastsTable().catch((err: unknown) => {
 ───────────────────────────────────────────────────────── */
 router.get("/broadcasts", async (req, res) => {
   try {
-  const page  = Math.max(1, parseInt(String(req.query["page"]  ?? "1")));
-  const limit = Math.min(200, parseInt(String(req.query["limit"] ?? "50")));
-  const offset = (page - 1) * limit;
+    const page = Math.max(1, parseInt(String(req.query["page"] ?? "1")));
+    const limit = Math.min(200, parseInt(String(req.query["limit"] ?? "50")));
+    const offset = (page - 1) * limit;
 
-  try {
-    const rows = await db.execute(sql`
+    try {
+      const rows = await db.execute(sql`
       SELECT id, title, body, type, target_role,
              sent_count, delivered_count, failed_count,
              admin_id, sent_at
@@ -66,27 +83,34 @@ router.get("/broadcasts", async (req, res) => {
       LIMIT ${limit} OFFSET ${offset}
     `);
 
-    const [{ total }] = (await db.execute(sql`SELECT COUNT(*)::int AS total FROM broadcasts`)).rows as Array<{ total: number }>;
+      const [{ total }] = (await db.execute(sql`SELECT COUNT(*)::int AS total FROM broadcasts`))
+        .rows as Array<{ total: number }>;
 
-    const broadcasts = (rows.rows as Array<Record<string, unknown>>).map((r) => ({
-      id:             r.id,
-      title:          r.title,
-      body:           r.body,
-      type:           r.type,
-      targetRole:     r.target_role,
-      sentCount:      r.sent_count,
-      deliveredCount: r.delivered_count,
-      failedCount:    r.failed_count,
-      adminId:        r.admin_id,
-      sentAt:         r.sent_at instanceof Date ? r.sent_at.toISOString() : r.sent_at,
-    }));
+      const broadcasts = (rows.rows as Array<Record<string, unknown>>).map((r) => ({
+        id: r.id,
+        title: r.title,
+        body: r.body,
+        type: r.type,
+        targetRole: r.target_role,
+        sentCount: r.sent_count,
+        deliveredCount: r.delivered_count,
+        failedCount: r.failed_count,
+        adminId: r.admin_id,
+        sentAt: r.sent_at instanceof Date ? r.sent_at.toISOString() : r.sent_at,
+      }));
 
-    sendSuccess(res, { broadcasts, total: total ?? broadcasts.length, page, limit });
-  } catch (err: unknown) {
-    sendError(res, err instanceof Error ? err.message : "Failed to fetch broadcasts", 500);
-  }
+      sendSuccess(res, { broadcasts, total: total ?? broadcasts.length, page, limit });
+    } catch (err: unknown) {
+      sendError(res, err instanceof Error ? err.message : "Failed to fetch broadcasts", 500);
+    }
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -98,15 +122,22 @@ router.get("/broadcasts", async (req, res) => {
 ───────────────────────────────────────────────────────── */
 router.post("/broadcasts/record", async (req, res) => {
   try {
-  const { title, body, type, targetRole, sentCount, adminId } = req.body as {
-    title: string; body?: string; type?: string;
-    targetRole?: string; sentCount?: number; adminId?: string;
-  };
-  if (!title) { sendValidationError(res, "title is required"); return; }
+    const { title, body, type, targetRole, sentCount, adminId } = req.body as {
+      title: string;
+      body?: string;
+      type?: string;
+      targetRole?: string;
+      sentCount?: number;
+      adminId?: string;
+    };
+    if (!title) {
+      sendValidationError(res, "title is required");
+      return;
+    }
 
-  const id = generateId();
-  try {
-    await db.execute(sql`
+    const id = generateId();
+    try {
+      await db.execute(sql`
       INSERT INTO broadcasts (id, title, body, type, target_role, sent_count, admin_id, sent_at, created_at)
       VALUES (
         ${id}, ${title}, ${body ?? ""}, ${type ?? "system"},
@@ -114,19 +145,25 @@ router.post("/broadcasts/record", async (req, res) => {
         ${adminId ?? null}, NOW(), NOW()
       )
     `);
-    addAuditEntry({
-      action: "broadcast_sent",
-      ip: getClientIp(req),
-      adminId: (req as AdminRequest).adminId,
-      details: `Broadcast "${title}" sent to ${sentCount ?? 0} recipients`,
-      result: "success",
-    });
-    sendSuccess(res, { id });
-  } catch (err: unknown) {
-    sendError(res, err instanceof Error ? err.message : "Failed to record broadcast", 500);
-  }
+      addAuditEntry({
+        action: "broadcast_sent",
+        ip: getClientIp(req),
+        adminId: (req as AdminRequest).adminId,
+        details: `Broadcast "${title}" sent to ${sentCount ?? 0} recipients`,
+        result: "success",
+      });
+      sendSuccess(res, { id });
+    } catch (err: unknown) {
+      sendError(res, err instanceof Error ? err.message : "Failed to record broadcast", 500);
+    }
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -137,15 +174,19 @@ router.post("/broadcasts/record", async (req, res) => {
 ───────────────────────────────────────────────────────── */
 router.patch("/broadcasts/:id/delivery-stats", async (req, res) => {
   try {
-  const { id } = req.params as Record<string, string>;
-  const { deliveredCount, failedCount } = req.body as { deliveredCount?: number; failedCount?: number };
+    const { id } = req.params as Record<string, string>;
+    const { deliveredCount, failedCount } = req.body as {
+      deliveredCount?: number;
+      failedCount?: number;
+    };
 
-  if (deliveredCount === undefined && failedCount === undefined) {
-    sendValidationError(res, "deliveredCount or failedCount required"); return;
-  }
+    if (deliveredCount === undefined && failedCount === undefined) {
+      sendValidationError(res, "deliveredCount or failedCount required");
+      return;
+    }
 
-  try {
-    const result = await db.execute(sql`
+    try {
+      const result = await db.execute(sql`
       UPDATE broadcasts
       SET delivered_count = COALESCE(${deliveredCount ?? null}, delivered_count),
           failed_count    = COALESCE(${failedCount ?? null}, failed_count)
@@ -153,22 +194,31 @@ router.patch("/broadcasts/:id/delivery-stats", async (req, res) => {
       RETURNING *
     `);
 
-    if (!(result.rows as unknown[]).length) { sendNotFound(res, "Broadcast not found"); return; }
+      if (!(result.rows as unknown[]).length) {
+        sendNotFound(res, "Broadcast not found");
+        return;
+      }
 
-    addAuditEntry({
-      action: "broadcast_delivery_update",
-      ip: getClientIp(req),
-      adminId: (req as AdminRequest).adminId,
-      details: `Updated delivery stats for broadcast ${id}`,
-      result: "success",
-    });
+      addAuditEntry({
+        action: "broadcast_delivery_update",
+        ip: getClientIp(req),
+        adminId: (req as AdminRequest).adminId,
+        details: `Updated delivery stats for broadcast ${id}`,
+        result: "success",
+      });
 
-    sendSuccess(res, { success: true });
-  } catch (err: unknown) {
-    sendError(res, err instanceof Error ? err.message : "Failed to update delivery stats", 500);
-  }
+      sendSuccess(res, { success: true });
+    } catch (err: unknown) {
+      sendError(res, err instanceof Error ? err.message : "Failed to update delivery stats", 500);
+    }
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

@@ -1,87 +1,42 @@
-import { Router } from "express";
 import { db } from "@workspace/db";
 import {
-  usersTable,
-  walletTransactionsTable,
   notificationsTable,
   ordersTable,
-  ridesTable,
-  productsTable,
-  riderPenaltiesTable,
   rideRatingsTable,
-  reviewsTable,
+  riderPenaltiesTable,
+  usersTable,
   vendorProfilesTable,
+  walletTransactionsTable,
 } from "@workspace/db/schema";
+import { and, count, desc, eq, ilike, inArray, isNull, sql, sum } from "drizzle-orm";
+import { Router } from "express";
+import { z } from "zod";
+import { buildCursorPage, decodeCursor } from "../../../lib/pagination/cursor.js";
 import {
-  eq,
-  desc,
-  count,
-  sum,
-  and,
-  gte,
-  lte,
-  sql,
-  or,
-  ilike,
-  asc,
-  isNull,
-  isNotNull,
-  avg,
-  ne,
-  inArray,
-} from "drizzle-orm";
-import {
-  stripUser,
-  generateId,
-  getUserLanguage,
-  t,
-  getPlatformSettings,
-  adminAuth,
-  getAdminSecret,
-  sendUserNotification,
-  logger,
-  ORDER_NOTIF_KEYS,
-  RIDE_NOTIF_KEYS,
-  PHARMACY_NOTIF_KEYS,
-  PARCEL_NOTIF_KEYS,
-  checkAdminLoginLockout,
-  recordAdminLoginFailure,
-  resetAdminLoginAttempts,
-  addAuditEntry,
-  addSecurityEvent,
-  getClientIp,
-  signAdminJwt,
-  verifyAdminJwt,
-  invalidateSettingsCache,
-  getCachedSettings,
-  ADMIN_TOKEN_TTL_HRS,
-  verifyTotpToken,
-  verifyAdminSecret,
-  ensureDefaultRideServices,
-  ensureDefaultLocations,
-  formatSvc,
-  type AdminRequest,
-  type TranslationKey,
-  revokeAllUserSessions,
-  serializeSosAlert,
-} from "../../admin-shared.js";
-import {
-  sendSuccess,
   sendError,
   sendNotFound,
-  sendForbidden,
+  sendSuccess,
   sendValidationError,
 } from "../../../lib/response.js";
-import {
-  buildCursorPage,
-  decodeCursor,
-} from "../../../lib/pagination/cursor.js";
-import { FinanceService } from "../../../services/admin-finance.service.js";
-import { AuditService } from "../../../services/admin-audit.service.js";
 import { getIO } from "../../../lib/socketio.js";
 import { requirePermission } from "../../../middleware/require-permission.js";
 import { validateBody } from "../../../middleware/validate.js";
-import { z } from "zod";
+import { AuditService } from "../../../services/admin-audit.service.js";
+import { FinanceService } from "../../../services/admin-finance.service.js";
+import {
+  addAuditEntry,
+  generateId,
+  getCachedSettings,
+  getClientIp,
+  getUserLanguage,
+  logger,
+  revokeAllUserSessions,
+  sendUserNotification,
+  stripUser,
+  t,
+  type AdminRequest,
+  type TranslationKey,
+} from "../../admin-shared.js";
 
 const router = Router();
 router.get("/transactions", async (req, res) => {
@@ -94,9 +49,7 @@ router.get("/transactions", async (req, res) => {
       .select()
       .from(walletTransactionsTable)
       .where(
-        cursor
-          ? sql`${walletTransactionsTable.createdAt} < ${cursor}::timestamptz`
-          : undefined,
+        cursor ? sql`${walletTransactionsTable.createdAt} < ${cursor}::timestamptz` : undefined
       )
       .orderBy(desc(walletTransactionsTable.createdAt))
       .limit(limit + 1);
@@ -127,7 +80,13 @@ router.get("/transactions", async (req, res) => {
       hasMore: page.hasMore,
     });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -143,9 +102,7 @@ router.get("/transactions-enriched", async (req, res) => {
       .select()
       .from(walletTransactionsTable)
       .where(
-        cursor
-          ? sql`${walletTransactionsTable.createdAt} < ${cursor}::timestamptz`
-          : undefined,
+        cursor ? sql`${walletTransactionsTable.createdAt} < ${cursor}::timestamptz` : undefined
       )
       .orderBy(desc(walletTransactionsTable.createdAt))
       .limit(limit + 1);
@@ -176,9 +133,7 @@ router.get("/transactions-enriched", async (req, res) => {
     const totalCredit = enriched
       .filter((t) => t.type === "credit")
       .reduce((s, t) => s + t.amount, 0);
-    const totalDebit = enriched
-      .filter((t) => t.type === "debit")
-      .reduce((s, t) => s + t.amount, 0);
+    const totalDebit = enriched.filter((t) => t.type === "debit").reduce((s, t) => s + t.amount, 0);
 
     sendSuccess(res, {
       transactions: enriched,
@@ -189,7 +144,13 @@ router.get("/transactions-enriched", async (req, res) => {
       hasMore: page.hasMore,
     });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -243,13 +204,8 @@ router.get("/vendors", requirePermission("vendors.view"), async (_req, res) => {
         ntn: vendorProfilesTable.ntn,
       })
       .from(usersTable)
-      .leftJoin(
-        vendorProfilesTable,
-        eq(usersTable.id, vendorProfilesTable.userId),
-      )
-      .where(
-        and(ilike(usersTable.roles, "%vendor%"), isNull(usersTable.deletedAt)),
-      )
+      .leftJoin(vendorProfilesTable, eq(usersTable.id, vendorProfilesTable.userId))
+      .where(and(ilike(usersTable.roles, "%vendor%"), isNull(usersTable.deletedAt)))
       .orderBy(desc(usersTable.createdAt));
 
     const vendorIds = vendors.map((v) => v.id);
@@ -271,8 +227,16 @@ router.get("/vendors", requirePermission("vendors.view"), async (_req, res) => {
         .where(inArray(ordersTable.vendorId, vendorIds))
         .groupBy(ordersTable.vendorId)
         .catch((err: unknown) => {
-          logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[wallets] vendor order-stats aggregate query failed — returning empty stats");
-          return [] as { vendorId: string | null; totalOrders: number; totalRevenue: string | null; pendingOrders: number }[];
+          logger.warn(
+            { err: err instanceof Error ? err.message : String(err) },
+            "[wallets] vendor order-stats aggregate query failed — returning empty stats"
+          );
+          return [] as {
+            vendorId: string | null;
+            totalOrders: number;
+            totalRevenue: string | null;
+            pendingOrders: number;
+          }[];
         });
     }
 
@@ -306,9 +270,7 @@ router.get("/vendors", requirePermission("vendors.view"), async (_req, res) => {
           kycStatus: v.kycStatus ?? "none",
           cnic: v.cnic ?? null,
           nationalId: v.nationalId ?? null,
-          autoSuspendedAt: v.autoSuspendedAt
-            ? v.autoSuspendedAt.toISOString()
-            : null,
+          autoSuspendedAt: v.autoSuspendedAt ? v.autoSuspendedAt.toISOString() : null,
           adminOverrideSuspension: v.adminOverrideSuspension ?? false,
           createdAt: v.createdAt.toISOString(),
           lastLoginAt: v.lastLoginAt ? v.lastLoginAt.toISOString() : null,
@@ -320,63 +282,121 @@ router.get("/vendors", requirePermission("vendors.view"), async (_req, res) => {
       total: vendors.length,
     });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
 
 /* ── POST /admin/vendors/:id/payout — deduct from vendor wallet ── */
-router.post("/vendors/:id/payout", requirePermission("finance.payouts.release"), async (req, res) => {
-  const { amount, description } = req.body as { amount?: unknown; description?: string };
-  if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-    res.status(400).json({ error: "Valid amount required" }); return;
+router.post(
+  "/vendors/:id/payout",
+  requirePermission("finance.payouts.release"),
+  async (req, res) => {
+    const { amount, description } = req.body as { amount?: unknown; description?: string };
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      res.status(400).json({ error: "Valid amount required" });
+      return;
+    }
+    const vendorId = req.params["id"] as string;
+    const [vendor] = await db.select().from(usersTable).where(eq(usersTable.id, vendorId)).limit(1);
+    if (!vendor) {
+      res.status(404).json({ error: "Vendor not found" });
+      return;
+    }
+    const amt = Number(amount);
+    const currentBal = parseFloat(vendor.walletBalance ?? "0");
+    if (currentBal < amt) {
+      res.status(400).json({ error: `Insufficient wallet balance (Rs. ${currentBal.toFixed(0)})` });
+      return;
+    }
+    const [updated] = await db
+      .update(usersTable)
+      .set({ walletBalance: sql`wallet_balance - ${amt}`, updatedAt: new Date() })
+      .where(and(eq(usersTable.id, vendorId), sql`CAST(wallet_balance AS NUMERIC) >= ${amt}`))
+      .returning();
+    if (!updated) {
+      res.status(400).json({
+        error:
+          "Payout failed: insufficient balance at time of processing (possible concurrent request).",
+      });
+      return;
+    }
+    const newBal = parseFloat(updated.walletBalance ?? "0");
+    await db.insert(walletTransactionsTable).values({
+      id: generateId(),
+      userId: vendorId,
+      type: "debit",
+      amount: String(amt),
+      description: description || `Admin payout processed: Rs. ${amt}`,
+      reference: "admin_payout",
+    });
+    await sendUserNotification(
+      vendorId,
+      "Payout Processed 💰",
+      `Rs. ${amt} has been paid out from your vendor wallet.`,
+      "system",
+      "cash-outline"
+    );
+    res.json({
+      success: true,
+      amount: amt,
+      newBalance: newBal,
+      vendor: { ...stripUser(updated), walletBalance: newBal },
+    });
   }
-  const vendorId = req.params["id"] as string;
-  const [vendor] = await db.select().from(usersTable).where(eq(usersTable.id, vendorId)).limit(1);
-  if (!vendor) { res.status(404).json({ error: "Vendor not found" }); return; }
-  const amt = Number(amount);
-  const currentBal = parseFloat(vendor.walletBalance ?? "0");
-  if (currentBal < amt) {
-    res.status(400).json({ error: `Insufficient wallet balance (Rs. ${currentBal.toFixed(0)})` }); return;
-  }
-  const [updated] = await db.update(usersTable)
-    .set({ walletBalance: sql`wallet_balance - ${amt}`, updatedAt: new Date() })
-    .where(and(eq(usersTable.id, vendorId), sql`CAST(wallet_balance AS NUMERIC) >= ${amt}`))
-    .returning();
-  if (!updated) {
-    res.status(400).json({ error: "Payout failed: insufficient balance at time of processing (possible concurrent request)." }); return;
-  }
-  const newBal = parseFloat(updated.walletBalance ?? "0");
-  await db.insert(walletTransactionsTable).values({
-    id: generateId(), userId: vendorId, type: "debit", amount: String(amt),
-    description: description || `Admin payout processed: Rs. ${amt}`, reference: "admin_payout",
-  });
-  await sendUserNotification(vendorId, "Payout Processed 💰", `Rs. ${amt} has been paid out from your vendor wallet.`, "system", "cash-outline");
-  res.json({ success: true, amount: amt, newBalance: newBal, vendor: { ...stripUser(updated), walletBalance: newBal } });
-});
+);
 
 /* ── POST /admin/vendors/:id/credit — credit vendor wallet ── */
 router.post("/vendors/:id/credit", requirePermission("finance.wallet.adjust"), async (req, res) => {
   const { amount, description } = req.body as { amount?: unknown; description?: string };
   if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-    res.status(400).json({ error: "Valid amount required" }); return;
+    res.status(400).json({ error: "Valid amount required" });
+    return;
   }
   const vendorId = req.params["id"] as string;
   const [vendor] = await db.select().from(usersTable).where(eq(usersTable.id, vendorId)).limit(1);
-  if (!vendor) { res.status(404).json({ error: "Vendor not found" }); return; }
+  if (!vendor) {
+    res.status(404).json({ error: "Vendor not found" });
+    return;
+  }
   const amt = Number(amount);
-  const [updated] = await db.update(usersTable)
+  const [updated] = await db
+    .update(usersTable)
     .set({ walletBalance: sql`wallet_balance + ${amt}`, updatedAt: new Date() })
     .where(eq(usersTable.id, vendorId))
     .returning();
-  if (!updated) { res.status(404).json({ error: "Vendor not found" }); return; }
+  if (!updated) {
+    res.status(404).json({ error: "Vendor not found" });
+    return;
+  }
   const newBal = parseFloat(updated.walletBalance ?? "0");
   await db.insert(walletTransactionsTable).values({
-    id: generateId(), userId: vendorId, type: "credit", amount: String(amt),
-    description: description || `Admin credit: Rs. ${amt}`, reference: "admin_credit",
+    id: generateId(),
+    userId: vendorId,
+    type: "credit",
+    amount: String(amt),
+    description: description || `Admin credit: Rs. ${amt}`,
+    reference: "admin_credit",
   });
-  await sendUserNotification(vendorId, "Wallet Credited 💰", `Rs. ${amt} has been credited to your vendor wallet.`, "system", "wallet-outline");
-  res.json({ success: true, amount: amt, newBalance: newBal, vendor: { ...stripUser(updated), walletBalance: newBal } });
+  await sendUserNotification(
+    vendorId,
+    "Wallet Credited 💰",
+    `Rs. ${amt} has been credited to your vendor wallet.`,
+    "system",
+    "wallet-outline"
+  );
+  res.json({
+    success: true,
+    amount: amt,
+    newBalance: newBal,
+    vendor: { ...stripUser(updated), walletBalance: newBal },
+  });
 });
 
 const vendorStatusSchema = z.object({
@@ -416,12 +436,9 @@ router.patch(
       if (isActive !== undefined) updates.isActive = isActive;
       if (isBanned !== undefined) updates.isBanned = isBanned;
       if (banReason !== undefined) updates.banReason = banReason || null;
-      if (securityNote !== undefined)
-        updates.securityNote = securityNote || null;
-      const effectiveBanned =
-        isBanned !== undefined ? isBanned : existing.isBanned;
-      if (isActive === true && !effectiveBanned)
-        updates.approvalStatus = "approved";
+      if (securityNote !== undefined) updates.securityNote = securityNote || null;
+      const effectiveBanned = isBanned !== undefined ? isBanned : existing.isBanned;
+      if (isActive === true && !effectiveBanned) updates.approvalStatus = "approved";
       const [user] = await db
         .update(usersTable)
         .set(updates)
@@ -434,18 +451,20 @@ router.patch(
       if (isBanned || isActive === false) {
         revokeAllUserSessions(req.params["id"] as string).catch((err: unknown) => {
           logger.warn(
-            { err: err instanceof Error ? err.message : String(err), userId: req.params["id"] as string },
-            "[wallets] revokeAllUserSessions (vendor ban) failed — sessions may persist",
+            {
+              err: err instanceof Error ? err.message : String(err),
+              userId: req.params["id"] as string,
+            },
+            "[wallets] revokeAllUserSessions (vendor ban) failed — sessions may persist"
           );
         });
         if (isBanned) {
           await sendUserNotification(
             req.params["id"] as string,
             "Store Account Suspended ⚠️",
-            banReason ||
-              "Your vendor account has been suspended. Contact support.",
+            banReason || "Your vendor account has been suspended. Contact support.",
             "warning",
-            "warning-outline",
+            "warning-outline"
           );
         }
       }
@@ -454,10 +473,16 @@ router.patch(
         walletBalance: parseFloat(String(user.walletBalance ?? "0")),
       });
     } catch (err) {
-      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
       res.status(500).json({ success: false, error: "Internal server error" });
     }
-  },
+  }
 );
 
 const vendorFinancialSchema = z.object({
@@ -493,7 +518,7 @@ router.post(
               type: "debit",
               reason: description || `Admin payout: Rs. ${amount}`,
               reference: "admin_payout",
-            }),
+            })
         );
 
         const [vendor] = await db
@@ -506,7 +531,7 @@ router.post(
           "Payout Processed 💰",
           `Rs. ${amount} has been paid out from your vendor wallet.`,
           "system",
-          "cash-outline",
+          "cash-outline"
         );
 
         sendSuccess(res, {
@@ -519,10 +544,16 @@ router.post(
         sendError(res, message, 400);
       }
     } catch (err) {
-      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
       res.status(500).json({ success: false, error: "Internal server error" });
     }
-  },
+  }
 );
 
 router.post(
@@ -553,7 +584,7 @@ router.post(
               type: "credit",
               reason: description || `Admin credit: Rs. ${amount}`,
               reference: "admin_credit",
-            }),
+            })
         );
 
         const [vendor] = await db
@@ -566,7 +597,7 @@ router.post(
           "Wallet Credited 💰",
           `Rs. ${amount} has been credited to your vendor wallet.`,
           "system",
-          "wallet-outline",
+          "wallet-outline"
         );
 
         sendSuccess(res, {
@@ -579,10 +610,16 @@ router.post(
         sendError(res, message, 400);
       }
     } catch (err) {
-      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
       res.status(500).json({ success: false, error: "Internal server error" });
     }
-  },
+  }
 );
 
 /* ══════════════════════════════════════
@@ -607,9 +644,7 @@ router.get("/riders", async (_req, res) => {
     const riders = await db
       .select()
       .from(usersTable)
-      .where(
-        and(ilike(usersTable.roles, "%rider%"), isNull(usersTable.deletedAt)),
-      )
+      .where(and(ilike(usersTable.roles, "%rider%"), isNull(usersTable.deletedAt)))
       .orderBy(desc(usersTable.createdAt));
 
     const riderIds = riders.map((r) => r.id);
@@ -676,7 +711,13 @@ router.get("/riders", async (_req, res) => {
       total: riders.length,
     });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -708,18 +749,20 @@ router.patch("/riders/:id/status", async (req, res) => {
     if (isBanned || isActive === false) {
       revokeAllUserSessions(req.params["id"] as string).catch((err: unknown) => {
         logger.warn(
-          { err: err instanceof Error ? err.message : String(err), userId: req.params["id"] as string },
-          "[wallets] revokeAllUserSessions (rider ban) failed — sessions may persist",
+          {
+            err: err instanceof Error ? err.message : String(err),
+            userId: req.params["id"] as string,
+          },
+          "[wallets] revokeAllUserSessions (rider ban) failed — sessions may persist"
         );
       });
       if (isBanned) {
         await sendUserNotification(
           req.params["id"] as string,
           "Rider Account Suspended ⚠️",
-          banReason ||
-            "Your rider account has been suspended. Contact support.",
+          banReason || "Your rider account has been suspended. Contact support.",
           "warning",
-          "warning-outline",
+          "warning-outline"
         );
       }
     }
@@ -728,7 +771,13 @@ router.patch("/riders/:id/status", async (req, res) => {
       walletBalance: parseFloat(String(user.walletBalance ?? "0")),
     });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -752,10 +801,7 @@ router.post("/riders/:id/payout", async (req, res) => {
     const amt = Number(amount);
     const currentBal = parseFloat(rider.walletBalance ?? "0");
     if (currentBal < amt) {
-      sendValidationError(
-        res,
-        `Insufficient wallet balance (Rs. ${currentBal.toFixed(0)})`,
-      );
+      sendValidationError(res, `Insufficient wallet balance (Rs. ${currentBal.toFixed(0)})`);
       return;
     }
     let updated: typeof usersTable.$inferSelect | undefined;
@@ -770,16 +816,11 @@ router.post("/riders/:id/payout", async (req, res) => {
             walletBalance: sql`wallet_balance - ${amt}`,
             updatedAt: new Date(),
           })
-          .where(
-            and(
-              eq(usersTable.id, rider.id),
-              sql`CAST(wallet_balance AS NUMERIC) >= ${amt}`,
-            ),
-          )
+          .where(and(eq(usersTable.id, rider.id), sql`CAST(wallet_balance AS NUMERIC) >= ${amt}`))
           .returning();
         if (!txUpdated) {
           throw new Error(
-            "Payout failed: insufficient balance at time of processing (possible concurrent request).",
+            "Payout failed: insufficient balance at time of processing (possible concurrent request)."
           );
         }
         await tx.insert(walletTransactionsTable).values({
@@ -808,7 +849,7 @@ router.post("/riders/:id/payout", async (req, res) => {
       "Earnings Paid Out 💵",
       `Rs. ${amt} has been paid out to your account.`,
       "system",
-      "cash-outline",
+      "cash-outline"
     );
     sendSuccess(res, {
       amount: amt,
@@ -816,7 +857,13 @@ router.post("/riders/:id/payout", async (req, res) => {
       rider: { ...updated, walletBalance: newBal },
     });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -833,9 +880,7 @@ router.post("/riders/:id/bonus", async (req, res) => {
     const txId = generateId();
 
     const bonusSettings = await getCachedSettings();
-    const maxBalance = parseFloat(
-      bonusSettings["wallet_max_balance"] ?? "50000",
-    );
+    const maxBalance = parseFloat(bonusSettings["wallet_max_balance"] ?? "50000");
 
     let updated: typeof usersTable.$inferSelect | undefined;
     let newBal = 0;
@@ -859,8 +904,8 @@ router.post("/riders/:id/bonus", async (req, res) => {
           .where(
             and(
               eq(usersTable.id, riderId),
-              sql`CAST(wallet_balance AS numeric) + ${amt} <= ${maxBalance}`,
-            ),
+              sql`CAST(wallet_balance AS numeric) + ${amt} <= ${maxBalance}`
+            )
           )
           .returning();
         if (!refreshed) throw new Error("BALANCE_CAP");
@@ -883,7 +928,7 @@ router.post("/riders/:id/bonus", async (req, res) => {
       if (err instanceof Error && err.message === "BALANCE_CAP") {
         sendValidationError(
           res,
-          `Wallet balance limit is Rs. ${maxBalance}. Bonus would exceed the limit.`,
+          `Wallet balance limit is Rs. ${maxBalance}. Bonus would exceed the limit.`
         );
         return;
       }
@@ -894,7 +939,7 @@ router.post("/riders/:id/bonus", async (req, res) => {
       "Bonus Received! 🎉",
       `Rs. ${amt} bonus has been added to your wallet.`,
       "system",
-      "gift-outline",
+      "gift-outline"
     );
     sendSuccess(res, {
       amount: amt,
@@ -902,7 +947,13 @@ router.post("/riders/:id/bonus", async (req, res) => {
       rider: { ...updated, walletBalance: newBal },
     });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -923,7 +974,13 @@ router.get("/riders/:id/penalties", async (req, res) => {
       })),
     });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -939,7 +996,13 @@ router.get("/riders/:id/ratings", async (req, res) => {
       .limit(100);
     sendSuccess(res, { ratings });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -961,11 +1024,17 @@ router.post("/riders/:id/restrict", async (req, res) => {
       "Account Restricted ⚠️",
       "Your account has been restricted by admin. Contact support for more details.",
       "system",
-      "alert-circle-outline",
+      "alert-circle-outline"
     );
     sendSuccess(res, { isRestricted: true });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -987,450 +1056,518 @@ router.post("/riders/:id/unrestrict", async (req, res) => {
       "Account Unrestricted ✅",
       "Your account has been unrestricted. You can now accept rides again.",
       "system",
-      "checkmark-circle-outline",
+      "checkmark-circle-outline"
     );
     sendSuccess(res, { isRestricted: false });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
 
 /* ── GET /admin/withdrawal-requests ─────────── */
-router.get("/withdrawal-requests", requirePermission("finance.withdrawals.view"), async (req, res) => {
-  try {
-    const statusFilter = req.query["status"] as string | undefined;
-    const pageNum  = Math.max(1, parseInt(String(req.query["page"]  ?? "1"),  10) || 1);
-    const pageSize = Math.min(200, Math.max(1, parseInt(String(req.query["limit"] ?? "50"), 10) || 50));
-    const offset   = (pageNum - 1) * pageSize;
+router.get(
+  "/withdrawal-requests",
+  requirePermission("finance.withdrawals.view"),
+  async (req, res) => {
+    try {
+      const statusFilter = req.query["status"] as string | undefined;
+      const pageNum = Math.max(1, parseInt(String(req.query["page"] ?? "1"), 10) || 1);
+      const pageSize = Math.min(
+        200,
+        Math.max(1, parseInt(String(req.query["limit"] ?? "50"), 10) || 50)
+      );
+      const offset = (pageNum - 1) * pageSize;
 
-    type WithdrawalRow = typeof walletTransactionsTable.$inferSelect;
-    const statusToRefPattern: Record<string, string> = {
-      pending:  "pending",
-      paid:     "paid:",
-      rejected: "rejected:",
-    };
-
-    let baseWhere = eq(walletTransactionsTable.type, "withdrawal");
-    if (statusFilter && statusFilter in statusToRefPattern) {
-      const pattern = statusToRefPattern[statusFilter]!;
-      if (pattern === "pending") {
-        baseWhere = and(
-          baseWhere,
-          sql`(${walletTransactionsTable.reference} = 'pending' OR ${walletTransactionsTable.reference} IS NULL)`,
-        ) as typeof baseWhere;
-      } else {
-        baseWhere = and(
-          baseWhere,
-          sql`${walletTransactionsTable.reference} LIKE ${pattern + "%"}`,
-        ) as typeof baseWhere;
-      }
-    }
-
-    const [{ total }] = await db
-      .select({ total: count() })
-      .from(walletTransactionsTable)
-      .where(baseWhere);
-
-    const rows = await db
-      .select({
-        tx:    walletTransactionsTable,
-        uid:   usersTable.id,
-        name:  usersTable.name,
-        phone: usersTable.phone,
-        roles: usersTable.roles,
-      })
-      .from(walletTransactionsTable)
-      .leftJoin(usersTable, eq(walletTransactionsTable.userId, usersTable.id))
-      .where(baseWhere)
-      .orderBy(desc(walletTransactionsTable.createdAt))
-      .limit(pageSize)
-      .offset(offset);
-
-    const withdrawals = rows.map(({ tx, uid, name, phone, roles }) => {
-      const ref = (tx as WithdrawalRow).reference ?? "pending";
-      const status =
-        ref === "pending"
-          ? "pending"
-          : ref.startsWith("paid:")
-            ? "paid"
-            : ref.startsWith("rejected:")
-              ? "rejected"
-              : ref;
-      const refNo = ref.startsWith("paid:")
-        ? ref.slice(5)
-        : ref.startsWith("rejected:")
-          ? ref.slice(9)
-          : "";
-      return {
-        ...tx,
-        amount: parseFloat(String(tx.amount)),
-        user:   uid ? { id: uid, name, phone, roles } : null,
-        status,
-        refNo,
+      type WithdrawalRow = typeof walletTransactionsTable.$inferSelect;
+      const statusToRefPattern: Record<string, string> = {
+        pending: "pending",
+        paid: "paid:",
+        rejected: "rejected:",
       };
-    });
 
-    sendSuccess(res, {
-      withdrawals,
-      total: total ?? 0,
-      page: pageNum,
-      pageSize,
-    });
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
+      let baseWhere = eq(walletTransactionsTable.type, "withdrawal");
+      if (statusFilter && statusFilter in statusToRefPattern) {
+        const pattern = statusToRefPattern[statusFilter]!;
+        if (pattern === "pending") {
+          baseWhere = and(
+            baseWhere,
+            sql`(${walletTransactionsTable.reference} = 'pending' OR ${walletTransactionsTable.reference} IS NULL)`
+          ) as typeof baseWhere;
+        } else {
+          baseWhere = and(
+            baseWhere,
+            sql`${walletTransactionsTable.reference} LIKE ${pattern + "%"}`
+          ) as typeof baseWhere;
+        }
+      }
+
+      const [{ total }] = await db
+        .select({ total: count() })
+        .from(walletTransactionsTable)
+        .where(baseWhere);
+
+      const rows = await db
+        .select({
+          tx: walletTransactionsTable,
+          uid: usersTable.id,
+          name: usersTable.name,
+          phone: usersTable.phone,
+          roles: usersTable.roles,
+        })
+        .from(walletTransactionsTable)
+        .leftJoin(usersTable, eq(walletTransactionsTable.userId, usersTable.id))
+        .where(baseWhere)
+        .orderBy(desc(walletTransactionsTable.createdAt))
+        .limit(pageSize)
+        .offset(offset);
+
+      const withdrawals = rows.map(({ tx, uid, name, phone, roles }) => {
+        const ref = (tx as WithdrawalRow).reference ?? "pending";
+        const status =
+          ref === "pending"
+            ? "pending"
+            : ref.startsWith("paid:")
+              ? "paid"
+              : ref.startsWith("rejected:")
+                ? "rejected"
+                : ref;
+        const refNo = ref.startsWith("paid:")
+          ? ref.slice(5)
+          : ref.startsWith("rejected:")
+            ? ref.slice(9)
+            : "";
+        return {
+          ...tx,
+          amount: parseFloat(String(tx.amount)),
+          user: uid ? { id: uid, name, phone, roles } : null,
+          status,
+          refNo,
+        };
+      });
+
+      sendSuccess(res, {
+        withdrawals,
+        total: total ?? 0,
+        page: pageNum,
+        pageSize,
+      });
+    } catch (err) {
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
   }
-});
+);
 
 /* ── PATCH /admin/withdrawal-requests/:id/approve ─── */
-router.patch("/withdrawal-requests/:id/approve", requirePermission("finance.withdrawals.approve"), async (req, res) => {
-  try {
-    const adminReq = req as AdminRequest;
-    const { refNo, note } = req.body;
-    const txId = req.params["id"] as string;
-    const [tx] = await db
-      .select()
-      .from(walletTransactionsTable)
-      .where(eq(walletTransactionsTable.id, txId))
-      .limit(1);
-    if (!tx) {
-      sendNotFound(res, "Withdrawal not found");
-      return;
-    }
-    if (tx.reference && tx.reference !== "pending") {
-      sendError(res, `Already processed (${tx.reference})`, 409);
-      return;
-    }
-    const ref = refNo ? `paid:${refNo.trim()}` : "paid:manual";
-    /* Atomic compare-and-swap: only succeeds if still 'pending', preventing double-approval */
-    const [updated] = await db
-      .update(walletTransactionsTable)
-      .set({ reference: ref })
-      .where(
-        and(
-          eq(walletTransactionsTable.id, txId),
-          eq(walletTransactionsTable.reference, "pending"),
-        ),
-      )
-      .returning();
-    if (!updated) {
-      sendError(res, "Withdrawal already processed by another request", 409);
-      return;
-    }
-    const amt = parseFloat(String(tx.amount));
-
-    addAuditEntry({
-      action: "withdrawal_approved",
-      ip: adminReq.adminIp || getClientIp(req),
-      details: `Withdrawal ${txId} approved for user ${tx.userId} — Rs. ${amt.toFixed(2)}${refNo ? ` (ref: ${refNo})` : ""}`,
-      result: "success",
-      adminId: adminReq.adminId,
-      adminName: adminReq.adminName,
-    });
-
-    const wdLang = await getUserLanguage(tx.userId);
-    const wdRef = refNo ? ` Reference: ${refNo}` : "";
-    const wdNote = note ? ` Note: ${note}` : "";
-    await db
-      .insert(notificationsTable)
-      .values({
-        id: generateId(),
-        userId: tx.userId,
-        title: t("notifWithdrawalApproved" as TranslationKey, wdLang),
-        body: t("notifWithdrawalApprovedBody" as TranslationKey, wdLang)
-          .replace("{amount}", amt.toFixed(0))
-          .replace("{ref}", wdRef)
-          .replace("{note}", wdNote),
-        type: "wallet",
-        icon: "checkmark-circle-outline",
-      })
-      .catch((err: unknown) => {
-        logger.warn(
-          { err: err instanceof Error ? err.message : String(err), txId },
-          "[wallets] withdrawal-approved notification insert failed",
-        );
-      });
-    const wdIo = getIO();
-    if (wdIo)
-      wdIo
-        .to("admin-fleet")
-        .emit("wallet:withdrawal-approved", {
-          txId,
-          userId: tx.userId,
-          amount: amt,
-        });
-    sendSuccess(res, { txId, status: "paid", refNo: refNo || "manual" });
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
-});
-
-/* ── PATCH /admin/withdrawal-requests/:id/reject ─── */
-router.patch("/withdrawal-requests/:id/reject", requirePermission("finance.withdrawals.approve"), async (req, res) => {
-  try {
-    const adminReq = req as AdminRequest;
-    const { reason } = req.body;
-    const txId = req.params["id"] as string;
-    const [tx] = await db
-      .select()
-      .from(walletTransactionsTable)
-      .where(eq(walletTransactionsTable.id, txId))
-      .limit(1);
-    if (!tx) {
-      sendNotFound(res, "Withdrawal not found");
-      return;
-    }
-    if (tx.reference && tx.reference !== "pending") {
-      sendValidationError(res, `Already processed (${tx.reference})`);
-      return;
-    }
-    const rejReason = reason?.trim() || "Admin rejected";
-    const amt = parseFloat(String(tx.amount));
-    const txResult = await db
-      .transaction(async (txn) => {
-        const [updated] = await txn
-          .update(walletTransactionsTable)
-          .set({ reference: `rejected:${rejReason}` })
-          .where(
-            and(
-              eq(walletTransactionsTable.id, txId),
-              eq(walletTransactionsTable.reference, "pending"),
-            ),
-          )
-          .returning();
-        if (!updated) throw new Error("ALREADY_PROCESSED");
-        await txn
-          .update(usersTable)
-          .set({
-            walletBalance: sql`wallet_balance + ${amt}`,
-            updatedAt: new Date(),
-          })
-          .where(eq(usersTable.id, tx.userId));
-        await txn.insert(walletTransactionsTable).values({
-          id: generateId(),
-          userId: tx.userId,
-          type: "credit",
-          amount: amt.toFixed(2),
-          description: `Withdrawal Refunded — ${rejReason}`,
-          reference: `refund:${txId}`,
-          paymentMethod: null,
-        });
-        return true;
-      })
-      .catch((err: Error) => {
-        if (err.message === "ALREADY_PROCESSED") return null;
-        throw err;
-      });
-    if (!txResult) {
-      sendError(res, "Withdrawal has already been processed", 409);
-      return;
-    }
-
-    addAuditEntry({
-      action: "withdrawal_rejected",
-      ip: adminReq.adminIp || getClientIp(req),
-      details: `Withdrawal ${txId} rejected for user ${tx.userId} — Rs. ${amt.toFixed(2)} refunded. Reason: ${rejReason}`,
-      result: "success",
-      adminId: adminReq.adminId,
-      adminName: adminReq.adminName,
-    });
-
-    const wdRejLang = await getUserLanguage(tx.userId);
-    await db
-      .insert(notificationsTable)
-      .values({
-        id: generateId(),
-        userId: tx.userId,
-        title: t("notifWithdrawalRejected" as TranslationKey, wdRejLang),
-        body: t("notifWithdrawalRejectedBody" as TranslationKey, wdRejLang)
-          .replace("{amount}", amt.toFixed(0))
-          .replace("{reason}", rejReason),
-        type: "wallet",
-        icon: "close-circle-outline",
-      })
-      .catch((err: unknown) => {
-        logger.warn(
-          { err: err instanceof Error ? err.message : String(err), txId },
-          "[wallets] withdrawal-rejected notification insert failed",
-        );
-      });
-    const wdRejIo = getIO();
-    if (wdRejIo)
-      wdRejIo
-        .to("admin-fleet")
-        .emit("wallet:withdrawal-rejected", {
-          txId,
-          userId: tx.userId,
-          amount: amt,
-          reason: rejReason,
-        });
-    sendSuccess(res, {
-      txId,
-      status: "rejected",
-      reason: rejReason,
-      refunded: amt,
-    });
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
-});
-
-/* ── PATCH /admin/withdrawal-requests/batch-approve ─── */
-router.patch("/withdrawal-requests/batch-approve", requirePermission("finance.withdrawals.approve"), async (req, res) => {
-  try {
-    const { ids } = req.body as { ids: string[] };
-    if (!Array.isArray(ids) || ids.length === 0) {
-      sendValidationError(res, "ids required");
-      return;
-    }
-    type ApprovedItem = { txId: string; refNo: string; userId: string; amount: string };
-    const approvedItems: ApprovedItem[] = [];
-    /* All reference updates committed atomically — if any write fails the
-       entire batch is rolled back, leaving no half-approved state. */
-    await db.transaction(async (tx) => {
-      for (const txId of ids) {
-        const [txn] = await tx
-          .select()
-          .from(walletTransactionsTable)
-          .where(eq(walletTransactionsTable.id, txId))
-          .limit(1);
-        if (!txn) {
-          throw Object.assign(new Error(`Withdrawal request not found: ${txId}`), { status: 404 });
-        }
-        if (txn.reference && txn.reference !== "pending") {
-          throw Object.assign(new Error(`Withdrawal ${txId} is already processed (status: ${txn.reference})`), { status: 409 });
-        }
-        const refNo = `BATCH-${Date.now()}`;
-        await tx
-          .update(walletTransactionsTable)
-          .set({ reference: refNo })
-          .where(eq(walletTransactionsTable.id, txId));
-        approvedItems.push({ txId, refNo, userId: txn.userId, amount: String(txn.amount) });
+router.patch(
+  "/withdrawal-requests/:id/approve",
+  requirePermission("finance.withdrawals.approve"),
+  async (req, res) => {
+    try {
+      const adminReq = req as AdminRequest;
+      const { refNo, note } = req.body;
+      const txId = req.params["id"] as string;
+      const [tx] = await db
+        .select()
+        .from(walletTransactionsTable)
+        .where(eq(walletTransactionsTable.id, txId))
+        .limit(1);
+      if (!tx) {
+        sendNotFound(res, "Withdrawal not found");
+        return;
       }
-    });
-    /* Notifications are best-effort — sent after the transaction commits so a
-       notification failure never rolls back an already-committed approval. */
-    for (const item of approvedItems) {
-      const batchAppLang = await getUserLanguage(item.userId);
+      if (tx.reference && tx.reference !== "pending") {
+        sendError(res, `Already processed (${tx.reference})`, 409);
+        return;
+      }
+      const ref = refNo ? `paid:${refNo.trim()}` : "paid:manual";
+      /* Atomic compare-and-swap: only succeeds if still 'pending', preventing double-approval */
+      const [updated] = await db
+        .update(walletTransactionsTable)
+        .set({ reference: ref })
+        .where(
+          and(
+            eq(walletTransactionsTable.id, txId),
+            eq(walletTransactionsTable.reference, "pending")
+          )
+        )
+        .returning();
+      if (!updated) {
+        sendError(res, "Withdrawal already processed by another request", 409);
+        return;
+      }
+      const amt = parseFloat(String(tx.amount));
+
+      addAuditEntry({
+        action: "withdrawal_approved",
+        ip: adminReq.adminIp || getClientIp(req),
+        details: `Withdrawal ${txId} approved for user ${tx.userId} — Rs. ${amt.toFixed(2)}${refNo ? ` (ref: ${refNo})` : ""}`,
+        result: "success",
+        adminId: adminReq.adminId,
+        adminName: adminReq.adminName,
+      });
+
+      const wdLang = await getUserLanguage(tx.userId);
+      const wdRef = refNo ? ` Reference: ${refNo}` : "";
+      const wdNote = note ? ` Note: ${note}` : "";
       await db
         .insert(notificationsTable)
         .values({
           id: generateId(),
-          userId: item.userId,
-          title: t("notifWithdrawalApproved" as TranslationKey, batchAppLang),
-          body: t("notifWithdrawalApprovedBody" as TranslationKey, batchAppLang)
-            .replace("{amount}", parseFloat(item.amount).toFixed(0))
-            .replace("{ref}", ` Ref: ${item.refNo}`)
-            .replace("{note}", ""),
+          userId: tx.userId,
+          title: t("notifWithdrawalApproved" as TranslationKey, wdLang),
+          body: t("notifWithdrawalApprovedBody" as TranslationKey, wdLang)
+            .replace("{amount}", amt.toFixed(0))
+            .replace("{ref}", wdRef)
+            .replace("{note}", wdNote),
           type: "wallet",
           icon: "checkmark-circle-outline",
         })
         .catch((err: unknown) => {
           logger.warn(
-            { err: err instanceof Error ? err.message : String(err), txId: item.txId },
-            "[wallets] batch-approve notification insert failed",
+            { err: err instanceof Error ? err.message : String(err), txId },
+            "[wallets] withdrawal-approved notification insert failed"
           );
         });
-    }
-    sendSuccess(res, { approved: approvedItems.map((i) => i.txId) });
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
-});
-
-/* ── PATCH /admin/withdrawal-requests/batch-reject ─── */
-router.patch("/withdrawal-requests/batch-reject", requirePermission("finance.withdrawals.approve"), async (req, res) => {
-  try {
-    const { ids, reason } = req.body as { ids: string[]; reason: string };
-    if (!Array.isArray(ids) || ids.length === 0) {
-      sendValidationError(res, "ids required");
-      return;
-    }
-    const rejReason = (reason || "Admin batch rejected").trim();
-    type RejectedItem = { txId: string; userId: string; amt: number };
-    const rejectedItems: RejectedItem[] = [];
-    /* All three per-item writes (mark rejected, refund balance, log credit)
-       are committed in one atomic transaction — no partial refund state. */
-    await db.transaction(async (tx) => {
-      for (const txId of ids) {
-        const [txn] = await tx
-          .select()
-          .from(walletTransactionsTable)
-          .where(eq(walletTransactionsTable.id, txId))
-          .limit(1);
-        if (!txn) {
-          throw Object.assign(new Error(`Withdrawal request not found: ${txId}`), { status: 404 });
-        }
-        if (txn.reference && txn.reference !== "pending") {
-          throw Object.assign(new Error(`Withdrawal ${txId} is already processed (status: ${txn.reference})`), { status: 409 });
-        }
-        const amt = parseFloat(String(txn.amount));
-        await tx
-          .update(walletTransactionsTable)
-          .set({ reference: `rejected:${rejReason}` })
-          .where(eq(walletTransactionsTable.id, txId));
-        await tx
-          .update(usersTable)
-          .set({ walletBalance: sql`wallet_balance + ${amt}`, updatedAt: new Date() })
-          .where(eq(usersTable.id, txn.userId));
-        await tx.insert(walletTransactionsTable).values({
-          id: generateId(),
-          userId: txn.userId,
-          type: "credit",
-          amount: amt.toFixed(2),
-          description: `Withdrawal Refunded — ${rejReason}`,
-          reference: `refund:${txId}`,
-          paymentMethod: null,
+      const wdIo = getIO();
+      if (wdIo)
+        wdIo.to("admin-fleet").emit("wallet:withdrawal-approved", {
+          txId,
+          userId: tx.userId,
+          amount: amt,
         });
-        rejectedItems.push({ txId, userId: txn.userId, amt });
+      sendSuccess(res, { txId, status: "paid", refNo: refNo || "manual" });
+    } catch (err) {
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
+  }
+);
+
+/* ── PATCH /admin/withdrawal-requests/:id/reject ─── */
+router.patch(
+  "/withdrawal-requests/:id/reject",
+  requirePermission("finance.withdrawals.approve"),
+  async (req, res) => {
+    try {
+      const adminReq = req as AdminRequest;
+      const { reason } = req.body;
+      const txId = req.params["id"] as string;
+      const [tx] = await db
+        .select()
+        .from(walletTransactionsTable)
+        .where(eq(walletTransactionsTable.id, txId))
+        .limit(1);
+      if (!tx) {
+        sendNotFound(res, "Withdrawal not found");
+        return;
       }
-    });
-    /* Notifications are best-effort — sent after commit so a notif failure
-       never rolls back an already-committed refund. */
-    for (const item of rejectedItems) {
-      const batchRejLang = await getUserLanguage(item.userId);
+      if (tx.reference && tx.reference !== "pending") {
+        sendValidationError(res, `Already processed (${tx.reference})`);
+        return;
+      }
+      const rejReason = reason?.trim() || "Admin rejected";
+      const amt = parseFloat(String(tx.amount));
+      const txResult = await db
+        .transaction(async (txn) => {
+          const [updated] = await txn
+            .update(walletTransactionsTable)
+            .set({ reference: `rejected:${rejReason}` })
+            .where(
+              and(
+                eq(walletTransactionsTable.id, txId),
+                eq(walletTransactionsTable.reference, "pending")
+              )
+            )
+            .returning();
+          if (!updated) throw new Error("ALREADY_PROCESSED");
+          await txn
+            .update(usersTable)
+            .set({
+              walletBalance: sql`wallet_balance + ${amt}`,
+              updatedAt: new Date(),
+            })
+            .where(eq(usersTable.id, tx.userId));
+          await txn.insert(walletTransactionsTable).values({
+            id: generateId(),
+            userId: tx.userId,
+            type: "credit",
+            amount: amt.toFixed(2),
+            description: `Withdrawal Refunded — ${rejReason}`,
+            reference: `refund:${txId}`,
+            paymentMethod: null,
+          });
+          return true;
+        })
+        .catch((err: Error) => {
+          if (err.message === "ALREADY_PROCESSED") return null;
+          throw err;
+        });
+      if (!txResult) {
+        sendError(res, "Withdrawal has already been processed", 409);
+        return;
+      }
+
+      addAuditEntry({
+        action: "withdrawal_rejected",
+        ip: adminReq.adminIp || getClientIp(req),
+        details: `Withdrawal ${txId} rejected for user ${tx.userId} — Rs. ${amt.toFixed(2)} refunded. Reason: ${rejReason}`,
+        result: "success",
+        adminId: adminReq.adminId,
+        adminName: adminReq.adminName,
+      });
+
+      const wdRejLang = await getUserLanguage(tx.userId);
       await db
         .insert(notificationsTable)
         .values({
           id: generateId(),
-          userId: item.userId,
-          title: t("notifWithdrawalRejected" as TranslationKey, batchRejLang),
-          body: t("notifWithdrawalRejectedBody" as TranslationKey, batchRejLang)
-            .replace("{amount}", item.amt.toFixed(0))
+          userId: tx.userId,
+          title: t("notifWithdrawalRejected" as TranslationKey, wdRejLang),
+          body: t("notifWithdrawalRejectedBody" as TranslationKey, wdRejLang)
+            .replace("{amount}", amt.toFixed(0))
             .replace("{reason}", rejReason),
           type: "wallet",
           icon: "close-circle-outline",
         })
         .catch((err: unknown) => {
           logger.warn(
-            { err: err instanceof Error ? err.message : String(err), txId: item.txId },
-            "[wallets] batch-reject notification insert failed",
+            { err: err instanceof Error ? err.message : String(err), txId },
+            "[wallets] withdrawal-rejected notification insert failed"
           );
         });
+      const wdRejIo = getIO();
+      if (wdRejIo)
+        wdRejIo.to("admin-fleet").emit("wallet:withdrawal-rejected", {
+          txId,
+          userId: tx.userId,
+          amount: amt,
+          reason: rejReason,
+        });
+      sendSuccess(res, {
+        txId,
+        status: "rejected",
+        reason: rejReason,
+        refunded: amt,
+      });
+    } catch (err) {
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
+      res.status(500).json({ success: false, error: "Internal server error" });
     }
-    sendSuccess(res, { rejected: rejectedItems.map((i) => i.txId) });
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
   }
-});
+);
+
+/* ── PATCH /admin/withdrawal-requests/batch-approve ─── */
+router.patch(
+  "/withdrawal-requests/batch-approve",
+  requirePermission("finance.withdrawals.approve"),
+  async (req, res) => {
+    try {
+      const { ids } = req.body as { ids: string[] };
+      if (!Array.isArray(ids) || ids.length === 0) {
+        sendValidationError(res, "ids required");
+        return;
+      }
+      type ApprovedItem = { txId: string; refNo: string; userId: string; amount: string };
+      const approvedItems: ApprovedItem[] = [];
+      /* All reference updates committed atomically — if any write fails the
+       entire batch is rolled back, leaving no half-approved state. */
+      await db.transaction(async (tx) => {
+        for (const txId of ids) {
+          const [txn] = await tx
+            .select()
+            .from(walletTransactionsTable)
+            .where(eq(walletTransactionsTable.id, txId))
+            .limit(1);
+          if (!txn) {
+            throw Object.assign(new Error(`Withdrawal request not found: ${txId}`), {
+              status: 404,
+            });
+          }
+          if (txn.reference && txn.reference !== "pending") {
+            throw Object.assign(
+              new Error(`Withdrawal ${txId} is already processed (status: ${txn.reference})`),
+              { status: 409 }
+            );
+          }
+          const refNo = `BATCH-${Date.now()}`;
+          await tx
+            .update(walletTransactionsTable)
+            .set({ reference: refNo })
+            .where(eq(walletTransactionsTable.id, txId));
+          approvedItems.push({ txId, refNo, userId: txn.userId, amount: String(txn.amount) });
+        }
+      });
+      /* Notifications are best-effort — sent after the transaction commits so a
+       notification failure never rolls back an already-committed approval. */
+      for (const item of approvedItems) {
+        const batchAppLang = await getUserLanguage(item.userId);
+        await db
+          .insert(notificationsTable)
+          .values({
+            id: generateId(),
+            userId: item.userId,
+            title: t("notifWithdrawalApproved" as TranslationKey, batchAppLang),
+            body: t("notifWithdrawalApprovedBody" as TranslationKey, batchAppLang)
+              .replace("{amount}", parseFloat(item.amount).toFixed(0))
+              .replace("{ref}", ` Ref: ${item.refNo}`)
+              .replace("{note}", ""),
+            type: "wallet",
+            icon: "checkmark-circle-outline",
+          })
+          .catch((err: unknown) => {
+            logger.warn(
+              { err: err instanceof Error ? err.message : String(err), txId: item.txId },
+              "[wallets] batch-approve notification insert failed"
+            );
+          });
+      }
+      sendSuccess(res, { approved: approvedItems.map((i) => i.txId) });
+    } catch (err) {
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
+  }
+);
+
+/* ── PATCH /admin/withdrawal-requests/batch-reject ─── */
+router.patch(
+  "/withdrawal-requests/batch-reject",
+  requirePermission("finance.withdrawals.approve"),
+  async (req, res) => {
+    try {
+      const { ids, reason } = req.body as { ids: string[]; reason: string };
+      if (!Array.isArray(ids) || ids.length === 0) {
+        sendValidationError(res, "ids required");
+        return;
+      }
+      const rejReason = (reason || "Admin batch rejected").trim();
+      type RejectedItem = { txId: string; userId: string; amt: number };
+      const rejectedItems: RejectedItem[] = [];
+      /* All three per-item writes (mark rejected, refund balance, log credit)
+       are committed in one atomic transaction — no partial refund state. */
+      await db.transaction(async (tx) => {
+        for (const txId of ids) {
+          const [txn] = await tx
+            .select()
+            .from(walletTransactionsTable)
+            .where(eq(walletTransactionsTable.id, txId))
+            .limit(1);
+          if (!txn) {
+            throw Object.assign(new Error(`Withdrawal request not found: ${txId}`), {
+              status: 404,
+            });
+          }
+          if (txn.reference && txn.reference !== "pending") {
+            throw Object.assign(
+              new Error(`Withdrawal ${txId} is already processed (status: ${txn.reference})`),
+              { status: 409 }
+            );
+          }
+          const amt = parseFloat(String(txn.amount));
+          await tx
+            .update(walletTransactionsTable)
+            .set({ reference: `rejected:${rejReason}` })
+            .where(eq(walletTransactionsTable.id, txId));
+          await tx
+            .update(usersTable)
+            .set({ walletBalance: sql`wallet_balance + ${amt}`, updatedAt: new Date() })
+            .where(eq(usersTable.id, txn.userId));
+          await tx.insert(walletTransactionsTable).values({
+            id: generateId(),
+            userId: txn.userId,
+            type: "credit",
+            amount: amt.toFixed(2),
+            description: `Withdrawal Refunded — ${rejReason}`,
+            reference: `refund:${txId}`,
+            paymentMethod: null,
+          });
+          rejectedItems.push({ txId, userId: txn.userId, amt });
+        }
+      });
+      /* Notifications are best-effort — sent after commit so a notif failure
+       never rolls back an already-committed refund. */
+      for (const item of rejectedItems) {
+        const batchRejLang = await getUserLanguage(item.userId);
+        await db
+          .insert(notificationsTable)
+          .values({
+            id: generateId(),
+            userId: item.userId,
+            title: t("notifWithdrawalRejected" as TranslationKey, batchRejLang),
+            body: t("notifWithdrawalRejectedBody" as TranslationKey, batchRejLang)
+              .replace("{amount}", item.amt.toFixed(0))
+              .replace("{reason}", rejReason),
+            type: "wallet",
+            icon: "close-circle-outline",
+          })
+          .catch((err: unknown) => {
+            logger.warn(
+              { err: err instanceof Error ? err.message : String(err), txId: item.txId },
+              "[wallets] batch-reject notification insert failed"
+            );
+          });
+      }
+      sendSuccess(res, { rejected: rejectedItems.map((i) => i.txId) });
+    } catch (err) {
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
+  }
+);
 
 /* ── GET /admin/deposit-requests — List deposit requests with offset pagination ─── */
 router.get("/deposit-requests", requirePermission("finance.deposits.review"), async (req, res) => {
   try {
     const statusFilter = req.query["status"] as string | undefined;
-    const pageNum  = Math.max(1, parseInt(String(req.query["page"]  ?? "1"),  10) || 1);
-    const pageSize = Math.min(200, Math.max(1, parseInt(String(req.query["limit"] ?? "50"), 10) || 50));
-    const offset   = (pageNum - 1) * pageSize;
+    const pageNum = Math.max(1, parseInt(String(req.query["page"] ?? "1"), 10) || 1);
+    const pageSize = Math.min(
+      200,
+      Math.max(1, parseInt(String(req.query["limit"] ?? "50"), 10) || 50)
+    );
+    const offset = (pageNum - 1) * pageSize;
 
     /* Build status-aware WHERE clause so we can count + paginate at DB level. */
     type DepositRow = typeof walletTransactionsTable.$inferSelect;
     const statusToRefPattern: Record<string, string> = {
-      pending:  "pending",
+      pending: "pending",
       approved: "approved:",
       rejected: "rejected:",
     };
@@ -1442,12 +1579,12 @@ router.get("/deposit-requests", requirePermission("finance.deposits.review"), as
       if (pattern === "pending") {
         baseWhere = and(
           baseWhere,
-          sql`(${walletTransactionsTable.reference} = 'pending' OR ${walletTransactionsTable.reference} IS NULL OR ${walletTransactionsTable.reference} LIKE 'pending:%')`,
+          sql`(${walletTransactionsTable.reference} = 'pending' OR ${walletTransactionsTable.reference} IS NULL OR ${walletTransactionsTable.reference} LIKE 'pending:%')`
         ) as typeof baseWhere;
       } else {
         baseWhere = and(
           baseWhere,
-          sql`${walletTransactionsTable.reference} LIKE ${pattern + "%"}`,
+          sql`${walletTransactionsTable.reference} LIKE ${pattern + "%"}`
         ) as typeof baseWhere;
       }
     }
@@ -1460,8 +1597,8 @@ router.get("/deposit-requests", requirePermission("finance.deposits.review"), as
     /* Fetch the current page, JOIN users to eliminate N+1 queries. */
     const rows = await db
       .select({
-        tx:   walletTransactionsTable,
-        uid:  usersTable.id,
+        tx: walletTransactionsTable,
+        uid: usersTable.id,
         name: usersTable.name,
         phone: usersTable.phone,
         roles: usersTable.roles,
@@ -1490,7 +1627,7 @@ router.get("/deposit-requests", requirePermission("finance.deposits.review"), as
       return {
         ...tx,
         amount: parseFloat(String(tx.amount)),
-        user:   uid ? { id: uid, name, phone, roles } : null,
+        user: uid ? { id: uid, name, phone, roles } : null,
         status,
         refNo,
       };
@@ -1503,323 +1640,87 @@ router.get("/deposit-requests", requirePermission("finance.deposits.review"), as
       pageSize,
     });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
 
 /* ── PATCH /admin/deposit-requests/:id/approve — Approve a rider deposit (credits wallet, atomic) ─── */
-router.patch("/deposit-requests/:id/approve", requirePermission("finance.deposits.review"), async (req, res) => {
-  try {
-    const { refNo, note } = req.body;
-    const txId = req.params["id"] as string;
-
-    const [tx] = await db
-      .select()
-      .from(walletTransactionsTable)
-      .where(eq(walletTransactionsTable.id, txId))
-      .limit(1);
-    if (!tx) {
-      sendNotFound(res, "Deposit not found");
-      return;
-    }
-    if (tx.type !== "deposit") {
-      sendValidationError(res, "Not a deposit record");
-      return;
-    }
-
-    const amt = parseFloat(String(tx.amount));
-    const txidSuffix =
-      tx.reference && tx.reference.includes("txid:")
-        ? `:${tx.reference.split("txid:").pop()}`
-        : "";
-
-    if (txidSuffix) {
-      const dupes = await db
-        .select({ id: walletTransactionsTable.id })
-        .from(walletTransactionsTable)
-        .where(
-          and(
-            eq(walletTransactionsTable.type, "deposit"),
-            sql`${walletTransactionsTable.reference} LIKE ${"%approved%" + txidSuffix}`,
-            sql`RIGHT(${walletTransactionsTable.reference}, ${txidSuffix.length}) = ${txidSuffix}`,
-          ),
-        )
-        .limit(1);
-      if (dupes.length > 0) {
-        sendError(
-          res,
-          "A deposit with this Transaction ID has already been approved",
-          409,
-        );
-        return;
-      }
-    }
-    const approvedRef = refNo
-      ? `approved:${refNo.trim()}${txidSuffix}`
-      : `approved:manual${txidSuffix}`;
-
-    const depApprSettings = await getCachedSettings();
-    const maxBalance = parseFloat(
-      depApprSettings["wallet_max_balance"] ?? "50000",
-    );
-
-    /* Fully atomic: conditional state-transition + wallet credit in ONE transaction.
-     If the conditional update hits 0 rows (already processed), transaction rolls back
-     and we return 409. No double-credit or orphaned approval possible. */
-    let approved = false;
+router.patch(
+  "/deposit-requests/:id/approve",
+  requirePermission("finance.deposits.review"),
+  async (req, res) => {
     try {
-      await db.transaction(async (trx) => {
-        const [marked] = await trx
-          .update(walletTransactionsTable)
-          .set({ reference: approvedRef })
-          .where(
-            and(
-              eq(walletTransactionsTable.id, txId),
-              sql`(${walletTransactionsTable.reference} = 'pending' OR ${walletTransactionsTable.reference} LIKE 'pending:%')`,
-            ),
-          )
-          .returning({ id: walletTransactionsTable.id });
-        if (!marked) throw new Error("ALREADY_PROCESSED");
-        const [credited] = await trx
-          .update(usersTable)
-          .set({
-            walletBalance: sql`wallet_balance + ${amt}`,
-            updatedAt: new Date(),
-          })
-          .where(
-            and(
-              eq(usersTable.id, tx.userId),
-              sql`CAST(wallet_balance AS numeric) + ${amt} <= ${maxBalance}`,
-            ),
-          )
-          .returning({ id: usersTable.id });
-        if (!credited) throw new Error("BALANCE_CAP_EXCEEDED");
-      });
-      approved = true;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg === "ALREADY_PROCESSED") {
-        const [current] = await db
-          .select({ reference: walletTransactionsTable.reference })
-          .from(walletTransactionsTable)
-          .where(eq(walletTransactionsTable.id, txId))
-          .limit(1);
-        sendError(
-          res,
-          `Deposit already processed (${current?.reference ?? "unknown state"})`,
-          409,
-        );
-        return;
-      }
-      if (msg === "BALANCE_CAP_EXCEEDED") {
-        sendValidationError(
-          res,
-          `Wallet balance limit is Rs. ${maxBalance}. Deposit would exceed the limit.`,
-        );
-        return;
-      }
-      throw err;
-    }
+      const { refNo, note } = req.body;
+      const txId = req.params["id"] as string;
 
-    if (!approved) return;
-    const depApprLang = await getUserLanguage(tx.userId);
-    await db
-      .insert(notificationsTable)
-      .values({
-        id: generateId(),
-        userId: tx.userId,
-        title: t("notifDepositCredited", depApprLang),
-        body: t("notifDepositCreditedBody", depApprLang).replace(
-          "{amount}",
-          amt.toFixed(0),
-        ),
-        type: "wallet",
-        icon: "wallet-outline",
-      })
-      .catch((e: unknown) => logger.warn({ message: "[wallets] deposit approval notif failed", error: e instanceof Error ? e.message : String(e), code: "WALLET_NOTIF_DEPOSIT_APPROVAL_FAILED", correlationId: null, timestamp: new Date().toISOString() }, "[wallets] deposit approval notif failed"));
-    const fleetIo = getIO();
-    if (fleetIo)
-      fleetIo
-        .to("admin-fleet")
-        .emit("wallet:deposit-approved", {
-          txId,
-          userId: tx.userId,
-          amount: amt,
-        });
-    sendSuccess(res, { txId, status: "approved", credited: amt });
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
-});
-
-/* ── PATCH /admin/deposit-requests/:id/reject — Reject a rider deposit (atomic state transition) ─── */
-router.patch("/deposit-requests/:id/reject", requirePermission("finance.deposits.review"), async (req, res) => {
-  try {
-    const { reason } = req.body;
-    const txId = req.params["id"] as string;
-
-    /* Verify type first (cheap read) */
-    const [tx] = await db
-      .select()
-      .from(walletTransactionsTable)
-      .where(eq(walletTransactionsTable.id, txId))
-      .limit(1);
-    if (!tx) {
-      sendNotFound(res, "Deposit not found");
-      return;
-    }
-    if (tx.type !== "deposit") {
-      sendValidationError(res, "Not a deposit record");
-      return;
-    }
-
-    const rejReason = reason?.trim() || "Admin rejected";
-    const txidSuffix =
-      tx.reference && tx.reference.includes("txid:")
-        ? `:${tx.reference.split("txid:").pop()}`
-        : "";
-
-    const [marked] = await db
-      .update(walletTransactionsTable)
-      .set({ reference: `rejected:${rejReason}${txidSuffix}` })
-      .where(
-        and(
-          eq(walletTransactionsTable.id, txId),
-          sql`(${walletTransactionsTable.reference} = 'pending' OR ${walletTransactionsTable.reference} LIKE 'pending:%')`,
-        ),
-      )
-      .returning({ id: walletTransactionsTable.id });
-
-    if (!marked) {
-      const [current] = await db
-        .select({ reference: walletTransactionsTable.reference })
-        .from(walletTransactionsTable)
-        .where(eq(walletTransactionsTable.id, txId))
-        .limit(1);
-      sendError(
-        res,
-        `Deposit already processed (${current?.reference ?? "unknown state"})`,
-        409,
-      );
-      return;
-    }
-
-    const amt = parseFloat(String(tx.amount));
-    const depRejLang = await getUserLanguage(tx.userId);
-    await db
-      .insert(notificationsTable)
-      .values({
-        id: generateId(),
-        userId: tx.userId,
-        title: t("notifDepositRejected", depRejLang),
-        body: t("notifDepositRejectedBody", depRejLang)
-          .replace("{amount}", amt.toFixed(0))
-          .replace("{reason}", rejReason),
-        type: "wallet",
-        icon: "close-circle-outline",
-      })
-      .catch((e: unknown) => logger.warn({ message: "[wallets] deposit rejection notif failed", error: e instanceof Error ? e.message : String(e), code: "WALLET_NOTIF_DEPOSIT_REJECTION_FAILED", correlationId: null, timestamp: new Date().toISOString() }, "[wallets] deposit rejection notif failed"));
-    sendSuccess(res, { txId, status: "rejected", reason: rejReason });
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
-});
-
-/* ── POST /admin/deposit-requests/bulk-approve — Bulk approve customer pending deposits (all-or-nothing atomic) ─── */
-router.post("/deposit-requests/bulk-approve", requirePermission("finance.deposits.review"), async (req, res) => {
-  try {
-    const { ids, refNo } = req.body as { ids: string[]; refNo?: string };
-    if (!Array.isArray(ids) || ids.length === 0) {
-      sendValidationError(res, "ids array is required");
-      return;
-    }
-    const uniqueIds = [...new Set(ids)];
-    if (uniqueIds.length > 50) {
-      sendValidationError(res, "Maximum 50 deposits per bulk action");
-      return;
-    }
-
-    const preChecked: {
-      tx: typeof walletTransactionsTable.$inferSelect;
-      amt: number;
-      approvedRef: string;
-    }[] = [];
-    for (const txId of uniqueIds) {
       const [tx] = await db
         .select()
         .from(walletTransactionsTable)
         .where(eq(walletTransactionsTable.id, txId))
         .limit(1);
       if (!tx) {
-        sendValidationError(res, `Deposit ${txId} not found`);
+        sendNotFound(res, "Deposit not found");
         return;
       }
       if (tx.type !== "deposit") {
-        sendValidationError(res, `${txId} is not a deposit record`);
+        sendValidationError(res, "Not a deposit record");
         return;
       }
-      const ref = tx.reference ?? "pending";
-      const isPending = ref === "pending" || ref.startsWith("pending:");
-      if (!isPending) {
-        sendError(res, `Deposit ${txId} already processed (${ref})`, 409);
-        return;
-      }
-      const [user] = await db
-        .select({ roles: usersTable.roles })
-        .from(usersTable)
-        .where(eq(usersTable.id, tx.userId))
-        .limit(1);
-      if (!user) {
-        sendValidationError(res, `User not found for deposit ${txId}`);
-        return;
-      }
-      if (!(user.roles ?? "customer").includes("customer")) {
-        sendValidationError(
-          res,
-          `Deposit ${txId} belongs to a ${user.roles}, not a customer. Bulk actions are for customer deposits only.`,
-        );
-        return;
-      }
+
       const amt = parseFloat(String(tx.amount));
-      if (!Number.isFinite(amt) || amt <= 0) {
-        sendValidationError(res, `Invalid amount for deposit ${txId}`);
-        return;
-      }
       const txidSuffix =
         tx.reference && tx.reference.includes("txid:")
           ? `:${tx.reference.split("txid:").pop()}`
           : "";
+
+      if (txidSuffix) {
+        const dupes = await db
+          .select({ id: walletTransactionsTable.id })
+          .from(walletTransactionsTable)
+          .where(
+            and(
+              eq(walletTransactionsTable.type, "deposit"),
+              sql`${walletTransactionsTable.reference} LIKE ${"%approved%" + txidSuffix}`,
+              sql`RIGHT(${walletTransactionsTable.reference}, ${txidSuffix.length}) = ${txidSuffix}`
+            )
+          )
+          .limit(1);
+        if (dupes.length > 0) {
+          sendError(res, "A deposit with this Transaction ID has already been approved", 409);
+          return;
+        }
+      }
       const approvedRef = refNo
         ? `approved:${refNo.trim()}${txidSuffix}`
         : `approved:manual${txidSuffix}`;
-      preChecked.push({ tx, amt, approvedRef });
-    }
 
-    const bulkApprSettings = await getCachedSettings();
-    const maxBalance = parseFloat(
-      bulkApprSettings["wallet_max_balance"] ?? "50000",
-    );
+      const depApprSettings = await getCachedSettings();
+      const maxBalance = parseFloat(depApprSettings["wallet_max_balance"] ?? "50000");
 
-    try {
-      await db.transaction(async (trx) => {
-        for (const { tx, amt, approvedRef } of preChecked) {
+      /* Fully atomic: conditional state-transition + wallet credit in ONE transaction.
+     If the conditional update hits 0 rows (already processed), transaction rolls back
+     and we return 409. No double-credit or orphaned approval possible. */
+      let approved = false;
+      try {
+        await db.transaction(async (trx) => {
           const [marked] = await trx
             .update(walletTransactionsTable)
             .set({ reference: approvedRef })
             .where(
               and(
-                eq(walletTransactionsTable.id, tx.id),
-                sql`(${walletTransactionsTable.reference} = 'pending' OR ${walletTransactionsTable.reference} LIKE 'pending:%')`,
-              ),
+                eq(walletTransactionsTable.id, txId),
+                sql`(${walletTransactionsTable.reference} = 'pending' OR ${walletTransactionsTable.reference} LIKE 'pending:%')`
+              )
             )
             .returning({ id: walletTransactionsTable.id });
-          if (!marked)
-            throw new Error(
-              `Deposit ${tx.id} was already processed (race condition)`,
-            );
+          if (!marked) throw new Error("ALREADY_PROCESSED");
           const [credited] = await trx
             .update(usersTable)
             .set({
@@ -1829,163 +1730,463 @@ router.post("/deposit-requests/bulk-approve", requirePermission("finance.deposit
             .where(
               and(
                 eq(usersTable.id, tx.userId),
-                sql`CAST(wallet_balance AS numeric) + ${amt} <= ${maxBalance}`,
-              ),
+                sql`CAST(wallet_balance AS numeric) + ${amt} <= ${maxBalance}`
+              )
             )
             .returning({ id: usersTable.id });
-          if (!credited)
-            throw new Error(
-              `Deposit ${tx.id}: wallet balance limit (Rs. ${maxBalance}) would be exceeded`,
-            );
+          if (!credited) throw new Error("BALANCE_CAP_EXCEEDED");
+        });
+        approved = true;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg === "ALREADY_PROCESSED") {
+          const [current] = await db
+            .select({ reference: walletTransactionsTable.reference })
+            .from(walletTransactionsTable)
+            .where(eq(walletTransactionsTable.id, txId))
+            .limit(1);
+          sendError(
+            res,
+            `Deposit already processed (${current?.reference ?? "unknown state"})`,
+            409
+          );
+          return;
         }
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      sendError(res, msg, 409);
-      return;
-    }
+        if (msg === "BALANCE_CAP_EXCEEDED") {
+          sendValidationError(
+            res,
+            `Wallet balance limit is Rs. ${maxBalance}. Deposit would exceed the limit.`
+          );
+          return;
+        }
+        throw err;
+      }
 
-    for (const { tx, amt } of preChecked) {
-      const bulkApprLang = await getUserLanguage(tx.userId);
+      if (!approved) return;
+      const depApprLang = await getUserLanguage(tx.userId);
       await db
         .insert(notificationsTable)
         .values({
           id: generateId(),
           userId: tx.userId,
-          title: t("notifDepositCredited", bulkApprLang),
-          body: t("notifDepositCreditedBody", bulkApprLang).replace(
-            "{amount}",
-            amt.toFixed(0),
-          ),
+          title: t("notifDepositCredited", depApprLang),
+          body: t("notifDepositCreditedBody", depApprLang).replace("{amount}", amt.toFixed(0)),
           type: "wallet",
           icon: "wallet-outline",
         })
-        .catch((e: unknown) => logger.warn({ message: "[wallets] bulk deposit approval notif failed", error: e instanceof Error ? e.message : String(e), code: "WALLET_NOTIF_BULK_APPROVAL_FAILED", correlationId: null, timestamp: new Date().toISOString() }, "[wallets] bulk deposit approval notif failed"));
+        .catch((e: unknown) =>
+          logger.warn(
+            {
+              message: "[wallets] deposit approval notif failed",
+              error: e instanceof Error ? e.message : String(e),
+              code: "WALLET_NOTIF_DEPOSIT_APPROVAL_FAILED",
+              correlationId: null,
+              timestamp: new Date().toISOString(),
+            },
+            "[wallets] deposit approval notif failed"
+          )
+        );
+      const fleetIo = getIO();
+      if (fleetIo)
+        fleetIo.to("admin-fleet").emit("wallet:deposit-approved", {
+          txId,
+          userId: tx.userId,
+          amount: amt,
+        });
+      sendSuccess(res, { txId, status: "approved", credited: amt });
+    } catch (err) {
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
+      res.status(500).json({ success: false, error: "Internal server error" });
     }
-
-    sendSuccess(res, { approved: preChecked.length });
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
   }
-});
+);
 
-/* ── POST /admin/deposit-requests/bulk-reject — Bulk reject customer pending deposits (all-or-nothing atomic) ─── */
-router.post("/deposit-requests/bulk-reject", requirePermission("finance.deposits.review"), async (req, res) => {
-  try {
-    const { ids, reason } = req.body as { ids: string[]; reason: string };
-    if (!Array.isArray(ids) || ids.length === 0) {
-      sendValidationError(res, "ids array is required");
-      return;
-    }
-    if (!reason?.trim()) {
-      sendValidationError(res, "reason is required");
-      return;
-    }
-    const uniqueIds = [...new Set(ids)];
-    if (uniqueIds.length > 50) {
-      sendValidationError(res, "Maximum 50 deposits per bulk action");
-      return;
-    }
+/* ── PATCH /admin/deposit-requests/:id/reject — Reject a rider deposit (atomic state transition) ─── */
+router.patch(
+  "/deposit-requests/:id/reject",
+  requirePermission("finance.deposits.review"),
+  async (req, res) => {
+    try {
+      const { reason } = req.body;
+      const txId = req.params["id"] as string;
 
-    const rejReason = reason.trim();
-
-    const preChecked: {
-      tx: typeof walletTransactionsTable.$inferSelect;
-      rejRef: string;
-    }[] = [];
-    for (const txId of uniqueIds) {
+      /* Verify type first (cheap read) */
       const [tx] = await db
         .select()
         .from(walletTransactionsTable)
         .where(eq(walletTransactionsTable.id, txId))
         .limit(1);
       if (!tx) {
-        sendValidationError(res, `Deposit ${txId} not found`);
+        sendNotFound(res, "Deposit not found");
         return;
       }
       if (tx.type !== "deposit") {
-        sendValidationError(res, `${txId} is not a deposit record`);
+        sendValidationError(res, "Not a deposit record");
         return;
       }
-      const ref = tx.reference ?? "pending";
-      const isPending = ref === "pending" || ref.startsWith("pending:");
-      if (!isPending) {
-        sendError(res, `Deposit ${txId} already processed (${ref})`, 409);
-        return;
-      }
-      const [user] = await db
-        .select({ roles: usersTable.roles })
-        .from(usersTable)
-        .where(eq(usersTable.id, tx.userId))
-        .limit(1);
-      if (!user) {
-        sendValidationError(res, `User not found for deposit ${txId}`);
-        return;
-      }
-      if (!(user.roles ?? "customer").includes("customer")) {
-        sendValidationError(
-          res,
-          `Deposit ${txId} belongs to a ${user.roles}, not a customer. Bulk actions are for customer deposits only.`,
-        );
-        return;
-      }
+
+      const rejReason = reason?.trim() || "Admin rejected";
       const txidSuffix =
         tx.reference && tx.reference.includes("txid:")
           ? `:${tx.reference.split("txid:").pop()}`
           : "";
-      preChecked.push({ tx, rejRef: `rejected:${rejReason}${txidSuffix}` });
-    }
 
-    try {
-      await db.transaction(async (trx) => {
-        for (const { tx, rejRef } of preChecked) {
-          const [marked] = await trx
-            .update(walletTransactionsTable)
-            .set({ reference: rejRef })
-            .where(
-              and(
-                eq(walletTransactionsTable.id, tx.id),
-                sql`(${walletTransactionsTable.reference} = 'pending' OR ${walletTransactionsTable.reference} LIKE 'pending:%')`,
-              ),
-            )
-            .returning({ id: walletTransactionsTable.id });
-          if (!marked)
-            throw new Error(
-              `Deposit ${tx.id} was already processed (race condition)`,
-            );
-        }
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      sendError(res, msg, 409);
-      return;
-    }
+      const [marked] = await db
+        .update(walletTransactionsTable)
+        .set({ reference: `rejected:${rejReason}${txidSuffix}` })
+        .where(
+          and(
+            eq(walletTransactionsTable.id, txId),
+            sql`(${walletTransactionsTable.reference} = 'pending' OR ${walletTransactionsTable.reference} LIKE 'pending:%')`
+          )
+        )
+        .returning({ id: walletTransactionsTable.id });
 
-    for (const { tx } of preChecked) {
+      if (!marked) {
+        const [current] = await db
+          .select({ reference: walletTransactionsTable.reference })
+          .from(walletTransactionsTable)
+          .where(eq(walletTransactionsTable.id, txId))
+          .limit(1);
+        sendError(res, `Deposit already processed (${current?.reference ?? "unknown state"})`, 409);
+        return;
+      }
+
       const amt = parseFloat(String(tx.amount));
-      const bulkRejLang = await getUserLanguage(tx.userId);
+      const depRejLang = await getUserLanguage(tx.userId);
       await db
         .insert(notificationsTable)
         .values({
           id: generateId(),
           userId: tx.userId,
-          title: t("notifDepositRejected", bulkRejLang),
-          body: t("notifDepositRejectedBody", bulkRejLang)
+          title: t("notifDepositRejected", depRejLang),
+          body: t("notifDepositRejectedBody", depRejLang)
             .replace("{amount}", amt.toFixed(0))
             .replace("{reason}", rejReason),
           type: "wallet",
           icon: "close-circle-outline",
         })
-        .catch((e: unknown) => logger.warn({ message: "[wallets] bulk deposit rejection notif failed", error: e instanceof Error ? e.message : String(e), code: "WALLET_NOTIF_BULK_REJECTION_FAILED", correlationId: null, timestamp: new Date().toISOString() }, "[wallets] bulk deposit rejection notif failed"));
+        .catch((e: unknown) =>
+          logger.warn(
+            {
+              message: "[wallets] deposit rejection notif failed",
+              error: e instanceof Error ? e.message : String(e),
+              code: "WALLET_NOTIF_DEPOSIT_REJECTION_FAILED",
+              correlationId: null,
+              timestamp: new Date().toISOString(),
+            },
+            "[wallets] deposit rejection notif failed"
+          )
+        );
+      sendSuccess(res, { txId, status: "rejected", reason: rejReason });
+    } catch (err) {
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
+      res.status(500).json({ success: false, error: "Internal server error" });
     }
-
-    sendSuccess(res, { rejected: preChecked.length });
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
   }
-});
+);
+
+/* ── POST /admin/deposit-requests/bulk-approve — Bulk approve customer pending deposits (all-or-nothing atomic) ─── */
+router.post(
+  "/deposit-requests/bulk-approve",
+  requirePermission("finance.deposits.review"),
+  async (req, res) => {
+    try {
+      const { ids, refNo } = req.body as { ids: string[]; refNo?: string };
+      if (!Array.isArray(ids) || ids.length === 0) {
+        sendValidationError(res, "ids array is required");
+        return;
+      }
+      const uniqueIds = [...new Set(ids)];
+      if (uniqueIds.length > 50) {
+        sendValidationError(res, "Maximum 50 deposits per bulk action");
+        return;
+      }
+
+      const preChecked: {
+        tx: typeof walletTransactionsTable.$inferSelect;
+        amt: number;
+        approvedRef: string;
+      }[] = [];
+      for (const txId of uniqueIds) {
+        const [tx] = await db
+          .select()
+          .from(walletTransactionsTable)
+          .where(eq(walletTransactionsTable.id, txId))
+          .limit(1);
+        if (!tx) {
+          sendValidationError(res, `Deposit ${txId} not found`);
+          return;
+        }
+        if (tx.type !== "deposit") {
+          sendValidationError(res, `${txId} is not a deposit record`);
+          return;
+        }
+        const ref = tx.reference ?? "pending";
+        const isPending = ref === "pending" || ref.startsWith("pending:");
+        if (!isPending) {
+          sendError(res, `Deposit ${txId} already processed (${ref})`, 409);
+          return;
+        }
+        const [user] = await db
+          .select({ roles: usersTable.roles })
+          .from(usersTable)
+          .where(eq(usersTable.id, tx.userId))
+          .limit(1);
+        if (!user) {
+          sendValidationError(res, `User not found for deposit ${txId}`);
+          return;
+        }
+        if (!(user.roles ?? "customer").includes("customer")) {
+          sendValidationError(
+            res,
+            `Deposit ${txId} belongs to a ${user.roles}, not a customer. Bulk actions are for customer deposits only.`
+          );
+          return;
+        }
+        const amt = parseFloat(String(tx.amount));
+        if (!Number.isFinite(amt) || amt <= 0) {
+          sendValidationError(res, `Invalid amount for deposit ${txId}`);
+          return;
+        }
+        const txidSuffix =
+          tx.reference && tx.reference.includes("txid:")
+            ? `:${tx.reference.split("txid:").pop()}`
+            : "";
+        const approvedRef = refNo
+          ? `approved:${refNo.trim()}${txidSuffix}`
+          : `approved:manual${txidSuffix}`;
+        preChecked.push({ tx, amt, approvedRef });
+      }
+
+      const bulkApprSettings = await getCachedSettings();
+      const maxBalance = parseFloat(bulkApprSettings["wallet_max_balance"] ?? "50000");
+
+      try {
+        await db.transaction(async (trx) => {
+          for (const { tx, amt, approvedRef } of preChecked) {
+            const [marked] = await trx
+              .update(walletTransactionsTable)
+              .set({ reference: approvedRef })
+              .where(
+                and(
+                  eq(walletTransactionsTable.id, tx.id),
+                  sql`(${walletTransactionsTable.reference} = 'pending' OR ${walletTransactionsTable.reference} LIKE 'pending:%')`
+                )
+              )
+              .returning({ id: walletTransactionsTable.id });
+            if (!marked) throw new Error(`Deposit ${tx.id} was already processed (race condition)`);
+            const [credited] = await trx
+              .update(usersTable)
+              .set({
+                walletBalance: sql`wallet_balance + ${amt}`,
+                updatedAt: new Date(),
+              })
+              .where(
+                and(
+                  eq(usersTable.id, tx.userId),
+                  sql`CAST(wallet_balance AS numeric) + ${amt} <= ${maxBalance}`
+                )
+              )
+              .returning({ id: usersTable.id });
+            if (!credited)
+              throw new Error(
+                `Deposit ${tx.id}: wallet balance limit (Rs. ${maxBalance}) would be exceeded`
+              );
+          }
+        });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        sendError(res, msg, 409);
+        return;
+      }
+
+      for (const { tx, amt } of preChecked) {
+        const bulkApprLang = await getUserLanguage(tx.userId);
+        await db
+          .insert(notificationsTable)
+          .values({
+            id: generateId(),
+            userId: tx.userId,
+            title: t("notifDepositCredited", bulkApprLang),
+            body: t("notifDepositCreditedBody", bulkApprLang).replace("{amount}", amt.toFixed(0)),
+            type: "wallet",
+            icon: "wallet-outline",
+          })
+          .catch((e: unknown) =>
+            logger.warn(
+              {
+                message: "[wallets] bulk deposit approval notif failed",
+                error: e instanceof Error ? e.message : String(e),
+                code: "WALLET_NOTIF_BULK_APPROVAL_FAILED",
+                correlationId: null,
+                timestamp: new Date().toISOString(),
+              },
+              "[wallets] bulk deposit approval notif failed"
+            )
+          );
+      }
+
+      sendSuccess(res, { approved: preChecked.length });
+    } catch (err) {
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
+  }
+);
+
+/* ── POST /admin/deposit-requests/bulk-reject — Bulk reject customer pending deposits (all-or-nothing atomic) ─── */
+router.post(
+  "/deposit-requests/bulk-reject",
+  requirePermission("finance.deposits.review"),
+  async (req, res) => {
+    try {
+      const { ids, reason } = req.body as { ids: string[]; reason: string };
+      if (!Array.isArray(ids) || ids.length === 0) {
+        sendValidationError(res, "ids array is required");
+        return;
+      }
+      if (!reason?.trim()) {
+        sendValidationError(res, "reason is required");
+        return;
+      }
+      const uniqueIds = [...new Set(ids)];
+      if (uniqueIds.length > 50) {
+        sendValidationError(res, "Maximum 50 deposits per bulk action");
+        return;
+      }
+
+      const rejReason = reason.trim();
+
+      const preChecked: {
+        tx: typeof walletTransactionsTable.$inferSelect;
+        rejRef: string;
+      }[] = [];
+      for (const txId of uniqueIds) {
+        const [tx] = await db
+          .select()
+          .from(walletTransactionsTable)
+          .where(eq(walletTransactionsTable.id, txId))
+          .limit(1);
+        if (!tx) {
+          sendValidationError(res, `Deposit ${txId} not found`);
+          return;
+        }
+        if (tx.type !== "deposit") {
+          sendValidationError(res, `${txId} is not a deposit record`);
+          return;
+        }
+        const ref = tx.reference ?? "pending";
+        const isPending = ref === "pending" || ref.startsWith("pending:");
+        if (!isPending) {
+          sendError(res, `Deposit ${txId} already processed (${ref})`, 409);
+          return;
+        }
+        const [user] = await db
+          .select({ roles: usersTable.roles })
+          .from(usersTable)
+          .where(eq(usersTable.id, tx.userId))
+          .limit(1);
+        if (!user) {
+          sendValidationError(res, `User not found for deposit ${txId}`);
+          return;
+        }
+        if (!(user.roles ?? "customer").includes("customer")) {
+          sendValidationError(
+            res,
+            `Deposit ${txId} belongs to a ${user.roles}, not a customer. Bulk actions are for customer deposits only.`
+          );
+          return;
+        }
+        const txidSuffix =
+          tx.reference && tx.reference.includes("txid:")
+            ? `:${tx.reference.split("txid:").pop()}`
+            : "";
+        preChecked.push({ tx, rejRef: `rejected:${rejReason}${txidSuffix}` });
+      }
+
+      try {
+        await db.transaction(async (trx) => {
+          for (const { tx, rejRef } of preChecked) {
+            const [marked] = await trx
+              .update(walletTransactionsTable)
+              .set({ reference: rejRef })
+              .where(
+                and(
+                  eq(walletTransactionsTable.id, tx.id),
+                  sql`(${walletTransactionsTable.reference} = 'pending' OR ${walletTransactionsTable.reference} LIKE 'pending:%')`
+                )
+              )
+              .returning({ id: walletTransactionsTable.id });
+            if (!marked) throw new Error(`Deposit ${tx.id} was already processed (race condition)`);
+          }
+        });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        sendError(res, msg, 409);
+        return;
+      }
+
+      for (const { tx } of preChecked) {
+        const amt = parseFloat(String(tx.amount));
+        const bulkRejLang = await getUserLanguage(tx.userId);
+        await db
+          .insert(notificationsTable)
+          .values({
+            id: generateId(),
+            userId: tx.userId,
+            title: t("notifDepositRejected", bulkRejLang),
+            body: t("notifDepositRejectedBody", bulkRejLang)
+              .replace("{amount}", amt.toFixed(0))
+              .replace("{reason}", rejReason),
+            type: "wallet",
+            icon: "close-circle-outline",
+          })
+          .catch((e: unknown) =>
+            logger.warn(
+              {
+                message: "[wallets] bulk deposit rejection notif failed",
+                error: e instanceof Error ? e.message : String(e),
+                code: "WALLET_NOTIF_BULK_REJECTION_FAILED",
+                correlationId: null,
+                timestamp: new Date().toISOString(),
+              },
+              "[wallets] bulk deposit rejection notif failed"
+            )
+          );
+      }
+
+      sendSuccess(res, { rejected: preChecked.length });
+    } catch (err) {
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
+      res.status(500).json({ success: false, error: "Internal server error" });
+    }
+  }
+);
 
 /* ── POST /admin/riders/:id/credit ─────────── */
 router.post("/riders/:id/credit", requirePermission("finance.wallet.adjust"), async (req, res) => {
@@ -2013,9 +2214,7 @@ router.post("/riders/:id/credit", requirePermission("finance.wallet.adjust"), as
     const txType = type === "bonus" ? "bonus" : "credit";
 
     const creditSettings = await getCachedSettings();
-    const maxBalance = parseFloat(
-      creditSettings["wallet_max_balance"] ?? "50000",
-    );
+    const maxBalance = parseFloat(creditSettings["wallet_max_balance"] ?? "50000");
 
     let updated: typeof usersTable.$inferSelect | undefined;
     try {
@@ -2038,8 +2237,8 @@ router.post("/riders/:id/credit", requirePermission("finance.wallet.adjust"), as
           .where(
             and(
               eq(usersTable.id, rider.id),
-              sql`CAST(wallet_balance AS numeric) + ${amt} <= ${maxBalance}`,
-            ),
+              sql`CAST(wallet_balance AS numeric) + ${amt} <= ${maxBalance}`
+            )
           )
           .returning();
         if (!txUpdated) throw new Error("BALANCE_CAP");
@@ -2057,7 +2256,7 @@ router.post("/riders/:id/credit", requirePermission("finance.wallet.adjust"), as
       if (err instanceof Error && err.message === "BALANCE_CAP") {
         sendValidationError(
           res,
-          `Wallet balance limit is Rs. ${maxBalance}. Credit would exceed the limit.`,
+          `Wallet balance limit is Rs. ${maxBalance}. Credit would exceed the limit.`
         );
         return;
       }
@@ -2068,14 +2267,20 @@ router.post("/riders/:id/credit", requirePermission("finance.wallet.adjust"), as
       txType === "bonus" ? "Bonus Received! 🎉" : "Wallet Credited 💰",
       `Rs. ${amt} aapke wallet mein add ho gaya. ${description || ""}`,
       "wallet",
-      "wallet-outline",
+      "wallet-outline"
     );
     sendSuccess(res, {
       amount: amt,
       newBalance: parseFloat(updated?.walletBalance ?? "0"),
     });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -2115,10 +2320,16 @@ router.patch(
       });
       sendSuccess(res, { commissionPct });
     } catch (err) {
-      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
       res.status(500).json({ success: false, error: "Internal server error" });
     }
-  },
+  }
 );
 
 /* ── POST /admin/riders/:id/override-suspension — override auto-suspension ── */
@@ -2165,13 +2376,19 @@ router.post("/riders/:id/override-suspension", async (req, res) => {
       .catch((err: unknown) => {
         logger.warn(
           { err: err instanceof Error ? err.message : String(err), userId },
-          "[wallets] rider override-suspension notification insert failed",
+          "[wallets] rider override-suspension notification insert failed"
         );
       });
 
     sendSuccess(res, { user: stripUser(updated!) });
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -2223,16 +2440,22 @@ router.post(
         .catch((err: unknown) => {
           logger.warn(
             { err: err instanceof Error ? err.message : String(err), userId },
-            "[wallets] vendor override-suspension notification insert failed",
+            "[wallets] vendor override-suspension notification insert failed"
           );
         });
 
       sendSuccess(res, { user: stripUser(updated!) });
     } catch (err) {
-      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+      logger.error(
+        {
+          error: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        },
+        "[route] unhandled error"
+      );
       res.status(500).json({ success: false, error: "Internal server error" });
     }
-  },
+  }
 );
 
 export default router;

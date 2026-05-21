@@ -21,11 +21,7 @@ let _ready = false;
  */
 let _queue: Array<{ name: string; params?: Record<string, unknown> }> = [];
 
-export function initAnalytics(
-  platform: string,
-  trackingId: string,
-  debug: boolean,
-): void {
+export function initAnalytics(platform: string, trackingId: string, debug: boolean): void {
   if (!trackingId || _ready) return;
   _platform = platform;
   _ready = true;
@@ -49,7 +45,9 @@ function _initGa4(id: string, debug: boolean): void {
   script.src = `https://www.googletagmanager.com/gtag/js?id=${id}`;
   document.head.appendChild(script);
   window.dataLayer = window.dataLayer || [];
-  window.gtag = function (...args: unknown[]) { window.dataLayer.push(args); };
+  window.gtag = function (...args: unknown[]) {
+    window.dataLayer.push(args);
+  };
   window.gtag("js", new Date());
   window.gtag("config", id, { debug_mode: debug, send_page_view: true });
 }
@@ -74,10 +72,7 @@ function _dispatch(name: string, params?: Record<string, unknown>): void {
   }
 }
 
-export function trackEvent(
-  name: string,
-  params?: Record<string, unknown>,
-): void {
+export function trackEvent(name: string, params?: Record<string, unknown>): void {
   if (!_ready) {
     // Buffer the event — it will be replayed once initAnalytics completes.
     _queue.push({ name, params });

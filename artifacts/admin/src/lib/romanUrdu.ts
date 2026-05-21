@@ -5,7 +5,8 @@
 
 /* Levenshtein distance (fast, iterative) */
 export function levenshtein(a: string, b: string): number {
-  const m = a.length, n = b.length;
+  const m = a.length,
+    n = b.length;
   if (m === 0) return n;
   if (n === 0) return m;
   const row = Array.from({ length: n + 1 }, (_, i) => i);
@@ -26,18 +27,47 @@ export function levenshtein(a: string, b: string): number {
  * Order matters — longer patterns come first. */
 const ROMAN_TO_SCRIPT: [string, string][] = [
   /* digraphs first */
-  ["kh", "خ"], ["gh", "غ"], ["sh", "ش"], ["ch", "چ"],
-  ["ph", "ف"], ["th", "ث"], ["dh", "دھ"], ["bh", "بھ"],
-  ["aa", "آ"], ["ee", "ی"], ["oo", "و"], ["ai", "ے"],
-  ["ou", "او"], ["au", "او"],
+  ["kh", "خ"],
+  ["gh", "غ"],
+  ["sh", "ش"],
+  ["ch", "چ"],
+  ["ph", "ف"],
+  ["th", "ث"],
+  ["dh", "دھ"],
+  ["bh", "بھ"],
+  ["aa", "آ"],
+  ["ee", "ی"],
+  ["oo", "و"],
+  ["ai", "ے"],
+  ["ou", "او"],
+  ["au", "او"],
   /* monographs */
-  ["a", "ا"], ["b", "ب"], ["p", "پ"], ["t", "ت"],
-  ["s", "س"], ["j", "ج"], ["d", "د"], ["r", "ر"],
-  ["z", "ز"], ["k", "ک"], ["g", "گ"], ["f", "ف"],
-  ["q", "ق"], ["l", "ل"], ["m", "م"], ["n", "ن"],
-  ["w", "و"], ["h", "ہ"], ["y", "ی"], ["v", "و"],
-  ["x", "کس"], ["c", "ک"], ["i", "ی"], ["u", "ا"],
-  ["o", "و"], ["e", "ی"],
+  ["a", "ا"],
+  ["b", "ب"],
+  ["p", "پ"],
+  ["t", "ت"],
+  ["s", "س"],
+  ["j", "ج"],
+  ["d", "د"],
+  ["r", "ر"],
+  ["z", "ز"],
+  ["k", "ک"],
+  ["g", "گ"],
+  ["f", "ف"],
+  ["q", "ق"],
+  ["l", "ل"],
+  ["m", "م"],
+  ["n", "ن"],
+  ["w", "و"],
+  ["h", "ہ"],
+  ["y", "ی"],
+  ["v", "و"],
+  ["x", "کس"],
+  ["c", "ک"],
+  ["i", "ی"],
+  ["u", "ا"],
+  ["o", "و"],
+  ["e", "ی"],
 ];
 
 /* Build a single regex-based replacer */
@@ -57,45 +87,45 @@ export function romanToUrdu(input: string): string {
  * and English equivalents (so ANY of the three searches matches). */
 const BIDIRECTIONAL: Array<{ roman: string; urdu: string; english: string[] }> = [
   { roman: "tarteebaat", urdu: "ترتیبات", english: ["settings", "configuration"] },
-  { roman: "tartibaat",  urdu: "ترتیبات", english: ["settings", "configuration"] },
-  { roman: "adaigi",     urdu: "ادائیگی",  english: ["payment", "pay"] },
+  { roman: "tartibaat", urdu: "ترتیبات", english: ["settings", "configuration"] },
+  { roman: "adaigi", urdu: "ادائیگی", english: ["payment", "pay"] },
   { roman: "adaigiyaan", urdu: "ادائیگیاں", english: ["payments"] },
-  { roman: "sawari",     urdu: "سواری",    english: ["ride"] },
-  { roman: "sawariyan",  urdu: "سواریاں",  english: ["rides"] },
-  { roman: "gaari",      urdu: "گاڑی",    english: ["car"] },
-  { roman: "riksha",     urdu: "رکشہ",    english: ["rickshaw"] },
-  { roman: "moltol",     urdu: "مول تول", english: ["bargaining"] },
-  { roman: "mansookh",   urdu: "منسوخ",   english: ["cancelled", "canceled"] },
-  { roman: "mukammal",   urdu: "مکمل",    english: ["completed"] },
-  { roman: "sarifeen",   urdu: "صارفین",  english: ["users", "customers"] },
-  { roman: "gaahak",     urdu: "گاہک",    english: ["customer"] },
-  { roman: "dukaan",     urdu: "دکان",    english: ["store", "shop"] },
-  { roman: "dawayein",   urdu: "دوائیں",  english: ["medicines", "drugs"] },
-  { roman: "dawai",      urdu: "دوا",     english: ["medicine"] },
-  { roman: "maaliyaat",  urdu: "مالیات",  english: ["finance"] },
-  { roman: "ittilaat",   urdu: "اطلاعات", english: ["notifications"] },
-  { roman: "ailaan",     urdu: "اعلان",   english: ["announcement", "broadcast"] },
-  { roman: "tasdeeq",    urdu: "تصدیق",   english: ["verification", "kyc"] },
-  { roman: "lain den",   urdu: "لین دین", english: ["transactions"] },
-  { roman: "nikaalna",   urdu: "نکالنا",  english: ["withdrawal"] },
-  { roman: "hangami",    urdu: "ہنگامی",  english: ["emergency", "sos"] },
-  { roman: "khatrah",    urdu: "خطرہ",    english: ["danger"] },
-  { roman: "zamray",     urdu: "زمرے",    english: ["categories"] },
-  { roman: "jaizay",     urdu: "جائزے",   english: ["reviews"] },
+  { roman: "sawari", urdu: "سواری", english: ["ride"] },
+  { roman: "sawariyan", urdu: "سواریاں", english: ["rides"] },
+  { roman: "gaari", urdu: "گاڑی", english: ["car"] },
+  { roman: "riksha", urdu: "رکشہ", english: ["rickshaw"] },
+  { roman: "moltol", urdu: "مول تول", english: ["bargaining"] },
+  { roman: "mansookh", urdu: "منسوخ", english: ["cancelled", "canceled"] },
+  { roman: "mukammal", urdu: "مکمل", english: ["completed"] },
+  { roman: "sarifeen", urdu: "صارفین", english: ["users", "customers"] },
+  { roman: "gaahak", urdu: "گاہک", english: ["customer"] },
+  { roman: "dukaan", urdu: "دکان", english: ["store", "shop"] },
+  { roman: "dawayein", urdu: "دوائیں", english: ["medicines", "drugs"] },
+  { roman: "dawai", urdu: "دوا", english: ["medicine"] },
+  { roman: "maaliyaat", urdu: "مالیات", english: ["finance"] },
+  { roman: "ittilaat", urdu: "اطلاعات", english: ["notifications"] },
+  { roman: "ailaan", urdu: "اعلان", english: ["announcement", "broadcast"] },
+  { roman: "tasdeeq", urdu: "تصدیق", english: ["verification", "kyc"] },
+  { roman: "lain den", urdu: "لین دین", english: ["transactions"] },
+  { roman: "nikaalna", urdu: "نکالنا", english: ["withdrawal"] },
+  { roman: "hangami", urdu: "ہنگامی", english: ["emergency", "sos"] },
+  { roman: "khatrah", urdu: "خطرہ", english: ["danger"] },
+  { roman: "zamray", urdu: "زمرے", english: ["categories"] },
+  { roman: "jaizay", urdu: "جائزے", english: ["reviews"] },
   { roman: "darjabandi", urdu: "درجہ بندی", english: ["ratings"] },
-  { roman: "tabsray",    urdu: "تبصرے",   english: ["comments", "reviews"] },
-  { roman: "jaiza",      urdu: "جائزہ",   english: ["overview"] },
-  { roman: "aamadni",    urdu: "آمدنی",   english: ["revenue"] },
-  { roman: "naqsha",     urdu: "نقشہ",    english: ["map"] },
-  { roman: "choot",      urdu: "چھوٹ",    english: ["discount"] },
+  { roman: "tabsray", urdu: "تبصرے", english: ["comments", "reviews"] },
+  { roman: "jaiza", urdu: "جائزہ", english: ["overview"] },
+  { roman: "aamadni", urdu: "آمدنی", english: ["revenue"] },
+  { roman: "naqsha", urdu: "نقشہ", english: ["map"] },
+  { roman: "choot", urdu: "چھوٹ", english: ["discount"] },
   { roman: "zer-e-iltawa", urdu: "زیر التواء", english: ["pending"] },
-  { roman: "intizar",    urdu: "انتظار",  english: ["waiting", "pending"] },
-  { roman: "riyaayat",   urdu: "رعایت",   english: ["discount", "voucher"] },
+  { roman: "intizar", urdu: "انتظار", english: ["waiting", "pending"] },
+  { roman: "riyaayat", urdu: "رعایت", english: ["discount", "voucher"] },
 ];
 
 /* Build fast lookup sets */
-const ROMAN_WORDS = new Set(BIDIRECTIONAL.map(b => b.roman.toLowerCase()));
-const URDU_TO_ROMAN = new Map(BIDIRECTIONAL.map(b => [b.urdu, b.roman]));
+const ROMAN_WORDS = new Set(BIDIRECTIONAL.map((b) => b.roman.toLowerCase()));
+const URDU_TO_ROMAN = new Map(BIDIRECTIONAL.map((b) => [b.urdu, b.roman]));
 
 /** Expand a raw query into all equivalent search variants */
 export function expandQuery(raw: string): string[] {
@@ -109,13 +139,13 @@ export function expandQuery(raw: string): string[] {
     if (
       q === entry.roman ||
       q === entry.urdu ||
-      entry.english.some(e => q === e) ||
+      entry.english.some((e) => q === e) ||
       entry.roman.includes(q) ||
       q.includes(entry.roman)
     ) {
       variants.add(entry.roman);
       variants.add(entry.urdu);
-      entry.english.forEach(e => variants.add(e));
+      entry.english.forEach((e) => variants.add(e));
     }
   }
 
@@ -123,8 +153,8 @@ export function expandQuery(raw: string): string[] {
   const urduMatch = URDU_TO_ROMAN.get(q);
   if (urduMatch) {
     variants.add(urduMatch);
-    const entry = BIDIRECTIONAL.find(b => b.roman === urduMatch);
-    entry?.english.forEach(e => variants.add(e));
+    const entry = BIDIRECTIONAL.find((b) => b.roman === urduMatch);
+    entry?.english.forEach((e) => variants.add(e));
   }
 
   /* 3. Apply phonemic Roman→script transliteration */
@@ -140,15 +170,15 @@ export function matchesKeywords(
   keywords: string[],
   urduKeywords: string[],
   romanUrduKeywords: string[],
-  maxLevenshtein = 2,
+  maxLevenshtein = 2
 ): boolean {
   const q = query.trim().toLowerCase();
   if (!q || q.length < 2) return false;
 
   const all = [
-    ...keywords.map(k => k.toLowerCase()),
-    ...urduKeywords.map(k => k.toLowerCase()),
-    ...romanUrduKeywords.map(k => k.toLowerCase()),
+    ...keywords.map((k) => k.toLowerCase()),
+    ...urduKeywords.map((k) => k.toLowerCase()),
+    ...romanUrduKeywords.map((k) => k.toLowerCase()),
   ];
 
   /* Direct substring match */

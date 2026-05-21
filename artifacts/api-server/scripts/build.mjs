@@ -16,9 +16,9 @@
  */
 import { build } from "esbuild";
 import { esbuildPluginPino } from "esbuild-plugin-pino";
-import { mkdirSync, readFileSync, existsSync, realpathSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync } from "fs";
 import { createRequire } from "module";
-import { resolve, dirname, join } from "path";
+import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 
 const require = createRequire(import.meta.url);
@@ -46,10 +46,8 @@ const bundleWorkspacePlugin = {
     build.onResolve({ filter: /^@workspace\// }, (args) => {
       const withoutPrefix = args.path.replace("@workspace/", "");
       const slashIdx = withoutPrefix.indexOf("/");
-      const pkgName =
-        slashIdx === -1 ? withoutPrefix : withoutPrefix.slice(0, slashIdx);
-      const subpath =
-        slashIdx === -1 ? "." : `./${withoutPrefix.slice(slashIdx + 1)}`;
+      const pkgName = slashIdx === -1 ? withoutPrefix : withoutPrefix.slice(0, slashIdx);
+      const subpath = slashIdx === -1 ? "." : `./${withoutPrefix.slice(slashIdx + 1)}`;
 
       // Fast path: lib/<pkgName>
       let pkgDir = join(workspaceRoot, "lib", pkgName);
@@ -58,9 +56,7 @@ const bundleWorkspacePlugin = {
       // Generic fallback: resolve via the pnpm workspace symlink.
       // This handles packages that live outside lib/ (e.g. artifacts/*, scripts/).
       if (!existsSync(pkgJsonPath)) {
-        const symlink = join(
-          workspaceRoot, "node_modules", "@workspace", pkgName
-        );
+        const symlink = join(workspaceRoot, "node_modules", "@workspace", pkgName);
         if (!existsSync(symlink)) return null;
         try {
           pkgDir = realpathSync(symlink);
@@ -99,10 +95,7 @@ await build({
   outExtension: { ".js": ".mjs" },
   target: "node20",
   sourcemap: true,
-  plugins: [
-    bundleWorkspacePlugin,
-    esbuildPluginPino({ transports: ["pino-pretty"] }),
-  ],
+  plugins: [bundleWorkspacePlugin, esbuildPluginPino({ transports: ["pino-pretty"] })],
   packages: "external",
   define: {
     "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV ?? "production"),
@@ -140,8 +133,8 @@ if (leakedImports.length > 0) {
   for (const l of leakedImports) console.error("    " + l);
   console.error(
     "\n    Cause: bundleWorkspacePlugin did not resolve them.\n" +
-    "    Fix:   check that the package exists under lib/ and its package.json\n" +
-    "           exports field has an entry for the requested subpath."
+      "    Fix:   check that the package exists under lib/ and its package.json\n" +
+      "           exports field has an entry for the requested subpath."
   );
   process.exit(1);
 }

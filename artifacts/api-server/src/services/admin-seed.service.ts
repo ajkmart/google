@@ -21,17 +21,13 @@
  * The seed is best-effort: failure logs an error and does not crash boot.
  */
 import { db } from "@workspace/db";
-import {
-  adminAccountsTable,
-  rolesTable,
-  adminRoleAssignmentsTable,
-} from "@workspace/db/schema";
+import { adminAccountsTable, adminRoleAssignmentsTable, rolesTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
-import { hashAdminSecret } from "./password.js";
 import { generateId } from "../lib/id.js";
+import { logger } from "../lib/logger.js";
 import { logAdminAudit } from "../middleware/admin-audit.js";
 import { recordAdminPasswordSnapshot } from "./admin-password-watch.service.js";
-import { logger } from "../lib/logger.js";
+import { hashAdminSecret } from "./password.js";
 
 const SUPER_ADMIN_SLUG = "super_admin";
 const DEFAULT_SEED_EMAIL = "admin@ajkmart.local";
@@ -110,10 +106,7 @@ function resolveSeedPassword(): string {
  * it and log a clear message explaining what the operator must do instead.
  */
 export async function seedDefaultSuperAdmin(): Promise<SeedResult> {
-  const existing = await db
-    .select({ id: adminAccountsTable.id })
-    .from(adminAccountsTable)
-    .limit(1);
+  const existing = await db.select({ id: adminAccountsTable.id }).from(adminAccountsTable).limit(1);
 
   if (existing.length > 0) {
     // Idempotent no-op path. Log explicitly so operators can confirm at boot
@@ -132,16 +125,16 @@ export async function seedDefaultSuperAdmin(): Promise<SeedResult> {
     if (!fromEnv || fromEnv.length === 0) {
       logger.fatal(
         "[admin-seed] BLOCKED: no admin accounts exist and ADMIN_SEED_PASSWORD is not set. " +
-        "Set ADMIN_SEED_PASSWORD to a strong unique password in your environment secrets, then restart. " +
-        "The server will not create a default admin account with the documented fallback password in production."
+          "Set ADMIN_SEED_PASSWORD to a strong unique password in your environment secrets, then restart. " +
+          "The server will not create a default admin account with the documented fallback password in production."
       );
       return { created: false };
     }
     if (BLOCKED_SEED_PASSWORDS.has(fromEnv)) {
       logger.fatal(
         "[admin-seed] BLOCKED: ADMIN_SEED_PASSWORD is set to a publicly-known or weak value. " +
-        "Choose a strong, unique password that is not in the documented defaults or common password lists, " +
-        "then set it in your environment secrets and restart."
+          "Choose a strong, unique password that is not in the documented defaults or common password lists, " +
+          "then set it in your environment secrets and restart."
       );
       return { created: false };
     }
@@ -149,7 +142,7 @@ export async function seedDefaultSuperAdmin(): Promise<SeedResult> {
     if (complexityError) {
       logger.fatal(
         `[admin-seed] BLOCKED: ADMIN_SEED_PASSWORD does not meet minimum strength requirements (${complexityError}). ` +
-        "Use a password that is at least 16 characters and includes uppercase, lowercase, digits, and special characters."
+          "Use a password that is at least 16 characters and includes uppercase, lowercase, digits, and special characters."
       );
       return { created: false };
     }
@@ -203,7 +196,7 @@ export async function seedDefaultSuperAdmin(): Promise<SeedResult> {
         .onConflictDoNothing();
     } else {
       logger.warn(
-        "[admin-seed] super_admin role not found — RBAC seed must run before admin seed for the new admin to receive role assignment",
+        "[admin-seed] super_admin role not found — RBAC seed must run before admin seed for the new admin to receive role assignment"
       );
     }
   } catch (err) {
@@ -215,7 +208,9 @@ export async function seedDefaultSuperAdmin(): Promise<SeedResult> {
   // the logs. Subsequent boots are no-ops.
   logger.info({ email, username }, "[admin-seed] default super-admin created");
   logger.info("[admin-seed] password: (default — see ADMIN_SEED_PASSWORD env)");
-  logger.info("[admin-seed] The SPA will offer an OPTIONAL popup on first login so the super-admin can customise their credentials.");
+  logger.info(
+    "[admin-seed] The SPA will offer an OPTIONAL popup on first login so the super-admin can customise their credentials."
+  );
 
   // Persist a permanent audit-log entry so the seeded super-admin shows up
   // in the same audit trail super-admins use day-to-day. Best-effort: a

@@ -41,8 +41,7 @@ export function auditAdminEnv(): AdminEnv {
     warnings.push(`BASE_URL has unexpected type ${typeof env["BASE_URL"]} — defaulting to '/'`);
   }
 
-  const mode =
-    typeof env["MODE"] === "string" ? (env["MODE"] as string) : "production";
+  const mode = typeof env["MODE"] === "string" ? (env["MODE"] as string) : "production";
   if (typeof env["MODE"] !== "string") {
     warnings.push("MODE missing or non-string — defaulting to 'production'");
   }
@@ -63,7 +62,7 @@ export function auditAdminEnv(): AdminEnv {
        `window.location.origin/api` when this is not set. */
     "VITE_API_BASE_URL",
   ]);
-  const viteKeys = Object.keys(env).filter(k => k.startsWith("VITE_"));
+  const viteKeys = Object.keys(env).filter((k) => k.startsWith("VITE_"));
   for (const key of viteKeys) {
     const v = env[key];
     if (v === undefined || v === null || v === "") {
@@ -78,16 +77,14 @@ export function auditAdminEnv(): AdminEnv {
   /* ── VITE_API_BASE_URL structural check ─────────────────────────── */
   const apiBaseRaw = env["VITE_API_BASE_URL"];
   const apiBaseUrl =
-    typeof apiBaseRaw === "string" && apiBaseRaw.trim()
-      ? apiBaseRaw.trim()
-      : undefined;
+    typeof apiBaseRaw === "string" && apiBaseRaw.trim() ? apiBaseRaw.trim() : undefined;
 
   if (apiBaseUrl) {
     try {
       new URL(apiBaseUrl);
     } catch {
       warnings.push(
-        "VITE_API_BASE_URL is not a valid absolute URL — falling back to window.location.origin/api",
+        "VITE_API_BASE_URL is not a valid absolute URL — falling back to window.location.origin/api"
       );
     }
   }

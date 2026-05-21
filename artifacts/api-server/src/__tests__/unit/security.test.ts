@@ -1,13 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Request, Response } from "express";
+import { describe, expect, it, vi } from "vitest";
 import {
-  signAccessToken,
-  verifyUserJwt,
-  hashRefreshToken,
   blacklistJti,
   getClientIp,
+  hashRefreshToken,
   idorGuard,
+  signAccessToken,
+  verifyUserJwt,
 } from "../../middleware/security.js";
-import type { Request, Response } from "express";
 
 // Need JWT_SECRET for these tests — it's resolved at module load from env
 // vitest.config.ts sets JWT_SECRET to a 32+ char test secret
@@ -80,7 +80,9 @@ describe("hashRefreshToken", () => {
 describe("blacklistJti", () => {
   it("does not throw when Redis is unavailable", async () => {
     // Redis is mocked/unavailable in test env — just ensure no throw
-    await expect(blacklistJti("test-jti", Math.floor(Date.now() / 1000) + 100)).resolves.not.toThrow();
+    await expect(
+      blacklistJti("test-jti", Math.floor(Date.now() / 1000) + 100)
+    ).resolves.not.toThrow();
   });
 });
 
@@ -125,7 +127,11 @@ describe("idorGuard", () => {
   });
 
   it("blocks user from accessing another user's resource", () => {
-    const req = { userId: "u-1", customerId: "u-1", params: { userId: "u-2" } } as unknown as Request;
+    const req = {
+      userId: "u-1",
+      customerId: "u-1",
+      params: { userId: "u-2" },
+    } as unknown as Request;
     const res = makeRes();
     const next = vi.fn();
     idorGuard(req, res, next);
@@ -135,7 +141,11 @@ describe("idorGuard", () => {
   });
 
   it("allows user to access their own resource", () => {
-    const req = { userId: "u-1", customerId: "u-1", params: { userId: "u-1" } } as unknown as Request;
+    const req = {
+      userId: "u-1",
+      customerId: "u-1",
+      params: { userId: "u-1" },
+    } as unknown as Request;
     const res = makeRes();
     const next = vi.fn();
     idorGuard(req, res, next);

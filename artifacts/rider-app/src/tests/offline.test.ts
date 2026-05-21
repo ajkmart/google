@@ -16,14 +16,14 @@
  *   pnpm test
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   enqueueAction,
-  syncQueue,
-  registerActionExecutor,
   getQueuePendingCount,
-  type QueuedAction,
+  registerActionExecutor,
+  syncQueue,
   type ActionType,
+  type QueuedAction,
 } from "../lib/offline/queueManager";
 
 // ─── Minimal in-memory fake for IndexedDB ─────────────────────────────────────
@@ -46,7 +46,7 @@ function makeFakeIndexedDB() {
       result: T | undefined;
       error: unknown;
       onsuccess: ((e: { target: typeof req }) => void) | null;
-      onerror:   ((e: { target: typeof req }) => void) | null;
+      onerror: ((e: { target: typeof req }) => void) | null;
     } = { result: undefined, error: null, onsuccess: null, onerror: null };
     queueMicrotask(() => {
       try {
@@ -75,7 +75,10 @@ function makeFakeIndexedDB() {
         return makeReq(() => [...map.values()]);
       },
       delete(key: string) {
-        return makeReq(() => { map.delete(String(key)); return undefined; });
+        return makeReq(() => {
+          map.delete(String(key));
+          return undefined;
+        });
       },
       count() {
         return makeReq(() => map.size);
@@ -87,15 +90,15 @@ function makeFakeIndexedDB() {
     const names = Array.isArray(storeNames) ? storeNames : [storeNames];
     const tx: {
       oncomplete: (() => void) | null;
-      onerror:    (() => void) | null;
-      onabort:    (() => void) | null;
+      onerror: (() => void) | null;
+      onabort: (() => void) | null;
       objectStore: (name: string) => ReturnType<typeof makeStore>;
       error: null;
     } = {
       oncomplete: null,
-      onerror:    null,
-      onabort:    null,
-      error:      null,
+      onerror: null,
+      onabort: null,
+      error: null,
       objectStore(name: string) {
         if (!names.includes(name)) throw new Error(`Store '${name}' not in transaction`);
         return makeStore(name);
@@ -107,25 +110,30 @@ function makeFakeIndexedDB() {
   }
 
   const db = {
-    onclose:         null as null | (() => void),
+    onclose: null as null | (() => void),
     onversionchange: null as null | (() => void),
     objectStoreNames: { contains: (_n: string) => false },
-    transaction:     makeTx,
-    createObjectStore: (name: string) => { stores.set(name, new Map()); return makeStore(name); },
-    close() { /* no-op */ },
+    transaction: makeTx,
+    createObjectStore: (name: string) => {
+      stores.set(name, new Map());
+      return makeStore(name);
+    },
+    close() {
+      /* no-op */
+    },
   };
 
   const openReq: {
     result: typeof db | undefined;
     error: null;
-    onsuccess:        ((e: { target: typeof openReq }) => void) | null;
-    onerror:          ((e: { target: typeof openReq }) => void) | null;
-    onupgradeneeded:  ((e: { target: typeof openReq }) => void) | null;
+    onsuccess: ((e: { target: typeof openReq }) => void) | null;
+    onerror: ((e: { target: typeof openReq }) => void) | null;
+    onupgradeneeded: ((e: { target: typeof openReq }) => void) | null;
   } = {
     result: undefined,
-    error:  null,
-    onsuccess:       null,
-    onerror:         null,
+    error: null,
+    onsuccess: null,
+    onerror: null,
     onupgradeneeded: null,
   };
 
@@ -155,13 +163,14 @@ beforeEach(() => {
   // so the memoised promise is cleared before the next test opens a new one.
   // We call it explicitly here to force the reset.
   const dbEntry = (globalThis as Record<string, unknown>)["_fakeDB"] as
-    { onclose?: () => void } | undefined;
+    | { onclose?: () => void }
+    | undefined;
   dbEntry?.onclose?.();
 });
 
 // ─── Helper: wait for all pending timers + microtasks ─────────────────────────
 function flush(ms = 50): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // ─── 1. Kill internet, try to accept ride → action is queued ──────────────────
@@ -187,8 +196,11 @@ describe("Offline queue — enqueue while offline", () => {
 
   it("enqueueAction for different action types without error", async () => {
     const types: ActionType[] = [
-      "accept_order", "accept_ride", "update_order",
-      "update_ride",  "complete_trip",
+      "accept_order",
+      "accept_ride",
+      "update_order",
+      "update_ride",
+      "complete_trip",
     ];
     for (const type of types) {
       const id = await enqueueAction(type, `entity-${type}`, {});
@@ -207,9 +219,9 @@ describe("Offline queue — sync drains on reconnect", () => {
       executed.push(action.type);
     });
 
-    await enqueueAction("accept_ride",  "ride-10", {});
-    await enqueueAction("update_ride",  "ride-10", { status: "in_transit" });
-    await enqueueAction("complete_trip","ride-10", {});
+    await enqueueAction("accept_ride", "ride-10", {});
+    await enqueueAction("update_ride", "ride-10", { status: "in_transit" });
+    await enqueueAction("complete_trip", "ride-10", {});
     await flush(20);
 
     await syncQueue();
@@ -221,7 +233,9 @@ describe("Offline queue — sync drains on reconnect", () => {
   });
 
   it("syncQueue does not throw when the queue is empty", async () => {
-    registerActionExecutor(async () => { /* no-op */ });
+    registerActionExecutor(async () => {
+      /* no-op */
+    });
     await expect(syncQueue()).resolves.toBeUndefined();
   });
 
@@ -242,14 +256,14 @@ describe("Offline queue — ordering preserved on failure", () => {
     registerActionExecutor(async (action: QueuedAction) => {
       callCount++;
       if (callCount === 1) {
-        throw new Error("network error");   // first action fails
+        throw new Error("network error"); // first action fails
       }
-      executed.push(action.entityId);       // should NOT reach here
+      executed.push(action.entityId); // should NOT reach here
     });
 
-    await enqueueAction("accept_ride",  "ride-first",  {});
-    await enqueueAction("update_ride",  "ride-second", {});
-    await enqueueAction("complete_trip","ride-third",  {});
+    await enqueueAction("accept_ride", "ride-first", {});
+    await enqueueAction("update_ride", "ride-second", {});
+    await enqueueAction("complete_trip", "ride-third", {});
     await flush(20);
 
     await syncQueue();
@@ -308,12 +322,12 @@ describe("Offline queue — pending count", () => {
 describe("Offline queue — FIFO ordering invariant", () => {
   it("QueuedAction objects have required fields when constructed manually", () => {
     const action: QueuedAction = {
-      id:         "test-id",
-      type:       "accept_ride",
-      entityId:   "ride-xyz",
-      payload:    { foo: "bar" },
+      id: "test-id",
+      type: "accept_ride",
+      entityId: "ride-xyz",
+      payload: { foo: "bar" },
       retryCount: 0,
-      createdAt:  Date.now(),
+      createdAt: Date.now(),
     };
 
     expect(action.retryCount).toBe(0);

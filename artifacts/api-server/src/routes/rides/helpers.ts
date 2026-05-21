@@ -1,31 +1,58 @@
-import { randomInt } from "crypto";
-import { logger } from "../../lib/logger.js";
-import { isInServiceZone } from "../../lib/geofence.js";
-import { verifyOwnership } from "../../middleware/verifyOwnership.js";
-import type { GoogleDirectionsResponse, MapboxDirectionsResponse } from "../../types/external-apis.js";
-import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import {
-  liveLocationsTable, notificationsTable, rideBidsTable,
-  rideServiceTypesTable, ridesTable, rideRatingsTable,
-  usersTable, walletTransactionsTable,
-  popularLocationsTable, rideEventLogsTable, rideNotifiedRidersTable,
+  liveLocationsTable,
+  notificationsTable,
+  popularLocationsTable,
+  rideBidsTable,
+  rideEventLogsTable,
+  rideNotifiedRidersTable,
+  rideRatingsTable,
   riderProfilesTable,
+  rideServiceTypesTable,
+  ridesTable,
+  usersTable,
+  walletTransactionsTable,
 } from "@workspace/db/schema";
-import { and, asc, eq, ne, sql, or, isNull, gte, count } from "drizzle-orm";
-import { z } from "zod";
-import { generateId } from "../../lib/id.js";
-import { ensureDefaultRideServices, ensureDefaultLocations, getPlatformSettings, adminAuth } from "../admin.js";
-import { customerAuth, riderAuth, getCachedSettings } from "../../middleware/security.js";
-import { loadRide, requireRideState, requireRideOwner } from "../../middleware/ride-guards.js";
-import { getIO } from "../../lib/socketio.js";
-import { sendSuccess, sendCreated, sendError, sendErrorWithData, sendNotFound, sendForbidden, sendValidationError } from "../../lib/response.js";
 import { t, type TranslationKey } from "@workspace/i18n";
-import { getUserLanguage } from "../../lib/getUserLanguage.js";
-import { emitRiderNewRequest, emitRideDispatchUpdate, emitRideOtp } from "../../lib/socketio.js";
-import { emitRideUpdate, onRideUpdate } from "../../lib/rideEvents.js";
-import { sendPushToUser, sendPushToUsers } from "../../lib/webpush.js";
+import { randomInt } from "crypto";
+import { and, asc, count, eq, gte, isNull, ne, or, sql } from "drizzle-orm";
+import { Router, type IRouter } from "express";
 import rateLimit from "express-rate-limit";
+import { z } from "zod";
+import { isInServiceZone } from "../../lib/geofence.js";
+import { getUserLanguage } from "../../lib/getUserLanguage.js";
+import { generateId } from "../../lib/id.js";
+import { logger } from "../../lib/logger.js";
+import {
+  sendCreated,
+  sendError,
+  sendErrorWithData,
+  sendForbidden,
+  sendNotFound,
+  sendSuccess,
+  sendValidationError,
+} from "../../lib/response.js";
+import { emitRideUpdate, onRideUpdate } from "../../lib/rideEvents.js";
+import {
+  emitRideDispatchUpdate,
+  emitRideOtp,
+  emitRiderNewRequest,
+  getIO,
+} from "../../lib/socketio.js";
+import { sendPushToUser, sendPushToUsers } from "../../lib/webpush.js";
+import { loadRide, requireRideOwner, requireRideState } from "../../middleware/ride-guards.js";
+import { customerAuth, getCachedSettings, riderAuth } from "../../middleware/security.js";
+import { verifyOwnership } from "../../middleware/verifyOwnership.js";
+import type {
+  GoogleDirectionsResponse,
+  MapboxDirectionsResponse,
+} from "../../types/external-apis.js";
+import {
+  adminAuth,
+  ensureDefaultLocations,
+  ensureDefaultRideServices,
+  getPlatformSettings,
+} from "../admin.js";
 
 export function broadcastWalletUpdate(userId: string, newBalance: number) {
   const io = getIO();
@@ -36,7 +63,11 @@ export function broadcastWalletUpdate(userId: string, newBalance: number) {
 /* ── Rate limiters ── */
 export const bargainLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: async () => { const s = await getCachedSettings(); const n = parseInt(s["rate_bargain_per_min"] ?? "5", 10); return Number.isFinite(n) && n > 0 ? n : 5; },
+  max: async () => {
+    const s = await getCachedSettings();
+    const n = parseInt(s["rate_bargain_per_min"] ?? "5", 10);
+    return Number.isFinite(n) && n > 0 ? n : 5;
+  },
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many bargain requests. Please wait a minute before trying again." },
@@ -45,7 +76,11 @@ export const bargainLimiter = rateLimit({
 
 export const bookRideLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: async () => { const s = await getCachedSettings(); const n = parseInt(s["rate_booking_per_min"] ?? "5", 10); return Number.isFinite(n) && n > 0 ? n : 5; },
+  max: async () => {
+    const s = await getCachedSettings();
+    const n = parseInt(s["rate_booking_per_min"] ?? "5", 10);
+    return Number.isFinite(n) && n > 0 ? n : 5;
+  },
   keyGenerator: (req) => req.customerId ?? "anonymous",
   standardHeaders: true,
   legacyHeaders: false,
@@ -55,7 +90,11 @@ export const bookRideLimiter = rateLimit({
 
 export const cancelRideLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: async () => { const s = await getCachedSettings(); const n = parseInt(s["rate_cancel_per_min"] ?? "3", 10); return Number.isFinite(n) && n > 0 ? n : 3; },
+  max: async () => {
+    const s = await getCachedSettings();
+    const n = parseInt(s["rate_cancel_per_min"] ?? "3", 10);
+    return Number.isFinite(n) && n > 0 ? n : 3;
+  },
   keyGenerator: (req) => req.customerId ?? "anonymous",
   standardHeaders: true,
   legacyHeaders: false,
@@ -65,7 +104,11 @@ export const cancelRideLimiter = rateLimit({
 
 export const estimateLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: async () => { const s = await getCachedSettings(); const n = parseInt(s["rate_estimate_per_min"] ?? "30", 10); return Number.isFinite(n) && n > 0 ? n : 30; },
+  max: async () => {
+    const s = await getCachedSettings();
+    const n = parseInt(s["rate_estimate_per_min"] ?? "30", 10);
+    return Number.isFinite(n) && n > 0 ? n : 30;
+  },
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many fare estimate requests. Please wait a moment." },
@@ -94,20 +137,35 @@ export const bookRideSchema = z.object({
   dropLat: z.preprocess(toNumber, latitudeSchema),
   dropLng: z.preprocess(toNumber, coordinateSchema),
   paymentMethod: z.string().min(1),
-  offeredFare: z.preprocess((v) => (v != null && v !== "" ? Number(v) : undefined), z.number().positive().optional()),
+  offeredFare: z.preprocess(
+    (v) => (v != null && v !== "" ? Number(v) : undefined),
+    z.number().positive().optional()
+  ),
   bargainNote: z.string().max(500).transform(stripHtml).optional(),
   isParcel: z.boolean().optional().default(false),
   receiverName: z.string().max(200).transform(stripHtml).optional(),
-  receiverPhone: z.string().max(20).regex(/^03\d{9}$/, "Receiver phone must be a valid Pakistani mobile number (11 digits, starts with 03)").optional(),
+  receiverPhone: z
+    .string()
+    .max(20)
+    .regex(
+      /^03\d{9}$/,
+      "Receiver phone must be a valid Pakistani mobile number (11 digits, starts with 03)"
+    )
+    .optional(),
   packageType: z.string().max(100).transform(stripHtml).optional(),
   isScheduled: z.boolean().optional().default(false),
   scheduledAt: z.string().datetime().optional(),
-  stops: z.array(z.object({
-    address: z.string().max(500),
-    lat: z.number(),
-    lng: z.number(),
-    order: z.number().int(),
-  })).max(5).optional(),
+  stops: z
+    .array(
+      z.object({
+        address: z.string().max(500),
+        lat: z.number(),
+        lng: z.number(),
+        order: z.number().int(),
+      })
+    )
+    .max(5)
+    .optional(),
   isPoolRide: z.boolean().optional().default(false),
 });
 
@@ -153,7 +211,7 @@ export async function getServiceKeys(): Promise<Set<string>> {
     return _serviceKeysCache;
   }
   const rows = await db.select({ key: rideServiceTypesTable.key }).from(rideServiceTypesTable);
-  _serviceKeysCache = new Set(rows.map(r => r.key.toLowerCase()));
+  _serviceKeysCache = new Set(rows.map((r) => r.key.toLowerCase()));
   _serviceKeysCacheAt = Date.now();
   return _serviceKeysCache;
 }
@@ -163,7 +221,10 @@ export async function normalizeVehicleType(raw: string | null | undefined): Prom
   return normalizeVehicleTypeSync(raw, serviceKeys);
 }
 
-export function normalizeVehicleTypeSync(raw: string | null | undefined, serviceKeys: Set<string>): string {
+export function normalizeVehicleTypeSync(
+  raw: string | null | undefined,
+  serviceKeys: Set<string>
+): string {
   const v = (raw ?? "").trim().toLowerCase();
   if (!v) return "";
   if (v === "bike" || v.startsWith("bike") || v.includes("motorcycle")) return "bike";
@@ -191,39 +252,50 @@ export async function broadcastRideAttempt(rideId: string) {
   const pickupLat = parseFloat(ride.pickupLat ?? "");
   const pickupLng = parseFloat(ride.pickupLng ?? "");
   if (!Number.isFinite(pickupLat) || !Number.isFinite(pickupLng)) {
-    logger.error({ rideId, pickupLat: ride.pickupLat, pickupLng: ride.pickupLng }, "[broadcast] Ride has invalid coordinates — skipping dispatch");
+    logger.error(
+      { rideId, pickupLat: ride.pickupLat, pickupLng: ride.pickupLng },
+      "[broadcast] Ride has invalid coordinates — skipping dispatch"
+    );
     return;
   }
 
-  const onlineRiders = await db.select({
-    userId: liveLocationsTable.userId,
-    latitude: liveLocationsTable.latitude,
-    longitude: liveLocationsTable.longitude,
-    isActive: usersTable.isActive,
-    isBanned: usersTable.isBanned,
-    isRestricted: usersTable.isRestricted,
-    vehicleType: riderProfilesTable.vehicleType,
-  }).from(liveLocationsTable)
+  const onlineRiders = await db
+    .select({
+      userId: liveLocationsTable.userId,
+      latitude: liveLocationsTable.latitude,
+      longitude: liveLocationsTable.longitude,
+      isActive: usersTable.isActive,
+      isBanned: usersTable.isBanned,
+      isRestricted: usersTable.isRestricted,
+      vehicleType: riderProfilesTable.vehicleType,
+    })
+    .from(liveLocationsTable)
     .innerJoin(usersTable, eq(liveLocationsTable.userId, usersTable.id))
     .leftJoin(riderProfilesTable, eq(liveLocationsTable.userId, riderProfilesTable.userId))
-    .where(and(
-      eq(liveLocationsTable.role, "rider"),
-      gte(liveLocationsTable.updatedAt, new Date(Date.now() - 5 * 60 * 1000)),
-      eq(usersTable.isActive, true),
-      eq(usersTable.isBanned, false),
-      eq(usersTable.isRestricted, false),
-    ));
+    .where(
+      and(
+        eq(liveLocationsTable.role, "rider"),
+        gte(liveLocationsTable.updatedAt, new Date(Date.now() - 5 * 60 * 1000)),
+        eq(usersTable.isActive, true),
+        eq(usersTable.isBanned, false),
+        eq(usersTable.isRestricted, false)
+      )
+    );
 
   const [alreadyNotified, busyRiders] = await Promise.all([
-    db.select({ riderId: rideNotifiedRidersTable.riderId })
+    db
+      .select({ riderId: rideNotifiedRidersTable.riderId })
       .from(rideNotifiedRidersTable)
       .where(eq(rideNotifiedRidersTable.rideId, rideId)),
-    db.select({ riderId: ridesTable.riderId })
+    db
+      .select({ riderId: ridesTable.riderId })
       .from(ridesTable)
-      .where(sql`${ridesTable.riderId} IS NOT NULL AND ${ridesTable.status} IN ('accepted', 'arrived', 'in_transit')`),
+      .where(
+        sql`${ridesTable.riderId} IS NOT NULL AND ${ridesTable.status} IN ('accepted', 'arrived', 'in_transit')`
+      ),
   ]);
-  const alreadySet = new Set(alreadyNotified.map(r => r.riderId));
-  const busySet = new Set(busyRiders.map(r => r.riderId));
+  const alreadySet = new Set(alreadyNotified.map((r) => r.riderId));
+  const busySet = new Set(busyRiders.map((r) => r.riderId));
 
   let notifiedCount = 0;
   const failedSocketRiderIds: string[] = [];
@@ -256,18 +328,37 @@ export async function broadcastRideAttempt(rideId: string) {
       .replace("{dist}", dist.toFixed(1))
       .replace("{eta}", String(etaMin));
 
-    await db.insert(notificationsTable).values({
-      id: generateId(), userId: r.userId,
-      title: `${t(titleKey, riderLang)} 🚗`,
-      body: bodyStr,
-      type: "ride", icon: "car-outline", link: `/ride/${rideId}`,
-    }).catch((e: Error) => logger.warn({ rideId, riderId: r.userId, err: e.message }, "[broadcast] notification insert failed"));
+    await db
+      .insert(notificationsTable)
+      .values({
+        id: generateId(),
+        userId: r.userId,
+        title: `${t(titleKey, riderLang)} 🚗`,
+        body: bodyStr,
+        type: "ride",
+        icon: "car-outline",
+        link: `/ride/${rideId}`,
+      })
+      .catch((e: Error) =>
+        logger.warn(
+          { rideId, riderId: r.userId, err: e.message },
+          "[broadcast] notification insert failed"
+        )
+      );
 
-    await db.insert(rideNotifiedRidersTable).values({
-      id: generateId(),
-      rideId,
-      riderId: r.userId,
-    }).catch((e: Error) => logger.warn({ rideId, riderId: r.userId, err: e.message }, "[broadcast] rideNotifiedRiders insert failed"));
+    await db
+      .insert(rideNotifiedRidersTable)
+      .values({
+        id: generateId(),
+        rideId,
+        riderId: r.userId,
+      })
+      .catch((e: Error) =>
+        logger.warn(
+          { rideId, riderId: r.userId, err: e.message },
+          "[broadcast] rideNotifiedRiders insert failed"
+        )
+      );
 
     try {
       emitRiderNewRequest(r.userId, {
@@ -277,7 +368,10 @@ export async function broadcastRideAttempt(rideId: string) {
       });
     } catch (emitErr) {
       failedSocketRiderIds.push(r.userId);
-      logger.warn({ rideId, riderId: r.userId, err: (emitErr as Error).message }, "[broadcast] socket emit to rider failed on first attempt");
+      logger.warn(
+        { rideId, riderId: r.userId, err: (emitErr as Error).message },
+        "[broadcast] socket emit to rider failed on first attempt"
+      );
     }
 
     try {
@@ -289,44 +383,75 @@ export async function broadcastRideAttempt(rideId: string) {
       });
     } catch (pushErr) {
       failedPushRiderIds.push({ userId: r.userId, fareStr });
-      logger.warn({ rideId, riderId: r.userId, err: (pushErr as Error).message }, "[broadcast] push notification failed on first attempt");
+      logger.warn(
+        { rideId, riderId: r.userId, err: (pushErr as Error).message },
+        "[broadcast] push notification failed on first attempt"
+      );
     }
 
     notifiedCount++;
   }
 
   if (failedSocketRiderIds.length > 0) {
-    logger.warn({ rideId, notifiedCount, socketFailures: failedSocketRiderIds.length }, "[broadcast] retrying failed socket emissions");
+    logger.warn(
+      { rideId, notifiedCount, socketFailures: failedSocketRiderIds.length },
+      "[broadcast] retrying failed socket emissions"
+    );
     await new Promise((r) => setTimeout(r, 500));
     for (const riderId of failedSocketRiderIds) {
       try {
         emitRiderNewRequest(riderId, { type: "ride", requestId: rideId, summary: rideSummary });
       } catch (retryErr) {
-        logger.error({ rideId, riderId, err: (retryErr as Error).message }, "[broadcast] socket retry also failed — giving up for rider");
+        logger.error(
+          { rideId, riderId, err: (retryErr as Error).message },
+          "[broadcast] socket retry also failed — giving up for rider"
+        );
       }
     }
   }
 
   if (failedPushRiderIds.length > 0) {
-    logger.warn({ rideId, pushFailures: failedPushRiderIds.length }, "[broadcast] retrying failed push notifications");
+    logger.warn(
+      { rideId, pushFailures: failedPushRiderIds.length },
+      "[broadcast] retrying failed push notifications"
+    );
     for (const { userId: rid, fareStr } of failedPushRiderIds) {
       sendPushToUser(rid, {
         title: "🚗 New Ride Request",
         body: `${rideSummary} · Rs. ${fareStr}`,
         tag: `ride-request-${rideId}`,
         data: { rideId },
-      }).catch((e: Error) => logger.error({ rideId, riderId: rid, err: e.message }, "[broadcast] push retry also failed — giving up for rider"));
+      }).catch((e: Error) =>
+        logger.error(
+          { rideId, riderId: rid, err: e.message },
+          "[broadcast] push retry also failed — giving up for rider"
+        )
+      );
     }
   }
 
   if (notifiedCount === 0 && alreadySet.size === 0) {
-    logger.warn({ rideId, radiusKm, onlineRiderCount: onlineRiders.length }, "[broadcast] NO_RIDERS_AVAILABLE — no eligible riders within radius");
-    await db.insert(notificationsTable).values({
-      id: generateId(), userId: ride.userId,
-      title: "No riders available",
-      body: "No riders are currently available in your area. We'll keep searching — you'll be notified as soon as a rider accepts.",
-      type: "ride", icon: "car-outline", link: `/ride/${rideId}`,
-    }).catch((e: Error) => logger.warn({ rideId, userId: ride.userId, err: e.message }, "[broadcast] no-riders notification insert failed"));
+    logger.warn(
+      { rideId, radiusKm, onlineRiderCount: onlineRiders.length },
+      "[broadcast] NO_RIDERS_AVAILABLE — no eligible riders within radius"
+    );
+    await db
+      .insert(notificationsTable)
+      .values({
+        id: generateId(),
+        userId: ride.userId,
+        title: "No riders available",
+        body: "No riders are currently available in your area. We'll keep searching — you'll be notified as soon as a rider accepts.",
+        type: "ride",
+        icon: "car-outline",
+        link: `/ride/${rideId}`,
+      })
+      .catch((e: Error) =>
+        logger.warn(
+          { rideId, userId: ride.userId, err: e.message },
+          "[broadcast] no-riders notification insert failed"
+        )
+      );
     emitRideDispatchUpdate({
       rideId,
       action: "NO_RIDERS_AVAILABLE",
@@ -334,32 +459,43 @@ export async function broadcastRideAttempt(rideId: string) {
     });
   }
 
-  await db.update(ridesTable).set({
-    dispatchedAt: ride.dispatchedAt ?? new Date(),
-    updatedAt: new Date(),
-  }).where(and(eq(ridesTable.id, rideId), isNull(ridesTable.riderId)));
+  await db
+    .update(ridesTable)
+    .set({
+      dispatchedAt: ride.dispatchedAt ?? new Date(),
+      updatedAt: new Date(),
+    })
+    .where(and(eq(ridesTable.id, rideId), isNull(ridesTable.riderId)));
 }
 
 export async function broadcastRide(rideId: string) {
   try {
     await broadcastRideAttempt(rideId);
   } catch (err) {
-    logger.error({ rideId, err: (err as Error).message, stack: (err as Error).stack }, "[broadcast] first attempt failed for ride, retrying");
+    logger.error(
+      { rideId, err: (err as Error).message, stack: (err as Error).stack },
+      "[broadcast] first attempt failed for ride, retrying"
+    );
     try {
       await new Promise((r) => setTimeout(r, 1500));
       await broadcastRideAttempt(rideId);
     } catch (retryErr) {
-      logger.error({ rideId, err: (retryErr as Error).message, stack: (retryErr as Error).stack }, "[broadcast] retry also failed for ride — giving up");
+      logger.error(
+        { rideId, err: (retryErr as Error).message, stack: (retryErr as Error).stack },
+        "[broadcast] retry also failed for ride — giving up"
+      );
     }
   }
 }
 
 export async function cleanupNotifiedRiders(rideId: string) {
   try {
-    await db.delete(rideNotifiedRidersTable)
-      .where(eq(rideNotifiedRidersTable.rideId, rideId));
+    await db.delete(rideNotifiedRidersTable).where(eq(rideNotifiedRidersTable.rideId, rideId));
   } catch (e: unknown) {
-    logger.warn({ rideId, err: e instanceof Error ? e.message : String(e) }, "[rides] cleanupNotifiedRiders failed");
+    logger.warn(
+      { rideId, err: e instanceof Error ? e.message : String(e) },
+      "[rides] cleanupNotifiedRiders failed"
+    );
   }
 }
 
@@ -367,7 +503,7 @@ export class RideApiError extends Error {
   constructor(
     message: string,
     public readonly code: string,
-    public readonly httpStatus: number = 422,
+    public readonly httpStatus: number = 422
   ) {
     super(message);
     this.name = "RideApiError";
@@ -376,12 +512,18 @@ export class RideApiError extends Error {
 
 export function calcDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   if (!isFinite(lat1) || !isFinite(lng1) || !isFinite(lat2) || !isFinite(lng2)) {
-    throw new RideApiError("Invalid coordinates: all values must be finite numbers", "INVALID_COORDINATES", 422);
+    throw new RideApiError(
+      "Invalid coordinates: all values must be finite numbers",
+      "INVALID_COORDINATES",
+      422
+    );
   }
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -389,9 +531,22 @@ export function generateOtp(): string {
   return String(randomInt(1000, 10000));
 }
 
-export async function getRoadDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number): Promise<{ distanceKm: number; durationSeconds: number; source: "google" | "mapbox" | "haversine" }> {
+export async function getRoadDistanceKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): Promise<{
+  distanceKm: number;
+  durationSeconds: number;
+  source: "google" | "mapbox" | "haversine";
+}> {
   const haversine = calcDistance(lat1, lng1, lat2, lng2);
-  const haversineFallback = { distanceKm: haversine, durationSeconds: Math.round((haversine / 45) * 3600), source: "haversine" as const };
+  const haversineFallback = {
+    distanceKm: haversine,
+    durationSeconds: Math.round((haversine / 45) * 3600),
+    source: "haversine" as const,
+  };
 
   try {
     const s = await getCachedSettings();
@@ -401,12 +556,12 @@ export async function getRoadDistanceKm(lat1: number, lng1: number, lat2: number
       const googleKey = s["maps_api_key"];
       if (!googleKey) return haversineFallback;
       const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${lat1},${lng1}&destination=${lat2},${lng2}&mode=driving&key=${googleKey}`;
-      const raw  = await fetch(url, { signal: AbortSignal.timeout(4000) });
-      const data = await raw.json() as GoogleDirectionsResponse;
+      const raw = await fetch(url, { signal: AbortSignal.timeout(4000) });
+      const data = (await raw.json()) as GoogleDirectionsResponse;
       if (data.status === "OK" && data.routes?.length) {
         const leg = data.routes[0].legs[0];
         return {
-          distanceKm:      Math.round(leg.distance.value / 100) / 10,
+          distanceKm: Math.round(leg.distance.value / 100) / 10,
           durationSeconds: leg.duration.value,
           source: "google",
         };
@@ -417,114 +572,179 @@ export async function getRoadDistanceKm(lat1: number, lng1: number, lat2: number
       const mapboxKey = s["mapbox_api_key"];
       if (!mapboxKey) return haversineFallback;
       const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${lng1},${lat1};${lng2},${lat2}?access_token=${mapboxKey}&overview=false`;
-      const raw  = await fetch(url, { signal: AbortSignal.timeout(4000) });
-      const data = await raw.json() as MapboxDirectionsResponse;
+      const raw = await fetch(url, { signal: AbortSignal.timeout(4000) });
+      const data = (await raw.json()) as MapboxDirectionsResponse;
       if (data.routes?.length) {
         return {
-          distanceKm:      Math.round(data.routes[0].distance / 100) / 10,
+          distanceKm: Math.round(data.routes[0].distance / 100) / 10,
           durationSeconds: Math.round(data.routes[0].duration),
           source: "mapbox",
         };
       }
     }
   } catch (err) {
-    logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] Network error — fall through to haversine`);
+    logger.debug(
+      { error: err instanceof Error ? err.message : String(err) },
+      `[fn] Network error — fall through to haversine`
+    );
   }
 
   return haversineFallback;
 }
 
-export async function calcFare(distance: number, type: string): Promise<{ baseFare: number; gstAmount: number; total: number; minFare: number }> {
+export async function calcFare(
+  distance: number,
+  type: string
+): Promise<{ baseFare: number; gstAmount: number; total: number; minFare: number }> {
   if (!isFinite(distance) || distance < 0) {
-    throw new RideApiError("Invalid distance: must be a non-negative number", "INVALID_DISTANCE", 422);
+    throw new RideApiError(
+      "Invalid distance: must be a non-negative number",
+      "INVALID_DISTANCE",
+      422
+    );
   }
   if (!type || typeof type !== "string") {
-    throw new RideApiError("Invalid service type: must be a non-empty string", "INVALID_SERVICE_TYPE", 422);
+    throw new RideApiError(
+      "Invalid service type: must be a non-empty string",
+      "INVALID_SERVICE_TYPE",
+      422
+    );
   }
 
   const s = await getCachedSettings();
 
   let baseRate: number, perKm: number, minFare: number;
   const psBase = s[`ride_${type}_base_fare`];
-  const psKm   = s[`ride_${type}_per_km`];
-  const psMin  = s[`ride_${type}_min_fare`];
+  const psKm = s[`ride_${type}_per_km`];
+  const psMin = s[`ride_${type}_min_fare`];
 
   if (psBase !== undefined && psKm !== undefined && psMin !== undefined) {
     baseRate = parseFloat(psBase);
-    perKm    = parseFloat(psKm);
-    minFare  = parseFloat(psMin);
+    perKm = parseFloat(psKm);
+    minFare = parseFloat(psMin);
   } else {
-    const [svc] = await db.select().from(rideServiceTypesTable).where(eq(rideServiceTypesTable.key, type)).limit(1);
+    const [svc] = await db
+      .select()
+      .from(rideServiceTypesTable)
+      .where(eq(rideServiceTypesTable.key, type))
+      .limit(1);
     if (!svc) {
       throw new RideApiError(`Unknown ride service type: '${type}'`, "UNKNOWN_SERVICE_TYPE", 422);
     }
     if (svc.baseFare == null || svc.perKm == null || svc.minFare == null) {
-      throw new RideApiError(`Ride service '${type}' is missing fare configuration (baseFare, perKm, or minFare).`, "SERVICE_FARE_NOT_CONFIGURED", 500);
+      throw new RideApiError(
+        `Ride service '${type}' is missing fare configuration (baseFare, perKm, or minFare).`,
+        "SERVICE_FARE_NOT_CONFIGURED",
+        500
+      );
     }
     baseRate = parseFloat(svc.baseFare);
-    perKm    = parseFloat(svc.perKm);
-    minFare  = parseFloat(svc.minFare);
+    perKm = parseFloat(svc.perKm);
+    minFare = parseFloat(svc.minFare);
   }
 
   if (!isFinite(baseRate) || !isFinite(perKm) || !isFinite(minFare)) {
-    throw new RideApiError("Fare configuration is invalid for this service type", "INVALID_FARE_CONFIG", 500);
+    throw new RideApiError(
+      "Fare configuration is invalid for this service type",
+      "INVALID_FARE_CONFIG",
+      500
+    );
   }
 
-  const surgeEnabled    = (s["ride_surge_enabled"] ?? "off") === "on";
+  const surgeEnabled = (s["ride_surge_enabled"] ?? "off") === "on";
   const surgeMultiplier = surgeEnabled ? parseFloat(s["ride_surge_multiplier"] ?? "1.5") : 1;
-  const raw      = Math.round(baseRate + distance * perKm);
+  const raw = Math.round(baseRate + distance * perKm);
   const baseFare = Math.round(Math.max(minFare, raw) * surgeMultiplier);
   const gstEnabled = (s["finance_gst_enabled"] ?? "off") === "on";
-  const gstPct     = parseFloat(s["finance_gst_pct"] ?? "17");
-  const gstAmount  = gstEnabled ? Math.round((baseFare * gstPct) / 100) : 0;
-  const total      = baseFare + gstAmount;
+  const gstPct = parseFloat(s["finance_gst_pct"] ?? "17");
+  const gstAmount = gstEnabled ? Math.round((baseFare * gstPct) / 100) : 0;
+  const total = baseFare + gstAmount;
   return { baseFare, gstAmount, total, minFare };
 }
 
-const toISO = (v: unknown) => v ? (v instanceof Date ? v.toISOString() : v) : null;
+const toISO = (v: unknown) => (v ? (v instanceof Date ? v.toISOString() : v) : null);
 export function formatRide(r: Record<string, unknown>) {
   return {
     ...r,
-    fare:          parseFloat(String(r.fare         ?? "0")),
-    distance:      parseFloat(String(r.distance     ?? "0")),
-    offeredFare:   r.offeredFare  ? parseFloat(String(r.offeredFare))  : null,
-    counterFare:   r.counterFare  ? parseFloat(String(r.counterFare))  : null,
+    fare: parseFloat(String(r.fare ?? "0")),
+    distance: parseFloat(String(r.distance ?? "0")),
+    offeredFare: r.offeredFare ? parseFloat(String(r.offeredFare)) : null,
+    counterFare: r.counterFare ? parseFloat(String(r.counterFare)) : null,
     bargainRounds: r.bargainRounds ?? 0,
-    createdAt:     toISO(r.createdAt),
-    updatedAt:     toISO(r.updatedAt),
-    acceptedAt:    toISO(r.acceptedAt),
-    arrivedAt:     toISO(r.arrivedAt),
-    startedAt:     toISO(r.startedAt),
-    completedAt:   toISO(r.completedAt),
-    cancelledAt:   toISO(r.cancelledAt),
-    tripOtp:       r.tripOtp  ?? null,
-    otpVerified:   r.otpVerified ?? false,
-    isParcel:      r.isParcel ?? false,
-    receiverName:  r.receiverName  ?? null,
+    createdAt: toISO(r.createdAt),
+    updatedAt: toISO(r.updatedAt),
+    acceptedAt: toISO(r.acceptedAt),
+    arrivedAt: toISO(r.arrivedAt),
+    startedAt: toISO(r.startedAt),
+    completedAt: toISO(r.completedAt),
+    cancelledAt: toISO(r.cancelledAt),
+    tripOtp: r.tripOtp ?? null,
+    otpVerified: r.otpVerified ?? false,
+    isParcel: r.isParcel ?? false,
+    receiverName: r.receiverName ?? null,
     receiverPhone: r.receiverPhone ?? null,
-    packageType:   r.packageType   ?? null,
+    packageType: r.packageType ?? null,
     broadcastExpiresAt: toISO(r.expiresAt),
   };
 }
 
 export {
-  randomInt, logger, isInServiceZone, verifyOwnership, Router, db,
-  liveLocationsTable, notificationsTable, rideBidsTable,
-  rideServiceTypesTable, ridesTable, rideRatingsTable,
-  usersTable, walletTransactionsTable,
-  popularLocationsTable, rideEventLogsTable, rideNotifiedRidersTable,
-  riderProfilesTable,
-  and, asc, eq, ne, sql, or, isNull, gte, count,
-  z, generateId,
-  ensureDefaultRideServices, ensureDefaultLocations, getPlatformSettings, adminAuth,
-  customerAuth, riderAuth, getCachedSettings,
-  loadRide, requireRideState, requireRideOwner,
+  adminAuth,
+  and,
+  asc,
+  count,
+  customerAuth,
+  db,
+  emitRideDispatchUpdate,
+  emitRideOtp,
+  emitRiderNewRequest,
+  emitRideUpdate,
+  ensureDefaultLocations,
+  ensureDefaultRideServices,
+  eq,
+  generateId,
+  getCachedSettings,
   getIO,
-  sendSuccess, sendCreated, sendError, sendErrorWithData, sendNotFound, sendForbidden, sendValidationError,
-  t, getUserLanguage,
-  emitRiderNewRequest, emitRideDispatchUpdate, emitRideOtp,
-  emitRideUpdate, onRideUpdate,
-  sendPushToUser, sendPushToUsers,
+  getPlatformSettings,
+  getUserLanguage,
+  gte,
+  isInServiceZone,
+  isNull,
+  liveLocationsTable,
+  loadRide,
+  logger,
+  ne,
+  notificationsTable,
+  onRideUpdate,
+  or,
+  popularLocationsTable,
+  randomInt,
   rateLimit,
+  requireRideOwner,
+  requireRideState,
+  rideBidsTable,
+  rideEventLogsTable,
+  rideNotifiedRidersTable,
+  rideRatingsTable,
+  riderAuth,
+  riderProfilesTable,
+  rideServiceTypesTable,
+  ridesTable,
+  Router,
+  sendCreated,
+  sendError,
+  sendErrorWithData,
+  sendForbidden,
+  sendNotFound,
+  sendPushToUser,
+  sendPushToUsers,
+  sendSuccess,
+  sendValidationError,
+  sql,
+  t,
+  usersTable,
+  verifyOwnership,
+  walletTransactionsTable,
+  z,
 };
 export type { IRouter, TranslationKey };

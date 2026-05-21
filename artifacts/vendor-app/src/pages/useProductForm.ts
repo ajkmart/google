@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
 import { useMutation, type QueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { errMsg } from "../lib/ui";
 
@@ -101,9 +101,9 @@ export function useProductForm({
 
   // ── Field setter — clears the matching error on change ──
   const f = (k: string, v: unknown) => {
-    setForm(p => ({ ...p, [k]: v }));
+    setForm((p) => ({ ...p, [k]: v }));
     if (k === "name" || k === "price" || k === "category") {
-      setFormErrors(prev => ({ ...prev, [k]: undefined }));
+      setFormErrors((prev) => ({ ...prev, [k]: undefined }));
     }
   };
 
@@ -111,8 +111,7 @@ export function useProductForm({
   const validateForm = (): boolean => {
     const errors: { name?: string; price?: string; category?: string } = {};
     if (!form.name.trim()) errors.name = "Product name is required";
-    if (!form.price || Number(form.price) <= 0)
-      errors.price = "A valid price is required";
+    if (!form.price || Number(form.price) <= 0) errors.price = "A valid price is required";
     if (!form.category) errors.category = "Please select a category";
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -123,7 +122,7 @@ export function useProductForm({
   const maxVideoDurationSec = config.uploads?.maxVideoDurationSec ?? 60;
   const allowedVideoFormats =
     (config.uploads?.allowedVideoFormats ?? []).length > 0
-      ? config.uploads!.allowedVideoFormats!.map(fmt => `video/${fmt}`)
+      ? config.uploads!.allowedVideoFormats!.map((fmt) => `video/${fmt}`)
       : ["video/mp4", "video/quicktime", "video/webm"];
 
   const getVideoDuration = (file: File): Promise<number> =>
@@ -180,7 +179,7 @@ export function useProductForm({
   const tagsFromForm = (t: string): string[] =>
     t
       .split(",")
-      .map(s => s.trim())
+      .map((s) => s.trim())
       .filter(Boolean);
 
   // ── Mutations ──
@@ -214,9 +213,7 @@ export function useProductForm({
         }
         setShowAdd(false);
         setForm({ ...EMPTY_FORM });
-        showToast(
-          storageMsg ? storageMsg.slice(5) : "📥 Saved offline — will sync when connected"
-        );
+        showToast(storageMsg ? storageMsg.slice(5) : "📥 Saved offline — will sync when connected");
         return Promise.resolve(null);
       }
       if (totalProductCount === null)
@@ -235,7 +232,7 @@ export function useProductForm({
         isHidden: form.isHidden,
       });
     },
-    onSuccess: result => {
+    onSuccess: (result) => {
       if (result === null) return;
       qc.invalidateQueries({ queryKey: ["vendor-products"] });
       qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
@@ -269,9 +266,7 @@ export function useProductForm({
         }
         setEditProd(null);
         setShowAdd(false);
-        showToast(
-          storageMsg ? storageMsg.slice(5) : "📥 Saved offline — will sync when connected"
-        );
+        showToast(storageMsg ? storageMsg.slice(5) : "📥 Saved offline — will sync when connected");
         return Promise.resolve(null);
       }
       const lowStockThresholdVal = editThreshold !== "" ? Number(editThreshold) : null;
@@ -286,7 +281,7 @@ export function useProductForm({
         lowStockThreshold: lowStockThresholdVal,
       });
     },
-    onSuccess: result => {
+    onSuccess: (result) => {
       if (result === null) return;
       if (editProd) {
         if (editThreshold !== "") {

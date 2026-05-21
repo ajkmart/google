@@ -13,15 +13,13 @@
  * keeping the test token compatible with a concurrently running dev server.
  */
 
-import { describe, it, expect, beforeAll } from "vitest";
-import supertest from "supertest";
-import jwt from "jsonwebtoken";
 import type { Express } from "express";
+import jwt from "jsonwebtoken";
+import supertest from "supertest";
+import { beforeAll, describe, expect, it } from "vitest";
 
-const FALLBACK_JWT_SECRET =
-  "api_health_check_test_secret_placeholder_32chars";
-const FALLBACK_ADMIN_SECRET =
-  "api_health_check_admin_test_placeholder_32chars";
+const FALLBACK_JWT_SECRET = "api_health_check_test_secret_placeholder_32chars";
+const FALLBACK_ADMIN_SECRET = "api_health_check_admin_test_placeholder_32chars";
 
 let app: Express;
 let jwtSecret: string;
@@ -32,7 +30,7 @@ beforeAll(async () => {
   jwtSecret = process.env["JWT_SECRET"]!;
 
   const { createServer } = await import("../app.js");
-  app = await createServer() as any;
+  app = (await createServer()) as any;
 }, 30000);
 
 function makeAdminToken(overrides: Record<string, unknown> = {}): string {
@@ -46,7 +44,7 @@ function makeAdminToken(overrides: Record<string, unknown> = {}): string {
       ...overrides,
     },
     process.env["ADMIN_ACCESS_TOKEN_SECRET"] ?? jwtSecret,
-    { expiresIn: "1h", issuer: process.env["JWT_ISSUER"] ?? "ajkmart-admin", algorithm: "HS256" },
+    { expiresIn: "1h", issuer: process.env["JWT_ISSUER"] ?? "ajkmart-admin", algorithm: "HS256" }
   );
 }
 
@@ -139,9 +137,7 @@ describe("Customer-protected endpoints reject unauthenticated requests", () => {
 describe("Admin-protected endpoints with valid admin JWT", () => {
   it("GET /api/admin/system/stats returns 200 with valid admin token", async () => {
     const token = makeAdminToken();
-    const res = await api()
-      .get("/api/admin/system/stats")
-      .set("Authorization", `Bearer ${token}`);
+    const res = await api().get("/api/admin/system/stats").set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(res.body.stats).toBeDefined();
     expect(typeof res.body.stats.users).toBe("number");
@@ -164,9 +160,7 @@ describe("Admin-protected endpoints with valid admin JWT", () => {
 
   it("GET /api/legal returns 200 with valid admin token", async () => {
     const token = makeAdminToken();
-    const res = await api()
-      .get("/api/legal")
-      .set("Authorization", `Bearer ${token}`);
+    const res = await api().get("/api/legal").set("Authorization", `Bearer ${token}`);
     expect([200, 404]).toContain(res.status);
     expect(res.body.success).toBeDefined();
   });

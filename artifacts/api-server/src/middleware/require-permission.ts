@@ -12,10 +12,10 @@
  *     adminAuth, csrfProtection, requirePermission("users.delete"),
  *     handler);
  */
-import type { Request, Response, NextFunction } from "express";
-import { resolveAdminPermissions } from "../services/permissions.service.js";
 import { assertPermissionId } from "@workspace/auth-utils/permissions";
+import type { NextFunction, Request, Response } from "express";
 import { logger } from "../lib/logger.js";
+import { resolveAdminPermissions } from "../services/permissions.service.js";
 
 function isSuper(req: Request): boolean {
   return req.adminRole === "super";
@@ -63,7 +63,7 @@ export function requireAnyPermission(permissions: string[]) {
     if (isSuper(req)) return next();
     try {
       const perms = await effectivePerms(req);
-      if (permissions.some(p => perms.includes(p))) return next();
+      if (permissions.some((p) => perms.includes(p))) return next();
     } catch (err) {
       logger.error({ err, permissions }, "[requireAnyPermission] resolve failed");
     }
@@ -86,7 +86,7 @@ export function requireAllPermissions(permissions: string[]) {
     if (isSuper(req)) return next();
     try {
       const perms = await effectivePerms(req);
-      if (permissions.every(p => perms.includes(p))) return next();
+      if (permissions.every((p) => perms.includes(p))) return next();
     } catch (err) {
       logger.error({ err, permissions }, "[requireAllPermissions] resolve failed");
     }

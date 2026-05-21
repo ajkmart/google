@@ -14,19 +14,19 @@ const log = createLogger("[UniversalMap]");
  * Map provider and API token are fetched from /api/maps/config (DB-managed)
  * so API keys never appear in the frontend build artifacts.
  */
-import { useRef, useEffect, useMemo, useState, lazy, Suspense } from "react";
-import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 import { escapeHtml } from "@/lib/escapeHtml";
 import { sanitizeMarkerHtml } from "@/lib/sanitizeMarkerHtml";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { MapContainer, Marker, Polyline, TileLayer, useMap } from "react-leaflet";
 
 /* ── Fix Leaflet's broken default icon paths in Vite ── */
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
 export type MapProvider = "osm" | "mapbox" | "google";
@@ -135,7 +135,8 @@ function LeafletMap({
   }, [provider, token]);
 
   const tileAttrib = useMemo(() => {
-    if (provider === "mapbox") return '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+    if (provider === "mapbox")
+      return '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
     if (provider === "google") return "© Google Maps";
     return '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
   }, [provider]);
@@ -151,7 +152,7 @@ function LeafletMap({
       <TileLayer url={tileUrl} attribution={tileAttrib} maxZoom={19} />
       <LeafletCenterUpdater center={center} zoom={zoom} />
 
-      {markers.map(m => (
+      {markers.map((m) => (
         <Marker
           key={m.id}
           position={[m.lat, m.lng]}
@@ -160,7 +161,7 @@ function LeafletMap({
         />
       ))}
 
-      {polylines.map(p => (
+      {polylines.map((p) => (
         <Polyline
           key={p.id}
           positions={p.positions}
@@ -187,11 +188,19 @@ function LeafletMap({
 /* Dynamic import wrapper — only executed when Mapbox is active */
 const MapboxMapLazy = lazy(() =>
   /* react-map-gl v8 uses subpath exports — import the mapbox entry directly */
-  import("react-map-gl/mapbox").then(rgl => {
+  import("react-map-gl/mapbox").then((rgl) => {
     const { default: MapGL, Marker: MapboxMarker, Source, Layer, NavigationControl } = rgl;
 
     function MapboxMapImpl(props: UniversalMapProps) {
-      const { token = "", center, zoom = 12, markers = [], polylines = [], style, className } = props;
+      const {
+        token = "",
+        center,
+        zoom = 12,
+        markers = [],
+        polylines = [],
+        style,
+        className,
+      } = props;
       const [viewState, setViewState] = useState({
         longitude: center[1],
         latitude: center[0],
@@ -199,22 +208,29 @@ const MapboxMapLazy = lazy(() =>
       });
 
       useEffect(() => {
-        setViewState(v => ({ ...v, latitude: center[0], longitude: center[1] }));
-      /* eslint-disable-next-line react-hooks/exhaustive-deps */
+        setViewState((v) => ({ ...v, latitude: center[0], longitude: center[1] }));
+        /* eslint-disable-next-line react-hooks/exhaustive-deps */
       }, [center[0], center[1]]);
 
-      const polylineGeoJSON = useMemo(() => ({
-        type: "FeatureCollection" as const,
-        features: polylines.map(p => ({
-          type: "Feature" as const,
-          id: p.id,
-          geometry: {
-            type: "LineString" as const,
-            coordinates: p.positions.map(([lat, lng]) => [lng, lat]),
-          },
-          properties: { color: p.color ?? "#6366f1", opacity: p.opacity ?? 0.7, weight: p.weight ?? 2.5 },
-        })),
-      }), [polylines]);
+      const polylineGeoJSON = useMemo(
+        () => ({
+          type: "FeatureCollection" as const,
+          features: polylines.map((p) => ({
+            type: "Feature" as const,
+            id: p.id,
+            geometry: {
+              type: "LineString" as const,
+              coordinates: p.positions.map(([lat, lng]) => [lng, lat]),
+            },
+            properties: {
+              color: p.color ?? "#6366f1",
+              opacity: p.opacity ?? 0.7,
+              weight: p.weight ?? 2.5,
+            },
+          })),
+        }),
+        [polylines]
+      );
 
       return (
         <MapGL
@@ -232,13 +248,17 @@ const MapboxMapLazy = lazy(() =>
               <Layer
                 id="polyline-layer"
                 type="line"
-                paint={{ "line-color": ["get", "color"], "line-opacity": ["get", "opacity"], "line-width": ["get", "weight"] }}
+                paint={{
+                  "line-color": ["get", "color"],
+                  "line-opacity": ["get", "opacity"],
+                  "line-width": ["get", "weight"],
+                }}
                 layout={{ "line-join": "round", "line-cap": "round" }}
               />
             </Source>
           )}
 
-          {markers.map(m => (
+          {markers.map((m) => (
             <MapboxMarker
               key={m.id}
               longitude={m.lng}
@@ -246,14 +266,31 @@ const MapboxMapLazy = lazy(() =>
               anchor="center"
               onClick={m.onClick}
             >
-              <div style={{ opacity: m.dimmed ? 0.5 : 1, position: "relative", cursor: m.onClick ? "pointer" : "default" }}>
+              <div
+                style={{
+                  opacity: m.dimmed ? 0.5 : 1,
+                  position: "relative",
+                  cursor: m.onClick ? "pointer" : "default",
+                }}
+              >
                 {m.label && (
-                  <div style={{
-                    position: "absolute", bottom: "100%", left: "50%",
-                    transform: "translateX(-50%)", marginBottom: 4,
-                    whiteSpace: "nowrap", background: "rgba(0,0,0,0.75)", color: "#fff",
-                    fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 4, pointerEvents: "none",
-                  }}>
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: "100%",
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      marginBottom: 4,
+                      whiteSpace: "nowrap",
+                      background: "rgba(0,0,0,0.75)",
+                      color: "#fff",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: "1px 5px",
+                      borderRadius: 4,
+                      pointerEvents: "none",
+                    }}
+                  >
                     {m.label}
                   </div>
                 )}
@@ -333,7 +370,10 @@ function MapboxMap(props: UniversalMapProps) {
 /* Typed surfaces needed after the Google Maps JS API script loads.
    We use local interfaces instead of depending on @types/google.maps so
    the build doesn't require the types package at compile time. */
-interface GmLatLng { lat: number; lng: number }
+interface GmLatLng {
+  lat: number;
+  lng: number;
+}
 interface GmMapInstance {
   panTo(pos: GmLatLng): void;
   setZoom(z: number): void;
@@ -354,7 +394,11 @@ type LoaderWithLoad = { load(): Promise<void> };
 function ensureGoogleMapsLoaded(apiKey: string): Promise<void> {
   if (gmLoaderPromise) return gmLoaderPromise;
   gmLoaderPromise = import("@googlemaps/js-api-loader").then(({ Loader }) => {
-    const loader: LoaderWithLoad = new Loader({ apiKey, version: "weekly", libraries: ["maps", "marker"] }) as LoaderWithLoad;
+    const loader: LoaderWithLoad = new Loader({
+      apiKey,
+      version: "weekly",
+      libraries: ["maps", "marker"],
+    }) as LoaderWithLoad;
     return loader.load();
   });
   return gmLoaderPromise;
@@ -363,14 +407,28 @@ function ensureGoogleMapsLoaded(apiKey: string): Promise<void> {
 /* Returns the global google.maps namespace (populated after loader.load() resolves) */
 function getGmNS() {
   /* window.google is set by the Google Maps JS API script */
-  return (window as unknown as { google?: { maps: {
-    Map: new (el: HTMLElement, opts: object) => GmMapInstance;
-    Marker: new (opts: object) => GmMarkerInstance;
-    Polyline: new (opts: object) => GmPolylineInstance;
-  } } }).google?.maps;
+  return (
+    window as unknown as {
+      google?: {
+        maps: {
+          Map: new (el: HTMLElement, opts: object) => GmMapInstance;
+          Marker: new (opts: object) => GmMarkerInstance;
+          Polyline: new (opts: object) => GmPolylineInstance;
+        };
+      };
+    }
+  ).google?.maps;
 }
 
-function GoogleMap({ token = "", center, zoom = 12, markers = [], polylines = [], style, className }: UniversalMapProps) {
+function GoogleMap({
+  token = "",
+  center,
+  zoom = 12,
+  markers = [],
+  polylines = [],
+  style,
+  className,
+}: UniversalMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<GmMapInstance | null>(null);
   const gmMarkersRef = useRef<GmMarkerInstance[]>([]);
@@ -382,29 +440,33 @@ function GoogleMap({ token = "", center, zoom = 12, markers = [], polylines = []
     if (!token || !mapRef.current) return;
     let cancelled = false;
 
-    ensureGoogleMapsLoaded(token).then(() => {
-      if (cancelled || !mapRef.current) return;
-      const gm = getGmNS();
-      if (!gm) return;
-      if (!mapInstanceRef.current) {
-        mapInstanceRef.current = new gm.Map(mapRef.current, {
-          center: { lat: center[0], lng: center[1] },
-          zoom,
-          mapTypeId: "roadmap",
-          fullscreenControl: false,
-          mapTypeControl: false,
-          streetViewControl: false,
-        });
-      }
-      setGmReady(true);
-    }).catch((err) => {
-      // Loader failure (invalid API key, network error, billing disabled).
-      // Logged so admins can diagnose why the Google map didn't render.
-      log.error("Google Maps loader failed:", err);
-    });
+    ensureGoogleMapsLoaded(token)
+      .then(() => {
+        if (cancelled || !mapRef.current) return;
+        const gm = getGmNS();
+        if (!gm) return;
+        if (!mapInstanceRef.current) {
+          mapInstanceRef.current = new gm.Map(mapRef.current, {
+            center: { lat: center[0], lng: center[1] },
+            zoom,
+            mapTypeId: "roadmap",
+            fullscreenControl: false,
+            mapTypeControl: false,
+            streetViewControl: false,
+          });
+        }
+        setGmReady(true);
+      })
+      .catch((err) => {
+        // Loader failure (invalid API key, network error, billing disabled).
+        // Logged so admins can diagnose why the Google map didn't render.
+        log.error("Google Maps loader failed:", err);
+      });
 
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   /* Update center when props change */
@@ -418,12 +480,14 @@ function GoogleMap({ token = "", center, zoom = 12, markers = [], polylines = []
     const gm = getGmNS();
     const map = mapInstanceRef.current;
     if (!gm || !map) return;
-    gmMarkersRef.current.forEach(m => m.setMap(null));
-    gmMarkersRef.current = markers.map(m => {
+    gmMarkersRef.current.forEach((m) => m.setMap(null));
+    gmMarkersRef.current = markers.map((m) => {
       const marker = new gm.Marker({
         position: { lat: m.lat, lng: m.lng },
         map,
-        label: m.label ? { text: m.label.slice(0, 1), fontSize: "10px", fontWeight: "700", color: "#fff" } : undefined,
+        label: m.label
+          ? { text: m.label.slice(0, 1), fontSize: "10px", fontWeight: "700", color: "#fff" }
+          : undefined,
         title: m.label,
         opacity: m.dimmed ? 0.5 : 1,
       });
@@ -438,25 +502,41 @@ function GoogleMap({ token = "", center, zoom = 12, markers = [], polylines = []
     const gm = getGmNS();
     const map = mapInstanceRef.current;
     if (!gm || !map) return;
-    gmPolylinesRef.current.forEach(p => p.setMap(null));
-    gmPolylinesRef.current = polylines.map(p => new gm.Polyline({
-      path: p.positions.map(([lat, lng]) => ({ lat, lng })),
-      map,
-      strokeColor: p.color ?? "#6366f1",
-      strokeWeight: p.weight ?? 2.5,
-      strokeOpacity: p.opacity ?? 0.7,
-    }));
+    gmPolylinesRef.current.forEach((p) => p.setMap(null));
+    gmPolylinesRef.current = polylines.map(
+      (p) =>
+        new gm.Polyline({
+          path: p.positions.map(([lat, lng]) => ({ lat, lng })),
+          map,
+          strokeColor: p.color ?? "#6366f1",
+          strokeWeight: p.weight ?? 2.5,
+          strokeOpacity: p.opacity ?? 0.7,
+        })
+    );
   }, [gmReady, polylines]);
 
   if (!token) {
     return (
-      <div style={{ ...style, display: "flex", alignItems: "center", justifyContent: "center", background: "#f8f9fa", color: "#6b7280", fontSize: 13 }} className={className}>
+      <div
+        style={{
+          ...style,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#f8f9fa",
+          color: "#6b7280",
+          fontSize: 13,
+        }}
+        className={className}
+      >
         Google Maps API key not configured
       </div>
     );
   }
 
-  return <div ref={mapRef} style={style ?? { width: "100%", height: "100%" }} className={className} />;
+  return (
+    <div ref={mapRef} style={style ?? { width: "100%", height: "100%" }} className={className} />
+  );
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

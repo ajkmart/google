@@ -1,22 +1,28 @@
-import { useState, useEffect, useRef } from "react";
-import { adminFetch } from "@/lib/adminFetcher";
-import { PageHeader } from "@/components/shared";
-import { Search, Star, Plus, Minus, Loader2, Settings2, ArrowUpDown } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { usePlatformSettings, useUpdatePlatformSettings } from "@/hooks/use-admin";
-import { formatCurrency } from "@/lib/format";
-import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { MobileDrawer } from "@/components/MobileDrawer";
 import { PullToRefresh } from "@/components/PullToRefresh";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageHeader } from "@/components/shared";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { usePlatformSettings, useUpdatePlatformSettings } from "@/hooks/use-admin";
+import { useToast } from "@/hooks/use-toast";
+import { adminFetch } from "@/lib/adminFetcher";
+import { formatCurrency } from "@/lib/format";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowUpDown, Loader2, Minus, Plus, Search, Settings2, Star } from "lucide-react";
+import { useRef, useState } from "react";
 
 type LoyaltyPoints = {
   totalEarned: number;
@@ -61,9 +67,16 @@ function AdjustPointsModal({ user, onClose }: { user: LoyaltyUser; onClose: () =
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
 
-  const mutation = useMutation<AdjustResponse, Error, { amount: number; reason: string; type: string }>({
+  const mutation = useMutation<
+    AdjustResponse,
+    Error,
+    { amount: number; reason: string; type: string }
+  >({
     mutationFn: (body) =>
-      adminFetch(`/loyalty/users/${user.id}/adjust`, { method: "POST", body: JSON.stringify(body) }),
+      adminFetch(`/loyalty/users/${user.id}/adjust`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["admin-loyalty-users"] });
       toast({
@@ -72,17 +85,26 @@ function AdjustPointsModal({ user, onClose }: { user: LoyaltyUser; onClose: () =
       });
       onClose();
     },
-    onError: (e) => toast({ title: "Adjustment failed", description: e.message, variant: "destructive" }),
+    onError: (e) =>
+      toast({ title: "Adjustment failed", description: e.message, variant: "destructive" }),
   });
 
   const handleSubmit = () => {
     const numAmount = Math.floor(Number(amount));
     if (!numAmount || numAmount <= 0 || !Number.isInteger(Number(amount))) {
-      toast({ title: "Invalid amount", description: "Enter a positive whole number", variant: "destructive" });
+      toast({
+        title: "Invalid amount",
+        description: "Enter a positive whole number",
+        variant: "destructive",
+      });
       return;
     }
     if (!reason.trim()) {
-      toast({ title: "Reason required", description: "Please provide a reason for this adjustment", variant: "destructive" });
+      toast({
+        title: "Reason required",
+        description: "Please provide a reason for this adjustment",
+        variant: "destructive",
+      });
       return;
     }
     mutation.mutate({ amount: numAmount, reason: reason.trim(), type });
@@ -92,22 +114,28 @@ function AdjustPointsModal({ user, onClose }: { user: LoyaltyUser; onClose: () =
     <MobileDrawer
       open
       onClose={onClose}
-      title={<><Star className="w-5 h-5 text-amber-500" /> Adjust Points — {user.name || user.phone}</>}
+      title={
+        <>
+          <Star className="h-5 w-5 text-amber-500" /> Adjust Points — {user.name || user.phone}
+        </>
+      }
       dialogClassName="w-[95vw] max-w-md max-h-[85dvh] overflow-y-auto rounded-2xl"
     >
-      <div className="space-y-4 mt-2">
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-4 border border-amber-200">
+      <div className="mt-2 space-y-4">
+        <div className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold text-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-sm font-bold text-amber-700">
               {(user.name || user.phone || "U")[0].toUpperCase()}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm truncate">{user.name || user.phone}</p>
-              <p className="text-xs text-muted-foreground">{user.phone}</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold">{user.name || user.phone}</p>
+              <p className="text-muted-foreground text-xs">{user.phone}</p>
             </div>
             <div className="text-right">
-              <p className="text-lg font-bold text-amber-700">{user.loyaltyPoints?.available ?? 0}</p>
-              <p className="text-[10px] text-muted-foreground uppercase font-bold">Available Pts</p>
+              <p className="text-lg font-bold text-amber-700">
+                {user.loyaltyPoints?.available ?? 0}
+              </p>
+              <p className="text-muted-foreground text-[10px] font-bold uppercase">Available Pts</p>
             </div>
           </div>
         </div>
@@ -115,19 +143,31 @@ function AdjustPointsModal({ user, onClose }: { user: LoyaltyUser; onClose: () =
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => setType("credit")}
-            className={`p-3 rounded-xl border transition-all ${type === "credit" ? "bg-emerald-50 border-emerald-400 shadow-sm" : "bg-muted/30 border-border hover:border-emerald-300"}`}
+            className={`rounded-xl border p-3 transition-all ${type === "credit" ? "border-emerald-400 bg-emerald-50 shadow-sm" : "bg-muted/30 border-border hover:border-emerald-300"}`}
           >
-            <Plus className={`w-5 h-5 mx-auto mb-1 ${type === "credit" ? "text-emerald-600" : "text-muted-foreground"}`} />
-            <p className={`text-sm font-semibold ${type === "credit" ? "text-emerald-700" : "text-muted-foreground"}`}>Credit</p>
-            <p className="text-[10px] text-muted-foreground">Add points</p>
+            <Plus
+              className={`mx-auto mb-1 h-5 w-5 ${type === "credit" ? "text-emerald-600" : "text-muted-foreground"}`}
+            />
+            <p
+              className={`text-sm font-semibold ${type === "credit" ? "text-emerald-700" : "text-muted-foreground"}`}
+            >
+              Credit
+            </p>
+            <p className="text-muted-foreground text-[10px]">Add points</p>
           </button>
           <button
             onClick={() => setType("debit")}
-            className={`p-3 rounded-xl border transition-all ${type === "debit" ? "bg-red-50 border-red-400 shadow-sm" : "bg-muted/30 border-border hover:border-red-300"}`}
+            className={`rounded-xl border p-3 transition-all ${type === "debit" ? "border-red-400 bg-red-50 shadow-sm" : "bg-muted/30 border-border hover:border-red-300"}`}
           >
-            <Minus className={`w-5 h-5 mx-auto mb-1 ${type === "debit" ? "text-red-600" : "text-muted-foreground"}`} />
-            <p className={`text-sm font-semibold ${type === "debit" ? "text-red-700" : "text-muted-foreground"}`}>Debit</p>
-            <p className="text-[10px] text-muted-foreground">Remove points</p>
+            <Minus
+              className={`mx-auto mb-1 h-5 w-5 ${type === "debit" ? "text-red-600" : "text-muted-foreground"}`}
+            />
+            <p
+              className={`text-sm font-semibold ${type === "debit" ? "text-red-700" : "text-muted-foreground"}`}
+            >
+              Debit
+            </p>
+            <p className="text-muted-foreground text-[10px]">Remove points</p>
           </button>
         </div>
 
@@ -138,7 +178,7 @@ function AdjustPointsModal({ user, onClose }: { user: LoyaltyUser; onClose: () =
             min={1}
             step={1}
             value={amount}
-            onChange={e => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
+            onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
             placeholder="Enter points amount"
             className="h-10 rounded-xl"
           />
@@ -148,33 +188,41 @@ function AdjustPointsModal({ user, onClose }: { user: LoyaltyUser; onClose: () =
           <label className="text-sm font-semibold">Reason</label>
           <Textarea
             value={reason}
-            onChange={e => setReason(e.target.value)}
+            onChange={(e) => setReason(e.target.value)}
             placeholder="e.g. Compensation for late delivery, Manual correction..."
-            className="rounded-xl resize-none"
+            className="resize-none rounded-xl"
             rows={3}
           />
         </div>
 
-        {type === "debit" && Number(amount) > (user.loyaltyPoints?.available ?? 0) && Number(amount) > 0 && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
-            <Minus className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
-            <p className="text-xs text-red-700">
-              Cannot debit {amount} points. User only has {user.loyaltyPoints?.available ?? 0} points available.
-            </p>
-          </div>
-        )}
+        {type === "debit" &&
+          Number(amount) > (user.loyaltyPoints?.available ?? 0) &&
+          Number(amount) > 0 && (
+            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3">
+              <Minus className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+              <p className="text-xs text-red-700">
+                Cannot debit {amount} points. User only has {user.loyaltyPoints?.available ?? 0}{" "}
+                points available.
+              </p>
+            </div>
+          )}
 
         <Button
           onClick={handleSubmit}
-          disabled={mutation.isPending || !amount || !reason.trim() || (type === "debit" && Number(amount) > (user.loyaltyPoints?.available ?? 0))}
-          className={`w-full h-11 rounded-xl gap-2 ${type === "credit" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700"} text-white`}
+          disabled={
+            mutation.isPending ||
+            !amount ||
+            !reason.trim() ||
+            (type === "debit" && Number(amount) > (user.loyaltyPoints?.available ?? 0))
+          }
+          className={`h-11 w-full gap-2 rounded-xl ${type === "credit" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700"} text-white`}
         >
           {mutation.isPending ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : type === "credit" ? (
-            <Plus className="w-4 h-4" />
+            <Plus className="h-4 w-4" />
           ) : (
-            <Minus className="w-4 h-4" />
+            <Minus className="h-4 w-4" />
           )}
           {type === "credit" ? "Credit" : "Debit"} {amount || "0"} Points
         </Button>
@@ -213,7 +261,7 @@ export default function LoyaltyPage() {
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortDir(d => d === "asc" ? "desc" : "asc");
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
       setSortDir("desc");
@@ -232,237 +280,301 @@ export default function LoyaltyPage() {
     return sortDir === "asc" ? cmp : -cmp;
   });
 
-  const totalPointsInCirculation = users.reduce((sum, u) => sum + (u.loyaltyPoints?.available ?? 0), 0);
+  const totalPointsInCirculation = users.reduce(
+    (sum, u) => sum + (u.loyaltyPoints?.available ?? 0),
+    0
+  );
   const totalEarned = users.reduce((sum, u) => sum + (u.loyaltyPoints?.totalEarned ?? 0), 0);
   const totalRedeemed = users.reduce((sum, u) => sum + (u.loyaltyPoints?.totalRedeemed ?? 0), 0);
 
   const SortIcon = ({ field }: { field: SortField }) => (
-    <ArrowUpDown className={`w-3 h-3 inline ml-1 cursor-pointer ${sortField === field ? "text-amber-600" : "text-muted-foreground/50"}`} />
+    <ArrowUpDown
+      className={`ml-1 inline h-3 w-3 cursor-pointer ${sortField === field ? "text-amber-600" : "text-muted-foreground/50"}`}
+    />
   );
 
   return (
-    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Loyalty page crashed. Please reload.</div>}>
-    <PullToRefresh onRefresh={async () => { await refetch(); }}>
-      <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
-        <PageHeader
-          icon={Star}
-          title="Loyalty Points"
-          subtitle="Manage customer loyalty point balances"
-          iconBgClass="bg-amber-100"
-          iconColorClass="text-amber-600"
-          actions={
-            <Badge variant="outline" className={`${loyaltyEnabled ? "bg-emerald-50 text-emerald-700 border-emerald-300" : "bg-red-50 text-red-700 border-red-300"} text-xs font-bold`}>
-              {loyaltyEnabled ? "Program Active" : "Program Disabled"}
-            </Badge>
-          }
-        />
-
-        <Card className="rounded-xl border shadow-sm p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <Settings2 className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-bold">Platform Configuration</h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="flex items-center justify-between bg-muted/30 rounded-xl p-3 border">
-              <div>
-                <p className="text-xs font-bold text-muted-foreground uppercase">Program Status</p>
-                <p className="text-sm font-semibold mt-0.5">{loyaltyEnabled ? "Enabled" : "Disabled"}</p>
-              </div>
-              <Switch
-                checked={loyaltyEnabled}
-                onCheckedChange={(checked) => {
-                  updateSettings.mutate(
-                    [{ key: "customer_loyalty_enabled", value: checked ? "on" : "off" }],
-                    {
-                      onSuccess: () => toast({ title: "Loyalty program " + (checked ? "enabled" : "disabled") }),
-                      onError: (e) => toast({ title: "Failed", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" }),
-                    }
-                  );
-                }}
-              />
-            </div>
-            <div className="bg-muted/30 rounded-xl p-3 border">
-              <p className="text-xs font-bold text-muted-foreground uppercase">Earn Rate</p>
-              <p className="text-sm font-semibold mt-0.5">{loyaltyPtsPerRs100} pts per Rs. 100</p>
-            </div>
-            <div className="bg-muted/30 rounded-xl p-3 border">
-              <p className="text-xs font-bold text-muted-foreground uppercase">Total Customers</p>
-              <p className="text-sm font-semibold mt-0.5">{data?.total ?? "—"}</p>
-            </div>
-          </div>
-        </Card>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Card className="rounded-xl border shadow-sm p-4 bg-gradient-to-br from-amber-50 to-orange-50">
-            <p className="text-xs font-bold text-amber-600 uppercase">Points in Circulation</p>
-            <p className="text-2xl font-bold text-amber-800 mt-1">{totalPointsInCirculation.toLocaleString()}</p>
-          </Card>
-          <Card className="rounded-xl border shadow-sm p-4 bg-gradient-to-br from-emerald-50 to-green-50">
-            <p className="text-xs font-bold text-emerald-600 uppercase">Total Earned</p>
-            <p className="text-2xl font-bold text-emerald-800 mt-1">{totalEarned.toLocaleString()}</p>
-          </Card>
-          <Card className="rounded-xl border shadow-sm p-4 bg-gradient-to-br from-blue-50 to-indigo-50">
-            <p className="text-xs font-bold text-blue-600 uppercase">Total Redeemed</p>
-            <p className="text-2xl font-bold text-blue-800 mt-1">{totalRedeemed.toLocaleString()}</p>
-          </Card>
+    <ErrorBoundary
+      fallback={
+        <div className="p-8 text-center text-sm text-red-500">
+          Loyalty page crashed. Please reload.
         </div>
-
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={e => handleSearchChange(e.target.value)}
-            placeholder="Search by name, phone, or email..."
-            className="pl-10 h-10 rounded-xl"
+      }
+    >
+      <PullToRefresh
+        onRefresh={async () => {
+          await refetch();
+        }}
+      >
+        <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6">
+          <PageHeader
+            icon={Star}
+            title="Loyalty Points"
+            subtitle="Manage customer loyalty point balances"
+            iconBgClass="bg-amber-100"
+            iconColorClass="text-amber-600"
+            actions={
+              <Badge
+                variant="outline"
+                className={`${loyaltyEnabled ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-red-300 bg-red-50 text-red-700"} text-xs font-bold`}
+              >
+                {loyaltyEnabled ? "Program Active" : "Program Disabled"}
+              </Badge>
+            }
           />
-        </div>
 
-        {/* Mobile card list — shown below md breakpoint */}
-        <section className="md:hidden space-y-3" aria-label="Loyalty customers">
-          {isLoading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i} className="rounded-xl border shadow-sm p-4 animate-pulse">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2">
-                    <div className="h-4 w-28 bg-muted rounded" />
-                    <div className="h-3 w-20 bg-muted rounded" />
-                  </div>
-                  <div className="h-5 w-14 bg-muted rounded-full" />
+          <Card className="rounded-xl border p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-3">
+              <Settings2 className="text-muted-foreground h-4 w-4" />
+              <h2 className="text-sm font-bold">Platform Configuration</h2>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="bg-muted/30 flex items-center justify-between rounded-xl border p-3">
+                <div>
+                  <p className="text-muted-foreground text-xs font-bold uppercase">
+                    Program Status
+                  </p>
+                  <p className="mt-0.5 text-sm font-semibold">
+                    {loyaltyEnabled ? "Enabled" : "Disabled"}
+                  </p>
                 </div>
-              </Card>
-            ))
-          ) : users.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <p className="text-sm text-muted-foreground">No customers found</p>
+                <Switch
+                  checked={loyaltyEnabled}
+                  onCheckedChange={(checked) => {
+                    updateSettings.mutate(
+                      [{ key: "customer_loyalty_enabled", value: checked ? "on" : "off" }],
+                      {
+                        onSuccess: () =>
+                          toast({ title: "Loyalty program " + (checked ? "enabled" : "disabled") }),
+                        onError: (e) =>
+                          toast({
+                            title: "Failed",
+                            description: e instanceof Error ? e.message : "Unknown error",
+                            variant: "destructive",
+                          }),
+                      }
+                    );
+                  }}
+                />
+              </div>
+              <div className="bg-muted/30 rounded-xl border p-3">
+                <p className="text-muted-foreground text-xs font-bold uppercase">Earn Rate</p>
+                <p className="mt-0.5 text-sm font-semibold">{loyaltyPtsPerRs100} pts per Rs. 100</p>
+              </div>
+              <div className="bg-muted/30 rounded-xl border p-3">
+                <p className="text-muted-foreground text-xs font-bold uppercase">Total Customers</p>
+                <p className="mt-0.5 text-sm font-semibold">{data?.total ?? "—"}</p>
+              </div>
             </div>
-          ) : (
-            users.map(u => (
-              <Card key={u.id} className="rounded-xl border shadow-sm overflow-hidden">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold text-xs shrink-0" aria-hidden="true">
-                      {(u.name || u.phone || "U")[0].toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-sm truncate">{u.name || "—"}</p>
-                      {u.email && <p className="text-[11px] text-muted-foreground truncate">{u.email}</p>}
-                      <p className="text-xs text-muted-foreground">{u.phone || "—"}</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                    <div className="bg-amber-50 rounded-lg p-2">
-                      <p className="font-bold text-amber-700">{(u.loyaltyPoints?.available ?? 0).toLocaleString()}</p>
-                      <p className="text-muted-foreground">Available</p>
-                    </div>
-                    <div className="bg-emerald-50 rounded-lg p-2">
-                      <p className="font-bold text-emerald-600">{(u.loyaltyPoints?.totalEarned ?? 0).toLocaleString()}</p>
-                      <p className="text-muted-foreground">Earned</p>
-                    </div>
-                    <div className="bg-blue-50 rounded-lg p-2">
-                      <p className="font-bold text-blue-600">{(u.loyaltyPoints?.totalRedeemed ?? 0).toLocaleString()}</p>
-                      <p className="text-muted-foreground">Redeemed</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                    <span className="text-sm font-semibold">{formatCurrency(u.walletBalance)}</span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setAdjustUser(u)}
-                      className="h-8 rounded-lg text-xs gap-1.5 border-amber-200 text-amber-700 hover:bg-amber-50"
-                    >
-                      <Star className="w-3.5 h-3.5" aria-hidden="true" />
-                      Adjust
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </section>
+          </Card>
 
-        {/* Desktop table — hidden below md breakpoint */}
-        <Card className="hidden md:block rounded-xl border shadow-sm overflow-hidden">
-          {isLoading ? (
-            <div className="h-40 flex items-center justify-center gap-2 text-muted-foreground">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span className="text-sm">Loading customers...</span>
-            </div>
-          ) : users.length === 0 ? (
-            <div className="h-40 flex items-center justify-center text-muted-foreground">
-              <p className="text-sm">No customers found</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("name")}>
-                      Customer <SortIcon field="name" />
-                    </TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort("available")}>
-                      Available <SortIcon field="available" />
-                    </TableHead>
-                    <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort("totalEarned")}>
-                      Earned <SortIcon field="totalEarned" />
-                    </TableHead>
-                    <TableHead className="text-right">Redeemed</TableHead>
-                    <TableHead className="text-right">Wallet</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map(u => (
-                    <TableRow key={u.id} className="hover:bg-muted/30 transition-colors">
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold text-xs shrink-0">
-                            {(u.name || u.phone || "U")[0].toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-semibold text-sm truncate">{u.name || "—"}</p>
-                            {u.email && <p className="text-[11px] text-muted-foreground truncate">{u.email}</p>}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{u.phone || "—"}</TableCell>
-                      <TableCell className="text-right">
-                        <span className="font-bold text-amber-700">{(u.loyaltyPoints?.available ?? 0).toLocaleString()}</span>
-                      </TableCell>
-                      <TableCell className="text-right text-sm text-emerald-600 font-medium">
-                        {(u.loyaltyPoints?.totalEarned ?? 0).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right text-sm text-blue-600 font-medium">
-                        {(u.loyaltyPoints?.totalRedeemed ?? 0).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right text-sm font-medium">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Card className="rounded-xl border bg-gradient-to-br from-amber-50 to-orange-50 p-4 shadow-sm">
+              <p className="text-xs font-bold text-amber-600 uppercase">Points in Circulation</p>
+              <p className="mt-1 text-2xl font-bold text-amber-800">
+                {totalPointsInCirculation.toLocaleString()}
+              </p>
+            </Card>
+            <Card className="rounded-xl border bg-gradient-to-br from-emerald-50 to-green-50 p-4 shadow-sm">
+              <p className="text-xs font-bold text-emerald-600 uppercase">Total Earned</p>
+              <p className="mt-1 text-2xl font-bold text-emerald-800">
+                {totalEarned.toLocaleString()}
+              </p>
+            </Card>
+            <Card className="rounded-xl border bg-gradient-to-br from-blue-50 to-indigo-50 p-4 shadow-sm">
+              <p className="text-xs font-bold text-blue-600 uppercase">Total Redeemed</p>
+              <p className="mt-1 text-2xl font-bold text-blue-800">
+                {totalRedeemed.toLocaleString()}
+              </p>
+            </Card>
+          </div>
+
+          <div className="relative">
+            <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+            <Input
+              value={search}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Search by name, phone, or email..."
+              className="h-10 rounded-xl pl-10"
+            />
+          </div>
+
+          {/* Mobile card list — shown below md breakpoint */}
+          <section className="space-y-3 md:hidden" aria-label="Loyalty customers">
+            {isLoading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i} className="animate-pulse rounded-xl border p-4 shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      <div className="bg-muted h-4 w-28 rounded" />
+                      <div className="bg-muted h-3 w-20 rounded" />
+                    </div>
+                    <div className="bg-muted h-5 w-14 rounded-full" />
+                  </div>
+                </Card>
+              ))
+            ) : users.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <p className="text-muted-foreground text-sm">No customers found</p>
+              </div>
+            ) : (
+              users.map((u) => (
+                <Card key={u.id} className="overflow-hidden rounded-xl border shadow-sm">
+                  <CardContent className="space-y-3 p-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700"
+                        aria-hidden="true"
+                      >
+                        {(u.name || u.phone || "U")[0].toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{u.name || "—"}</p>
+                        {u.email && (
+                          <p className="text-muted-foreground truncate text-[11px]">{u.email}</p>
+                        )}
+                        <p className="text-muted-foreground text-xs">{u.phone || "—"}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                      <div className="rounded-lg bg-amber-50 p-2">
+                        <p className="font-bold text-amber-700">
+                          {(u.loyaltyPoints?.available ?? 0).toLocaleString()}
+                        </p>
+                        <p className="text-muted-foreground">Available</p>
+                      </div>
+                      <div className="rounded-lg bg-emerald-50 p-2">
+                        <p className="font-bold text-emerald-600">
+                          {(u.loyaltyPoints?.totalEarned ?? 0).toLocaleString()}
+                        </p>
+                        <p className="text-muted-foreground">Earned</p>
+                      </div>
+                      <div className="rounded-lg bg-blue-50 p-2">
+                        <p className="font-bold text-blue-600">
+                          {(u.loyaltyPoints?.totalRedeemed ?? 0).toLocaleString()}
+                        </p>
+                        <p className="text-muted-foreground">Redeemed</p>
+                      </div>
+                    </div>
+                    <div className="border-border/50 flex items-center justify-between border-t pt-2">
+                      <span className="text-sm font-semibold">
                         {formatCurrency(u.walletBalance)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setAdjustUser(u)}
-                          className="h-8 rounded-lg text-xs gap-1.5 border-amber-200 text-amber-700 hover:bg-amber-50"
-                        >
-                          <Star className="w-3.5 h-3.5" />
-                          Adjust
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </Card>
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setAdjustUser(u)}
+                        className="h-8 gap-1.5 rounded-lg border-amber-200 text-xs text-amber-700 hover:bg-amber-50"
+                      >
+                        <Star className="h-3.5 w-3.5" aria-hidden="true" />
+                        Adjust
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </section>
 
-        {adjustUser && (
-          <AdjustPointsModal user={adjustUser} onClose={() => setAdjustUser(null)} />
-        )}
-      </div>
-    </PullToRefresh>
+          {/* Desktop table — hidden below md breakpoint */}
+          <Card className="hidden overflow-hidden rounded-xl border shadow-sm md:block">
+            {isLoading ? (
+              <div className="text-muted-foreground flex h-40 items-center justify-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span className="text-sm">Loading customers...</span>
+              </div>
+            ) : users.length === 0 ? (
+              <div className="text-muted-foreground flex h-40 items-center justify-center">
+                <p className="text-sm">No customers found</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead
+                        className="cursor-pointer select-none"
+                        onClick={() => toggleSort("name")}
+                      >
+                        Customer <SortIcon field="name" />
+                      </TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead
+                        className="cursor-pointer text-right select-none"
+                        onClick={() => toggleSort("available")}
+                      >
+                        Available <SortIcon field="available" />
+                      </TableHead>
+                      <TableHead
+                        className="cursor-pointer text-right select-none"
+                        onClick={() => toggleSort("totalEarned")}
+                      >
+                        Earned <SortIcon field="totalEarned" />
+                      </TableHead>
+                      <TableHead className="text-right">Redeemed</TableHead>
+                      <TableHead className="text-right">Wallet</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((u) => (
+                      <TableRow key={u.id} className="hover:bg-muted/30 transition-colors">
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">
+                              {(u.name || u.phone || "U")[0].toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold">{u.name || "—"}</p>
+                              {u.email && (
+                                <p className="text-muted-foreground truncate text-[11px]">
+                                  {u.email}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {u.phone || "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className="font-bold text-amber-700">
+                            {(u.loyaltyPoints?.available ?? 0).toLocaleString()}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right text-sm font-medium text-emerald-600">
+                          {(u.loyaltyPoints?.totalEarned ?? 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right text-sm font-medium text-blue-600">
+                          {(u.loyaltyPoints?.totalRedeemed ?? 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right text-sm font-medium">
+                          {formatCurrency(u.walletBalance)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setAdjustUser(u)}
+                            className="h-8 gap-1.5 rounded-lg border-amber-200 text-xs text-amber-700 hover:bg-amber-50"
+                          >
+                            <Star className="h-3.5 w-3.5" />
+                            Adjust
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </Card>
+
+          {adjustUser && (
+            <AdjustPointsModal user={adjustUser} onClose={() => setAdjustUser(null)} />
+          )}
+        </div>
+      </PullToRefresh>
     </ErrorBoundary>
   );
 }

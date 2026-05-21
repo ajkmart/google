@@ -178,7 +178,18 @@ export interface PlatformConfig {
 }
 
 const DEFAULT_CONFIG: PlatformConfig = {
-  vendor: { commissionPct: 15, settleDays: 7, minPayout: 500, maxPayout: 50000, minOrder: 100, maxItems: 100, autoApprove: false, promoEnabled: true, withdrawalEnabled: true, lowStockThreshold: 10 },
+  vendor: {
+    commissionPct: 15,
+    settleDays: 7,
+    minPayout: 500,
+    maxPayout: 50000,
+    minOrder: 100,
+    maxItems: 100,
+    autoApprove: false,
+    promoEnabled: true,
+    withdrawalEnabled: true,
+    lowStockThreshold: 10,
+  },
   platform: {
     appName: "AJKMart",
     appTagline: "Your super app for everything",
@@ -194,15 +205,74 @@ const DEFAULT_CONFIG: PlatformConfig = {
     vendorCommissionPct: 15,
     minOrderAmount: 100,
   },
-  features: { mart: true, food: true, rides: true, pharmacy: true, parcel: true, wallet: true, referral: true, newUsers: true, chat: false, liveTracking: true, reviews: true },
-  content: { trackerBannerEnabled: true, trackerBannerPosition: "top", showBanner: true, banner: "Free delivery on your first order! 🎉", announcement: "", maintenanceMsg: "We're performing scheduled maintenance. Back soon!", supportMsg: "Need help? Chat with us!", vendorNotice: "", riderNotice: "", tncUrl: "", privacyUrl: "", refundPolicyUrl: "", faqUrl: "", aboutUrl: "" },
-  orderRules: { minOrderAmount: 100, maxCodAmount: 5000, maxCartValue: 50000, cancelWindowMin: 5, autoCancelMin: 15, refundDays: 3, preptimeMin: 15, ratingWindowHours: 48, scheduleEnabled: false },
-  deliveryFee: { mart: 80, food: 60, pharmacy: 50, parcel: 100, parcelPerKg: 40, freeEnabled: true, freeDeliveryAbove: 1000 },
-  finance: { gstEnabled: false, gstPct: 17, cashbackEnabled: false, cashbackPct: 2, cashbackMaxRs: 100, invoiceEnabled: false, platformCommissionPct: 10, vendorCommissionPct: 15, riderEarningPct: 80, minVendorPayout: 500, minRiderPayout: 500, vendorSettleDays: 7, referralBonus: 100 },
+  features: {
+    mart: true,
+    food: true,
+    rides: true,
+    pharmacy: true,
+    parcel: true,
+    wallet: true,
+    referral: true,
+    newUsers: true,
+    chat: false,
+    liveTracking: true,
+    reviews: true,
+  },
+  content: {
+    trackerBannerEnabled: true,
+    trackerBannerPosition: "top",
+    showBanner: true,
+    banner: "Free delivery on your first order! 🎉",
+    announcement: "",
+    maintenanceMsg: "We're performing scheduled maintenance. Back soon!",
+    supportMsg: "Need help? Chat with us!",
+    vendorNotice: "",
+    riderNotice: "",
+    tncUrl: "",
+    privacyUrl: "",
+    refundPolicyUrl: "",
+    faqUrl: "",
+    aboutUrl: "",
+  },
+  orderRules: {
+    minOrderAmount: 100,
+    maxCodAmount: 5000,
+    maxCartValue: 50000,
+    cancelWindowMin: 5,
+    autoCancelMin: 15,
+    refundDays: 3,
+    preptimeMin: 15,
+    ratingWindowHours: 48,
+    scheduleEnabled: false,
+  },
+  deliveryFee: {
+    mart: 80,
+    food: 60,
+    pharmacy: 50,
+    parcel: 100,
+    parcelPerKg: 40,
+    freeEnabled: true,
+    freeDeliveryAbove: 1000,
+  },
+  finance: {
+    gstEnabled: false,
+    gstPct: 17,
+    cashbackEnabled: false,
+    cashbackPct: 2,
+    cashbackMaxRs: 100,
+    invoiceEnabled: false,
+    platformCommissionPct: 10,
+    vendorCommissionPct: 15,
+    riderEarningPct: 80,
+    minVendorPayout: 500,
+    minRiderPayout: 500,
+    vendorSettleDays: 7,
+    referralBonus: 100,
+  },
 };
 
 function resolveVendorFlag(
-  perRole: boolean | { customer?: boolean; rider?: boolean; vendor?: boolean } | undefined,
+  perRole: boolean | { customer?: boolean; rider?: boolean; vendor?: boolean } | undefined
 ): boolean {
   if (typeof perRole === "boolean") return perRole;
   if (perRole && typeof perRole === "object" && "vendor" in perRole) {
@@ -229,7 +299,20 @@ export interface VendorAuthConfig {
 
 export function getVendorAuthConfig(config: PlatformConfig): VendorAuthConfig {
   const a = config.auth;
-  if (!a) return { phoneOtp: false, emailOtp: false, usernamePassword: false, google: false, facebook: false, magicLink: false, captchaEnabled: false, captchaSiteKey: "", lockoutEnabled: false, lockoutMaxAttempts: 5, lockoutDurationSec: 300 };
+  if (!a)
+    return {
+      phoneOtp: false,
+      emailOtp: false,
+      usernamePassword: false,
+      google: false,
+      facebook: false,
+      magicLink: false,
+      captchaEnabled: false,
+      captchaSiteKey: "",
+      lockoutEnabled: false,
+      lockoutMaxAttempts: 5,
+      lockoutDurationSec: 300,
+    };
   return {
     phoneOtp: resolveVendorFlag(a.phoneOtpEnabled),
     emailOtp: resolveVendorFlag(a.emailOtpEnabled),
@@ -261,8 +344,12 @@ export function usePlatformConfig() {
 export function useCurrency() {
   const { config } = usePlatformConfig();
   return {
-    symbol: config.platform.currencySymbol ?? config.currencySymbol ?? config.regional?.currencySymbol ?? "Rs.",
-    code:   config.platform.currencyCode   ?? config.currencyCode   ?? "PKR",
+    symbol:
+      config.platform.currencySymbol ??
+      config.currencySymbol ??
+      config.regional?.currencySymbol ??
+      "Rs.",
+    code: config.platform.currencyCode ?? config.currencyCode ?? "PKR",
   };
 }
 
@@ -282,7 +369,10 @@ export function usePhoneValidator(): (phone: string) => boolean {
   return buildPhoneValidator(config);
 }
 
-export function useDateFormatter(): (date: string | Date | null | undefined, options?: Intl.DateTimeFormatOptions) => string {
+export function useDateFormatter(): (
+  date: string | Date | null | undefined,
+  options?: Intl.DateTimeFormatOptions
+) => string {
   const { config } = usePlatformConfig();
   const tz = config.regional?.timezone;
   return (date, options) => formatDateTz(date, options, tz);
@@ -291,13 +381,13 @@ export function useDateFormatter(): (date: string | Date | null | undefined, opt
 export function formatDateTz(
   date: string | Date | null | undefined,
   options?: Intl.DateTimeFormatOptions,
-  timezone?: string,
+  timezone?: string
 ): string {
   if (!date) return "";
   try {
     const tz = timezone || "Asia/Karachi";
     return new Intl.DateTimeFormat("en-PK", { timeZone: tz, ...options }).format(
-      typeof date === "string" ? new Date(date) : date,
+      typeof date === "string" ? new Date(date) : date
     );
   } catch {
     return new Date(date as string).toLocaleString();

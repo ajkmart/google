@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
 import { createLogger } from "@/lib/logger";
+import { useEffect, useRef } from "react";
 const log = createLogger("[useVersionCheck]");
 
 const STORAGE_KEY = "ajk_admin_server_epoch";
@@ -21,7 +21,10 @@ function hardReload(): void {
     sessionStorage.clear();
     localStorage.removeItem(STORAGE_KEY);
   } catch (err) {
-    log.debug({ err: err instanceof Error ? err.message : String(err) }, "[useVersionCheck] localStorage unavailable — skipping persistence, reload continues");
+    log.debug(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[useVersionCheck] localStorage unavailable — skipping persistence, reload continues"
+    );
   }
   window.location.reload();
 }

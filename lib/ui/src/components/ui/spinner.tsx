@@ -1,6 +1,6 @@
-import { Loader2Icon } from "lucide-react"
+import { Loader2Icon } from "lucide-react";
 
-import { cn } from "../../lib/utils"
+import { cn } from "../../lib/utils";
 
 function Spinner({ className }: { className?: string }) {
   return (
@@ -9,7 +9,7 @@ function Spinner({ className }: { className?: string }) {
       aria-label="Loading"
       className={cn("size-4 animate-spin", className)}
     />
-  )
+  );
 }
 
-export { Spinner }
+export { Spinner };

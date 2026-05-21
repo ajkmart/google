@@ -6,8 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type GetCategoriesType =
-  (typeof GetCategoriesType)[keyof typeof GetCategoriesType];
+export type GetCategoriesType = (typeof GetCategoriesType)[keyof typeof GetCategoriesType];
 
 export const GetCategoriesType = {
   mart: "mart",

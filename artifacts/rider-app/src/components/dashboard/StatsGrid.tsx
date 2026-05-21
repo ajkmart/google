@@ -1,5 +1,5 @@
+import { Calendar, Package, TrendingUp, Trophy, Truck } from "lucide-react";
 import { memo } from "react";
-import { Package, TrendingUp, Calendar, Trophy, Truck } from "lucide-react";
 import { formatCurrency } from "./helpers";
 
 interface StatsGridProps {
@@ -52,26 +52,27 @@ export const StatsGrid = memo(function StatsGrid({
         {stats.map((s, i) => (
           <div
             key={s.label}
-            className="bg-white/[0.06] backdrop-blur-sm rounded-2xl p-2.5 text-center border border-white/[0.06] animate-[slideUp_0.3s_ease-out]"
+            className="animate-[slideUp_0.3s_ease-out] rounded-2xl border border-white/[0.06] bg-white/[0.06] p-2.5 text-center backdrop-blur-sm"
             style={{ animationDelay: `${i * 60}ms`, animationFillMode: "both" }}
             role="listitem"
           >
-            <div className="flex justify-center mb-1.5">
-              <div className="w-7 h-7 rounded-xl bg-white/[0.06] flex items-center justify-center">
+            <div className="mb-1.5 flex justify-center">
+              <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-white/[0.06]">
                 {s.icon}
               </div>
             </div>
-            <p className="text-[13px] font-extrabold leading-tight text-white">{s.value}</p>
-            <p className="text-[9px] text-white/30 mt-0.5 font-semibold uppercase tracking-wider">
+            <p className="text-[13px] leading-tight font-extrabold text-white">{s.value}</p>
+            <p className="mt-0.5 text-[9px] font-semibold tracking-wider text-white/30 uppercase">
               {s.sub}
             </p>
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-2 bg-white/[0.06] backdrop-blur-sm rounded-2xl px-3 py-2 border border-white/[0.06]">
-        <Truck size={13} className="text-indigo-300 flex-shrink-0" />
-        <p className="text-[11px] text-white/60 font-semibold">
-          Max simultaneous deliveries: <span className="text-white font-extrabold">{maxDeliveries ?? 3}</span>
+      <div className="flex items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.06] px-3 py-2 backdrop-blur-sm">
+        <Truck size={13} className="flex-shrink-0 text-indigo-300" />
+        <p className="text-[11px] font-semibold text-white/60">
+          Max simultaneous deliveries:{" "}
+          <span className="font-extrabold text-white">{maxDeliveries ?? 3}</span>
         </p>
       </div>
     </div>

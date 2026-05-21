@@ -21,19 +21,19 @@
  *   | Admin (any)    | Any resource         | pass     |
  */
 
-import type { Request, Response, NextFunction } from "express";
 import { db } from "@workspace/db";
 import {
-  usersTable,
-  walletTransactionsTable,
   ordersTable,
-  ridesTable,
-  vendorProfilesTable,
-  riderProfilesTable,
-  pharmacyOrdersTable,
   parcelBookingsTable,
+  pharmacyOrdersTable,
+  riderProfilesTable,
+  ridesTable,
+  usersTable,
+  vendorProfilesTable,
+  walletTransactionsTable,
 } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import type { NextFunction, Request, Response } from "express";
 import { logger } from "../lib/logger.js";
 
 export type OwnershipResourceType =
@@ -44,9 +44,9 @@ export type OwnershipResourceType =
   | "ride"
   | "user"
   | "pharmacy_order"
-  | "pharmacy"        /* alias for "pharmacy_order" */
+  | "pharmacy" /* alias for "pharmacy_order" */
   | "parcel_booking"
-  | "parcel";         /* alias for "parcel_booking" */
+  | "parcel"; /* alias for "parcel_booking" */
 
 function getCallerId(req: Request): string | undefined {
   return req.riderId ?? req.vendorId ?? req.customerId ?? req.userId;
@@ -129,11 +129,18 @@ export function verifyOwnership(resourceType: OwnershipResourceType) {
 
         case "order": {
           const [row] = await db
-            .select({ userId: ordersTable.userId, riderId: ordersTable.riderId, vendorId: ordersTable.vendorId })
+            .select({
+              userId: ordersTable.userId,
+              riderId: ordersTable.riderId,
+              vendorId: ordersTable.vendorId,
+            })
             .from(ordersTable)
             .where(eq(ordersTable.id, resourceId))
             .limit(1);
-          if (!row) { ownerId = null; break; }
+          if (!row) {
+            ownerId = null;
+            break;
+          }
           if (row.userId === callerId || row.riderId === callerId || row.vendorId === callerId) {
             ownerId = callerId;
           } else {
@@ -148,7 +155,10 @@ export function verifyOwnership(resourceType: OwnershipResourceType) {
             .from(ridesTable)
             .where(eq(ridesTable.id, resourceId))
             .limit(1);
-          if (!row) { ownerId = null; break; }
+          if (!row) {
+            ownerId = null;
+            break;
+          }
           if (row.userId === callerId || row.riderId === callerId) {
             ownerId = callerId;
           } else {
@@ -201,13 +211,18 @@ export function verifyOwnership(resourceType: OwnershipResourceType) {
           { callerId, ownerId, resourceType, resourceId },
           "[verifyOwnership] Cross-user access attempt blocked"
         );
-        res.status(403).json({ success: false, error: "Access denied — you do not own this resource" });
+        res
+          .status(403)
+          .json({ success: false, error: "Access denied — you do not own this resource" });
         return;
       }
 
       next();
     } catch (err) {
-      logger.error({ err, resourceType, resourceId }, "[verifyOwnership] DB error during ownership check");
+      logger.error(
+        { err, resourceType, resourceId },
+        "[verifyOwnership] DB error during ownership check"
+      );
       res.status(500).json({ success: false, error: "Internal server error during authorization" });
     }
   };

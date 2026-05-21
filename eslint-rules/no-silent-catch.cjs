@@ -49,8 +49,7 @@ const rule = {
         properties: {
           allowEmptyObject: {
             type: "boolean",
-            description:
-              "When true, .catch(() => ({})) is allowed (not recommended).",
+            description: "When true, .catch(() => ({})) is allowed (not recommended).",
           },
         },
         additionalProperties: false,
@@ -71,15 +70,11 @@ const rule = {
     }
 
     function classifyHandler(arg) {
-      if (
-        arg.type !== "ArrowFunctionExpression" &&
-        arg.type !== "FunctionExpression"
-      ) {
+      if (arg.type !== "ArrowFunctionExpression" && arg.type !== "FunctionExpression") {
         return null;
       }
       if (isEmptyBlock(arg.body)) return "silentCatch";
-      if (!allowEmptyObject && isEmptyObjectExpression(arg.body))
-        return "emptyObjectCatch";
+      if (!allowEmptyObject && isEmptyObjectExpression(arg.body)) return "emptyObjectCatch";
       return null;
     }
 

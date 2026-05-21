@@ -1,32 +1,36 @@
-import { randomInt } from "crypto";
-import { Router, type Request, type Response, type NextFunction } from "express";
-import { z } from "zod";
 import { db } from "@workspace/db";
 import {
-  usersTable,
-  communicationRequestsTable,
-  conversationsTable,
-  chatMessagesTable,
-  callLogsTable,
-  communicationFlagsTable,
-  communicationRolesTable,
   aiModerationLogsTable,
+  callLogsTable,
+  chatMessagesTable,
   chatReportsTable,
+  communicationFlagsTable,
+  communicationRequestsTable,
+  communicationRolesTable,
+  conversationsTable,
+  usersTable,
 } from "@workspace/db/schema";
-import { eq, and, or, desc, sql, lt, count, gt, gte } from "drizzle-orm";
-import { generateId } from "../lib/id.js";
-import { getIO } from "../lib/socketio.js";
-import { verifyUserJwt } from "../middleware/security.js";
-import type { JwtUserPayload } from "../middleware/security.js";
-// Augmented request carrying the authenticated user payload
-type CommRequest = Request & { user: JwtUserPayload };
-import { getCachedSettings } from "./admin-shared.js";
-import { moderateContent, checkFlagKeywords, getModerationConfigFromSettings } from "../services/contentModeration.js";
-import { translateMessage, composeMessage, transcribeAudio } from "../services/communicationAI.js";
-import { logger } from "../lib/logger.js";
+import { randomInt } from "crypto";
+import { and, count, desc, eq, gte, or, sql } from "drizzle-orm";
+import { Router, type NextFunction, type Request, type Response } from "express";
+import { mkdir, writeFile } from "fs/promises";
 import multer from "multer";
 import path from "path";
-import { writeFile, mkdir, unlink } from "fs/promises";
+import { z } from "zod";
+import { generateId } from "../lib/id.js";
+import { logger } from "../lib/logger.js";
+import { getIO } from "../lib/socketio.js";
+import type { JwtUserPayload } from "../middleware/security.js";
+import { verifyUserJwt } from "../middleware/security.js";
+import { composeMessage, transcribeAudio, translateMessage } from "../services/communicationAI.js";
+import {
+  checkFlagKeywords,
+  getModerationConfigFromSettings,
+  moderateContent,
+} from "../services/contentModeration.js";
+import { getCachedSettings } from "./admin-shared.js";
+// Augmented request carrying the authenticated user payload
+type CommRequest = Request & { user: JwtUserPayload };
 
 const router = Router();
 
@@ -38,12 +42,35 @@ async function emitDashboardUpdate() {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const [convCount] = await db.select({ count: count() }).from(conversationsTable).where(eq(conversationsTable.status, "active"));
-    const [msgCount] = await db.select({ count: count() }).from(chatMessagesTable).where(gte(chatMessagesTable.createdAt, today));
-    const [callCount] = await db.select({ count: count() }).from(callLogsTable).where(gte(callLogsTable.startedAt, today));
-    const [flagCount] = await db.select({ count: count() }).from(communicationFlagsTable).where(sql`${communicationFlagsTable.resolvedAt} IS NULL`);
-    const [aiCount] = await db.select({ count: count() }).from(aiModerationLogsTable).where(gte(aiModerationLogsTable.createdAt, today));
-    const [voiceNoteCount] = await db.select({ count: count() }).from(chatMessagesTable).where(and(gte(chatMessagesTable.createdAt, today), eq(chatMessagesTable.messageType, "voice_note")));
+    const [convCount] = await db
+      .select({ count: count() })
+      .from(conversationsTable)
+      .where(eq(conversationsTable.status, "active"));
+    const [msgCount] = await db
+      .select({ count: count() })
+      .from(chatMessagesTable)
+      .where(gte(chatMessagesTable.createdAt, today));
+    const [callCount] = await db
+      .select({ count: count() })
+      .from(callLogsTable)
+      .where(gte(callLogsTable.startedAt, today));
+    const [flagCount] = await db
+      .select({ count: count() })
+      .from(communicationFlagsTable)
+      .where(sql`${communicationFlagsTable.resolvedAt} IS NULL`);
+    const [aiCount] = await db
+      .select({ count: count() })
+      .from(aiModerationLogsTable)
+      .where(gte(aiModerationLogsTable.createdAt, today));
+    const [voiceNoteCount] = await db
+      .select({ count: count() })
+      .from(chatMessagesTable)
+      .where(
+        and(
+          gte(chatMessagesTable.createdAt, today),
+          eq(chatMessagesTable.messageType, "voice_note")
+        )
+      );
     io.to("admin-fleet").emit("comm:dashboard:update", {
       activeConversations: Number(convCount?.count ?? 0),
       messagesToday: Number(msgCount?.count ?? 0),
@@ -113,28 +140,44 @@ async function canCommunicate(
   senderId: string,
   receiverId: string,
   action: "chat" | "voiceCall" | "voiceNote" | "request",
-  settings?: Record<string, string>,
+  settings?: Record<string, string>
 ): Promise<CanCommunicateResult> {
-  const s = settings || await getCachedSettings();
+  const s = settings || (await getCachedSettings());
 
-  if (s["comm_enabled"] === "off") return { allowed: false, reason: "Communication system is disabled" };
+  if (s["comm_enabled"] === "off")
+    return { allowed: false, reason: "Communication system is disabled" };
 
-  if (action === "chat" && s["comm_chat_enabled"] === "off") return { allowed: false, reason: "Chat is disabled" };
-  if (action === "voiceCall" && s["comm_voice_calls_enabled"] === "off") return { allowed: false, reason: "Voice calls are disabled" };
-  if (action === "voiceNote" && s["comm_voice_notes_enabled"] === "off") return { allowed: false, reason: "Voice notes are disabled" };
+  if (action === "chat" && s["comm_chat_enabled"] === "off")
+    return { allowed: false, reason: "Chat is disabled" };
+  if (action === "voiceCall" && s["comm_voice_calls_enabled"] === "off")
+    return { allowed: false, reason: "Voice calls are disabled" };
+  if (action === "voiceNote" && s["comm_voice_notes_enabled"] === "off")
+    return { allowed: false, reason: "Voice notes are disabled" };
 
-  const [sender] = await db.select({ commBlocked: usersTable.commBlocked, roles: usersTable.roles }).from(usersTable).where(eq(usersTable.id, senderId)).limit(1);
+  const [sender] = await db
+    .select({ commBlocked: usersTable.commBlocked, roles: usersTable.roles })
+    .from(usersTable)
+    .where(eq(usersTable.id, senderId))
+    .limit(1);
   if (!sender) return { allowed: false, reason: "Sender not found" };
-  if (sender.commBlocked) return { allowed: false, reason: "Your account is blocked from communication" };
+  if (sender.commBlocked)
+    return { allowed: false, reason: "Your account is blocked from communication" };
 
-  const [receiver] = await db.select({ commBlocked: usersTable.commBlocked, roles: usersTable.roles }).from(usersTable).where(eq(usersTable.id, receiverId)).limit(1);
+  const [receiver] = await db
+    .select({ commBlocked: usersTable.commBlocked, roles: usersTable.roles })
+    .from(usersTable)
+    .where(eq(usersTable.id, receiverId))
+    .limit(1);
   if (!receiver) return { allowed: false, reason: "User not found" };
   if (receiver.commBlocked) return { allowed: false, reason: "User is blocked from communication" };
 
   const timeStart = s["comm_time_window_start"] || "00:00";
   const timeEnd = s["comm_time_window_end"] || "23:59";
   if (!isWithinTimeWindow(timeStart, timeEnd)) {
-    return { allowed: false, reason: `Communication is only available between ${timeStart} and ${timeEnd}` };
+    return {
+      allowed: false,
+      reason: `Communication is only available between ${timeStart} and ${timeEnd}`,
+    };
   }
 
   const senderRole = extractPrimaryRole(sender.roles);
@@ -142,7 +185,13 @@ async function canCommunicate(
   const pairKey = getRolePairKey(senderRole, receiverRole);
 
   try {
-    const roles = await db.select({ permissions: communicationRolesTable.permissions, rolePairRules: communicationRolesTable.rolePairRules, timeWindows: communicationRolesTable.timeWindows }).from(communicationRolesTable);
+    const roles = await db
+      .select({
+        permissions: communicationRolesTable.permissions,
+        rolePairRules: communicationRolesTable.rolePairRules,
+        timeWindows: communicationRolesTable.timeWindows,
+      })
+      .from(communicationRolesTable);
 
     if (roles.length > 0) {
       let pairAllowed = false;
@@ -168,14 +217,20 @@ async function canCommunicate(
       }
 
       if (!pairAllowed) {
-        return { allowed: false, reason: `Communication between ${senderRole} and ${receiverRole} is not allowed` };
+        return {
+          allowed: false,
+          reason: `Communication between ${senderRole} and ${receiverRole} is not allowed`,
+        };
       }
       if (!actionAllowed) {
         return { allowed: false, reason: `${action} is not permitted for this role pair` };
       }
     }
   } catch (err) {
-    logger.warn({ error: err instanceof Error ? err.message : String(err) }, "[communication] Role permission check failed — allowing by default");
+    logger.warn(
+      { error: err instanceof Error ? err.message : String(err) },
+      "[communication] Role permission check failed — allowing by default"
+    );
     // If roles table fails, allow by default
   }
 
@@ -189,7 +244,10 @@ function extractPrimaryRole(roles: unknown): string {
   return "customer";
 }
 
-async function checkAiDailyLimit(userId: string, settings: Record<string, string>): Promise<boolean> {
+async function checkAiDailyLimit(
+  userId: string,
+  settings: Record<string, string>
+): Promise<boolean> {
   const limit = parseInt(settings["comm_daily_ai_limit"] || "50", 10);
   if (limit <= 0) return true;
 
@@ -199,14 +257,23 @@ async function checkAiDailyLimit(userId: string, settings: Record<string, string
   const [usage] = await db
     .select({ count: count() })
     .from(aiModerationLogsTable)
-    .where(and(eq(aiModerationLogsTable.userId, userId), gte(aiModerationLogsTable.createdAt, todayStart)));
+    .where(
+      and(
+        eq(aiModerationLogsTable.userId, userId),
+        gte(aiModerationLogsTable.createdAt, todayStart)
+      )
+    );
 
   return (usage?.count || 0) < limit;
 }
 
 router.get("/me/ajk-id", async (req: CommRequest, res) => {
   try {
-    const [user] = await db.select({ ajkId: usersTable.ajkId }).from(usersTable).where(eq(usersTable.id, req.user.userId)).limit(1);
+    const [user] = await db
+      .select({ ajkId: usersTable.ajkId })
+      .from(usersTable)
+      .where(eq(usersTable.id, req.user.userId))
+      .limit(1);
     if (!user) return res.status(404).json({ error: "User not found" });
 
     let ajkId = user.ajkId;
@@ -214,12 +281,19 @@ router.get("/me/ajk-id", async (req: CommRequest, res) => {
       ajkId = generateAjkId();
       let attempts = 0;
       while (attempts < 10) {
-        const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.ajkId, ajkId)).limit(1);
+        const [existing] = await db
+          .select({ id: usersTable.id })
+          .from(usersTable)
+          .where(eq(usersTable.ajkId, ajkId))
+          .limit(1);
         if (!existing) break;
         ajkId = generateAjkId();
         attempts++;
       }
-      await db.update(usersTable).set({ ajkId, updatedAt: new Date() }).where(eq(usersTable.id, req.user.userId));
+      await db
+        .update(usersTable)
+        .set({ ajkId, updatedAt: new Date() })
+        .where(eq(usersTable.id, req.user.userId));
     }
     res.json({ data: { ajkId } });
   } catch (e) {
@@ -233,13 +307,28 @@ router.get("/search/:ajkId", async (req: CommRequest, res) => {
   try {
     const { ajkId } = req.params as Record<string, string>;
     const [user] = await db
-      .select({ id: usersTable.id, name: usersTable.name, roles: usersTable.roles, isOnline: usersTable.isOnline, ajkId: usersTable.ajkId })
+      .select({
+        id: usersTable.id,
+        name: usersTable.name,
+        roles: usersTable.roles,
+        isOnline: usersTable.isOnline,
+        ajkId: usersTable.ajkId,
+      })
       .from(usersTable)
       .where(eq(usersTable.ajkId, ajkId))
       .limit(1);
     if (!user) return res.status(404).json({ error: "User not found" });
-    if (user.id === req.user.userId) return res.status(400).json({ error: "Cannot search for yourself" });
-    res.json({ data: { id: user.id, name: user.name, role: user.roles, isOnline: user.isOnline, ajkId: user.ajkId } });
+    if (user.id === req.user.userId)
+      return res.status(400).json({ error: "Cannot search for yourself" });
+    res.json({
+      data: {
+        id: user.id,
+        name: user.name,
+        role: user.roles,
+        isOnline: user.isOnline,
+        ajkId: user.ajkId,
+      },
+    });
   } catch (e) {
     res.status(500).json({ error: "Search failed" });
   }
@@ -256,43 +345,70 @@ router.post("/requests", async (req: CommRequest, res) => {
     const { receiverId } = parsed.data;
     const senderId = req.user.userId;
 
-    if (senderId === receiverId) return res.status(400).json({ error: "Cannot send request to yourself" });
+    if (senderId === receiverId)
+      return res.status(400).json({ error: "Cannot send request to yourself" });
 
     const settings = await getCachedSettings();
     const check = await canCommunicate(senderId, receiverId, "request", settings);
     if (!check.allowed) return res.status(403).json({ error: check.reason });
 
     const [existing] = await db
-      .select({ id: communicationRequestsTable.id, status: communicationRequestsTable.status, expiresAt: communicationRequestsTable.expiresAt })
+      .select({
+        id: communicationRequestsTable.id,
+        status: communicationRequestsTable.status,
+        expiresAt: communicationRequestsTable.expiresAt,
+      })
       .from(communicationRequestsTable)
-      .where(and(
-        or(
-          and(eq(communicationRequestsTable.senderId, senderId), eq(communicationRequestsTable.receiverId, receiverId)),
-          and(eq(communicationRequestsTable.senderId, receiverId), eq(communicationRequestsTable.receiverId, senderId)),
-        ),
-        eq(communicationRequestsTable.status, "pending"),
-      ))
+      .where(
+        and(
+          or(
+            and(
+              eq(communicationRequestsTable.senderId, senderId),
+              eq(communicationRequestsTable.receiverId, receiverId)
+            ),
+            and(
+              eq(communicationRequestsTable.senderId, receiverId),
+              eq(communicationRequestsTable.receiverId, senderId)
+            )
+          ),
+          eq(communicationRequestsTable.status, "pending")
+        )
+      )
       .limit(1);
 
     if (existing && !isRequestExpired(existing)) {
       return res.status(409).json({ error: "A pending request already exists" });
     }
     if (existing && isRequestExpired(existing)) {
-      await db.update(communicationRequestsTable).set({ status: "expired", updatedAt: new Date() }).where(eq(communicationRequestsTable.id, existing.id));
+      await db
+        .update(communicationRequestsTable)
+        .set({ status: "expired", updatedAt: new Date() })
+        .where(eq(communicationRequestsTable.id, existing.id));
     }
 
     const [existingConv] = await db
       .select({ id: conversationsTable.id })
       .from(conversationsTable)
-      .where(and(
-        or(
-          and(eq(conversationsTable.participant1Id, senderId), eq(conversationsTable.participant2Id, receiverId)),
-          and(eq(conversationsTable.participant1Id, receiverId), eq(conversationsTable.participant2Id, senderId)),
-        ),
-        eq(conversationsTable.status, "active"),
-      ))
+      .where(
+        and(
+          or(
+            and(
+              eq(conversationsTable.participant1Id, senderId),
+              eq(conversationsTable.participant2Id, receiverId)
+            ),
+            and(
+              eq(conversationsTable.participant1Id, receiverId),
+              eq(conversationsTable.participant2Id, senderId)
+            )
+          ),
+          eq(conversationsTable.status, "active")
+        )
+      )
       .limit(1);
-    if (existingConv) return res.status(409).json({ error: "You already have an active conversation with this user" });
+    if (existingConv)
+      return res
+        .status(409)
+        .json({ error: "You already have an active conversation with this user" });
 
     const expiryHours = parseInt(settings["comm_request_expiry_hours"] || "72", 10);
     const id = generateId();
@@ -320,17 +436,29 @@ router.post("/requests", async (req: CommRequest, res) => {
 router.patch("/requests/:id/accept", async (req: CommRequest, res) => {
   try {
     const { id } = req.params as Record<string, string>;
-    const [request] = await db.select().from(communicationRequestsTable).where(eq(communicationRequestsTable.id, id)).limit(1);
+    const [request] = await db
+      .select()
+      .from(communicationRequestsTable)
+      .where(eq(communicationRequestsTable.id, id))
+      .limit(1);
     if (!request) return res.status(404).json({ error: "Request not found" });
-    if (request.receiverId !== req.user.userId) return res.status(403).json({ error: "Not authorized" });
-    if (request.status !== "pending") return res.status(400).json({ error: "Request is no longer pending" });
+    if (request.receiverId !== req.user.userId)
+      return res.status(403).json({ error: "Not authorized" });
+    if (request.status !== "pending")
+      return res.status(400).json({ error: "Request is no longer pending" });
 
     if (isRequestExpired(request)) {
-      await db.update(communicationRequestsTable).set({ status: "expired", updatedAt: new Date() }).where(eq(communicationRequestsTable.id, id));
+      await db
+        .update(communicationRequestsTable)
+        .set({ status: "expired", updatedAt: new Date() })
+        .where(eq(communicationRequestsTable.id, id));
       return res.status(400).json({ error: "Request has expired" });
     }
 
-    await db.update(communicationRequestsTable).set({ status: "accepted", updatedAt: new Date() }).where(eq(communicationRequestsTable.id, id));
+    await db
+      .update(communicationRequestsTable)
+      .set({ status: "accepted", updatedAt: new Date() })
+      .where(eq(communicationRequestsTable.id, id));
 
     const convId = generateId();
     await db.insert(conversationsTable).values({
@@ -343,7 +471,10 @@ router.patch("/requests/:id/accept", async (req: CommRequest, res) => {
 
     const io = getIO();
     if (io) {
-      io.to(`user:${request.senderId}`).emit("comm:request:accepted", { requestId: id, conversationId: convId });
+      io.to(`user:${request.senderId}`).emit("comm:request:accepted", {
+        requestId: id,
+        conversationId: convId,
+      });
     }
 
     res.json({ data: { conversationId: convId } });
@@ -356,11 +487,19 @@ router.patch("/requests/:id/accept", async (req: CommRequest, res) => {
 router.patch("/requests/:id/reject", async (req: CommRequest, res) => {
   try {
     const { id } = req.params as Record<string, string>;
-    const [request] = await db.select().from(communicationRequestsTable).where(eq(communicationRequestsTable.id, id)).limit(1);
+    const [request] = await db
+      .select()
+      .from(communicationRequestsTable)
+      .where(eq(communicationRequestsTable.id, id))
+      .limit(1);
     if (!request) return res.status(404).json({ error: "Request not found" });
-    if (request.receiverId !== req.user.userId) return res.status(403).json({ error: "Not authorized" });
+    if (request.receiverId !== req.user.userId)
+      return res.status(403).json({ error: "Not authorized" });
 
-    await db.update(communicationRequestsTable).set({ status: "rejected", updatedAt: new Date() }).where(eq(communicationRequestsTable.id, id));
+    await db
+      .update(communicationRequestsTable)
+      .set({ status: "rejected", updatedAt: new Date() })
+      .where(eq(communicationRequestsTable.id, id));
 
     const io = getIO();
     if (io) {
@@ -377,12 +516,21 @@ router.patch("/requests/:id/reject", async (req: CommRequest, res) => {
 router.patch("/requests/:id/cancel", async (req: CommRequest, res) => {
   try {
     const { id } = req.params as Record<string, string>;
-    const [request] = await db.select().from(communicationRequestsTable).where(eq(communicationRequestsTable.id, id)).limit(1);
+    const [request] = await db
+      .select()
+      .from(communicationRequestsTable)
+      .where(eq(communicationRequestsTable.id, id))
+      .limit(1);
     if (!request) return res.status(404).json({ error: "Request not found" });
-    if (request.senderId !== req.user.userId) return res.status(403).json({ error: "Not authorized — only the sender can cancel" });
-    if (request.status !== "pending") return res.status(400).json({ error: "Request is no longer pending" });
+    if (request.senderId !== req.user.userId)
+      return res.status(403).json({ error: "Not authorized — only the sender can cancel" });
+    if (request.status !== "pending")
+      return res.status(400).json({ error: "Request is no longer pending" });
 
-    await db.update(communicationRequestsTable).set({ status: "cancelled", updatedAt: new Date() }).where(eq(communicationRequestsTable.id, id));
+    await db
+      .update(communicationRequestsTable)
+      .set({ status: "cancelled", updatedAt: new Date() })
+      .where(eq(communicationRequestsTable.id, id));
 
     const io = getIO();
     if (io) {
@@ -400,13 +548,14 @@ router.get("/requests", async (req: CommRequest, res) => {
   try {
     const userId = req.user.userId;
     const type = req.query.type || "received";
-    const page = parseInt(req.query.page as string || "1", 10);
-    const limit = Math.min(parseInt(req.query.limit as string || "20", 10), 50);
+    const page = parseInt((req.query.page as string) || "1", 10);
+    const limit = Math.min(parseInt((req.query.limit as string) || "20", 10), 50);
     const offset = (page - 1) * limit;
 
-    const condition = type === "sent"
-      ? eq(communicationRequestsTable.senderId, userId)
-      : eq(communicationRequestsTable.receiverId, userId);
+    const condition =
+      type === "sent"
+        ? eq(communicationRequestsTable.senderId, userId)
+        : eq(communicationRequestsTable.receiverId, userId);
 
     const requests = await db
       .select({
@@ -425,7 +574,7 @@ router.get("/requests", async (req: CommRequest, res) => {
 
     const now = new Date();
     const expiredIds: string[] = [];
-    const filtered = requests.map(r => {
+    const filtered = requests.map((r) => {
       if (r.status === "pending" && r.expiresAt && now > new Date(r.expiresAt)) {
         expiredIds.push(r.id);
         return { ...r, status: "expired" };
@@ -436,22 +585,49 @@ router.get("/requests", async (req: CommRequest, res) => {
     if (expiredIds.length > 0) {
       db.update(communicationRequestsTable)
         .set({ status: "expired", updatedAt: now })
-        .where(sql`${communicationRequestsTable.id} = ANY(ARRAY[${sql.join(expiredIds.map(id => sql`${id}`), sql`, `)}]::text[])`)
-        .catch((e: unknown) => logger.warn({ message: "[comm] Failed to expire stale requests", error: e instanceof Error ? e.message : String(e), code: "COMM_EXPIRE_STALE_FAILED", correlationId: null, timestamp: new Date().toISOString() }, "[comm] Failed to expire stale requests"));
+        .where(
+          sql`${communicationRequestsTable.id} = ANY(ARRAY[${sql.join(
+            expiredIds.map((id) => sql`${id}`),
+            sql`, `
+          )}]::text[])`
+        )
+        .catch((e: unknown) =>
+          logger.warn(
+            {
+              message: "[comm] Failed to expire stale requests",
+              error: e instanceof Error ? e.message : String(e),
+              code: "COMM_EXPIRE_STALE_FAILED",
+              correlationId: null,
+              timestamp: new Date().toISOString(),
+            },
+            "[comm] Failed to expire stale requests"
+          )
+        );
     }
 
-    const userIds = [...new Set(filtered.flatMap(r => [r.senderId, r.receiverId]))];
-    const users = userIds.length > 0
-      ? await db
-          .select({ id: usersTable.id, name: usersTable.name, roles: usersTable.roles, ajkId: usersTable.ajkId })
-          .from(usersTable)
-          .where(sql`${usersTable.id} = ANY(ARRAY[${sql.join(userIds.map(id => sql`${id}`), sql`, `)}]::text[])`)
-      : [];
+    const userIds = [...new Set(filtered.flatMap((r) => [r.senderId, r.receiverId]))];
+    const users =
+      userIds.length > 0
+        ? await db
+            .select({
+              id: usersTable.id,
+              name: usersTable.name,
+              roles: usersTable.roles,
+              ajkId: usersTable.ajkId,
+            })
+            .from(usersTable)
+            .where(
+              sql`${usersTable.id} = ANY(ARRAY[${sql.join(
+                userIds.map((id) => sql`${id}`),
+                sql`, `
+              )}]::text[])`
+            )
+        : [];
 
-    const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+    const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
     res.json({
-      data: filtered.map(r => ({
+      data: filtered.map((r) => ({
         ...r,
         sender: userMap[r.senderId] || null,
         receiver: userMap[r.receiverId] || null,
@@ -468,54 +644,84 @@ router.get("/conversations", async (req: CommRequest, res) => {
     const conversations = await db
       .select()
       .from(conversationsTable)
-      .where(and(
-        or(
-          eq(conversationsTable.participant1Id, userId),
-          eq(conversationsTable.participant2Id, userId),
-        ),
-        eq(conversationsTable.status, "active"),
-      ))
+      .where(
+        and(
+          or(
+            eq(conversationsTable.participant1Id, userId),
+            eq(conversationsTable.participant2Id, userId)
+          ),
+          eq(conversationsTable.status, "active")
+        )
+      )
       .orderBy(desc(conversationsTable.lastMessageAt));
 
-    const otherIds = conversations.map(c => c.participant1Id === userId ? c.participant2Id : c.participant1Id);
-    const users = otherIds.length > 0
-      ? await db
-          .select({ id: usersTable.id, name: usersTable.name, roles: usersTable.roles, ajkId: usersTable.ajkId, isOnline: usersTable.isOnline })
-          .from(usersTable)
-          .where(sql`${usersTable.id} = ANY(ARRAY[${sql.join(otherIds.map(id => sql`${id}`), sql`, `)}]::text[])`)
-      : [];
-    const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+    const otherIds = conversations.map((c) =>
+      c.participant1Id === userId ? c.participant2Id : c.participant1Id
+    );
+    const users =
+      otherIds.length > 0
+        ? await db
+            .select({
+              id: usersTable.id,
+              name: usersTable.name,
+              roles: usersTable.roles,
+              ajkId: usersTable.ajkId,
+              isOnline: usersTable.isOnline,
+            })
+            .from(usersTable)
+            .where(
+              sql`${usersTable.id} = ANY(ARRAY[${sql.join(
+                otherIds.map((id) => sql`${id}`),
+                sql`, `
+              )}]::text[])`
+            )
+        : [];
+    const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
-    const convIds = conversations.map(c => c.id);
+    const convIds = conversations.map((c) => c.id);
     let lastMessages: Record<string, unknown>[] = [];
     let unreadCounts: { conversationId: string; count: number }[] = [];
     if (convIds.length > 0) {
       const rawResult = await db.execute(sql`
         SELECT DISTINCT ON (conversation_id) id, conversation_id, content, message_type, sender_id, created_at, delivery_status
         FROM chat_messages
-        WHERE conversation_id = ANY(ARRAY[${sql.join(convIds.map(id => sql`${id}`), sql`, `)}]::text[])
+        WHERE conversation_id = ANY(ARRAY[${sql.join(
+          convIds.map((id) => sql`${id}`),
+          sql`, `
+        )}]::text[])
         AND is_deleted = false
         ORDER BY conversation_id, created_at DESC
       `);
-      lastMessages = ((rawResult as { rows?: Record<string, unknown>[] }).rows || rawResult || []) as Record<string, unknown>[];
+      lastMessages = ((rawResult as { rows?: Record<string, unknown>[] }).rows ||
+        rawResult ||
+        []) as Record<string, unknown>[];
 
       unreadCounts = await db
         .select({ conversationId: chatMessagesTable.conversationId, count: count() })
         .from(chatMessagesTable)
-        .where(and(
-          sql`${chatMessagesTable.conversationId} = ANY(ARRAY[${sql.join(convIds.map(id => sql`${id}`), sql`, `)}]::text[])`,
-          sql`${chatMessagesTable.senderId} != ${userId}`,
-          sql`${chatMessagesTable.deliveryStatus} != 'read'`,
-          eq(chatMessagesTable.isDeleted, false),
-        ))
+        .where(
+          and(
+            sql`${chatMessagesTable.conversationId} = ANY(ARRAY[${sql.join(
+              convIds.map((id) => sql`${id}`),
+              sql`, `
+            )}]::text[])`,
+            sql`${chatMessagesTable.senderId} != ${userId}`,
+            sql`${chatMessagesTable.deliveryStatus} != 'read'`,
+            eq(chatMessagesTable.isDeleted, false)
+          )
+        )
         .groupBy(chatMessagesTable.conversationId);
     }
 
-    const lastMsgMap = Object.fromEntries(lastMessages.map((m) => [m.conversation_id as string, m]));
-    const unreadMap = Object.fromEntries(unreadCounts.map((u) => [u.conversationId, Number(u.count)]));
+    const lastMsgMap = Object.fromEntries(
+      lastMessages.map((m) => [m.conversation_id as string, m])
+    );
+    const unreadMap = Object.fromEntries(
+      unreadCounts.map((u) => [u.conversationId, Number(u.count)])
+    );
 
     res.json({
-      data: conversations.map(c => {
+      data: conversations.map((c) => {
         const otherId = c.participant1Id === userId ? c.participant2Id : c.participant1Id;
         return {
           ...c,
@@ -534,11 +740,15 @@ router.get("/conversations", async (req: CommRequest, res) => {
 router.get("/conversations/:id/messages", async (req: CommRequest, res) => {
   try {
     const { id } = req.params as Record<string, string>;
-    const page = parseInt(req.query.page as string || "1", 10);
-    const limit = Math.min(parseInt(req.query.limit as string || "50", 10), 100);
+    const page = parseInt((req.query.page as string) || "1", 10);
+    const limit = Math.min(parseInt((req.query.limit as string) || "50", 10), 100);
     const offset = (page - 1) * limit;
 
-    const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, id)).limit(1);
+    const [conv] = await db
+      .select()
+      .from(conversationsTable)
+      .where(eq(conversationsTable.id, id))
+      .limit(1);
     if (!conv) return res.status(404).json({ error: "Conversation not found" });
     if (conv.participant1Id !== req.user.userId && conv.participant2Id !== req.user.userId) {
       return res.status(403).json({ error: "Not authorized" });
@@ -579,16 +789,22 @@ router.post("/conversations/:id/messages", async (req: CommRequest, res) => {
     const parsed = sendMessageSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid message" });
 
-    const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, id)).limit(1);
+    const [conv] = await db
+      .select()
+      .from(conversationsTable)
+      .where(eq(conversationsTable.id, id))
+      .limit(1);
     if (!conv) return res.status(404).json({ error: "Conversation not found" });
     if (conv.participant1Id !== req.user.userId && conv.participant2Id !== req.user.userId) {
       return res.status(403).json({ error: "Not authorized" });
     }
 
-    const otherId = conv.participant1Id === req.user.userId ? conv.participant2Id : conv.participant1Id;
+    const otherId =
+      conv.participant1Id === req.user.userId ? conv.participant2Id : conv.participant1Id;
     const settings = await getCachedSettings();
 
-    const action: "chat" | "voiceNote" = parsed.data.messageType === "voice_note" ? "voiceNote" : "chat";
+    const action: "chat" | "voiceNote" =
+      parsed.data.messageType === "voice_note" ? "voiceNote" : "chat";
     const check = await canCommunicate(req.user.userId, otherId, action, settings);
     if (!check.allowed) return res.status(403).json({ error: check.reason });
 
@@ -648,7 +864,10 @@ router.post("/conversations/:id/messages", async (req: CommRequest, res) => {
       });
     }
 
-    await db.update(conversationsTable).set({ lastMessageAt: new Date(), updatedAt: new Date() }).where(eq(conversationsTable.id, id));
+    await db
+      .update(conversationsTable)
+      .set({ lastMessageAt: new Date(), updatedAt: new Date() })
+      .where(eq(conversationsTable.id, id));
 
     const message = {
       id: msgId,
@@ -673,7 +892,10 @@ router.post("/conversations/:id/messages", async (req: CommRequest, res) => {
     }
 
     emitDashboardUpdate().catch((err: unknown) => {
-      logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[comm] emitDashboardUpdate after message send failed");
+      logger.warn(
+        { err: err instanceof Error ? err.message : String(err) },
+        "[comm] emitDashboardUpdate after message send failed"
+      );
     });
     res.status(201).json({ data: message });
   } catch (e) {
@@ -686,20 +908,37 @@ router.post("/conversations/:id/messages", async (req: CommRequest, res) => {
 router.patch("/messages/:id/read", async (req: CommRequest, res) => {
   try {
     const { id } = req.params as Record<string, string>;
-    const [msg] = await db.select().from(chatMessagesTable).where(eq(chatMessagesTable.id, id)).limit(1);
+    const [msg] = await db
+      .select()
+      .from(chatMessagesTable)
+      .where(eq(chatMessagesTable.id, id))
+      .limit(1);
     if (!msg) return res.status(404).json({ error: "Message not found" });
 
-    const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, msg.conversationId)).limit(1);
-    if (!conv || (conv.participant1Id !== req.user.userId && conv.participant2Id !== req.user.userId)) {
+    const [conv] = await db
+      .select()
+      .from(conversationsTable)
+      .where(eq(conversationsTable.id, msg.conversationId))
+      .limit(1);
+    if (
+      !conv ||
+      (conv.participant1Id !== req.user.userId && conv.participant2Id !== req.user.userId)
+    ) {
       return res.status(403).json({ error: "Not authorized" });
     }
 
     if (msg.senderId !== req.user.userId) {
-      await db.update(chatMessagesTable).set({ deliveryStatus: "read", readAt: new Date(), updatedAt: new Date() }).where(eq(chatMessagesTable.id, id));
+      await db
+        .update(chatMessagesTable)
+        .set({ deliveryStatus: "read", readAt: new Date(), updatedAt: new Date() })
+        .where(eq(chatMessagesTable.id, id));
 
       const io = getIO();
       if (io) {
-        io.to(`user:${msg.senderId}`).emit("comm:message:read", { messageId: id, conversationId: msg.conversationId });
+        io.to(`user:${msg.senderId}`).emit("comm:message:read", {
+          messageId: id,
+          conversationId: msg.conversationId,
+        });
       }
     }
 
@@ -713,20 +952,31 @@ router.patch("/messages/:id/read", async (req: CommRequest, res) => {
 router.patch("/conversations/:id/read-all", async (req: CommRequest, res) => {
   try {
     const { id } = req.params as Record<string, string>;
-    const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, id)).limit(1);
-    if (!conv || (conv.participant1Id !== req.user.userId && conv.participant2Id !== req.user.userId)) {
+    const [conv] = await db
+      .select()
+      .from(conversationsTable)
+      .where(eq(conversationsTable.id, id))
+      .limit(1);
+    if (
+      !conv ||
+      (conv.participant1Id !== req.user.userId && conv.participant2Id !== req.user.userId)
+    ) {
       return res.status(403).json({ error: "Not authorized" });
     }
 
-    await db.update(chatMessagesTable)
+    await db
+      .update(chatMessagesTable)
       .set({ deliveryStatus: "read", readAt: new Date(), updatedAt: new Date() })
-      .where(and(
-        eq(chatMessagesTable.conversationId, id),
-        sql`${chatMessagesTable.senderId} != ${req.user.userId}`,
-        sql`${chatMessagesTable.deliveryStatus} != 'read'`,
-      ));
+      .where(
+        and(
+          eq(chatMessagesTable.conversationId, id),
+          sql`${chatMessagesTable.senderId} != ${req.user.userId}`,
+          sql`${chatMessagesTable.deliveryStatus} != 'read'`
+        )
+      );
 
-    const otherId = conv.participant1Id === req.user.userId ? conv.participant2Id : conv.participant1Id;
+    const otherId =
+      conv.participant1Id === req.user.userId ? conv.participant2Id : conv.participant1Id;
     const io = getIO();
     if (io) {
       io.to(`user:${otherId}`).emit("comm:messages:read-all", { conversationId: id });
@@ -742,10 +992,12 @@ router.patch("/conversations/:id/read-all", async (req: CommRequest, res) => {
 router.post("/translate", async (req: CommRequest, res) => {
   try {
     const { text, targetLang } = req.body;
-    if (!text || !targetLang) return res.status(400).json({ error: "text and targetLang required" });
+    if (!text || !targetLang)
+      return res.status(400).json({ error: "text and targetLang required" });
 
     const settings = await getCachedSettings();
-    if (settings["comm_translation_enabled"] === "off") return res.status(403).json({ error: "Translation is disabled" });
+    if (settings["comm_translation_enabled"] === "off")
+      return res.status(403).json({ error: "Translation is disabled" });
 
     const withinLimit = await checkAiDailyLimit(req.user.userId, settings);
     if (!withinLimit) return res.status(429).json({ error: "Daily AI usage limit reached" });
@@ -764,7 +1016,8 @@ router.post("/compose-assist", async (req: CommRequest, res) => {
     if (!intent) return res.status(400).json({ error: "intent is required" });
 
     const settings = await getCachedSettings();
-    if (settings["comm_chat_assist_enabled"] === "off") return res.status(403).json({ error: "Chat assist is disabled" });
+    if (settings["comm_chat_assist_enabled"] === "off")
+      return res.status(403).json({ error: "Chat assist is disabled" });
 
     const withinLimit = await checkAiDailyLimit(req.user.userId, settings);
     if (!withinLimit) return res.status(429).json({ error: "Daily AI usage limit reached" });
@@ -781,80 +1034,103 @@ const voiceUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const allowed = ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav", "audio/opus"];
+    const allowed = [
+      "audio/webm",
+      "audio/ogg",
+      "audio/mp4",
+      "audio/mpeg",
+      "audio/wav",
+      "audio/opus",
+    ];
     cb(null, allowed.includes(file.mimetype));
   },
 });
 
-router.post("/voice-notes/upload", voiceUpload.single("audio") as unknown as import("express").RequestHandler, async (req: CommRequest, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: "No audio file uploaded" });
-
-    const settings = await getCachedSettings();
-    if (settings["comm_voice_notes_enabled"] === "off") return res.status(403).json({ error: "Voice notes are disabled" });
-
-    const maxDuration = parseInt(settings["comm_max_voice_duration"] || "60", 10);
-    const duration = parseInt(req.body.duration || "0", 10);
-    if (duration > maxDuration) return res.status(400).json({ error: `Voice note exceeds maximum duration of ${maxDuration}s` });
-
-    await mkdir(VOICE_NOTES_DIR, { recursive: true });
-
-    const ext = req.file.mimetype.split("/")[1] || "webm";
-    const fileName = `${generateId()}.${ext}`;
-    const filePath = path.join(VOICE_NOTES_DIR, fileName);
-    await writeFile(filePath, req.file.buffer);
-
-    const voiceNoteUrl = `/uploads/voice-notes/${fileName}`;
-
-    let transcript = "";
+router.post(
+  "/voice-notes/upload",
+  voiceUpload.single("audio") as unknown as import("express").RequestHandler,
+  async (req: CommRequest, res) => {
     try {
-      const withinLimit = await checkAiDailyLimit(req.user.userId, settings);
-      if (withinLimit) {
-        transcript = await transcribeAudio(req.file.buffer, ext);
-      }
-    } catch (e) {
-      logger.warn({ err: e }, "[comm] Voice note transcription failed — continuing without transcript");
-    }
+      if (!req.file) return res.status(400).json({ error: "No audio file uploaded" });
 
-    let isFlagged = false;
-    let flagReason: string | null = null;
-    let maskedTranscript = transcript;
-    if (transcript) {
-      const modConfig = getModerationConfigFromSettings(settings);
-      const modResult = moderateContent(transcript, modConfig);
-      maskedTranscript = modResult.masked;
-      if (modConfig.flagKeywords?.length) {
-        const keyword = checkFlagKeywords(modResult.original, modConfig.flagKeywords);
-        if (keyword) {
-          isFlagged = true;
-          flagReason = `Auto-flagged voice note keyword: ${keyword}`;
+      const settings = await getCachedSettings();
+      if (settings["comm_voice_notes_enabled"] === "off")
+        return res.status(403).json({ error: "Voice notes are disabled" });
+
+      const maxDuration = parseInt(settings["comm_max_voice_duration"] || "60", 10);
+      const duration = parseInt(req.body.duration || "0", 10);
+      if (duration > maxDuration)
+        return res
+          .status(400)
+          .json({ error: `Voice note exceeds maximum duration of ${maxDuration}s` });
+
+      await mkdir(VOICE_NOTES_DIR, { recursive: true });
+
+      const ext = req.file.mimetype.split("/")[1] || "webm";
+      const fileName = `${generateId()}.${ext}`;
+      const filePath = path.join(VOICE_NOTES_DIR, fileName);
+      await writeFile(filePath, req.file.buffer);
+
+      const voiceNoteUrl = `/uploads/voice-notes/${fileName}`;
+
+      let transcript = "";
+      try {
+        const withinLimit = await checkAiDailyLimit(req.user.userId, settings);
+        if (withinLimit) {
+          transcript = await transcribeAudio(req.file.buffer, ext);
+        }
+      } catch (e) {
+        logger.warn(
+          { err: e },
+          "[comm] Voice note transcription failed — continuing without transcript"
+        );
+      }
+
+      let isFlagged = false;
+      let flagReason: string | null = null;
+      let maskedTranscript = transcript;
+      if (transcript) {
+        const modConfig = getModerationConfigFromSettings(settings);
+        const modResult = moderateContent(transcript, modConfig);
+        maskedTranscript = modResult.masked;
+        if (modConfig.flagKeywords?.length) {
+          const keyword = checkFlagKeywords(modResult.original, modConfig.flagKeywords);
+          if (keyword) {
+            isFlagged = true;
+            flagReason = `Auto-flagged voice note keyword: ${keyword}`;
+          }
         }
       }
+
+      const waveform = req.body.waveform || null;
+
+      res.json({
+        data: {
+          voiceNoteUrl,
+          transcript: maskedTranscript,
+          duration,
+          waveform,
+          isFlagged,
+          flagReason,
+        },
+      });
+    } catch (e) {
+      logger.error({ err: e }, "[comm] Voice note upload failed");
+      res.status(500).json({ error: "Failed to upload voice note" });
     }
-
-    const waveform = req.body.waveform || null;
-
-    res.json({
-      data: {
-        voiceNoteUrl,
-        transcript: maskedTranscript,
-        duration,
-        waveform,
-        isFlagged,
-        flagReason,
-      },
-    });
-  } catch (e) {
-    logger.error({ err: e }, "[comm] Voice note upload failed");
-    res.status(500).json({ error: "Failed to upload voice note" });
+    return;
   }
-  return;
-});
+);
 
-interface IceServer { urls: string; username?: string; credential?: string; }
+interface IceServer {
+  urls: string;
+  username?: string;
+  credential?: string;
+}
 
 function getIceServersFromSettings(settings: Record<string, string>): IceServer[] {
-  const stunRaw = settings["comm_stun_servers"] || "stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302";
+  const stunRaw =
+    settings["comm_stun_servers"] || "stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302";
   const turnServer = settings["comm_turn_server"] || "";
   const turnUser = settings["comm_turn_user"] || "";
   const turnPass = settings["comm_turn_pass"] || "";
@@ -865,11 +1141,23 @@ function getIceServersFromSettings(settings: Record<string, string>): IceServer[
     if (Array.isArray(parsed)) {
       stunList = parsed.filter((s: unknown) => typeof s === "string" && s.trim());
     } else {
-      stunList = stunRaw.split(",").map((s: string) => s.trim()).filter(Boolean);
+      stunList = stunRaw
+        .split(",")
+        .map((s: string) => s.trim())
+        .filter(Boolean);
     }
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    stunList = stunRaw.split(",").map((s: string) => s.trim()).filter(Boolean);
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
+    stunList = stunRaw
+      .split(",")
+      .map((s: string) => s.trim())
+      .filter(Boolean);
   }
 
   if (stunList.length === 0) {
@@ -893,8 +1181,29 @@ router.post("/calls/initiate", async (req: CommRequest, res) => {
     const check = await canCommunicate(userId, calleeId, "voiceCall", settings);
     if (!check.allowed) return res.status(403).json({ error: check.reason });
 
-    const [conv] = await db.select({ id: conversationsTable.id }).from(conversationsTable).where(and(eq(conversationsTable.status, "active"), or(and(eq(conversationsTable.participant1Id, userId), eq(conversationsTable.participant2Id, calleeId)), and(eq(conversationsTable.participant1Id, calleeId), eq(conversationsTable.participant2Id, userId))))).limit(1);
-    if (!conv) return res.status(403).json({ error: "You must have an accepted conversation to call this user" });
+    const [conv] = await db
+      .select({ id: conversationsTable.id })
+      .from(conversationsTable)
+      .where(
+        and(
+          eq(conversationsTable.status, "active"),
+          or(
+            and(
+              eq(conversationsTable.participant1Id, userId),
+              eq(conversationsTable.participant2Id, calleeId)
+            ),
+            and(
+              eq(conversationsTable.participant1Id, calleeId),
+              eq(conversationsTable.participant2Id, userId)
+            )
+          )
+        )
+      )
+      .limit(1);
+    if (!conv)
+      return res
+        .status(403)
+        .json({ error: "You must have an accepted conversation to call this user" });
 
     const callId = generateId();
     await db.insert(callLogsTable).values({
@@ -905,7 +1214,11 @@ router.post("/calls/initiate", async (req: CommRequest, res) => {
       status: "initiated",
     });
 
-    const [caller] = await db.select({ name: usersTable.name, ajkId: usersTable.ajkId }).from(usersTable).where(eq(usersTable.id, req.user.userId)).limit(1);
+    const [caller] = await db
+      .select({ name: usersTable.name, ajkId: usersTable.ajkId })
+      .from(usersTable)
+      .where(eq(usersTable.id, req.user.userId))
+      .limit(1);
 
     const io = getIO();
     if (io) {
@@ -918,9 +1231,18 @@ router.post("/calls/initiate", async (req: CommRequest, res) => {
     }
 
     emitDashboardUpdate().catch((err: unknown) => {
-      logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[comm] emitDashboardUpdate after call initiation failed");
+      logger.warn(
+        { err: err instanceof Error ? err.message : String(err) },
+        "[comm] emitDashboardUpdate after call initiation failed"
+      );
     });
-    res.json({ data: { callId, iceServers: getIceServersFromSettings(settings), trickleIce: settings["comm_trickle_ice_enabled"] !== "off" } });
+    res.json({
+      data: {
+        callId,
+        iceServers: getIceServersFromSettings(settings),
+        trickleIce: settings["comm_trickle_ice_enabled"] !== "off",
+      },
+    });
   } catch (e) {
     logger.error({ err: e }, "[comm] Failed to initiate call");
     res.status(500).json({ error: "Failed to initiate call" });
@@ -934,10 +1256,16 @@ router.get("/calls/:id/ice-config", async (req: CommRequest, res) => {
     const userId = req.user.userId;
     const [call] = await db.select().from(callLogsTable).where(eq(callLogsTable.id, id)).limit(1);
     if (!call) return res.status(404).json({ error: "Call not found" });
-    if (call.calleeId !== userId && call.callerId !== userId) return res.status(403).json({ error: "Not a participant of this call" });
+    if (call.calleeId !== userId && call.callerId !== userId)
+      return res.status(403).json({ error: "Not a participant of this call" });
 
     const settings = await getCachedSettings();
-    res.json({ data: { iceServers: getIceServersFromSettings(settings), trickleIce: settings["comm_trickle_ice_enabled"] !== "off" } });
+    res.json({
+      data: {
+        iceServers: getIceServersFromSettings(settings),
+        trickleIce: settings["comm_trickle_ice_enabled"] !== "off",
+      },
+    });
   } catch (e) {
     res.status(500).json({ error: "Failed to get ICE config" });
   }
@@ -950,9 +1278,13 @@ router.post("/calls/:id/answer", async (req: CommRequest, res) => {
     const userId = req.user.userId;
     const [call] = await db.select().from(callLogsTable).where(eq(callLogsTable.id, id)).limit(1);
     if (!call) return res.status(404).json({ error: "Call not found" });
-    if (call.calleeId !== userId && call.callerId !== userId) return res.status(403).json({ error: "Not a participant of this call" });
+    if (call.calleeId !== userId && call.callerId !== userId)
+      return res.status(403).json({ error: "Not a participant of this call" });
 
-    await db.update(callLogsTable).set({ status: "answered", startedAt: new Date() }).where(eq(callLogsTable.id, id));
+    await db
+      .update(callLogsTable)
+      .set({ status: "answered", startedAt: new Date() })
+      .where(eq(callLogsTable.id, id));
 
     const io = getIO();
     if (io) {
@@ -960,7 +1292,13 @@ router.post("/calls/:id/answer", async (req: CommRequest, res) => {
     }
 
     const settings = await getCachedSettings();
-    res.json({ data: { status: "answered", iceServers: getIceServersFromSettings(settings), trickleIce: settings["comm_trickle_ice_enabled"] !== "off" } });
+    res.json({
+      data: {
+        status: "answered",
+        iceServers: getIceServersFromSettings(settings),
+        trickleIce: settings["comm_trickle_ice_enabled"] !== "off",
+      },
+    });
   } catch (e) {
     res.status(500).json({ error: "Failed to answer call" });
   }
@@ -975,14 +1313,18 @@ router.post("/calls/:id/end", async (req: CommRequest, res) => {
 
     const [call] = await db.select().from(callLogsTable).where(eq(callLogsTable.id, id)).limit(1);
     if (!call) return res.status(404).json({ error: "Call not found" });
-    if (call.calleeId !== userId && call.callerId !== userId) return res.status(403).json({ error: "Not a participant of this call" });
+    if (call.calleeId !== userId && call.callerId !== userId)
+      return res.status(403).json({ error: "Not a participant of this call" });
 
     const finalStatus = call.status === "answered" ? "completed" : "missed";
-    await db.update(callLogsTable).set({
-      status: finalStatus,
-      endedAt: new Date(),
-      duration: duration || null,
-    }).where(eq(callLogsTable.id, id));
+    await db
+      .update(callLogsTable)
+      .set({
+        status: finalStatus,
+        endedAt: new Date(),
+        duration: duration || null,
+      })
+      .where(eq(callLogsTable.id, id));
 
     const otherId = call.callerId === userId ? call.calleeId : call.callerId;
     const io = getIO();
@@ -1003,9 +1345,13 @@ router.post("/calls/:id/reject", async (req: CommRequest, res) => {
     const userId = req.user.userId;
     const [call] = await db.select().from(callLogsTable).where(eq(callLogsTable.id, id)).limit(1);
     if (!call) return res.status(404).json({ error: "Call not found" });
-    if (call.calleeId !== userId && call.callerId !== userId) return res.status(403).json({ error: "Not a participant of this call" });
+    if (call.calleeId !== userId && call.callerId !== userId)
+      return res.status(403).json({ error: "Not a participant of this call" });
 
-    await db.update(callLogsTable).set({ status: "rejected", endedAt: new Date() }).where(eq(callLogsTable.id, id));
+    await db
+      .update(callLogsTable)
+      .set({ status: "rejected", endedAt: new Date() })
+      .where(eq(callLogsTable.id, id));
 
     const io = getIO();
     if (io) {
@@ -1022,8 +1368,8 @@ router.post("/calls/:id/reject", async (req: CommRequest, res) => {
 router.get("/calls/history", async (req: CommRequest, res) => {
   try {
     const userId = req.user.userId;
-    const page = parseInt(req.query.page as string || "1", 10);
-    const limit = Math.min(parseInt(req.query.limit as string || "20", 10), 50);
+    const page = parseInt((req.query.page as string) || "1", 10);
+    const limit = Math.min(parseInt((req.query.limit as string) || "20", 10), 50);
     const offset = (page - 1) * limit;
 
     const calls = await db
@@ -1034,17 +1380,23 @@ router.get("/calls/history", async (req: CommRequest, res) => {
       .limit(limit)
       .offset(offset);
 
-    const userIds = [...new Set(calls.flatMap(c => [c.callerId, c.calleeId]))];
-    const users = userIds.length > 0
-      ? await db
-          .select({ id: usersTable.id, name: usersTable.name, ajkId: usersTable.ajkId })
-          .from(usersTable)
-          .where(sql`${usersTable.id} = ANY(ARRAY[${sql.join(userIds.map(id => sql`${id}`), sql`, `)}]::text[])`)
-      : [];
-    const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+    const userIds = [...new Set(calls.flatMap((c) => [c.callerId, c.calleeId]))];
+    const users =
+      userIds.length > 0
+        ? await db
+            .select({ id: usersTable.id, name: usersTable.name, ajkId: usersTable.ajkId })
+            .from(usersTable)
+            .where(
+              sql`${usersTable.id} = ANY(ARRAY[${sql.join(
+                userIds.map((id) => sql`${id}`),
+                sql`, `
+              )}]::text[])`
+            )
+        : [];
+    const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
     res.json({
-      data: calls.map(c => ({
+      data: calls.map((c) => ({
         ...c,
         caller: userMap[c.callerId] || null,
         callee: userMap[c.calleeId] || null,
@@ -1059,13 +1411,14 @@ router.get("/calls/history", async (req: CommRequest, res) => {
 /* ── POST /communication/block — Block a user ── */
 router.post("/block", async (req: CommRequest, res: Response) => {
   try {
-  const userId = req.user.userId;
-  const { blockedUserId } = req.body as { blockedUserId?: string };
-  if (!blockedUserId || typeof blockedUserId !== "string") {
-    res.status(400).json({ error: "blockedUserId required" }); return;
-  }
-  try {
-    await db.execute(sql`
+    const userId = req.user.userId;
+    const { blockedUserId } = req.body as { blockedUserId?: string };
+    if (!blockedUserId || typeof blockedUserId !== "string") {
+      res.status(400).json({ error: "blockedUserId required" });
+      return;
+    }
+    try {
+      await db.execute(sql`
       CREATE TABLE IF NOT EXISTS communication_user_blocks (
         id TEXT PRIMARY KEY,
         blocker_id TEXT NOT NULL,
@@ -1074,18 +1427,24 @@ router.post("/block", async (req: CommRequest, res: Response) => {
         UNIQUE(blocker_id, blocked_id)
       )
     `);
-    await db.execute(sql`
+      await db.execute(sql`
       INSERT INTO communication_user_blocks (id, blocker_id, blocked_id)
       VALUES (${generateId()}, ${userId}, ${blockedUserId})
       ON CONFLICT (blocker_id, blocked_id) DO NOTHING
     `);
-    res.json({ data: { blocked: true } });
-  } catch (e: unknown) {
-    logger.error({ err: e }, "[comm] block failed");
-    res.status(500).json({ error: "Failed to block user" });
-  }
+      res.json({ data: { blocked: true } });
+    } catch (e: unknown) {
+      logger.error({ err: e }, "[comm] block failed");
+      res.status(500).json({ error: "Failed to block user" });
+    }
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1093,28 +1452,39 @@ router.post("/block", async (req: CommRequest, res: Response) => {
 /* ── POST /communication/report — Report a user ── */
 router.post("/report", async (req: CommRequest, res: Response) => {
   try {
-  const userId = req.user.userId;
-  const { reportedUserId, reason, messageId } = req.body as { reportedUserId?: string; reason?: string; messageId?: string };
-  if (!reportedUserId || !reason) {
-    res.status(400).json({ error: "reportedUserId and reason required" }); return;
-  }
-  try {
-    await db.insert(chatReportsTable).values({
-      id: generateId(),
-      reporterId: userId,
-      reportedUserId,
-      messageId: messageId ?? null,
-      reason: String(reason).slice(0, 500),
-      status: "pending",
-      createdAt: new Date(),
-    });
-    res.json({ data: { reported: true } });
-  } catch (e: unknown) {
-    logger.error({ err: e }, "[comm] report failed");
-    res.status(500).json({ error: "Failed to report user" });
-  }
+    const userId = req.user.userId;
+    const { reportedUserId, reason, messageId } = req.body as {
+      reportedUserId?: string;
+      reason?: string;
+      messageId?: string;
+    };
+    if (!reportedUserId || !reason) {
+      res.status(400).json({ error: "reportedUserId and reason required" });
+      return;
+    }
+    try {
+      await db.insert(chatReportsTable).values({
+        id: generateId(),
+        reporterId: userId,
+        reportedUserId,
+        messageId: messageId ?? null,
+        reason: String(reason).slice(0, 500),
+        status: "pending",
+        createdAt: new Date(),
+      });
+      res.json({ data: { reported: true } });
+    } catch (e: unknown) {
+      logger.error({ err: e }, "[comm] report failed");
+      res.status(500).json({ error: "Failed to report user" });
+    }
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      },
+      "[route] unhandled error"
+    );
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

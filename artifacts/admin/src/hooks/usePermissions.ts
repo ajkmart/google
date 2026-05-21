@@ -62,10 +62,8 @@ export function usePermissions(): PermissionContext {
     const legacyToken = !payload || payload.perms === undefined;
 
     const has = (perm: string) => isSuper || permissions.includes(perm);
-    const hasAny = (perms: string[]) =>
-      isSuper || perms.some(p => permissions.includes(p));
-    const hasAll = (perms: string[]) =>
-      isSuper || perms.every(p => permissions.includes(p));
+    const hasAny = (perms: string[]) => isSuper || perms.some((p) => permissions.includes(p));
+    const hasAll = (perms: string[]) => isSuper || perms.every((p) => permissions.includes(p));
 
     return { permissions, role, isSuper, legacyToken, has, hasAny, hasAll };
   }, [state.accessToken, state.user?.role]);
@@ -87,7 +85,11 @@ export interface PermissionGateProps {
   children: React.ReactNode;
 }
 export function PermissionGate({
-  perm, anyOf, allOf, fallback = null, children,
+  perm,
+  anyOf,
+  allOf,
+  fallback = null,
+  children,
 }: PermissionGateProps) {
   const { has, hasAny, hasAll } = usePermissions();
   let allowed = true;

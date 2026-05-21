@@ -1,1 +1,1 @@
-export { Avatar, AvatarImage, AvatarFallback } from "@workspace/ui/components/ui/avatar";
+export { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/ui/avatar";
