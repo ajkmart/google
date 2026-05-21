@@ -41,7 +41,7 @@ type AcquireResult =
   | { acquired: true }
   | { acquired: false; action: "in_flight" | "replay"; statusCode?: number; body?: unknown };
 
-async function acquireWalletIdempotency(
+export async function acquireWalletIdempotency(
   userId: string,
   prefix: string,
   rawKey: string,
@@ -400,6 +400,17 @@ router.post("/deposit", customerAuth, async (req, res) => {
   }
 
   try {
+    /* ── Frozen wallet check ── */
+    const [depositor] = await db
+      .select({ blockedServices: usersTable.blockedServices })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1);
+    if (depositor && isWalletFrozen(depositor)) {
+      await deleteWalletIdempotency(userId, "deposit", idempotencyKey);
+      sendForbidden(res, "wallet_frozen", "Your wallet has been temporarily frozen. Contact support."); return;
+    }
+
     const s = await getCachedSettings();
     const walletEnabled = (s["feature_wallet"] ?? "on") === "on";
     const minTopup      = parseFloat(s["wallet_min_topup"]   ?? "100");

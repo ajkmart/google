@@ -5,13 +5,8 @@
  *  - SMS/email providers are mocked so no real messages are sent.
  *  - A real test user is seeded in the DB and authenticated via JWT.
  *  - A payment method (jazzcash) is enabled via platform_settings.
- *  - Tests exercise: happy path, wallet-disabled rejection, invalid input,
- *    disabled payment method, and idempotency replay.
- *
- * NOTE: The deposit endpoint does NOT check frozen-wallet status — it creates a
- * *pending* transaction awaiting admin approval, so wallet freeze is not
- * enforced here. Frozen-wallet enforcement is covered in the send & withdraw
- * integration tests instead.
+ *  - Tests exercise: happy path, frozen wallet rejection, wallet-disabled rejection,
+ *    invalid input, disabled payment method, and idempotency replay.
  */
 
 import { vi, describe, it, expect, beforeAll, afterAll } from "vitest";
@@ -61,6 +56,7 @@ import {
   toCanonicalPhone,
   seedPlatformSetting,
   deletePlatformSetting,
+  freezeWallet,
 } from "../helpers/db-helpers.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -99,6 +95,26 @@ describe("POST /api/wallet/deposit", () => {
     for (const userId of createdUserIds) {
       await deleteTestUser(userId).catch(() => undefined);
     }
+  });
+
+  // ── Frozen wallet ──────────────────────────────────────────────────────────
+
+  it("returns 403 when the customer wallet is frozen", async () => {
+    const phone = toCanonicalPhone(generateTestPhone());
+    const userId = await createTestUser({ phone, phoneVerified: true });
+    createdUserIds.push(userId);
+    await freezeWallet(userId);
+
+    const token = signAccessToken(userId, phone, "customer", "customer");
+
+    const res = await request(app)
+      .post("/api/wallet/deposit")
+      .set("Authorization", `Bearer ${token}`)
+      .send(makeDepositBody());
+
+    expect(res.status).toBe(403);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toMatch(/frozen/i);
   });
 
   // ── Happy path ────────────────────────────────────────────────────────────

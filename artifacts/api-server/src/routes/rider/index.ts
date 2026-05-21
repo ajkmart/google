@@ -1556,11 +1556,8 @@ router.post("/rides/:id/verify-otp", otpLimiter, async (req, res) => {
     sendValidationError(res, "OTP can only be verified once you have accepted and are en route to the pickup location."); return;
   }
   if (ride.otpVerified) {
-    /* Clear the DB attempt row on success */
-    db.delete(otpAttemptsTable).where(eq(otpAttemptsTable.key, rideId)).catch((err: unknown) => {
-      logger.debug({ err: err instanceof Error ? err.message : String(err), rideId }, "[rider] OTP attempts cleanup (already-verified) failed — non-critical");
-    });
-    sendSuccess(res, undefined, "OTP already verified"); return;
+    /* Already verified — reject further attempts; the trip is already gated */
+    sendForbidden(res, "otp_already_verified", "This trip's OTP has already been verified. Start the trip from the rider app."); return;
   }
   if (!ride.tripOtp) {
     sendValidationError(res, "No OTP found for this ride. The customer needs to request a new one."); return;
@@ -1589,12 +1586,12 @@ router.post("/rides/:id/verify-otp", otpLimiter, async (req, res) => {
       db.delete(otpAttemptsTable).where(eq(otpAttemptsTable.key, rideId)).catch((err: unknown) => {
         logger.debug({ err: err instanceof Error ? err.message : String(err), rideId }, "[rider] OTP attempts cleanup (max-exceeded) failed — non-critical");
       });
-      sendErrorWithData(res, "Too many incorrect OTP attempts. The current OTP has been invalidated. Please ask the customer to refresh their app to receive a new OTP.", { code: "OTP_INVALIDATED" }, 400);
+      sendErrorWithData(res, "Too many incorrect OTP attempts. The current OTP has been invalidated. Please ask the customer to refresh their app to receive a new OTP.", { code: "OTP_INVALIDATED" }, 403);
       return;
     }
 
     const remaining = MAX_OTP_ATTEMPTS - newCount;
-    sendErrorWithData(res, `Incorrect OTP. Please check with your customer. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`, { code: "OTP_MISMATCH", attemptsRemaining: remaining }, 400); return;
+    sendErrorWithData(res, `Incorrect OTP. Please check with your customer. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`, { code: "OTP_MISMATCH", attemptsRemaining: remaining }, 403); return;
   }
 
   /* Success — clear attempt row and mark verified */
