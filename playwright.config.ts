@@ -5,9 +5,17 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? process.env.ADMIN_SEED_PASS
 
 export { ADMIN_PASSWORD, ADMIN_USERNAME };
 
-const CHROMIUM_PATH =
-  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ??
+// In CI (GitHub Actions) PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH is unset — Playwright
+// resolves its own installed chromium.  On Replit the nix-store path is used as a
+// fallback so the dev environment keeps working without a separate `playwright install`.
+const REPLIT_NIX_CHROMIUM =
   "/nix/store/qa9cnw4v5xkxyip6mb9kxqfq1z4x2dx1-chromium-138.0.7204.100/bin/chromium-browser";
+
+const CHROMIUM_PATH = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+  ? process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+  : process.env.CI
+    ? undefined
+    : REPLIT_NIX_CHROMIUM;
 
 const CHROMIUM_ARGS = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"];
 
@@ -33,7 +41,7 @@ export default defineConfig({
         ...devices["Desktop Chrome"],
         baseURL: "http://localhost:3000",
         launchOptions: {
-          executablePath: CHROMIUM_PATH,
+          ...(CHROMIUM_PATH ? { executablePath: CHROMIUM_PATH } : {}),
           args: CHROMIUM_ARGS,
         },
       },
@@ -45,7 +53,7 @@ export default defineConfig({
         ...devices["Desktop Chrome"],
         baseURL: "http://localhost:3001",
         launchOptions: {
-          executablePath: CHROMIUM_PATH,
+          ...(CHROMIUM_PATH ? { executablePath: CHROMIUM_PATH } : {}),
           args: CHROMIUM_ARGS,
         },
       },
@@ -57,7 +65,7 @@ export default defineConfig({
         ...devices["Desktop Chrome"],
         baseURL: "http://localhost:3002",
         launchOptions: {
-          executablePath: CHROMIUM_PATH,
+          ...(CHROMIUM_PATH ? { executablePath: CHROMIUM_PATH } : {}),
           args: CHROMIUM_ARGS,
         },
       },
