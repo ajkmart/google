@@ -90,24 +90,29 @@ export function useLoginFlow({ baseURL = '', role, onSuccess, translateError }: 
           '/api/auth/check-identifier',
           checkBody
         );
-        const raw = res.data as any ?? {};
+        const raw = (res.data ?? {}) as Record<string, unknown>;
 
         /* Map the API's action/availableMethods format to the method field
            the LoginScreen step-switcher expects */
+        const rawMethod = typeof raw.method === 'string' ? (raw.method as LoginMethod) : undefined;
+        const rawAction = typeof raw.action === 'string' ? raw.action : undefined;
+        const rawAvailableMethods = Array.isArray(raw.availableMethods) ? (raw.availableMethods as string[]) : [];
+        const rawExists = typeof raw.exists === 'boolean' ? raw.exists : false;
+
         const actionToMethod = (action: string | undefined): LoginMethod => {
           if (action === 'login_password') return 'password';
           if (action === 'send_magic_link') return 'magic-link';
           return 'otp';
         };
         const derivedMethod: LoginMethod =
-          raw.method ??
-          actionToMethod(raw.action) ??
-          (raw.availableMethods?.includes('password') && !raw.availableMethods?.includes('phone_otp') ? 'password' : 'otp');
+          rawMethod ??
+          actionToMethod(rawAction) ??
+          (rawAvailableMethods.includes('password') && !rawAvailableMethods.includes('phone_otp') ? 'password' : 'otp');
 
         const result: IdentifierCheckResult = {
-          ...raw,
           method: derivedMethod,
-          exists: raw.exists ?? false,
+          exists: rawExists,
+          twoFactorEnabled: typeof raw.twoFactorEnabled === 'boolean' ? raw.twoFactorEnabled : undefined,
         };
         setMethod(result.method);
 
@@ -117,7 +122,7 @@ export function useLoginFlow({ baseURL = '', role, onSuccess, translateError }: 
            phone-OTP flow.  Without this the user would see an OTP input but
            receive nothing on their phone.
         ─────────────────────────────────────────────────────────────────── */
-        const action: string = raw.action ?? '';
+        const action: string = rawAction ?? '';
         if (action === 'send_phone_otp' || derivedMethod === 'otp') {
           const looksLikePhone = /^[\d\s\-+()]{7,15}$/.test(id.trim());
           if (looksLikePhone) {

@@ -34,6 +34,9 @@ export type {
 } from './hooks/useSessionManager';
 
 // Components
+// React Native consumers: import platform variants directly instead of from the barrel:
+//   import { OtpInput } from '@workspace/auth-react/src/components/OtpInput.native'
+//   import { PhoneInput } from '@workspace/auth-react/src/components/PhoneInput.native'
 export { OtpInput, OtpTimer } from './components/OtpInput';
 export type { OtpInputProps, OtpTimerProps } from './components/OtpInput';
 export { PhoneInput } from './components/PhoneInput';
