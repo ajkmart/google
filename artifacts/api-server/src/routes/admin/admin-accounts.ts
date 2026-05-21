@@ -34,32 +34,28 @@ function safeAccount(a: typeof adminAccountsTable.$inferSelect) {
 }
 
 /* ── GET /admin-accounts ─────────────────────────────────────────── */
-router.get(
-  "/admin-accounts",
-  requirePermission("system.roles.manage"),
-  async (req, res) => {
-    try {
-      const search = String(req.query["search"] ?? "").trim();
-      const rows = await db
-        .select()
-        .from(adminAccountsTable)
-        .where(
-          search
-            ? or(
-                ilike(adminAccountsTable.name, `%${search}%`),
-                ilike(adminAccountsTable.username, `%${search}%`),
-                ilike(adminAccountsTable.email, `%${search}%`)
-              )
-            : undefined
-        )
-        .orderBy(desc(adminAccountsTable.createdAt));
-      sendSuccess(res, { accounts: rows.map(safeAccount) });
-    } catch (err) {
-      logger.error({ err }, "[admin-accounts] list failed");
-      sendError(res, "Failed to list admin accounts", 500);
-    }
+router.get("/admin-accounts", requirePermission("system.roles.manage"), async (req, res) => {
+  try {
+    const search = String(req.query["search"] ?? "").trim();
+    const rows = await db
+      .select()
+      .from(adminAccountsTable)
+      .where(
+        search
+          ? or(
+              ilike(adminAccountsTable.name, `%${search}%`),
+              ilike(adminAccountsTable.username, `%${search}%`),
+              ilike(adminAccountsTable.email, `%${search}%`)
+            )
+          : undefined
+      )
+      .orderBy(desc(adminAccountsTable.createdAt));
+    sendSuccess(res, { accounts: rows.map(safeAccount) });
+  } catch (err) {
+    logger.error({ err }, "[admin-accounts] list failed");
+    sendError(res, "Failed to list admin accounts", 500);
   }
-);
+});
 
 /* ── PATCH /admin-accounts/:id ──────────────────────────────────── */
 const patchSchema = z.object({
@@ -67,57 +63,53 @@ const patchSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-router.patch(
-  "/admin-accounts/:id",
-  requirePermission("system.roles.manage"),
-  async (req, res) => {
-    const aReq = req as AdminRequest;
-    const id = req.params["id"] as string;
-    try {
-      const body = patchSchema.parse(req.body);
-      const [admin] = await db
-        .select()
-        .from(adminAccountsTable)
-        .where(eq(adminAccountsTable.id, id))
-        .limit(1);
-      if (!admin) return sendNotFound(res, "Admin account not found");
+router.patch("/admin-accounts/:id", requirePermission("system.roles.manage"), async (req, res) => {
+  const aReq = req as AdminRequest;
+  const id = req.params["id"] as string;
+  try {
+    const body = patchSchema.parse(req.body);
+    const [admin] = await db
+      .select()
+      .from(adminAccountsTable)
+      .where(eq(adminAccountsTable.id, id))
+      .limit(1);
+    if (!admin) return sendNotFound(res, "Admin account not found");
 
-      if (body.isActive === false && id === aReq.adminId) {
-        return sendError(res, "You cannot deactivate your own account", 400);
-      }
-
-      const updates: Partial<typeof adminAccountsTable.$inferInsert> = {};
-      if (body.role !== undefined) updates.role = body.role;
-      if (body.isActive !== undefined) updates.isActive = body.isActive;
-
-      const [updated] = await db
-        .update(adminAccountsTable)
-        .set(updates)
-        .where(eq(adminAccountsTable.id, id))
-        .returning();
-
-      if (body.isActive === false) {
-        await revokeAllUserSessions(id).catch((err: unknown) => {
-          logger.warn({ err, id }, "[admin-accounts] session revoke on deactivate failed");
-        });
-      }
-
-      addAuditEntry({
-        action: "admin_account_update",
-        adminId: aReq.adminId,
-        ip: aReq.adminIp || "unknown",
-        details: `targetAdminId=${id} role=${body.role ?? "unchanged"} isActive=${body.isActive ?? "unchanged"}`,
-        result: "success",
-      });
-
-      sendSuccess(res, { account: safeAccount(updated!) });
-    } catch (err) {
-      if (err instanceof z.ZodError) return sendValidationError(res, err.message);
-      logger.error({ err }, "[admin-accounts] patch failed");
-      sendError(res, "Failed to update admin account", 500);
+    if (body.isActive === false && id === aReq.adminId) {
+      return sendError(res, "You cannot deactivate your own account", 400);
     }
+
+    const updates: Partial<typeof adminAccountsTable.$inferInsert> = {};
+    if (body.role !== undefined) updates.role = body.role;
+    if (body.isActive !== undefined) updates.isActive = body.isActive;
+
+    const [updated] = await db
+      .update(adminAccountsTable)
+      .set(updates)
+      .where(eq(adminAccountsTable.id, id))
+      .returning();
+
+    if (body.isActive === false) {
+      await revokeAllUserSessions(id).catch((err: unknown) => {
+        logger.warn({ err, id }, "[admin-accounts] session revoke on deactivate failed");
+      });
+    }
+
+    addAuditEntry({
+      action: "admin_account_update",
+      adminId: aReq.adminId,
+      ip: aReq.adminIp || "unknown",
+      details: `targetAdminId=${id} role=${body.role ?? "unchanged"} isActive=${body.isActive ?? "unchanged"}`,
+      result: "success",
+    });
+
+    sendSuccess(res, { account: safeAccount(updated!) });
+  } catch (err) {
+    if (err instanceof z.ZodError) return sendValidationError(res, err.message);
+    logger.error({ err }, "[admin-accounts] patch failed");
+    sendError(res, "Failed to update admin account", 500);
   }
-);
+});
 
 /* ── POST /admin-accounts/:id/revoke-sessions ───────────────────── */
 router.post(
@@ -153,42 +145,38 @@ router.post(
 );
 
 /* ── DELETE /admin-accounts/:id ─────────────────────────────────── */
-router.delete(
-  "/admin-accounts/:id",
-  requirePermission("system.roles.manage"),
-  async (req, res) => {
-    const aReq = req as AdminRequest;
-    const id = req.params["id"] as string;
-    try {
-      if (id === aReq.adminId) {
-        return sendError(res, "You cannot delete your own account", 400);
-      }
-      const [admin] = await db
-        .select()
-        .from(adminAccountsTable)
-        .where(eq(adminAccountsTable.id, id))
-        .limit(1);
-      if (!admin) return sendNotFound(res, "Admin account not found");
-
-      await revokeAllUserSessions(id).catch((err: unknown) => {
-        logger.warn({ err, id }, "[admin-accounts] session revoke before delete failed");
-      });
-      await db.delete(adminAccountsTable).where(eq(adminAccountsTable.id, id));
-
-      addAuditEntry({
-        action: "admin_account_delete",
-        adminId: aReq.adminId,
-        ip: aReq.adminIp || "unknown",
-        details: `deletedAdminId=${id} name=${admin.name} username=${admin.username ?? ""}`,
-        result: "success",
-      });
-
-      sendSuccess(res, { success: true });
-    } catch (err) {
-      logger.error({ err }, "[admin-accounts] delete failed");
-      sendError(res, "Failed to delete admin account", 500);
+router.delete("/admin-accounts/:id", requirePermission("system.roles.manage"), async (req, res) => {
+  const aReq = req as AdminRequest;
+  const id = req.params["id"] as string;
+  try {
+    if (id === aReq.adminId) {
+      return sendError(res, "You cannot delete your own account", 400);
     }
+    const [admin] = await db
+      .select()
+      .from(adminAccountsTable)
+      .where(eq(adminAccountsTable.id, id))
+      .limit(1);
+    if (!admin) return sendNotFound(res, "Admin account not found");
+
+    await revokeAllUserSessions(id).catch((err: unknown) => {
+      logger.warn({ err, id }, "[admin-accounts] session revoke before delete failed");
+    });
+    await db.delete(adminAccountsTable).where(eq(adminAccountsTable.id, id));
+
+    addAuditEntry({
+      action: "admin_account_delete",
+      adminId: aReq.adminId,
+      ip: aReq.adminIp || "unknown",
+      details: `deletedAdminId=${id} name=${admin.name} username=${admin.username ?? ""}`,
+      result: "success",
+    });
+
+    sendSuccess(res, { success: true });
+  } catch (err) {
+    logger.error({ err }, "[admin-accounts] delete failed");
+    sendError(res, "Failed to delete admin account", 500);
   }
-);
+});
 
 export default router;

@@ -22,8 +22,8 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, Marker, Polyline, TileLayer, useMap } from "react-leaflet";
 
 /* ── Fix Leaflet's broken default icon paths in Vite (production-safe asset imports) ── */
-import leafletIconUrl from "leaflet/dist/images/marker-icon.png";
 import leafletIconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
+import leafletIconUrl from "leaflet/dist/images/marker-icon.png";
 import leafletShadowUrl from "leaflet/dist/images/marker-shadow.png";
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({

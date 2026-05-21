@@ -58,8 +58,7 @@ export async function downloadRemoteCsv(
   a.href = objectUrl;
   const cd = res.headers.get("content-disposition") ?? "";
   const match = cd.match(/filename="?([^";\n]+)"?/);
-  a.download =
-    match?.[1] ?? `${fallbackFilename}_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = match?.[1] ?? `${fallbackFilename}_${new Date().toISOString().slice(0, 10)}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

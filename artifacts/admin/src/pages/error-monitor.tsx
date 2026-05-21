@@ -598,7 +598,11 @@ export default function ErrorMonitor() {
   const reports = useMemo<ErrorReport[]>(() => {
     if (!data) return [];
     if (Array.isArray(data)) return data as ErrorReport[];
-    return (data as { reports?: ErrorReport[]; items?: ErrorReport[] })?.reports ?? (data as { items?: ErrorReport[] })?.items ?? [];
+    return (
+      (data as { reports?: ErrorReport[]; items?: ErrorReport[] })?.reports ??
+      (data as { items?: ErrorReport[] })?.items ??
+      []
+    );
   }, [data]);
   const pagination: Pagination = (data as { pagination?: Pagination } | null)?.pagination || {
     page: 1,

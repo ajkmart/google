@@ -184,9 +184,7 @@ export default function AuditLogsPage() {
                 data={
                   entries.length > 0
                     ? entries.map((entry: any) => ({
-                        timestamp: entry.timestamp
-                          ? new Date(entry.timestamp).toISOString()
-                          : "",
+                        timestamp: entry.timestamp ? new Date(entry.timestamp).toISOString() : "",
                         adminId: entry.adminId ?? "",
                         adminName: entry.adminName ?? "",
                         action: entry.action ?? "",
@@ -194,9 +192,10 @@ export default function AuditLogsPage() {
                         affectedUserRole: entry.affectedUserRole ?? "",
                         ipAddress: entry.ip ?? "",
                         result: entry.result ?? "",
-                        details: typeof entry.details === "object"
-                          ? JSON.stringify(entry.details)
-                          : String(entry.details ?? ""),
+                        details:
+                          typeof entry.details === "object"
+                            ? JSON.stringify(entry.details)
+                            : String(entry.details ?? ""),
                       }))
                     : []
                 }

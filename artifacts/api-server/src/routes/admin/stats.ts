@@ -3,17 +3,13 @@ import {
   liveLocationsTable,
   notificationsTable,
   otpAttemptsTable,
-  platformSettingsTable,
   usersTable,
 } from "@workspace/db/schema";
-import { count, eq, gte, and, sql } from "drizzle-orm";
+import { exec } from "child_process";
+import { and, count, eq, gte, sql } from "drizzle-orm";
 import { Router } from "express";
 import http from "http";
-import { exec } from "child_process";
 import { promisify } from "util";
-import { sendSuccess } from "../../lib/response.js";
-import { logger } from "../../lib/logger.js";
-import { getIO } from "../../lib/socketio.js";
 import {
   getDiskFreeGb,
   getDiskPct,
@@ -22,11 +18,13 @@ import {
   getP95Ms,
   getP99Ms,
 } from "../../lib/metrics/responseTime.js";
+import { sendSuccess } from "../../lib/response.js";
+import { getIO } from "../../lib/socketio.js";
 import { getSchedulerStatus } from "../../scheduler.js";
 import {
   ADMIN_LOCKOUT_TIME,
-  adminLoginAttempts,
   adminAuth,
+  adminLoginAttempts,
   getCachedSettings,
 } from "../admin-shared.js";
 
@@ -44,19 +42,35 @@ function formatUptime(sec: number): string {
   return `${m}m ${Math.floor(sec % 60)}s`;
 }
 
-async function pingLocalPort(port: number, path = "/api/health"): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
+async function pingLocalPort(
+  port: number,
+  path = "/api/health"
+): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
   return new Promise((resolve) => {
     const t0 = Date.now();
     const req = http.get({ hostname: "127.0.0.1", port, path, timeout: 2000 }, (res) => {
       res.resume();
-      resolve({ ok: res.statusCode !== undefined && res.statusCode < 500, latencyMs: Date.now() - t0 });
+      resolve({
+        ok: res.statusCode !== undefined && res.statusCode < 500,
+        latencyMs: Date.now() - t0,
+      });
     });
-    req.on("timeout", () => { req.destroy(); resolve({ ok: false, latencyMs: Date.now() - t0, error: "timeout" }); });
-    req.on("error", (err) => resolve({ ok: false, latencyMs: Date.now() - t0, error: err.message }));
+    req.on("timeout", () => {
+      req.destroy();
+      resolve({ ok: false, latencyMs: Date.now() - t0, error: "timeout" });
+    });
+    req.on("error", (err) =>
+      resolve({ ok: false, latencyMs: Date.now() - t0, error: err.message })
+    );
   });
 }
 
-async function getProcessCounts(): Promise<{ nodeTotal: number; tsx: number; vite: number; expo: number }> {
+async function getProcessCounts(): Promise<{
+  nodeTotal: number;
+  tsx: number;
+  vite: number;
+  expo: number;
+}> {
   try {
     const { stdout } = await execAsync("ps aux");
     const lines = stdout.split("\n");
@@ -77,7 +91,8 @@ async function getProcessCounts(): Promise<{ nodeTotal: number; tsx: number; vit
 router.get("/system/health-dashboard", adminAuth, async (_req, res, next) => {
   try {
     const settings = await getCachedSettings();
-    const issues: Array<{ level: "error" | "warning" | "info"; message: string; code?: string }> = [];
+    const issues: Array<{ level: "error" | "warning" | "info"; message: string; code?: string }> =
+      [];
 
     /* ── DB check ── */
     let dbStatus: "ok" | "error" = "ok";
@@ -95,36 +110,76 @@ router.get("/system/health-dashboard", adminAuth, async (_req, res, next) => {
     /* ── Memory ── */
     const memMb = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
     const memoryPct = getMemoryPct();
-    if (memoryPct > 85) issues.push({ level: "warning", message: `High memory usage: ${memoryPct}%`, code: "HIGH_MEMORY" });
+    if (memoryPct > 85)
+      issues.push({
+        level: "warning",
+        message: `High memory usage: ${memoryPct}%`,
+        code: "HIGH_MEMORY",
+      });
 
     /* ── Disk ── */
     const diskPct = getDiskPct() ?? 0;
     const diskFreeGb = getDiskFreeGb();
-    if (diskPct > 90) issues.push({ level: "error", message: `Critical disk usage: ${diskPct}%`, code: "DISK_CRITICAL" });
-    else if (diskPct > 80) issues.push({ level: "warning", message: `High disk usage: ${diskPct}%`, code: "DISK_HIGH" });
+    if (diskPct > 90)
+      issues.push({
+        level: "error",
+        message: `Critical disk usage: ${diskPct}%`,
+        code: "DISK_CRITICAL",
+      });
+    else if (diskPct > 80)
+      issues.push({ level: "warning", message: `High disk usage: ${diskPct}%`, code: "DISK_HIGH" });
 
     /* ── GPS / live riders ── */
     const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
     const [ridersInLiveTable, ridersWithRecentPing] = await Promise.all([
       dbStatus === "ok"
-        ? db.select({ c: count() }).from(liveLocationsTable).then(([r]) => Number(r?.c ?? 0))
+        ? db
+            .select({ c: count() })
+            .from(liveLocationsTable)
+            .then(([r]) => Number(r?.c ?? 0))
         : Promise.resolve(0),
       dbStatus === "ok"
-        ? db.select({ c: count() }).from(liveLocationsTable).where(gte(liveLocationsTable.updatedAt, fiveMinsAgo)).then(([r]) => Number(r?.c ?? 0))
+        ? db
+            .select({ c: count() })
+            .from(liveLocationsTable)
+            .where(gte(liveLocationsTable.updatedAt, fiveMinsAgo))
+            .then(([r]) => Number(r?.c ?? 0))
         : Promise.resolve(0),
     ]);
     const staleRiders = Math.max(0, ridersInLiveTable - ridersWithRecentPing);
 
     /* ── Feature flags ── */
-    const featureKeys = ["mart", "food", "rides", "pharmacy", "parcel", "van", "wallet", "referral", "newUsers", "chat", "liveTracking", "reviews", "sos", "weather"];
+    const featureKeys = [
+      "mart",
+      "food",
+      "rides",
+      "pharmacy",
+      "parcel",
+      "van",
+      "wallet",
+      "referral",
+      "newUsers",
+      "chat",
+      "liveTracking",
+      "reviews",
+      "sos",
+      "weather",
+    ];
     const features: Record<string, boolean> = {};
     for (const key of featureKeys) {
-      features[key] = settings[`feature_${key}`] !== "off" && settings[`feature_${key}_enabled`] !== "false";
+      features[key] =
+        settings[`feature_${key}`] !== "off" && settings[`feature_${key}_enabled`] !== "false";
     }
 
     /* ── Maintenance mode ── */
-    const maintenanceMode = settings["maintenance_mode"] === "on" || settings["maintenance_mode"] === "true";
-    if (maintenanceMode) issues.push({ level: "warning", message: "Maintenance mode is active — app is inaccessible to customers", code: "MAINTENANCE" });
+    const maintenanceMode =
+      settings["maintenance_mode"] === "on" || settings["maintenance_mode"] === "true";
+    if (maintenanceMode)
+      issues.push({
+        level: "warning",
+        message: "Maintenance mode is active — app is inaccessible to customers",
+        code: "MAINTENANCE",
+      });
 
     /* ── Moderation settings ── */
     let customPatternsCount = 0;
@@ -136,15 +191,23 @@ router.get("/system/health-dashboard", adminAuth, async (_req, res, next) => {
         customPatternsCount = Array.isArray(parsed) ? parsed.length : 0;
       } catch {
         customPatternsValid = false;
-        issues.push({ level: "warning", message: "Custom moderation patterns contain invalid JSON", code: "MODERATION_INVALID" });
+        issues.push({
+          level: "warning",
+          message: "Custom moderation patterns contain invalid JSON",
+          code: "MODERATION_INVALID",
+        });
       }
     }
     const flagKeywordsRaw = settings["moderation_flag_keywords"] ?? "";
-    const flagKeywordsCount = flagKeywordsRaw ? flagKeywordsRaw.split(",").filter(Boolean).length : 0;
+    const flagKeywordsCount = flagKeywordsRaw
+      ? flagKeywordsRaw.split(",").filter(Boolean).length
+      : 0;
 
     /* ── Alert config ── */
     const alertConfig = {
-      monitorEnabled: settings["health_monitor_enabled"] === "on" || settings["health_monitor_enabled"] === "true",
+      monitorEnabled:
+        settings["health_monitor_enabled"] === "on" ||
+        settings["health_monitor_enabled"] === "true",
       intervalMin: parseInt(settings["health_monitor_interval_min"] ?? "5", 10),
       snoozeMin: parseInt(settings["health_monitor_snooze_min"] ?? "60", 10),
       emailConfigured: !!(settings["alert_email"] ?? process.env["SMTP_HOST"]),
@@ -161,17 +224,32 @@ router.get("/system/health-dashboard", adminAuth, async (_req, res, next) => {
     /* ── Auth lockouts ── */
     const LOCKOUT_WINDOW_MS = ADMIN_LOCKOUT_TIME * 60 * 1000;
     const now = Date.now();
-    const adminIpLockouts: Array<{ key: string; attempts: number; lockedSince: string; minutesLeft: number }> = [];
-    const adminIpAttemptsInProgress: Array<{ key: string; attempts: number; lastAttempt: string }> = [];
+    const adminIpLockouts: Array<{
+      key: string;
+      attempts: number;
+      lockedSince: string;
+      minutesLeft: number;
+    }> = [];
+    const adminIpAttemptsInProgress: Array<{ key: string; attempts: number; lastAttempt: string }> =
+      [];
 
     for (const [key, val] of adminLoginAttempts.entries()) {
       const elapsed = now - val.lastAttempt;
       if (elapsed > LOCKOUT_WINDOW_MS) continue;
       const minutesLeft = Math.max(0, Math.ceil((LOCKOUT_WINDOW_MS - elapsed) / 60000));
       if (val.count >= 5) {
-        adminIpLockouts.push({ key, attempts: val.count, lockedSince: new Date(val.lastAttempt).toISOString(), minutesLeft });
+        adminIpLockouts.push({
+          key,
+          attempts: val.count,
+          lockedSince: new Date(val.lastAttempt).toISOString(),
+          minutesLeft,
+        });
       } else if (val.count > 0) {
-        adminIpAttemptsInProgress.push({ key, attempts: val.count, lastAttempt: new Date(val.lastAttempt).toISOString() });
+        adminIpAttemptsInProgress.push({
+          key,
+          attempts: val.count,
+          lastAttempt: new Date(val.lastAttempt).toISOString(),
+        });
       }
     }
 
@@ -183,14 +261,26 @@ router.get("/system/health-dashboard", adminAuth, async (_req, res, next) => {
     if (dbStatus === "ok") {
       try {
         const rows = await db
-          .select({ key: otpAttemptsTable.key, count: otpAttemptsTable.count, firstAt: otpAttemptsTable.firstAt })
+          .select({
+            key: otpAttemptsTable.key,
+            count: otpAttemptsTable.count,
+            firstAt: otpAttemptsTable.firstAt,
+          })
           .from(otpAttemptsTable)
-          .where(and(gte(otpAttemptsTable.count, maxAttempts), gte(otpAttemptsTable.firstAt, lockoutSince)))
+          .where(
+            and(
+              gte(otpAttemptsTable.count, maxAttempts),
+              gte(otpAttemptsTable.firstAt, lockoutSince)
+            )
+          )
           .limit(50);
         accountLockouts = rows.map((r) => ({
           phone: r.key,
           attempts: r.count,
-          minutesLeft: Math.max(0, Math.ceil((lockoutMin * 60 * 1000 - (now - (r.firstAt?.getTime() ?? now))) / 60000)),
+          minutesLeft: Math.max(
+            0,
+            Math.ceil((lockoutMin * 60 * 1000 - (now - (r.firstAt?.getTime() ?? now))) / 60000)
+          ),
         }));
       } catch {
         /* non-fatal */
@@ -264,7 +354,9 @@ router.get("/system/diagnostics", adminAuth, async (_req, res, next) => {
       { key: "mobile", name: "Expo / Mobile", port: 8081, path: "/" },
     ];
 
-    const pingResults = await Promise.allSettled(serviceDefs.map((s) => pingLocalPort(s.port, s.path)));
+    const pingResults = await Promise.allSettled(
+      serviceDefs.map((s) => pingLocalPort(s.port, s.path))
+    );
 
     const services = serviceDefs.map((svc, i) => {
       const result = pingResults[i];
@@ -279,7 +371,14 @@ router.get("/system/diagnostics", adminAuth, async (_req, res, next) => {
           error: error ?? null,
         };
       }
-      return { key: svc.key, name: svc.name, port: svc.port, status: "down", latencyMs: null, error: "ping failed" };
+      return {
+        key: svc.key,
+        name: svc.name,
+        port: svc.port,
+        status: "down",
+        latencyMs: null,
+        error: "ping failed",
+      };
     });
 
     const servicesUp = services.filter((s) => s.status === "up").length;
@@ -386,11 +485,13 @@ router.get("/stats/performance", adminAuth, async (_req, res, next) => {
     const diskAlert = parseInt(settings["perf_alert_disk_pct"] ?? "80", 10);
 
     const dbPool = pool ?? null;
-    const dbPoolStats = dbPool ? {
-      totalConnections: dbPool.totalCount,
-      idleConnections: dbPool.idleCount,
-      waitingClients: dbPool.waitingCount,
-    } : null;
+    const dbPoolStats = dbPool
+      ? {
+          totalConnections: dbPool.totalCount,
+          idleConnections: dbPool.idleCount,
+          waitingClients: dbPool.waitingCount,
+        }
+      : null;
 
     sendSuccess(res, {
       p50Ms: getP50Ms(),

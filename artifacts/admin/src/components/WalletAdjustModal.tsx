@@ -114,7 +114,11 @@ export function WalletAdjustModal({ mode, subject, onClose }: WalletAdjustModalP
           onClose();
         },
         onError: (e: unknown) =>
-          toast({ title: "Failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" }),
+          toast({
+            title: "Failed",
+            description: e instanceof Error ? e.message : String(e),
+            variant: "destructive",
+          }),
       }
     );
   };

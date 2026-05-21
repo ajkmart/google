@@ -51,10 +51,7 @@ export function SafeImage({
   return (
     <span className={cn("relative block overflow-hidden", className)}>
       {!loaded && (
-        <span
-          aria-hidden="true"
-          className="absolute inset-0 animate-pulse bg-gray-200"
-        />
+        <span aria-hidden="true" className="absolute inset-0 animate-pulse bg-gray-200" />
       )}
       <img
         src={src}

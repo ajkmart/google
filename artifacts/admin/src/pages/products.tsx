@@ -6,9 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ImageLightbox } from "@/components/ui/ImageLightbox";
 import { Input } from "@/components/ui/input";
 import { LastUpdated } from "@/components/ui/LastUpdated";
-import { ImageLightbox } from "@/components/ui/ImageLightbox";
 import { SafeImage } from "@/components/ui/SafeImage";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
@@ -1638,7 +1638,9 @@ export default function Products() {
                                       {p.type}
                                     </Badge>
                                     {p.unit && (
-                                      <span className="text-muted-foreground text-xs">{p.unit}</span>
+                                      <span className="text-muted-foreground text-xs">
+                                        {p.unit}
+                                      </span>
                                     )}
                                   </div>
                                   {p.description && (
@@ -2073,7 +2075,9 @@ export default function Products() {
                                         {p.type}
                                       </Badge>
                                       {p.unit && (
-                                        <span className="text-muted-foreground text-xs">{p.unit}</span>
+                                        <span className="text-muted-foreground text-xs">
+                                          {p.unit}
+                                        </span>
                                       )}
                                     </div>
                                   </div>

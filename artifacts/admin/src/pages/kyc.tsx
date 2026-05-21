@@ -647,7 +647,9 @@ function KycDetailPanel({
                     label: "Selfie",
                   },
                 ].map(({ keys, label }) => {
-                  const raw = keys.map((k) => details[k as keyof KycRecord] as string | undefined).find(Boolean);
+                  const raw = keys
+                    .map((k) => details[k as keyof KycRecord] as string | undefined)
+                    .find(Boolean);
                   const url = fullApiUrl(raw);
                   return (
                     <div key={label} className="text-center">

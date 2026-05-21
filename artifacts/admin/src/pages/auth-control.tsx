@@ -387,12 +387,14 @@ export default function AuthControlPage() {
             <h3 className="font-semibold">Registration Settings</h3>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            {([
-              ["feature_new_users", "New user registration"],
-              ["user_require_approval", "Customer auto-approval"],
-              ["rider_auto_approve", "Rider auto-approval"],
-              ["vendor_auto_approve", "Vendor auto-approval"],
-            ] as [string, string][]).map(([key, label]) => (
+            {(
+              [
+                ["feature_new_users", "New user registration"],
+                ["user_require_approval", "Customer auto-approval"],
+                ["rider_auto_approve", "Rider auto-approval"],
+                ["vendor_auto_approve", "Vendor auto-approval"],
+              ] as [string, string][]
+            ).map(([key, label]) => (
               <div key={key} className="flex items-center justify-between rounded-lg border p-3">
                 <div>
                   <div className="font-medium">{label}</div>
@@ -466,13 +468,15 @@ export default function AuthControlPage() {
                   className={`flex h-8 w-14 items-center rounded-full px-1 ${settings.auth_otp_console_fallback === "on" ? "bg-emerald-500" : "bg-muted"}`}
                 ></button>
               </div>
-              {([
-                ["auth_otp_login_ttl_min", "Login TTL"],
-                ["auth_otp_register_ttl_min", "Register TTL"],
-                ["auth_otp_reset_ttl_min", "Reset TTL"],
-                ["auth_otp_merge_ttl_min", "Merge TTL"],
-                ["auth_magic_link_ttl_min", "Magic Link TTL"],
-              ] as [string, string][]).map(([key, label]) => (
+              {(
+                [
+                  ["auth_otp_login_ttl_min", "Login TTL"],
+                  ["auth_otp_register_ttl_min", "Register TTL"],
+                  ["auth_otp_reset_ttl_min", "Reset TTL"],
+                  ["auth_otp_merge_ttl_min", "Merge TTL"],
+                  ["auth_magic_link_ttl_min", "Magic Link TTL"],
+                ] as [string, string][]
+              ).map(([key, label]) => (
                 <div key={key}>
                   <div className="mb-2 text-sm font-medium">{label} (min)</div>
                   <Input
@@ -491,13 +495,15 @@ export default function AuthControlPage() {
             <h3 className="font-semibold">Security & Rate Limits</h3>
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {([
-              ["security_login_max_attempts", "Max login attempts"],
-              ["security_lockout_minutes", "Lockout duration (min)"],
-              ["security_admin_token_hrs", "Admin session hours"],
-              ["security_session_days", "Customer session days"],
-              ["security_rider_token_days", "Rider token days"],
-            ] as [string, string][]).map(([key, label]) => (
+            {(
+              [
+                ["security_login_max_attempts", "Max login attempts"],
+                ["security_lockout_minutes", "Lockout duration (min)"],
+                ["security_admin_token_hrs", "Admin session hours"],
+                ["security_session_days", "Customer session days"],
+                ["security_rider_token_days", "Rider token days"],
+              ] as [string, string][]
+            ).map(([key, label]) => (
               <div key={key}>
                 <div className="mb-2 text-sm font-medium">{label}</div>
                 <Input

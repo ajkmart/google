@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
 import { ordersTable, usersTable } from "@workspace/db/schema";
-import { and, count, gte, isNull, sql, sum } from "drizzle-orm";
+import { and, gte, isNull, sql, sum } from "drizzle-orm";
 import { Router } from "express";
 import { logger } from "../../lib/logger.js";
 import { sendError, sendSuccess } from "../../lib/response.js";
@@ -27,13 +27,7 @@ router.get("/analytics", async (req, res) => {
     const metric = req.query.metric as string | undefined;
 
     const days =
-      periodParam === "7d"
-        ? 7
-        : periodParam === "90d"
-          ? 90
-          : periodParam === "1y"
-            ? 365
-            : 30;
+      periodParam === "7d" ? 7 : periodParam === "90d" ? 90 : periodParam === "1y" ? 365 : 30;
 
     const since = new Date();
     since.setDate(since.getDate() - days);
@@ -139,7 +133,8 @@ router.get("/analytics", async (req, res) => {
 
     const revenueByCategoryRaw: Record<string, number> = {};
     for (const row of revenueRows) {
-      const label = CATEGORY_LABELS[String(row.type ?? "").toLowerCase()] ?? String(row.type ?? "Other");
+      const label =
+        CATEGORY_LABELS[String(row.type ?? "").toLowerCase()] ?? String(row.type ?? "Other");
       revenueByCategoryRaw[label] =
         (revenueByCategoryRaw[label] ?? 0) + parseFloat(String(row.total ?? "0"));
     }

@@ -22,6 +22,7 @@ import {
   HardDrive,
   Info,
   Layers,
+  ListChecks,
   Loader2,
   Lock,
   LockOpen,
@@ -29,6 +30,8 @@ import {
   MemoryStick,
   MessageSquare,
   Navigation,
+  Package,
+  Radio,
   RefreshCw,
   Repeat,
   Satellite,
@@ -42,9 +45,6 @@ import {
   ToggleRight,
   UserX,
   Users,
-  Radio,
-  Package,
-  ListChecks,
   XCircle,
   Zap,
 } from "lucide-react";
@@ -200,12 +200,50 @@ function CheckCard({
   detail?: string;
   sub?: string;
 }) {
-  const cfg: Record<CheckStatus, { border: string; bg: string; dot: string; badge: string; text: string; label: string }> = {
-    ok: { border: "border-emerald-500/25", bg: "bg-emerald-500/5", dot: "bg-emerald-500", badge: "bg-emerald-500/15 text-emerald-400", text: "text-emerald-400", label: "OK" },
-    warning: { border: "border-amber-500/25", bg: "bg-amber-500/5", dot: "bg-amber-400 animate-pulse", badge: "bg-amber-500/15 text-amber-400", text: "text-amber-400", label: "Degraded" },
-    error: { border: "border-red-500/25", bg: "bg-red-500/5", dot: "bg-red-500 animate-pulse", badge: "bg-red-500/15 text-red-400", text: "text-red-400", label: "Error" },
-    not_configured: { border: "border-slate-700/40", bg: "bg-slate-800/30", dot: "bg-slate-600", badge: "bg-slate-700/60 text-slate-500", text: "text-slate-500", label: "Not set up" },
-    loading: { border: "border-slate-700/40", bg: "bg-slate-800/30", dot: "bg-slate-700 animate-pulse", badge: "bg-slate-700/60 text-slate-500", text: "text-slate-500", label: "—" },
+  const cfg: Record<
+    CheckStatus,
+    { border: string; bg: string; dot: string; badge: string; text: string; label: string }
+  > = {
+    ok: {
+      border: "border-emerald-500/25",
+      bg: "bg-emerald-500/5",
+      dot: "bg-emerald-500",
+      badge: "bg-emerald-500/15 text-emerald-400",
+      text: "text-emerald-400",
+      label: "OK",
+    },
+    warning: {
+      border: "border-amber-500/25",
+      bg: "bg-amber-500/5",
+      dot: "bg-amber-400 animate-pulse",
+      badge: "bg-amber-500/15 text-amber-400",
+      text: "text-amber-400",
+      label: "Degraded",
+    },
+    error: {
+      border: "border-red-500/25",
+      bg: "bg-red-500/5",
+      dot: "bg-red-500 animate-pulse",
+      badge: "bg-red-500/15 text-red-400",
+      text: "text-red-400",
+      label: "Error",
+    },
+    not_configured: {
+      border: "border-slate-700/40",
+      bg: "bg-slate-800/30",
+      dot: "bg-slate-600",
+      badge: "bg-slate-700/60 text-slate-500",
+      text: "text-slate-500",
+      label: "Not set up",
+    },
+    loading: {
+      border: "border-slate-700/40",
+      bg: "bg-slate-800/30",
+      dot: "bg-slate-700 animate-pulse",
+      badge: "bg-slate-700/60 text-slate-500",
+      text: "text-slate-500",
+      label: "—",
+    },
   };
   const c = cfg[status];
   return (
@@ -259,7 +297,13 @@ function SystemChecksSection() {
 
   const { data: storageData, isLoading: storageLoading } = useQuery({
     queryKey: ["stats-storage"],
-    queryFn: () => adminFetch("/stats/storage") as Promise<{ status: string; usedPct: number | null; freeGb: number | null; usedGb: number | null }>,
+    queryFn: () =>
+      adminFetch("/stats/storage") as Promise<{
+        status: string;
+        usedPct: number | null;
+        freeGb: number | null;
+        usedGb: number | null;
+      }>,
     refetchInterval: 30_000,
     staleTime: 20_000,
   });
@@ -271,13 +315,39 @@ function SystemChecksSection() {
     staleTime: 20_000,
   });
 
-  const checks = (healthRaw as { checks?: Record<string, { status: string; latencyMs?: number }> } | undefined)?.checks;
+  const checks = (
+    healthRaw as { checks?: Record<string, { status: string; latencyMs?: number }> } | undefined
+  )?.checks;
   const apiMs = (healthRaw as { _apiMs?: number } | undefined)?._apiMs ?? null;
 
-  const dbStatus: CheckStatus = healthLoading ? "loading" : checks?.database?.status === "ok" ? "ok" : checks?.database?.status ? "error" : "error";
-  const apiStatus: CheckStatus = healthLoading ? "loading" : apiMs == null ? "error" : apiMs < 500 ? "ok" : apiMs < 1500 ? "warning" : "error";
-  const smtpStatus: CheckStatus = healthLoading ? "loading" : (checks?.smtp as { status?: string } | undefined)?.status === "ok" ? "ok" : (checks?.smtp as { status?: string } | undefined)?.status === "not_configured" ? "not_configured" : "not_configured";
-  const smsStatus: CheckStatus = healthLoading ? "loading" : (checks?.sms as { status?: string } | undefined)?.status === "ok" ? "ok" : "not_configured";
+  const dbStatus: CheckStatus = healthLoading
+    ? "loading"
+    : checks?.database?.status === "ok"
+      ? "ok"
+      : checks?.database?.status
+        ? "error"
+        : "error";
+  const apiStatus: CheckStatus = healthLoading
+    ? "loading"
+    : apiMs == null
+      ? "error"
+      : apiMs < 500
+        ? "ok"
+        : apiMs < 1500
+          ? "warning"
+          : "error";
+  const smtpStatus: CheckStatus = healthLoading
+    ? "loading"
+    : (checks?.smtp as { status?: string } | undefined)?.status === "ok"
+      ? "ok"
+      : (checks?.smtp as { status?: string } | undefined)?.status === "not_configured"
+        ? "not_configured"
+        : "not_configured";
+  const smsStatus: CheckStatus = healthLoading
+    ? "loading"
+    : (checks?.sms as { status?: string } | undefined)?.status === "ok"
+      ? "ok"
+      : "not_configured";
 
   const usersStatus: CheckStatus = usersLoading ? "loading" : activeUsers != null ? "ok" : "error";
   const socketStatus: CheckStatus = socketLoading ? "loading" : socketData != null ? "ok" : "error";
@@ -294,7 +364,13 @@ function SystemChecksSection() {
           : "ok";
 
   const queuePending = queueData?.pending ?? null;
-  const queueStatus: CheckStatus = queueLoading ? "loading" : queuePending == null ? "error" : queuePending > 500 ? "warning" : "ok";
+  const queueStatus: CheckStatus = queueLoading
+    ? "loading"
+    : queuePending == null
+      ? "error"
+      : queuePending > 500
+        ? "warning"
+        : "ok";
 
   const handleRefreshAll = () => {
     void qc.invalidateQueries({ queryKey: ["public-health-check"] });
@@ -332,7 +408,11 @@ function SystemChecksSection() {
           icon={Database}
           label="Database Connection"
           status={dbStatus}
-          detail={checks?.database?.latencyMs != null ? `${checks.database.latencyMs}ms latency` : undefined}
+          detail={
+            checks?.database?.latencyMs != null
+              ? `${checks.database.latencyMs}ms latency`
+              : undefined
+          }
           sub="PostgreSQL primary"
         />
         <CheckCard
@@ -346,7 +426,11 @@ function SystemChecksSection() {
           icon={Users}
           label="Active Users (Online)"
           status={usersStatus}
-          detail={activeUsers != null ? `${activeUsers.online} online / ${activeUsers.total} total` : undefined}
+          detail={
+            activeUsers != null
+              ? `${activeUsers.online} online / ${activeUsers.total} total`
+              : undefined
+          }
           sub="Users with isOnline = true"
         />
         <CheckCard
@@ -372,8 +456,18 @@ function SystemChecksSection() {
         <CheckCard
           icon={Mail}
           label="Email / SMS Gateway"
-          status={smtpStatus === "ok" || smsStatus === "ok" ? "ok" : smtpStatus === "not_configured" && smsStatus === "not_configured" ? "not_configured" : "warning"}
-          detail={[smtpStatus === "ok" ? "SMTP ✓" : null, smsStatus === "ok" ? "SMS ✓" : null].filter(Boolean).join(" · ") || "No gateway configured"}
+          status={
+            smtpStatus === "ok" || smsStatus === "ok"
+              ? "ok"
+              : smtpStatus === "not_configured" && smsStatus === "not_configured"
+                ? "not_configured"
+                : "warning"
+          }
+          detail={
+            [smtpStatus === "ok" ? "SMTP ✓" : null, smsStatus === "ok" ? "SMS ✓" : null]
+              .filter(Boolean)
+              .join(" · ") || "No gateway configured"
+          }
           sub="Notification providers"
         />
         <CheckCard
@@ -392,14 +486,20 @@ function SystemChecksSection() {
 function SchemaDriftSection() {
   const { data: drift, isLoading } = useQuery({
     queryKey: ["schema-drift"],
-    queryFn: () => adminAbsoluteFetch("/api/health/schema-drift") as Promise<{ ok?: boolean; status?: string; missingTables?: string[]; extraColumns?: { table: string; columns: string[] }[]; missingColumns?: { table: string; columns: string[] }[] }>,
+    queryFn: () =>
+      adminAbsoluteFetch("/api/health/schema-drift") as Promise<{
+        ok?: boolean;
+        status?: string;
+        missingTables?: string[];
+        extraColumns?: { table: string; columns: string[] }[];
+        missingColumns?: { table: string; columns: string[] }[];
+      }>,
     staleTime: 5 * 60_000,
     refetchInterval: 5 * 60_000,
   });
 
   const hasDrift =
-    (drift?.missingTables?.length ?? 0) > 0 ||
-    (drift?.missingColumns?.length ?? 0) > 0;
+    (drift?.missingTables?.length ?? 0) > 0 || (drift?.missingColumns?.length ?? 0) > 0;
   const isOk = drift?.ok !== false && !hasDrift;
 
   return (
@@ -418,21 +518,29 @@ function SchemaDriftSection() {
       ) : isOk ? (
         <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3">
           <CheckCircle2 size={14} className="text-emerald-400" />
-          <span className="text-sm text-emerald-300">Schema is in sync — all tables and columns match Drizzle definitions</span>
+          <span className="text-sm text-emerald-300">
+            Schema is in sync — all tables and columns match Drizzle definitions
+          </span>
         </div>
       ) : (
         <div className="space-y-3">
           <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
             <AlertTriangle size={14} className="text-amber-400" />
-            <span className="text-sm text-amber-300">Schema drift detected — run migration to fix</span>
+            <span className="text-sm text-amber-300">
+              Schema drift detected — run migration to fix
+            </span>
           </div>
 
           {(drift.missingTables?.length ?? 0) > 0 && (
             <div>
-              <p className="mb-2 text-xs font-semibold tracking-wide text-red-400 uppercase">Missing Tables</p>
+              <p className="mb-2 text-xs font-semibold tracking-wide text-red-400 uppercase">
+                Missing Tables
+              </p>
               <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2">
                 {drift.missingTables!.map((t) => (
-                  <p key={t} className="font-mono text-xs text-red-300">{t}</p>
+                  <p key={t} className="font-mono text-xs text-red-300">
+                    {t}
+                  </p>
                 ))}
               </div>
             </div>
@@ -440,12 +548,19 @@ function SchemaDriftSection() {
 
           {(drift.missingColumns?.length ?? 0) > 0 && (
             <div>
-              <p className="mb-2 text-xs font-semibold tracking-wide text-amber-400 uppercase">Missing Columns</p>
+              <p className="mb-2 text-xs font-semibold tracking-wide text-amber-400 uppercase">
+                Missing Columns
+              </p>
               <div className="space-y-1">
                 {drift.missingColumns!.map((entry) => (
-                  <div key={entry.table} className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+                  <div
+                    key={entry.table}
+                    className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2"
+                  >
                     <p className="text-xs font-medium text-amber-300">{entry.table}</p>
-                    <p className="mt-0.5 font-mono text-xs text-slate-500">{entry.columns.join(", ")}</p>
+                    <p className="mt-0.5 font-mono text-xs text-slate-500">
+                      {entry.columns.join(", ")}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -455,7 +570,9 @@ function SchemaDriftSection() {
           <div className="border-t border-slate-700/40 pt-3">
             <p className="text-xs text-slate-600">
               Run{" "}
-              <code className="rounded bg-slate-800 px-1 text-slate-400">pnpm -F db push-force</code>{" "}
+              <code className="rounded bg-slate-800 px-1 text-slate-400">
+                pnpm -F db push-force
+              </code>{" "}
               to apply schema changes, then reload this page.
             </p>
           </div>

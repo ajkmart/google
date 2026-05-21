@@ -103,11 +103,7 @@ export function ExportButton({
       disabled={disabled || loading}
       className={`gap-2 rounded-xl ${className}`}
     >
-      {loading ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <Download className="h-4 w-4" />
-      )}
+      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
       {loading ? "Exporting…" : label}
     </Button>
   );

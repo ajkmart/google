@@ -34,7 +34,6 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-
 export default function Transactions() {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);

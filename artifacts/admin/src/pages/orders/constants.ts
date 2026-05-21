@@ -45,9 +45,7 @@ export function exportOrdersCSV(orders: any[]) {
     "orderId,date,customerId,customerName,vendorName,items,total,status,paymentMethod,type,riderName,deliveredAt";
   const rows = orders.map((o: any) => {
     const items = Array.isArray(o.items)
-      ? o.items
-          .map((i: any) => `${i.name ?? i.productName ?? ""}×${i.quantity ?? 1}`)
-          .join("; ")
+      ? o.items.map((i: any) => `${i.name ?? i.productName ?? ""}×${i.quantity ?? 1}`).join("; ")
       : "";
     return [
       escapeCSV(o.id ?? ""),

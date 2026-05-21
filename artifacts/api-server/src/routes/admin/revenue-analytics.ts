@@ -71,12 +71,7 @@ router.get("/revenue-analytics", async (_req, res) => {
           total: sum(ridesTable.fare),
         })
         .from(ridesTable)
-        .where(
-          and(
-            gte(ridesTable.createdAt, twelveMonthsAgo),
-            eq(ridesTable.status, "completed")
-          )
-        )
+        .where(and(gte(ridesTable.createdAt, twelveMonthsAgo), eq(ridesTable.status, "completed")))
         .groupBy(sql`to_char(${ridesTable.createdAt}, 'YYYY-MM')`)
         .orderBy(sql`to_char(${ridesTable.createdAt}, 'YYYY-MM')`),
 

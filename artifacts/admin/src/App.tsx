@@ -22,8 +22,8 @@ const log = createLogger("[App]");
 const _adminEnv = auditAdminEnv();
 bootAccessibilitySettings();
 
-import { AdminLayout } from "@/components/layout/AdminLayout";
 import { FirstLoginCredentialsDialog } from "@/components/FirstLoginCredentialsDialog";
+import { AdminLayout } from "@/components/layout/AdminLayout";
 
 /* ── All page components loaded lazily (separate chunks per page) ── */
 const Broadcast = lazy(() => import("@/pages/broadcast"));
@@ -221,236 +221,249 @@ function AppRoutes() {
 
   return (
     <Suspense fallback={<SuspenseLoadingFallback />}>
-    <Switch>
-      {/* Root redirect */}
-      <Route path="/">
-        <RedirectTo to={state.accessToken ? "/dashboard" : "/login"} />
-      </Route>
+      <Switch>
+        {/* Root redirect */}
+        <Route path="/">
+          <RedirectTo to={state.accessToken ? "/dashboard" : "/login"} />
+        </Route>
 
-      {/* Auth screens */}
-      <Route path="/login">
-        <Login />
-      </Route>
-      <Route path="/forgot-password">
-        <ForgotPassword />
-      </Route>
-      <Route path="/reset-password">
-        <ResetPassword />
-      </Route>
-      <Route path="/set-new-password">
-        <SetNewPassword />
-      </Route>
+        {/* Auth screens */}
+        <Route path="/login">
+          <Login />
+        </Route>
+        <Route path="/forgot-password">
+          <ForgotPassword />
+        </Route>
+        <Route path="/reset-password">
+          <ResetPassword />
+        </Route>
+        <Route path="/set-new-password">
+          <SetNewPassword />
+        </Route>
 
-      {/* Dashboard */}
-      <Route path="/dashboard">
-        <ProtectedRoute component={Dashboard} requirePermission="dashboard.view" />
-      </Route>
+        {/* Dashboard */}
+        <Route path="/dashboard">
+          <ProtectedRoute component={Dashboard} requirePermission="dashboard.view" />
+        </Route>
 
-      {/* Operations */}
-      <Route path="/orders">
-        <ProtectedRoute component={Orders} requirePermission="orders.view" />
-      </Route>
-      <Route path="/rides">
-        <ProtectedRoute component={Rides} requirePermission="fleet.rides.view" />
-      </Route>
-      <Route path="/van">
-        <ProtectedRoute component={VanService} requirePermission="fleet.rides.view" />
-      </Route>
-      <Route path="/pharmacy">
-        <ProtectedRoute component={Pharmacy} requirePermission="fleet.pharmacy.view" />
-      </Route>
-      <Route path="/parcel">
-        <ProtectedRoute component={Parcel} requirePermission="fleet.parcel.view" />
-      </Route>
-      <Route path="/delivery-access">
-        <ProtectedRoute component={DeliveryAccess} requirePermission="vendors.view" />
-      </Route>
+        {/* Operations */}
+        <Route path="/orders">
+          <ProtectedRoute component={Orders} requirePermission="orders.view" />
+        </Route>
+        <Route path="/rides">
+          <ProtectedRoute component={Rides} requirePermission="fleet.rides.view" />
+        </Route>
+        <Route path="/van">
+          <ProtectedRoute component={VanService} requirePermission="fleet.rides.view" />
+        </Route>
+        <Route path="/pharmacy">
+          <ProtectedRoute component={Pharmacy} requirePermission="fleet.pharmacy.view" />
+        </Route>
+        <Route path="/parcel">
+          <ProtectedRoute component={Parcel} requirePermission="fleet.parcel.view" />
+        </Route>
+        <Route path="/delivery-access">
+          <ProtectedRoute component={DeliveryAccess} requirePermission="vendors.view" />
+        </Route>
 
-      {/* People */}
-      <Route path="/users">
-        <ProtectedRoute component={Users} requirePermission="users.view" />
-      </Route>
-      <Route path="/riders">
-        <ProtectedRoute component={Riders} requirePermission="fleet.rides.view" />
-      </Route>
-      <Route path="/vendors">
-        <ProtectedRoute component={Vendors} requirePermission="vendors.view" />
-      </Route>
-      <Route path="/kyc">
-        <ProtectedRoute component={Kyc} requirePermission="finance.kyc.view" />
-      </Route>
+        {/* People */}
+        <Route path="/users">
+          <ProtectedRoute component={Users} requirePermission="users.view" />
+        </Route>
+        <Route path="/riders">
+          <ProtectedRoute component={Riders} requirePermission="fleet.rides.view" />
+        </Route>
+        <Route path="/vendors">
+          <ProtectedRoute component={Vendors} requirePermission="vendors.view" />
+        </Route>
+        <Route path="/kyc">
+          <ProtectedRoute component={Kyc} requirePermission="finance.kyc.view" />
+        </Route>
 
-      {/* Catalog */}
-      <Route path="/products">
-        <ProtectedRoute component={Products} requirePermission="content.products.view" />
-      </Route>
-      <Route path="/categories">
-        <ProtectedRoute component={Categories} requirePermission="content.products.view" />
-      </Route>
-      <Route path="/reviews">
-        <ProtectedRoute component={Reviews} requirePermission="content.products.view" />
-      </Route>
-      <Route path="/vendor-inventory-settings">
-        <ProtectedRoute component={VendorInventorySettings} requirePermission="vendors.view" />
-      </Route>
+        {/* Catalog */}
+        <Route path="/products">
+          <ProtectedRoute component={Products} requirePermission="content.products.view" />
+        </Route>
+        <Route path="/categories">
+          <ProtectedRoute component={Categories} requirePermission="content.products.view" />
+        </Route>
+        <Route path="/reviews">
+          <ProtectedRoute component={Reviews} requirePermission="content.products.view" />
+        </Route>
+        <Route path="/vendor-inventory-settings">
+          <ProtectedRoute component={VendorInventorySettings} requirePermission="vendors.view" />
+        </Route>
 
-      {/* Finance */}
-      <Route path="/transactions">
-        <ProtectedRoute component={Transactions} requirePermission="finance.transactions.view" />
-      </Route>
-      <Route path="/withdrawals">
-        <ProtectedRoute component={Withdrawals} requirePermission="finance.withdrawals.view" />
-      </Route>
-      <Route path="/deposit-requests">
-        <ProtectedRoute component={DepositRequests} requirePermission="finance.deposits.review" />
-      </Route>
-      <Route path="/wallet-transfers">
-        <ProtectedRoute component={WalletTransfers} requirePermission="finance.transactions.view" />
-      </Route>
-      <Route path="/loyalty">
-        <ProtectedRoute component={Loyalty} requirePermission="promotions.view" />
-      </Route>
+        {/* Finance */}
+        <Route path="/transactions">
+          <ProtectedRoute component={Transactions} requirePermission="finance.transactions.view" />
+        </Route>
+        <Route path="/withdrawals">
+          <ProtectedRoute component={Withdrawals} requirePermission="finance.withdrawals.view" />
+        </Route>
+        <Route path="/deposit-requests">
+          <ProtectedRoute component={DepositRequests} requirePermission="finance.deposits.review" />
+        </Route>
+        <Route path="/wallet-transfers">
+          <ProtectedRoute
+            component={WalletTransfers}
+            requirePermission="finance.transactions.view"
+          />
+        </Route>
+        <Route path="/loyalty">
+          <ProtectedRoute component={Loyalty} requirePermission="promotions.view" />
+        </Route>
 
-      {/* Marketing */}
-      <Route path="/promotions">
-        <ProtectedRoute component={PromotionsHub} requirePermission="promotions.view" />
-      </Route>
-      <Route path="/promo-codes">
-        <ProtectedRoute component={PromoCodes} requirePermission="promotions.view" />
-      </Route>
-      <Route path="/flash-deals">
-        <ProtectedRoute component={FlashDeals} requirePermission="promotions.view" />
-      </Route>
-      <Route path="/banners">
-        <ProtectedRoute component={Banners} requirePermission="content.products.view" />
-      </Route>
-      <Route path="/popups">
-        <ProtectedRoute component={Popups} requirePermission="content.products.view" />
-      </Route>
+        {/* Marketing */}
+        <Route path="/promotions">
+          <ProtectedRoute component={PromotionsHub} requirePermission="promotions.view" />
+        </Route>
+        <Route path="/promo-codes">
+          <ProtectedRoute component={PromoCodes} requirePermission="promotions.view" />
+        </Route>
+        <Route path="/flash-deals">
+          <ProtectedRoute component={FlashDeals} requirePermission="promotions.view" />
+        </Route>
+        <Route path="/banners">
+          <ProtectedRoute component={Banners} requirePermission="content.products.view" />
+        </Route>
+        <Route path="/popups">
+          <ProtectedRoute component={Popups} requirePermission="content.products.view" />
+        </Route>
 
-      {/* Communications */}
-      <Route path="/communications">
-        <ProtectedRoute component={Communication} requirePermission="support.broadcast.send" />
-      </Route>
-      <Route path="/broadcast">
-        <ProtectedRoute component={Broadcast} requirePermission="support.broadcast.send" />
-      </Route>
-      <Route path="/support-chat">
-        <ProtectedRoute component={SupportChat} requirePermission="support.chat.view" />
-      </Route>
-      <Route path="/faq-management">
-        <ProtectedRoute component={FaqManagement} requirePermission="content.products.view" />
-      </Route>
-      <Route path="/sms-gateways">
-        <ProtectedRoute component={SmsGateways} requirePermission="support.broadcast.send" />
-      </Route>
+        {/* Communications */}
+        <Route path="/communications">
+          <ProtectedRoute component={Communication} requirePermission="support.broadcast.send" />
+        </Route>
+        <Route path="/broadcast">
+          <ProtectedRoute component={Broadcast} requirePermission="support.broadcast.send" />
+        </Route>
+        <Route path="/support-chat">
+          <ProtectedRoute component={SupportChat} requirePermission="support.chat.view" />
+        </Route>
+        <Route path="/faq-management">
+          <ProtectedRoute component={FaqManagement} requirePermission="content.products.view" />
+        </Route>
+        <Route path="/sms-gateways">
+          <ProtectedRoute component={SmsGateways} requirePermission="support.broadcast.send" />
+        </Route>
 
-      {/* Analytics */}
-      <Route path="/analytics">
-        <ProtectedRoute component={AnalyticsPage} requirePermission="finance.transactions.view" />
-      </Route>
-      <Route path="/revenue-analytics">
-        <ProtectedRoute
-          component={RevenueAnalytics}
-          requirePermission="finance.transactions.view"
-        />
-      </Route>
-      <Route path="/search-analytics">
-        <ProtectedRoute component={SearchAnalyticsPage} requirePermission="system.settings.view" />
-      </Route>
-      <Route path="/wishlist-insights">
-        <ProtectedRoute component={WishlistInsights} requirePermission="content.products.view" />
-      </Route>
-      <Route path="/qr-codes">
-        <ProtectedRoute component={QrCodes} requirePermission="content.products.view" />
-      </Route>
-      <Route path="/experiments">
-        <ProtectedRoute component={Experiments} requirePermission="system.settings.view" />
-      </Route>
+        {/* Analytics */}
+        <Route path="/analytics">
+          <ProtectedRoute component={AnalyticsPage} requirePermission="finance.transactions.view" />
+        </Route>
+        <Route path="/revenue-analytics">
+          <ProtectedRoute
+            component={RevenueAnalytics}
+            requirePermission="finance.transactions.view"
+          />
+        </Route>
+        <Route path="/search-analytics">
+          <ProtectedRoute
+            component={SearchAnalyticsPage}
+            requirePermission="system.settings.view"
+          />
+        </Route>
+        <Route path="/wishlist-insights">
+          <ProtectedRoute component={WishlistInsights} requirePermission="content.products.view" />
+        </Route>
+        <Route path="/qr-codes">
+          <ProtectedRoute component={QrCodes} requirePermission="content.products.view" />
+        </Route>
+        <Route path="/experiments">
+          <ProtectedRoute component={Experiments} requirePermission="system.settings.view" />
+        </Route>
 
-      {/* Security */}
-      <Route path="/security">
-        <ProtectedRoute component={Security} requirePermission="system.settings.view" />
-      </Route>
-      <Route path="/audit-logs">
-        <ProtectedRoute component={AuditLogs} requirePermission="system.audit.view" />
-      </Route>
-      <Route path="/consent-log">
-        <ProtectedRoute component={ConsentLog} requirePermission="system.audit.view" />
-      </Route>
-      <Route path="/roles-permissions">
-        <ProtectedRoute component={RolesPermissions} requirePermission="system.roles.manage" />
-      </Route>
-      <Route path="/sos-alerts">
-        <ProtectedRoute component={SosAlerts} requirePermission="fleet.rides.view" />
-      </Route>
+        {/* Security */}
+        <Route path="/security">
+          <ProtectedRoute component={Security} requirePermission="system.settings.view" />
+        </Route>
+        <Route path="/audit-logs">
+          <ProtectedRoute component={AuditLogs} requirePermission="system.audit.view" />
+        </Route>
+        <Route path="/consent-log">
+          <ProtectedRoute component={ConsentLog} requirePermission="system.audit.view" />
+        </Route>
+        <Route path="/roles-permissions">
+          <ProtectedRoute component={RolesPermissions} requirePermission="system.roles.manage" />
+        </Route>
+        <Route path="/sos-alerts">
+          <ProtectedRoute component={SosAlerts} requirePermission="fleet.rides.view" />
+        </Route>
 
-      {/* Health & Monitoring */}
-      <Route path="/health-dashboard">
-        <ProtectedRoute component={HealthDashboard} requirePermission="system.settings.view" />
-      </Route>
-      <Route path="/error-monitor">
-        <ProtectedRoute component={ErrorMonitor} requirePermission="system.settings.view" />
-      </Route>
-      <Route path="/live-riders-map">
-        <ProtectedRoute component={LiveRidersMap} requirePermission="fleet.rides.view" fullScreen />
-      </Route>
-      <Route path="/chat-monitor">
-        <ProtectedRoute component={ChatMonitor} requirePermission="support.chat.view" />
-      </Route>
+        {/* Health & Monitoring */}
+        <Route path="/health-dashboard">
+          <ProtectedRoute component={HealthDashboard} requirePermission="system.settings.view" />
+        </Route>
+        <Route path="/error-monitor">
+          <ProtectedRoute component={ErrorMonitor} requirePermission="system.settings.view" />
+        </Route>
+        <Route path="/live-riders-map">
+          <ProtectedRoute
+            component={LiveRidersMap}
+            requirePermission="fleet.rides.view"
+            fullScreen
+          />
+        </Route>
+        <Route path="/chat-monitor">
+          <ProtectedRoute component={ChatMonitor} requirePermission="support.chat.view" />
+        </Route>
 
-      {/* Configuration */}
-      <Route path="/settings">
-        <ProtectedRoute component={Settings} requirePermission="system.settings.view" />
-      </Route>
-      <Route path="/app-management">
-        <ProtectedRoute component={AppManagement} requirePermission="system.settings.view" />
-      </Route>
-      <Route path="/auth-methods">
-        <ProtectedRoute component={AuthMethods} requirePermission="system.settings.edit" />
-      </Route>
-      <Route path="/auth-control">
-        <ProtectedRoute component={AuthControl} requirePermission="system.settings.edit" />
-      </Route>
-      <Route path="/launch-control">
-        <ProtectedRoute component={LaunchControl} requirePermission="system.maintenance" />
-      </Route>
-      <Route path="/otp-control">
-        <ProtectedRoute component={OtpControl} requirePermission="system.settings.edit" />
-      </Route>
-      <Route path="/business-rules">
-        <ProtectedRoute component={BusinessRulesPage} requirePermission="system.settings.view" />
-      </Route>
-      <Route path="/deep-links">
-        <ProtectedRoute component={DeepLinks} requirePermission="content.products.view" />
-      </Route>
-      <Route path="/webhooks">
-        <ProtectedRoute component={WebhookManager} requirePermission="system.settings.view" />
-      </Route>
-      <Route path="/whatsapp-delivery-log">
-        <ProtectedRoute component={WhatsAppDeliveryLog} requirePermission="system.settings.view" />
-      </Route>
-      <Route path="/account-conditions">
-        <ProtectedRoute component={AccountConditions} requirePermission="system.settings.view" />
-      </Route>
-      <Route path="/condition-rules">
-        <ProtectedRoute component={ConditionRules} requirePermission="system.settings.view" />
-      </Route>
-      <Route path="/accessibility">
-        <ProtectedRoute component={AccessibilityPage} requirePermission="system.settings.view" />
-      </Route>
+        {/* Configuration */}
+        <Route path="/settings">
+          <ProtectedRoute component={Settings} requirePermission="system.settings.view" />
+        </Route>
+        <Route path="/app-management">
+          <ProtectedRoute component={AppManagement} requirePermission="system.settings.view" />
+        </Route>
+        <Route path="/auth-methods">
+          <ProtectedRoute component={AuthMethods} requirePermission="system.settings.edit" />
+        </Route>
+        <Route path="/auth-control">
+          <ProtectedRoute component={AuthControl} requirePermission="system.settings.edit" />
+        </Route>
+        <Route path="/launch-control">
+          <ProtectedRoute component={LaunchControl} requirePermission="system.maintenance" />
+        </Route>
+        <Route path="/otp-control">
+          <ProtectedRoute component={OtpControl} requirePermission="system.settings.edit" />
+        </Route>
+        <Route path="/business-rules">
+          <ProtectedRoute component={BusinessRulesPage} requirePermission="system.settings.view" />
+        </Route>
+        <Route path="/deep-links">
+          <ProtectedRoute component={DeepLinks} requirePermission="content.products.view" />
+        </Route>
+        <Route path="/webhooks">
+          <ProtectedRoute component={WebhookManager} requirePermission="system.settings.view" />
+        </Route>
+        <Route path="/whatsapp-delivery-log">
+          <ProtectedRoute
+            component={WhatsAppDeliveryLog}
+            requirePermission="system.settings.view"
+          />
+        </Route>
+        <Route path="/account-conditions">
+          <ProtectedRoute component={AccountConditions} requirePermission="system.settings.view" />
+        </Route>
+        <Route path="/condition-rules">
+          <ProtectedRoute component={ConditionRules} requirePermission="system.settings.view" />
+        </Route>
+        <Route path="/accessibility">
+          <ProtectedRoute component={AccessibilityPage} requirePermission="system.settings.view" />
+        </Route>
 
-      {/* Error pages */}
-      <Route path="/403">
-        <Forbidden />
-      </Route>
-      <Route path="/404">
-        <NotFound />
-      </Route>
-      <Route>
-        <NotFound />
-      </Route>
-    </Switch>
+        {/* Error pages */}
+        <Route path="/403">
+          <Forbidden />
+        </Route>
+        <Route path="/404">
+          <NotFound />
+        </Route>
+        <Route>
+          <NotFound />
+        </Route>
+      </Switch>
     </Suspense>
   );
 }

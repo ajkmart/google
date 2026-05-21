@@ -1603,7 +1603,10 @@ function AdminAssignments({
     setDeleting(true);
     try {
       await fetchAdmin(`/admin-accounts/${active.id}`, { method: "DELETE" });
-      toast({ title: "Admin deleted", description: `${active.name ?? active.username ?? active.id} was removed.` });
+      toast({
+        title: "Admin deleted",
+        description: `${active.name ?? active.username ?? active.id} was removed.`,
+      });
       onAdminDeleted(active.id);
     } catch (err) {
       toast({ title: "Delete failed", description: String(err), variant: "destructive" });
@@ -1756,8 +1759,7 @@ function AdminAssignments({
                     {(adminRoleMap[active.id] ?? []).length !== 1 ? "s" : ""} assigned
                     {active.lastLoginAt && (
                       <>
-                        {" · "}Last login:{" "}
-                        {new Date(active.lastLoginAt).toLocaleDateString()}
+                        {" · "}Last login: {new Date(active.lastLoginAt).toLocaleDateString()}
                       </>
                     )}
                   </p>

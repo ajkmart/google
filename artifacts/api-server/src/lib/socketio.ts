@@ -558,15 +558,9 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
         socket.join("admin-fleet");
         socket.join("admin-orders");
         socket.join("admin-support");
-        logger.debug(
-          { socketId: socket.id },
-          "Socket joined admin rooms via admin:join"
-        );
+        logger.debug({ socketId: socket.id }, "Socket joined admin rooms via admin:join");
       } else {
-        logger.debug(
-          { socketId: socket.id },
-          "Socket admin:join denied (unauthorized)"
-        );
+        logger.debug({ socketId: socket.id }, "Socket admin:join denied (unauthorized)");
       }
     });
 

@@ -6,17 +6,13 @@ import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { StockNotificationBell } from "@/components/StockNotificationBell";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useAdminAuth } from "@/lib/adminAuthContext";
 import { adminFetch } from "@/lib/adminFetcher";
+import { getAdminSocket, resetSosBadge, socketStatus$, type SocketStatus } from "@/lib/adminSocket";
 import { getAdminTiming } from "@/lib/adminTiming";
 import { lockBodyScroll } from "@/lib/domSafety";
 import { createLogger } from "@/lib/logger";
-import {
-  getAdminSocket,
-  resetSosBadge,
-  socketStatus$,
-  type SocketStatus,
-} from "@/lib/adminSocket";
 import {
   BOTTOM_NAV,
   isActivePath,
@@ -24,14 +20,13 @@ import {
   NAV_GROUPS,
   NAV_ITEMS as navItems,
   readFavorites,
-  type NavItem,
   writeFavorites,
+  type NavItem,
 } from "@/lib/navConfig";
-import { usePermissions } from "@/hooks/usePermissions";
 import { safeLocalGet, safeLocalSet } from "@/lib/safeStorage";
 import { useLanguage } from "@/lib/useLanguage";
 import { useTheme } from "@/lib/useTheme";
-import { type Language, LANGUAGE_OPTIONS, tDual, type TranslationKey } from "@workspace/i18n";
+import { LANGUAGE_OPTIONS, tDual, type Language, type TranslationKey } from "@workspace/i18n";
 import {
   AlertTriangle,
   ChevronDown,
@@ -664,15 +659,17 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         >
           {navFilterTrim &&
             NAV_GROUPS.every((g) =>
-              g.items.filter((i) => canSeeItem(i)).every((i) => {
-                const label = T(i.nameKey).toLowerCase();
-                const desc = (NAV_DESCRIPTIONS[i.href] || "").toLowerCase();
-                return (
-                  !label.includes(navFilterTrim) &&
-                  !desc.includes(navFilterTrim) &&
-                  !i.href.toLowerCase().includes(navFilterTrim)
-                );
-              })
+              g.items
+                .filter((i) => canSeeItem(i))
+                .every((i) => {
+                  const label = T(i.nameKey).toLowerCase();
+                  const desc = (NAV_DESCRIPTIONS[i.href] || "").toLowerCase();
+                  return (
+                    !label.includes(navFilterTrim) &&
+                    !desc.includes(navFilterTrim) &&
+                    !i.href.toLowerCase().includes(navFilterTrim)
+                  );
+                })
             ) && (
               <div className="px-5 py-6 text-center">
                 <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>

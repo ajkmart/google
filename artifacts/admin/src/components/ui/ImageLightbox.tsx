@@ -1,11 +1,4 @@
-import {
-  Maximize2,
-  Minimize2,
-  RotateCw,
-  X,
-  ZoomIn,
-  ZoomOut,
-} from "lucide-react";
+import { Maximize2, Minimize2, RotateCw, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface ImageLightboxProps {
@@ -44,9 +37,7 @@ export function ImageLightbox({ src, label, onClose }: ImageLightboxProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const containerSize = fullscreen
-    ? "max-w-full w-full h-full"
-    : "max-w-3xl w-full max-h-[90vh]";
+  const containerSize = fullscreen ? "max-w-full w-full h-full" : "max-w-3xl w-full max-h-[90vh]";
 
   return (
     <div

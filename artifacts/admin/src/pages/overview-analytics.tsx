@@ -13,15 +13,7 @@ import {
 import { adminFetch } from "@/lib/adminFetcher";
 import { formatCurrency } from "@/lib/format";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  BarChart2,
-  Bike,
-  Package,
-  RefreshCw,
-  ShoppingCart,
-  TrendingUp,
-  Users,
-} from "lucide-react";
+import { BarChart2, Bike, Package, RefreshCw, ShoppingCart, TrendingUp, Users } from "lucide-react";
 import { useState } from "react";
 import {
   Area,
@@ -161,10 +153,8 @@ export default function OverviewAnalytics() {
   const revenue = analytics?.revenue ?? [];
   const userGrowth = analytics?.userGrowth ?? [];
 
-  const totalUsers =
-    stats?.totalUsers ?? stats?.userCount ?? 0;
-  const totalOrders =
-    stats?.totalOrders ?? stats?.orderCount ?? 0;
+  const totalUsers = stats?.totalUsers ?? stats?.userCount ?? 0;
+  const totalOrders = stats?.totalOrders ?? stats?.orderCount ?? 0;
   const totalRevenue = (stats as Record<string, unknown>)?.totalRevenue as number | undefined;
   const activeRiders = (stats as Record<string, unknown>)?.activeRiders as number | undefined;
 
@@ -262,7 +252,11 @@ export default function OverviewAnalytics() {
             <div className="h-60">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={orders} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                    vertical={false}
+                  />
                   <XAxis
                     dataKey="date"
                     tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
@@ -279,9 +273,19 @@ export default function OverviewAnalytics() {
                     allowDecimals={false}
                   />
                   <Tooltip
-                    contentStyle={{ borderRadius: "12px", fontSize: "12px", border: "1px solid hsl(var(--border))" }}
+                    contentStyle={{
+                      borderRadius: "12px",
+                      fontSize: "12px",
+                      border: "1px solid hsl(var(--border))",
+                    }}
                     formatter={(v: number) => [v, "Orders"]}
-                    labelFormatter={(label: string) => new Date(label).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                    labelFormatter={(label: string) =>
+                      new Date(label).toLocaleDateString("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      })
+                    }
                   />
                   <Line
                     type="monotone"
@@ -313,7 +317,11 @@ export default function OverviewAnalytics() {
               <div className="h-52">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={revenue} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="hsl(var(--border))"
+                      vertical={false}
+                    />
                     <XAxis
                       dataKey="category"
                       tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
@@ -325,14 +333,29 @@ export default function OverviewAnalytics() {
                       axisLine={false}
                       tickLine={false}
                       width={40}
-                      tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
+                      tickFormatter={(v: number) =>
+                        v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)
+                      }
                     />
                     <Tooltip
-                      contentStyle={{ borderRadius: "12px", fontSize: "12px", border: "1px solid hsl(var(--border))" }}
-                      formatter={(v: number) => [`Rs. ${Math.round(v).toLocaleString()}`, "Revenue"]}
+                      contentStyle={{
+                        borderRadius: "12px",
+                        fontSize: "12px",
+                        border: "1px solid hsl(var(--border))",
+                      }}
+                      formatter={(v: number) => [
+                        `Rs. ${Math.round(v).toLocaleString()}`,
+                        "Revenue",
+                      ]}
                     />
                     <Legend wrapperStyle={{ fontSize: "11px" }} />
-                    <Bar dataKey="amount" name="Revenue" fill="#f97316" radius={[6, 6, 0, 0]} barSize={40} />
+                    <Bar
+                      dataKey="amount"
+                      name="Revenue"
+                      fill="#f97316"
+                      radius={[6, 6, 0, 0]}
+                      barSize={40}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -358,7 +381,11 @@ export default function OverviewAnalytics() {
                         <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="hsl(var(--border))"
+                      vertical={false}
+                    />
                     <XAxis
                       dataKey="date"
                       tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
@@ -375,9 +402,19 @@ export default function OverviewAnalytics() {
                       allowDecimals={false}
                     />
                     <Tooltip
-                      contentStyle={{ borderRadius: "12px", fontSize: "12px", border: "1px solid hsl(var(--border))" }}
+                      contentStyle={{
+                        borderRadius: "12px",
+                        fontSize: "12px",
+                        border: "1px solid hsl(var(--border))",
+                      }}
                       formatter={(v: number) => [v, "New Users"]}
-                      labelFormatter={(label: string) => new Date(label).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                      labelFormatter={(label: string) =>
+                        new Date(label).toLocaleDateString("en-US", {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                        })
+                      }
                     />
                     <Area
                       type="monotone"

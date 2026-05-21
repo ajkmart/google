@@ -125,7 +125,9 @@ router.get(
           ? await db
               .select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone })
               .from(usersTable)
-              .where(sql`${usersTable.id} = ANY(ARRAY[${sql.raw(userIds.map((id) => `'${id}'`).join(","))}]::text[])`)
+              .where(
+                sql`${usersTable.id} = ANY(ARRAY[${sql.raw(userIds.map((id) => `'${id}'`).join(","))}]::text[])`
+              )
           : [];
       const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
@@ -133,7 +135,8 @@ router.get(
       const escape = (v: unknown) => {
         let s = String(v ?? "");
         if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
-        if (s.includes(",") || s.includes('"') || s.includes("\n")) s = `"${s.replace(/"/g, '""')}"`;
+        if (s.includes(",") || s.includes('"') || s.includes("\n"))
+          s = `"${s.replace(/"/g, '""')}"`;
         return s;
       };
       const csvRows = rows.map((t) =>

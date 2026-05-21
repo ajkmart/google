@@ -20,7 +20,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -327,9 +326,7 @@ export default function WishlistInsights() {
             <Card className="overflow-hidden rounded-2xl shadow-sm">
               <div className="flex items-center gap-2 border-b bg-gradient-to-r from-purple-50 to-indigo-50 px-4 py-3">
                 <TrendingUp className="h-4 w-4 text-purple-500" />
-                <span className="text-sm font-semibold text-gray-800">
-                  Category Distribution
-                </span>
+                <span className="text-sm font-semibold text-gray-800">Category Distribution</span>
               </div>
               <CardContent className="p-4">
                 {isLoading ? (
@@ -357,10 +354,7 @@ export default function WishlistInsights() {
                             label={CustomPieLabel}
                           >
                             {categoryPieData.map((_, i) => (
-                              <Cell
-                                key={i}
-                                fill={PIE_COLORS[i % PIE_COLORS.length]}
-                              />
+                              <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                             ))}
                           </Pie>
                           <Tooltip content={<PieTooltip />} />
@@ -407,10 +401,7 @@ export default function WishlistInsights() {
             ) : (
               <>
                 {/* Mobile card list */}
-                <section
-                  className="divide-border divide-y md:hidden"
-                  aria-label="Wishlist ranking"
-                >
+                <section className="divide-border divide-y md:hidden" aria-label="Wishlist ranking">
                   {products.map((p, i) => {
                     const pct = topCount > 0 ? Math.round((p.wishlistCount / topCount) * 100) : 0;
                     return (
@@ -426,10 +417,7 @@ export default function WishlistInsights() {
                           />
                         ) : (
                           <div className="bg-muted flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
-                            <Package
-                              className="text-muted-foreground h-5 w-5"
-                              aria-hidden="true"
-                            />
+                            <Package className="text-muted-foreground h-5 w-5" aria-hidden="true" />
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
