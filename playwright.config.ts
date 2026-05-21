@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import path from "path";
 
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME ?? "superadmin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? process.env.ADMIN_SEED_PASSWORD ?? "Admin@123";
@@ -19,6 +20,16 @@ const CHROMIUM_PATH = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
 
 const CHROMIUM_ARGS = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"];
 
+const ADMIN_STATE = path.join(__dirname, "e2e/state/admin-auth.json");
+
+const BROWSER_OPTS = {
+  ...devices["Desktop Chrome"],
+  launchOptions: {
+    ...(CHROMIUM_PATH ? { executablePath: CHROMIUM_PATH } : {}),
+    args: CHROMIUM_ARGS,
+  },
+};
+
 export default defineConfig({
   testDir: "./e2e",
   outputDir: "./e2e/artifacts",
@@ -35,40 +46,46 @@ export default defineConfig({
   },
 
   projects: [
+    // ── API-level tests (no browser) ──────────────────────────────────────────
+    {
+      name: "api",
+      use: {
+        baseURL: "http://localhost:5000",
+        extraHTTPHeaders: { "Content-Type": "application/json" },
+      },
+      testMatch: "e2e/*.spec.ts",
+    },
+
+    // ── Admin auth setup (runs once, saves state to file) ─────────────────────
+    {
+      name: "admin-setup",
+      use: { ...BROWSER_OPTS, baseURL: "http://localhost:3000" },
+      testMatch: "e2e/setup/admin-auth.setup.ts",
+    },
+
+    // ── Admin browser tests (reuse saved auth state) ──────────────────────────
     {
       name: "admin",
       use: {
-        ...devices["Desktop Chrome"],
+        ...BROWSER_OPTS,
         baseURL: "http://localhost:3000",
-        launchOptions: {
-          ...(CHROMIUM_PATH ? { executablePath: CHROMIUM_PATH } : {}),
-          args: CHROMIUM_ARGS,
-        },
+        storageState: ADMIN_STATE,
       },
+      dependencies: ["admin-setup"],
       testMatch: "e2e/admin/**/*.spec.ts",
     },
+
+    // ── Vendor browser tests (auth mocked via page.route) ─────────────────────
     {
       name: "vendor",
-      use: {
-        ...devices["Desktop Chrome"],
-        baseURL: "http://localhost:3001",
-        launchOptions: {
-          ...(CHROMIUM_PATH ? { executablePath: CHROMIUM_PATH } : {}),
-          args: CHROMIUM_ARGS,
-        },
-      },
+      use: { ...BROWSER_OPTS, baseURL: "http://localhost:3001" },
       testMatch: "e2e/vendor/**/*.spec.ts",
     },
+
+    // ── Rider browser tests (auth mocked via page.route) ──────────────────────
     {
       name: "rider",
-      use: {
-        ...devices["Desktop Chrome"],
-        baseURL: "http://localhost:3002",
-        launchOptions: {
-          ...(CHROMIUM_PATH ? { executablePath: CHROMIUM_PATH } : {}),
-          args: CHROMIUM_ARGS,
-        },
-      },
+      use: { ...BROWSER_OPTS, baseURL: "http://localhost:3002" },
       testMatch: "e2e/rider/**/*.spec.ts",
     },
   ],
