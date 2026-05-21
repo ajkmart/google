@@ -40,8 +40,9 @@ export default function Notifications() {
   const T = (key: TranslationKey) => tDual(key, language);
   const [roleFilter, setRoleFilter] = useState<string>("");
 
-  const { data: nData, isLoading, refetch } = useAllNotifications(roleFilter || undefined);
+  const { data: nData, isLoading, isError, refetch } = useAllNotifications(roleFilter || undefined);
   const notifications: any[] = nData?.notifications || [];
+  const unreadCount = Number(nData?.unreadCount ?? 0);
 
   return (
     <ErrorBoundary
@@ -92,6 +93,20 @@ export default function Notifications() {
               <div key={i} className="h-20 animate-pulse rounded-2xl bg-gray-100" />
             ))}
           </div>
+        ) : isError ? (
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-12 text-center">
+              <p className="mb-3 text-4xl">⚠️</p>
+              <p className="font-bold text-red-600">Failed to load notifications</p>
+              <button
+                type="button"
+                onClick={() => refetch()}
+                className="mt-3 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+              >
+                Try again
+              </button>
+            </CardContent>
+          </Card>
         ) : notifications.length === 0 ? (
           <Card className="border-0 shadow-sm">
             <CardContent className="p-12 text-center">

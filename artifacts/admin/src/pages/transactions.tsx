@@ -1,5 +1,7 @@
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FilterBar, PageHeader, StatCardSkeleton } from "@/components/shared";
+import { ErrorRetry } from "@/components/ui/ErrorRetry";
+import { parseApiError } from "@/lib/errorParser";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -57,7 +59,7 @@ function exportTxnCSV(txns: any[]) {
 export default function Transactions() {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
-  const { data, isLoading, refetch, isFetching } = useTransactions();
+  const { data, isLoading, isError, error, refetch, isFetching } = useTransactions();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -81,10 +83,10 @@ export default function Transactions() {
 
   const filteredCredits = filtered
     .filter((t: any) => t.type === "credit")
-    .reduce((s: number, t: any) => s + Number(t.amount), 0);
+    .reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
   const filteredDebits = filtered
     .filter((t: any) => t.type === "debit")
-    .reduce((s: number, t: any) => s + Number(t.amount), 0);
+    .reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
 
   type TxnSortKey = "userName" | "type" | "amount" | "createdAt";
   const [sortKey, setSortKey] = useState<TxnSortKey | null>(null);
@@ -121,6 +123,17 @@ export default function Transactions() {
       return (av < bv ? -1 : av > bv ? 1 : 0) * (sortDir === "asc" ? 1 : -1);
     });
   }, [filtered, sortKey, sortDir]);
+
+  if (isError) {
+    return (
+      <ErrorRetry
+        variant="page"
+        title="Failed to load transactions"
+        description={parseApiError(error)}
+        onRetry={refetch}
+      />
+    );
+  }
 
   function TxnSortIcon({ col }: { col: TxnSortKey }) {
     if (sortKey !== col) return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-40" />;

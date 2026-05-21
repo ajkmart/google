@@ -494,7 +494,7 @@ function TransactionsPanel() {
                         </Badge>
                       )}
                       <span className="text-sm font-semibold text-green-700">
-                        Rs. {parseFloat(tx.amount).toLocaleString()}
+                        Rs. {parseFloat(tx.amount ?? "0").toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -534,7 +534,7 @@ function TransactionsPanel() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right font-semibold whitespace-nowrap text-green-700">
-                        Rs. {parseFloat(tx.amount).toLocaleString()}
+                        Rs. {parseFloat(tx.amount ?? "0").toLocaleString()}
                       </td>
                       <td className="px-3 py-3 text-center">
                         {tx.flagged ? (
@@ -717,7 +717,7 @@ function FlagModal({
             <div className="flex justify-between">
               <span className="text-muted-foreground">Amount</span>
               <span className="font-bold text-green-700">
-                Rs. {parseFloat(tx.amount).toLocaleString()}
+                Rs. {parseFloat(tx.amount ?? "0").toLocaleString()}
               </span>
             </div>
           </div>

@@ -109,7 +109,7 @@ export default function ChatMonitor() {
   const [selectedConv, setSelectedConv] = useState<string | null>(null);
   const [reportFilter, setReportFilter] = useState<string>("");
 
-  const { data: convData, isLoading: convLoading } = useConversations();
+  const { data: convData, isLoading: convLoading, isError: convError } = useConversations();
   const { data: msgData, isLoading: msgLoading } = useConversationMessages(selectedConv);
   const { data: reportData, isLoading: reportLoading } = useChatReports(reportFilter || undefined);
 
@@ -231,6 +231,11 @@ export default function ChatMonitor() {
                       <div className="bg-muted h-3 w-24 rounded" />
                     </Card>
                   ))
+                ) : convError ? (
+                  <div className="flex flex-col items-center gap-2 py-12 text-center text-red-500">
+                    <AlertTriangle className="h-8 w-8 opacity-60" aria-hidden="true" />
+                    <p className="text-sm font-medium">Failed to load conversations</p>
+                  </div>
                 ) : filtered.length === 0 ? (
                   <div className="text-muted-foreground py-12 text-center">
                     <MessageCircle
@@ -350,6 +355,11 @@ export default function ChatMonitor() {
                 {convLoading ? (
                   <div className="flex items-center justify-center py-20">
                     <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+                  </div>
+                ) : convError ? (
+                  <div className="flex flex-col items-center gap-2 py-20 text-center text-red-500">
+                    <AlertTriangle className="h-8 w-8 opacity-60" aria-hidden="true" />
+                    <p className="text-sm font-medium">Failed to load conversations</p>
                   </div>
                 ) : filtered.length === 0 ? (
                   <div className="text-muted-foreground py-20 text-center">

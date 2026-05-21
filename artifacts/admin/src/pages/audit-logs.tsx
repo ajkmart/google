@@ -345,9 +345,13 @@ export default function AuditLogsPage() {
                               No audit log entries found
                             </p>
                             {hasFilters && (
-                              <p className="text-muted-foreground text-xs">
-                                Try adjusting your filters
-                              </p>
+                              <button
+                                type="button"
+                                onClick={handleClear}
+                                className="mt-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                              >
+                                Clear filters
+                              </button>
                             )}
                           </div>
                         </TableCell>
