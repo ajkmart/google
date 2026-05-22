@@ -161,6 +161,7 @@ function SuspenseLoadingFallback() {
     </div>
   );
 }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function useLoaderTimeout(loading: boolean, ms = LOADER_TIMEOUT_MS): boolean {
   const [timedOut, setTimedOut] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -211,10 +212,10 @@ function AppRoutes() {
   /* ── Preload high-traffic pages after initial render ── */
   useEffect(() => {
     const t = setTimeout(() => {
-      import("@/pages/dashboard");
-      import("@/pages/orders");
-      import("@/pages/users");
-      import("@/pages/riders");
+      void import("@/pages/dashboard");
+      void import("@/pages/orders");
+      void import("@/pages/users");
+      void import("@/pages/riders");
     }, 2000);
     return () => clearTimeout(t);
   }, []);
@@ -486,7 +487,7 @@ function IntegrationsInit() {
   }, [state.accessToken, refreshAccessToken]);
   useEffect(() => {
     initErrorReporter();
-    fetch(`/api/platform-config`)
+    void fetch(`/api/platform-config`)
       .then((r) => (r.ok ? r.json() : null))
       .then((raw) => {
         if (!raw) return;

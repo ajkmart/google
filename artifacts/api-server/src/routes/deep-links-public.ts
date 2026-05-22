@@ -58,7 +58,7 @@ router.get("/:code", async (req, res) => {
   <script>window.location.href = "${appScheme}";</script>
 </body>
 </html>`);
-  } catch (err) {
+  } catch (_err) {
     res.status(500).json({ error: "Internal server error" });
   }
 });

@@ -849,7 +849,7 @@ router.post("/", customerAuth, bookRideLimiter, async (req, res) => {
         );
 
       if (rideRecord && !isScheduled) {
-        broadcastRide(rideRecord.id);
+        void broadcastRide(rideRecord.id);
         emitRideDispatchUpdate({ rideId: rideRecord.id, action: "new", status: rideRecord.status });
         emitRideUpdate(rideRecord.id);
       } else if (rideRecord && isScheduled) {

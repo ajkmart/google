@@ -172,7 +172,7 @@ router.post(
         ipAddress: ip,
       });
 
-      writeAuthAuditLog("otp_sent", {
+      void writeAuthAuditLog("otp_sent", {
         userId: existingUser?.id,
         ip,
         userAgent: req.headers["user-agent"] ?? undefined,
@@ -328,7 +328,7 @@ router.post(
           throw txErr;
         }
 
-        writeAuthAuditLog("otp_verified_new_user", {
+        void writeAuthAuditLog("otp_verified_new_user", {
           userId: newUserId,
           ip,
           userAgent: req.headers["user-agent"] ?? undefined,

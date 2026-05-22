@@ -114,7 +114,7 @@ function NotifRow({ n, onClick }: { n: AdminNotif; onClick: () => void }) {
 
 export function AdminNotificationBell() {
   const { state } = useAdminAuth();
-  const [, setLocation] = useLocation();
+  const [, _setLocation] = useLocation();
 
   const [open, setOpen] = useState(false);
   const [notifs, setNotifs] = useState<AdminNotif[]>([]);

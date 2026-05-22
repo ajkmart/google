@@ -38,7 +38,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-const STATUSES = [
+const _STATUSES = [
   "pending",
   "confirmed",
   "preparing",
@@ -153,7 +153,7 @@ export default function Pharmacy() {
     ["confirmed", "preparing", "out_for_delivery"].includes(o.status)
   ).length;
   const deliveredCount = orders.filter((o: any) => o.status === "delivered").length;
-  const cancelledCount = orders.filter((o: any) => o.status === "cancelled").length;
+  const _cancelledCount = orders.filter((o: any) => o.status === "cancelled").length;
   const totalRevenue = orders
     .filter((o: any) => o.status === "delivered")
     .reduce((s: number, o: any) => s + parseFloat(o.total || 0), 0);

@@ -57,7 +57,7 @@ const paymentInitiateSchema = z.object({
   mobileNumber: z.string().optional(),
 });
 
-const PAYMENT_TTL_MS = 30 * 60 * 1000;
+const _PAYMENT_TTL_MS = 30 * 60 * 1000;
 
 async function trackPayment(txnRef: string, orderId?: string) {
   if (orderId) {
@@ -68,7 +68,7 @@ async function trackPayment(txnRef: string, orderId?: string) {
   }
 }
 
-async function resolvePayment(txnRef: string, status: "success" | "failed") {
+async function _resolvePayment(txnRef: string, status: "success" | "failed") {
   try {
     await db
       .update(ordersTable)
@@ -843,7 +843,7 @@ router.post("/verify-manual", adminAuth, async (req, res) => {
 
 router.post("/reconcile", adminAuth, async (req, res) => {
   try {
-    const { orderId, txnRef, status: forcedStatus, gateway, notes } = req.body;
+    const { orderId, txnRef, status: forcedStatus, _gateway, notes } = req.body;
     if (!orderId && !txnRef) {
       sendValidationError(res, "orderId or txnRef is required");
       return;

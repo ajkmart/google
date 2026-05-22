@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .then((u) => {
           setUser(u);
         })
-        .catch((e: Error & { pendingApproval?: boolean }) => {
+        .catch((_e: Error & { pendingApproval?: boolean }) => {
           api.clearTokens();
           setToken(null);
           setUser(null);

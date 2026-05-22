@@ -53,7 +53,7 @@ router.get("/", async (req, res) => {
       .where(eq(userSettingsTable.userId, userId))
       .limit(1);
     sendSuccess(res, { ...settings!, updatedAt: settings!.updatedAt.toISOString() });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -92,7 +92,7 @@ router.put("/", async (req, res) => {
       .where(eq(userSettingsTable.userId, userId))
       .limit(1);
     sendSuccess(res, { ...settings!, updatedAt: settings!.updatedAt.toISOString() });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });

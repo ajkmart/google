@@ -161,7 +161,7 @@ export default function CategoriesPage() {
       return adminFetch("/categories", { method: "POST", body: JSON.stringify(body) });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-categories-tree"] });
+      void qc.invalidateQueries({ queryKey: ["admin-categories-tree"] });
       setDialogOpen(false);
       setEditing(null);
       setForm({ ...EMPTY_FORM });
@@ -176,7 +176,7 @@ export default function CategoriesPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminFetch(`/categories/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-categories-tree"] });
+      void qc.invalidateQueries({ queryKey: ["admin-categories-tree"] });
       toast({ title: "Category deleted" });
     },
   });
@@ -962,7 +962,7 @@ function CategoryCard({
       </CardContent>
       {hasChildren && expanded && (
         <div className="ml-10 space-y-1 px-3 pb-3">
-          {cat.children!.map((child: Category, ci: number) => (
+          {cat.children!.map((child: Category, _ci: number) => (
             <Card
               key={child.id}
               className={`border-border/40 rounded-xl shadow-sm ${!child.isActive ? "opacity-60" : ""}`}

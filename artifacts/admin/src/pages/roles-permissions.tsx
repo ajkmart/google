@@ -577,7 +577,7 @@ export default function RolesPermissionsPage() {
   const [draftPerms, setDraftPerms] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState("");
   const [tab, setTab] = useState<"roles" | "admins" | "matrix">("roles");
-  const [confirmRemoveRole, setConfirmRemoveRole] = useState(false);
+  const [_confirmRemoveRole, setConfirmRemoveRole] = useState(false);
   const [sensitiveDeleteRole, setSensitiveDeleteRole] = useState(false);
   const [sensitiveSavePerms, setSensitiveSavePerms] = useState(false);
   const [sensitiveRoleToggle, setSensitiveRoleToggle] = useState<{
@@ -677,6 +677,7 @@ export default function RolesPermissionsPage() {
             const rs: RbacRole[] = r?.data?.roles ?? r?.roles ?? [];
             map[a.id] = rs.map((x) => x.id);
           } catch (err: unknown) {
+            // eslint-disable-next-line no-console
             console.debug(
               "[roles-permissions] admin role fetch failed for",
               a.id,
@@ -707,7 +708,7 @@ export default function RolesPermissionsPage() {
     try {
       const r = await fetchAdmin(`/system/rbac/admins/${a.id}/effective-permissions`);
       setActiveAdminEffective(r?.data?.permissions ?? r?.permissions ?? []);
-    } catch (err) {
+    } catch (_err) {
       toast({
         title: "Could not load effective permissions",
         description: "Try again or reload the page.",
@@ -1501,7 +1502,7 @@ export default function RolesPermissionsPage() {
           onClose={() => setSensitiveRoleToggle(null)}
           onConfirm={() => {
             if (sensitiveRoleToggle)
-              toggleAdminRole(sensitiveRoleToggle.adminId, sensitiveRoleToggle.roleId);
+              void toggleAdminRole(sensitiveRoleToggle.adminId, sensitiveRoleToggle.roleId);
           }}
           title="Change Admin Role"
           description="You are about to change this admin's role assignments. This will immediately affect their access. Confirm your identity to proceed."

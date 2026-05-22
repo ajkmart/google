@@ -115,7 +115,7 @@ router.post("/subscribe", anyUserAuth, async (req, res) => {
       });
       sendSuccess(res, { id });
     }
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -137,7 +137,7 @@ router.delete("/unsubscribe", anyUserAuth, async (req, res) => {
       await db.delete(pushSubscriptionsTable).where(eq(pushSubscriptionsTable.userId, userId));
     }
     sendSuccess(res);
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });

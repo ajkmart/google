@@ -58,7 +58,7 @@ export function FixedBanners({
   const audioTop = showAudio ? bannerIdx++ : -1;
 
   /* Number of top banners currently visible — used to position the bottom WakeLock toast */
-  const totalTopBanners = bannerIdx;
+  const _totalTopBanners = bannerIdx;
 
   return (
     <>

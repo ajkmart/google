@@ -93,8 +93,8 @@ export default function SupportChatPage() {
         body: JSON.stringify({ resolved }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-support-conversations"] });
-      qc.invalidateQueries({ queryKey: ["admin-support-messages", selectedUserId] });
+      void qc.invalidateQueries({ queryKey: ["admin-support-conversations"] });
+      void qc.invalidateQueries({ queryKey: ["admin-support-messages", selectedUserId] });
     },
   });
 
@@ -116,7 +116,7 @@ export default function SupportChatPage() {
 
   useEffect(() => {
     if (!selectedUserId) return;
-    qc.invalidateQueries({ queryKey: ["admin-support-conversations"] });
+    void qc.invalidateQueries({ queryKey: ["admin-support-conversations"] });
   }, [selectedUserId, qc]);
 
   useEffect(() => {
@@ -133,7 +133,7 @@ export default function SupportChatPage() {
           return { ...old, messages: [...old.messages, msg] };
         }
       );
-      qc.invalidateQueries({ queryKey: ["admin-support-conversations"] });
+      void qc.invalidateQueries({ queryKey: ["admin-support-conversations"] });
     });
     return () => {
       socket.disconnect();
@@ -163,7 +163,7 @@ export default function SupportChatPage() {
             return { ...old, messages: [...old.messages, json.data.message] };
           }
         );
-        qc.invalidateQueries({ queryKey: ["admin-support-conversations"] });
+        void qc.invalidateQueries({ queryKey: ["admin-support-conversations"] });
         setReply("");
         inputRef.current?.focus();
       }
@@ -175,7 +175,7 @@ export default function SupportChatPage() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      void handleSend();
     }
   };
 

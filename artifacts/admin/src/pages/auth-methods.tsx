@@ -223,7 +223,7 @@ function serialiseRoleValue(roles: Record<Role, boolean>): string {
 
 export default function AuthMethodsPage() {
   const { toast } = useToast();
-  const [settings, setSettings] = useState<PlatformSetting[]>([]);
+  const [_settings, setSettings] = useState<PlatformSetting[]>([]);
   const [savedValues, setSavedValues] = useState<Record<string, string>>({});
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -262,7 +262,7 @@ export default function AuthMethodsPage() {
   }, [toast]);
 
   useEffect(() => {
-    loadSettings();
+    void loadSettings();
   }, [loadSettings]);
 
   const setValue = useCallback((key: string, value: string) => {

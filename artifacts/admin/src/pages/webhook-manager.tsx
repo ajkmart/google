@@ -113,7 +113,7 @@ export default function WebhookManagerPage() {
     mutationFn: (body: CreateWebhookBody) =>
       adminFetch("/webhooks", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-webhooks"] });
+      void qc.invalidateQueries({ queryKey: ["admin-webhooks"] });
       toast({ title: "Webhook registered" });
       resetForm();
     },
@@ -125,7 +125,7 @@ export default function WebhookManagerPage() {
     mutationFn: (id: string) =>
       adminFetch(`/webhooks/${id}/toggle`, { method: "PATCH", body: "{}" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-webhooks"] });
+      void qc.invalidateQueries({ queryKey: ["admin-webhooks"] });
     },
     onError: (e: unknown) =>
       toast({ title: "Failed", description: errMsg(e), variant: "destructive" }),
@@ -147,7 +147,7 @@ export default function WebhookManagerPage() {
           variant: "destructive",
         });
       }
-      qc.invalidateQueries({ queryKey: ["admin-webhook-logs"] });
+      void qc.invalidateQueries({ queryKey: ["admin-webhook-logs"] });
     },
     onError: (e: unknown) =>
       toast({ title: "Failed", description: errMsg(e), variant: "destructive" }),
@@ -156,7 +156,7 @@ export default function WebhookManagerPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminFetch(`/webhooks/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-webhooks"] });
+      void qc.invalidateQueries({ queryKey: ["admin-webhooks"] });
       toast({ title: "Webhook deleted" });
     },
     onError: (e: unknown) =>

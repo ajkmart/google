@@ -370,7 +370,7 @@ export default function ForgotPassword() {
 
   const handle2faBackup = useCallback(
     async (code: string) => {
-      handle2faVerify(code);
+      void handle2faVerify(code);
     },
     [handle2faVerify]
   );

@@ -90,7 +90,7 @@ export default function ExperimentsPage() {
     mutationFn: (body: any) =>
       adminFetch("/experiments", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-experiments"] });
+      void qc.invalidateQueries({ queryKey: ["admin-experiments"] });
       toast({ title: "Experiment created" });
       resetForm();
     },
@@ -104,7 +104,7 @@ export default function ExperimentsPage() {
         body: JSON.stringify({ status }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-experiments"] });
+      void qc.invalidateQueries({ queryKey: ["admin-experiments"] });
       toast({ title: "Status updated" });
     },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
@@ -113,7 +113,7 @@ export default function ExperimentsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminFetch(`/experiments/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-experiments"] });
+      void qc.invalidateQueries({ queryKey: ["admin-experiments"] });
       toast({ title: "Experiment deleted" });
       setDeletingId(null);
     },

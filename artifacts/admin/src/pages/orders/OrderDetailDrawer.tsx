@@ -61,7 +61,7 @@ function ReturnPanel({
    
   useEffect(() => {
     void loadRequests();
-  }, [order.id]);
+  }, [order.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmitNew = async () => {
     if (!reason.trim()) {
@@ -269,7 +269,7 @@ function DisputePanel({ order }: { order: any }) {
    
   useEffect(() => {
     void loadDisputes();
-  }, [order.id]);
+  }, [order.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmitNew = async () => {
     if (!note.trim()) {

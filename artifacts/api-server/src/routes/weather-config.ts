@@ -31,7 +31,7 @@ router.get("/", async (_req, res) => {
       return;
     }
     sendSuccess(res, { config: { widgetEnabled: config.widgetEnabled, cities: config.cities } });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });

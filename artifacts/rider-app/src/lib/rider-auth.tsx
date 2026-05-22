@@ -130,7 +130,7 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    (async () => {
+    void (async () => {
       try {
         await tokenStoreReady;
       } catch (storeErr) {

@@ -115,7 +115,7 @@ function calculateSurcharge(
 const router = Router();
 
 async function vanDriverAuth(req: Request, res: Response, next: NextFunction) {
-  riderAuth(req, res, async () => {
+  void riderAuth(req, res, async () => {
     try {
       const driverId = req.riderId;
       if (!driverId) {
@@ -176,7 +176,7 @@ async function vanDriverAuth(req: Request, res: Response, next: NextFunction) {
         return;
       }
       next();
-    } catch (e) {
+    } catch (_e) {
       sendError(res, "Authorization check failed.", 500);
     }
   });
@@ -438,7 +438,7 @@ const bookVanSchema = z.object({
   passengerPhone: z.string().max(20).optional(),
 });
 
-router.post("/bookings", customerAuth, paymentLimiter, async (req, res, next) => {
+router.post("/bookings", customerAuth, paymentLimiter, async (req, res, _next) => {
   const userId = req.customerId!;
   const parsed = bookVanSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -770,7 +770,7 @@ router.get("/bookings", customerAuth, async (req, res, next) => {
   }
 });
 
-router.patch("/bookings/:id/cancel", customerAuth, async (req, res, next) => {
+router.patch("/bookings/:id/cancel", customerAuth, async (req, res, _next) => {
   try {
     const userId = req.customerId!;
     const bookingId = req.params["id"] as string;
@@ -897,7 +897,7 @@ router.patch("/bookings/:id/cancel", customerAuth, async (req, res, next) => {
    RIDER (Van Driver) endpoints
 ═══════════════════════════════════════════════════════════════ */
 
-router.get("/driver/today", vanDriverAuth, async (req, res, next) => {
+router.get("/driver/today", vanDriverAuth, async (req, res, _next) => {
   try {
     const driverId = req.riderId!;
     const today = new Date().toISOString().split("T")[0]!;
@@ -1187,7 +1187,7 @@ const vanDriverLocationSchema = z.object({
   heading: z.number().optional(),
 });
 
-router.post("/driver/location", vanDriverAuth, async (req, res, next) => {
+router.post("/driver/location", vanDriverAuth, async (req, res, _next) => {
   try {
     const driverId = req.riderId!;
     const parsed = vanDriverLocationSchema.safeParse(req.body ?? {});
@@ -1248,7 +1248,7 @@ router.post("/driver/location", vanDriverAuth, async (req, res, next) => {
       );
 
     sendSuccess(res, { ok: true });
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to broadcast location.", 500);
   }
 });
@@ -1571,14 +1571,14 @@ router.get("/driver/metrics", vanDriverAuth, async (req, res, next) => {
    ADMIN — van management endpoints
 ═══════════════════════════════════════════════════════════════ */
 
-router.get("/admin/routes", adminAuth, async (_req, res, next) => {
+router.get("/admin/routes", adminAuth, async (_req, res, _next) => {
   try {
     const routes = await db
       .select()
       .from(vanRoutesTable)
       .orderBy(asc(vanRoutesTable.sortOrder), asc(vanRoutesTable.name));
     sendSuccess(res, routes);
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to load routes.", 500);
   }
 });
@@ -1672,19 +1672,19 @@ router.patch("/admin/routes/:id", adminAuth, async (req, res, next) => {
   }
 });
 
-router.delete("/admin/routes/:id", adminAuth, async (req, res, next) => {
+router.delete("/admin/routes/:id", adminAuth, async (req, res, _next) => {
   try {
     await db
       .update(vanRoutesTable)
       .set({ isActive: false, updatedAt: new Date() })
       .where(eq(vanRoutesTable.id, req.params["id"] as string));
     sendSuccess(res, { message: "Route deactivated." });
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to deactivate route.", 500);
   }
 });
 
-router.get("/admin/vehicles", adminAuth, async (_req, res, next) => {
+router.get("/admin/vehicles", adminAuth, async (_req, res, _next) => {
   try {
     const vehicles = await db
       .select({
@@ -1703,7 +1703,7 @@ router.get("/admin/vehicles", adminAuth, async (_req, res, next) => {
       .leftJoin(usersTable, eq(vanVehiclesTable.driverId, usersTable.id))
       .orderBy(desc(vanVehiclesTable.createdAt));
     sendSuccess(res, vehicles);
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to load vehicles.", 500);
   }
 });
@@ -1717,7 +1717,7 @@ const vehicleSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-router.post("/admin/vehicles", adminAuth, async (req, res, next) => {
+router.post("/admin/vehicles", adminAuth, async (req, res, _next) => {
   const p = vehicleSchema.safeParse(req.body ?? {});
   if (!p.success) {
     sendError(res, p.error.issues.map((i) => i.message).join("; "), 422);
@@ -1729,12 +1729,12 @@ router.post("/admin/vehicles", adminAuth, async (req, res, next) => {
       .values({ id: generateId(), ...p.data })
       .returning();
     sendCreated(res, vehicle);
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to create vehicle.", 500);
   }
 });
 
-router.patch("/admin/vehicles/:id", adminAuth, async (req, res, next) => {
+router.patch("/admin/vehicles/:id", adminAuth, async (req, res, _next) => {
   const p = vehicleSchema.partial().safeParse(req.body ?? {});
   if (!p.success) {
     sendError(res, p.error.issues.map((i) => i.message).join("; "), 422);
@@ -1751,12 +1751,12 @@ router.patch("/admin/vehicles/:id", adminAuth, async (req, res, next) => {
       return;
     }
     sendSuccess(res, vehicle);
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to update vehicle.", 500);
   }
 });
 
-router.get("/admin/schedules", adminAuth, async (_req, res, next) => {
+router.get("/admin/schedules", adminAuth, async (_req, res, _next) => {
   try {
     const schedules = await db
       .select({
@@ -1792,7 +1792,7 @@ router.get("/admin/schedules", adminAuth, async (_req, res, next) => {
     );
 
     sendSuccess(res, enriched);
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to load schedules.", 500);
   }
 });
@@ -1811,7 +1811,7 @@ const scheduleSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-router.post("/admin/schedules", adminAuth, async (req, res, next) => {
+router.post("/admin/schedules", adminAuth, async (req, res, _next) => {
   const p = scheduleSchema.safeParse(req.body ?? {});
   if (!p.success) {
     sendError(res, p.error.issues.map((i) => i.message).join("; "), 422);
@@ -1874,12 +1874,12 @@ router.post("/admin/schedules", adminAuth, async (req, res, next) => {
       .values({ id: generateId(), ...p.data })
       .returning();
     sendCreated(res, schedule);
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to create schedule.", 500);
   }
 });
 
-router.patch("/admin/schedules/:id", adminAuth, async (req, res, next) => {
+router.patch("/admin/schedules/:id", adminAuth, async (req, res, _next) => {
   const p = scheduleSchema.partial().safeParse(req.body ?? {});
   if (!p.success) {
     sendError(res, p.error.issues.map((i) => i.message).join("; "), 422);
@@ -1896,25 +1896,25 @@ router.patch("/admin/schedules/:id", adminAuth, async (req, res, next) => {
       return;
     }
     sendSuccess(res, schedule);
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to update schedule.", 500);
   }
 });
 
-router.delete("/admin/schedules/:id", adminAuth, async (req, res, next) => {
+router.delete("/admin/schedules/:id", adminAuth, async (req, res, _next) => {
   try {
     await db
       .update(vanSchedulesTable)
       .set({ isActive: false, updatedAt: new Date() })
       .where(eq(vanSchedulesTable.id, req.params["id"] as string));
     sendSuccess(res, { message: "Schedule deactivated." });
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to deactivate schedule.", 500);
   }
 });
 
 /* ── Van Drivers CRUD ── */
-router.get("/admin/drivers", adminAuth, async (_req, res, next) => {
+router.get("/admin/drivers", adminAuth, async (_req, res, _next) => {
   try {
     const drivers = await db
       .select({
@@ -1933,7 +1933,7 @@ router.get("/admin/drivers", adminAuth, async (_req, res, next) => {
       .leftJoin(usersTable, eq(vanDriversTable.userId, usersTable.id))
       .orderBy(desc(vanDriversTable.createdAt));
     sendSuccess(res, drivers);
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to load van drivers.", 500);
   }
 });
@@ -1993,7 +1993,7 @@ router.post("/admin/drivers", adminAuth, async (req, res, next) => {
   }
 });
 
-router.patch("/admin/drivers/:id", adminAuth, async (req, res, next) => {
+router.patch("/admin/drivers/:id", adminAuth, async (req, res, _next) => {
   const p = z
     .object({
       approvalStatus: z.enum(["pending", "approved", "suspended"]).optional(),
@@ -2016,19 +2016,19 @@ router.patch("/admin/drivers/:id", adminAuth, async (req, res, next) => {
       return;
     }
     sendSuccess(res, driver);
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to update van driver.", 500);
   }
 });
 
-router.delete("/admin/drivers/:id", adminAuth, async (req, res, next) => {
+router.delete("/admin/drivers/:id", adminAuth, async (req, res, _next) => {
   try {
     await db
       .update(vanDriversTable)
       .set({ isActive: false, updatedAt: new Date() })
       .where(eq(vanDriversTable.id, req.params["id"] as string));
     sendSuccess(res, { message: "Van driver deactivated." });
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to deactivate van driver.", 500);
   }
 });
@@ -2084,7 +2084,7 @@ router.get("/admin/bookings", adminAuth, async (req, res, next) => {
   }
 });
 
-router.patch("/admin/bookings/:id/status", adminAuth, async (req, res, next) => {
+router.patch("/admin/bookings/:id/status", adminAuth, async (req, res, _next) => {
   const p = z
     .object({
       status: z.enum(["confirmed", "boarded", "completed", "cancelled"]),
@@ -2105,7 +2105,7 @@ router.patch("/admin/bookings/:id/status", adminAuth, async (req, res, next) => 
       return;
     }
     sendSuccess(res, booking);
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to update status.", 500);
   }
 });

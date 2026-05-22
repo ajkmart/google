@@ -383,7 +383,7 @@ export function useQueueStatus() {
         setSyncing(_syncing);
       }
     };
-    refresh();
+    void refresh();
     const unsub = subscribeQueueStatus(refresh);
     return () => {
       mounted = false;

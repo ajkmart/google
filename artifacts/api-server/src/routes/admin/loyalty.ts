@@ -198,7 +198,7 @@ router.post(
     }
 
     const ip = getClientIp(req);
-    addAuditEntry({
+    void addAuditEntry({
       action: `loyalty_${type}`,
       ip: ip || "admin",
       details: `Admin ${type === "credit" ? "credited" : "debited"} ${adjustAmount} loyalty points for user ${user.phone || user.name || userId} — Reason: ${reason.trim()}`,
@@ -246,7 +246,7 @@ function parseDateString(value: unknown, field: string): string | null {
   return date.toISOString();
 }
 
-function assertRecord(value: unknown, field: string): Record<string, unknown> {
+function _assertRecord(value: unknown, field: string): Record<string, unknown> {
   if (typeof value === "string") {
     try {
       const parsed = JSON.parse(value);
@@ -363,7 +363,7 @@ router.post(
       })
       .returning();
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "loyalty_campaign_create",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -426,7 +426,7 @@ router.put(
       .where(eq(loyaltyCampaignsTable.id, id))
       .returning();
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "loyalty_campaign_update",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -454,7 +454,7 @@ router.delete(
 
     await db.delete(loyaltyCampaignsTable).where(eq(loyaltyCampaignsTable.id, id));
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "loyalty_campaign_delete",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -499,7 +499,7 @@ router.post(
       })
       .returning();
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "loyalty_reward_create",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -556,7 +556,7 @@ router.put(
       .where(eq(loyaltyRewardsTable.id, id))
       .returning();
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "loyalty_reward_update",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -584,7 +584,7 @@ router.delete(
 
     await db.delete(loyaltyRewardsTable).where(eq(loyaltyRewardsTable.id, id));
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "loyalty_reward_delete",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,

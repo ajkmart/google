@@ -617,7 +617,7 @@ export function VendorKycModal({ onClose, rejectionReason }: Props) {
                   }
                   setStep(2);
                 } else {
-                  handleSubmit();
+                  void handleSubmit();
                 }
               }}
               style={{

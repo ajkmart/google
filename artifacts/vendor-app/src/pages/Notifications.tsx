@@ -71,7 +71,7 @@ export default function Notifications() {
   }, []);
 
   const onTouchEnd = useCallback(() => {
-    if (pullY.current > 50) refetch();
+    if (pullY.current > 50) void refetch();
     pullY.current = 0;
     pulling.current = false;
     if (pullIndicatorRef.current) {
@@ -83,12 +83,12 @@ export default function Notifications() {
   const markAllMut = useMutation({
     mutationFn: () => api.markAllRead(),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendor-notifications"] });
-      qc.invalidateQueries({ queryKey: ["vendor-notifs-count"] });
-      qc.invalidateQueries({ queryKey: ["vendor-me"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-notifications"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-notifs-count"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-me"] });
     },
     onError: () => {
-      refetch();
+      void refetch();
     },
   });
 
@@ -107,8 +107,8 @@ export default function Notifications() {
       });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendor-notifications"] });
-      qc.invalidateQueries({ queryKey: ["vendor-notifs-count"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-notifications"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-notifs-count"] });
     },
   });
 

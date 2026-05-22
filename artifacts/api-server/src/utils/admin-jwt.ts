@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import { logger } from "../lib/logger.js";
 
-function resolveSecret(envVar: string, name: string): string {
+function resolveSecret(envVar: string, _name: string): string {
   const val = process.env[envVar];
   if (!val || val.length < 32) {
     const msg = !val

@@ -429,7 +429,7 @@ router.get("/autocomplete", async (req, res, next) => {
 
       void trackMapUsage("google", "autocomplete");
       res.json({ predictions, source: "google" });
-    } catch (err) {
+    } catch (_err) {
       const filtered = AJK_FALLBACK.filter((l) =>
         l.description.toLowerCase().includes(input.toLowerCase())
       );
@@ -661,7 +661,7 @@ router.get("/geocode", async (req, res, next) => {
         formattedAddress: result.formatted_address,
         source: "google",
       });
-    } catch (err) {
+    } catch (_err) {
       if (address) {
         try {
           const nom = await nominatimForwardGeocode(address);
@@ -1764,7 +1764,7 @@ adminMapsRouter.post("/test", adminAuth, handleMapsTest);
 adminMapsRouter.get("/usage", adminAuth, handleMapsUsage);
 adminMapsRouter.post("/cache/clear", adminAuth, handleMapsCacheClear);
 
-router.get("/default-center", async (_req, res, next) => {
+router.get("/default-center", async (_req, res, _next) => {
   try {
     const s = (await getCachedSettings()) as Record<string, string>;
     sendSuccess(res, {
@@ -1772,7 +1772,7 @@ router.get("/default-center", async (_req, res, next) => {
       lng: parseFloat(s["brand_map_center_lng"] ?? "73.47"),
       label: s["brand_map_center_label"] ?? "Muzaffarabad",
     });
-  } catch (e) {
+  } catch (_e) {
     sendSuccess(res, { lat: 34.37, lng: 73.47, label: "Muzaffarabad" });
   }
 });
@@ -1792,7 +1792,7 @@ const FALLBACK_CITIES = [
   "Islamabad",
   "Other",
 ];
-router.get("/popular-cities", async (_req, res, next) => {
+router.get("/popular-cities", async (_req, res, _next) => {
   try {
     const rows = await db
       .select({ name: popularLocationsTable.name })

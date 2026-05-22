@@ -1372,7 +1372,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     <button
                       key={opt.value}
                       onClick={() => {
-                        setLanguage(opt.value as Language);
+                        void setLanguage(opt.value as Language);
                         setLangOpen(false);
                       }}
                       className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors"

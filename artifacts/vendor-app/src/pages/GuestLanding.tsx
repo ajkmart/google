@@ -294,7 +294,7 @@ const AMBER = "#F59E0B";
 const AMBER_DARK = "#D97706";
 const DARK_BG = "#060A14";
 const DARK_SURF = "#0D1117";
-const DARK_CARD = "#111827";
+const _DARK_CARD = "#111827";
 const DARK_CARD2 = "#141E2E";
 
 export function GuestLanding() {

@@ -29,7 +29,7 @@ export function TwoFactorSetup({
 
       const fullCode = newDigits.join("");
       if (fullCode.length === 6) {
-        onVerify(fullCode);
+        void onVerify(fullCode);
       }
     },
     [digits, onVerify]
@@ -56,7 +56,7 @@ export function TwoFactorSetup({
       setDigits(newDigits);
       const fullCode = newDigits.join("");
       if (fullCode.length === 6) {
-        onVerify(fullCode);
+        void onVerify(fullCode);
       }
     },
     [digits, onVerify]

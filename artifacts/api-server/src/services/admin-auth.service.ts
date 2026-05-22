@@ -27,8 +27,8 @@ import { verifyTotpToken } from "./totp.js";
 export async function adminLogin(
   username: string,
   password: string,
-  ip: string,
-  userAgent?: string
+  _ip: string,
+  _userAgent?: string
 ): Promise<{
   success: boolean;
   admin?: AdminAccount;
@@ -87,8 +87,8 @@ export async function adminLogin(
 export async function verify2fa(
   adminId: string,
   totp: string,
-  ip: string,
-  userAgent?: string
+  _ip: string,
+  _userAgent?: string
 ): Promise<{
   success: boolean;
   admin?: AdminAccount;
@@ -267,7 +267,7 @@ export async function refreshAdminSession(
       csrfToken: newCsrfToken,
       admin,
     };
-  } catch (err) {
+  } catch (_err) {
     return { success: false, error: "Invalid refresh token" };
   }
 }

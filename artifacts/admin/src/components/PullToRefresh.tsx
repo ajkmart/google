@@ -133,7 +133,7 @@ export function PullToRefresh({
     pulling.current = false;
     intentLocked.current = false;
     if (pullY >= threshold) {
-      handleRefresh();
+      void handleRefresh();
     } else {
       setPullY(0);
     }

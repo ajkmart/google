@@ -64,7 +64,7 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
   const theme = useTheme();
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
-  const auth = useRiderAuthConfig();
+  const _auth = useRiderAuthConfig();
   const { sendOtp } = useAuthOps();
   const [, navigate] = useLocation();
 

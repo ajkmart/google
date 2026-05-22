@@ -194,9 +194,9 @@ function TransactionsPanel() {
   const { onError: onWalletError } = useErrorHandler({ title: "Failed" });
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [_bulkProcessing, setBulkProcessing] = useState(false);
 
-  const handleBulkApprove = async () => {
+  const _handleBulkApprove = async () => {
     const ids = Array.from(selectedIds);
     if (!ids.length) return;
     setBulkProcessing(true);
@@ -216,7 +216,7 @@ function TransactionsPanel() {
         toast({ title: "Approved", description: `Successfully approved ${ids.length} transfers` });
       }
       setSelectedIds(new Set());
-      qc.invalidateQueries({ queryKey: ["admin-wallet-transfers"] });
+      void qc.invalidateQueries({ queryKey: ["admin-wallet-transfers"] });
     } catch (e: unknown) {
       onWalletError(e);
     } finally {
@@ -224,7 +224,7 @@ function TransactionsPanel() {
     }
   };
 
-  const toggleSelect = (id: string) => {
+  const _toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -262,8 +262,8 @@ function TransactionsPanel() {
         body: JSON.stringify({ flag, reason }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-p2p-txns"] });
-      qc.invalidateQueries({ queryKey: ["admin-wallet-stats"] });
+      void qc.invalidateQueries({ queryKey: ["admin-p2p-txns"] });
+      void qc.invalidateQueries({ queryKey: ["admin-wallet-stats"] });
       setFlagModal(null);
       toast({ title: "Transaction flag updated" });
     },
@@ -274,8 +274,8 @@ function TransactionsPanel() {
     mutationFn: (uid: string) => adminFetch(`/wallet/freeze-p2p/${uid}`, { method: "PATCH" }),
     onSuccess: (d: any) => {
       setFreezeModal(null);
-      qc.invalidateQueries({ queryKey: ["admin-p2p-txns"] });
-      qc.invalidateQueries({ queryKey: ["admin-wallet-stats"] });
+      void qc.invalidateQueries({ queryKey: ["admin-p2p-txns"] });
+      void qc.invalidateQueries({ queryKey: ["admin-wallet-stats"] });
       toast({ title: d?.data?.p2pFrozen ? "P2P transfers frozen" : "P2P transfers unfrozen" });
     },
     onError: onWalletError,
@@ -797,7 +797,7 @@ function SettingsPanel() {
         method: "PUT",
         body: JSON.stringify({ settings: payload }),
       });
-      qc.invalidateQueries({ queryKey: ["admin-platform-settings"] });
+      void qc.invalidateQueries({ queryKey: ["admin-platform-settings"] });
       setFields({});
       toast({ title: "Settings saved" });
     } catch (e: unknown) {
@@ -941,7 +941,7 @@ function SettingsPanel() {
           variant="outline"
           onClick={() => {
             setFields({});
-            refetch();
+            void refetch();
           }}
         >
           Reset

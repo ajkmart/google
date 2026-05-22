@@ -29,7 +29,7 @@ export function OnlineStatusBanner() {
       setConnState("restoring");
       if (restoreTimerRef.current) clearTimeout(restoreTimerRef.current);
       restoreTimerRef.current = setTimeout(() => {
-        queryClient.invalidateQueries();
+        void queryClient.invalidateQueries();
         setConnState("online");
         restoreTimerRef.current = null;
       }, 2000);

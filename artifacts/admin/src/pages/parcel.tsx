@@ -127,7 +127,7 @@ export default function Parcel() {
     ["accepted", "in_transit"].includes(b.status)
   ).length;
   const completedCount = bookings.filter((b: any) => b.status === "completed").length;
-  const cancelledCount = bookings.filter((b: any) => b.status === "cancelled").length;
+  const _cancelledCount = bookings.filter((b: any) => b.status === "cancelled").length;
 
   const isTerminal = (s: string) => s === "completed" || s === "cancelled";
   const canCancel = (b: any) => !isTerminal(b.status);

@@ -320,7 +320,7 @@ export default function ConditionRules() {
   const { toast } = useToast();
 
   const { data: rulesData, isLoading: rulesLoading, refetch } = useConditionRules();
-  const { data: settingsData, isLoading: settingsLoading } = useConditionSettings();
+  const { data: settingsData, isLoading: _settingsLoading } = useConditionSettings();
   const updateSettingsMut = useUpdateConditionSettings();
   const updateRuleMut = useUpdateConditionRule();
   const deleteRuleMut = useDeleteConditionRule();

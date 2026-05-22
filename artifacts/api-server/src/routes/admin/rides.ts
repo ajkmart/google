@@ -863,7 +863,7 @@ router.patch("/riders/:id/online", async (req, res) => {
     res.status(404).json({ error: "Rider not found" });
     return;
   }
-  addAuditEntry({
+  void addAuditEntry({
     action: "rider_online_toggle",
     ip: getClientIp(req),
     adminId: (req as AdminRequest).adminId,
@@ -1043,7 +1043,7 @@ router.post("/rides/:id/cancel", async (req, res) => {
       }
     });
   } catch (txErr: unknown) {
-    addAuditEntry({
+    void addAuditEntry({
       action: "ride_cancel",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -1082,7 +1082,7 @@ router.post("/rides/:id/cancel", async (req, res) => {
     );
   }
 
-  addAuditEntry({
+  void addAuditEntry({
     action: "ride_cancel",
     ip: getClientIp(req),
     adminId: (req as AdminRequest).adminId,
@@ -1123,7 +1123,7 @@ router.post("/rides/:id/refund", async (req, res) => {
       });
     });
   } catch (txErr: unknown) {
-    addAuditEntry({
+    void addAuditEntry({
       action: "ride_refund",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -1141,7 +1141,7 @@ router.post("/rides/:id/refund", async (req, res) => {
     "ride",
     "wallet-outline"
   );
-  addAuditEntry({
+  void addAuditEntry({
     action: "ride_refund",
     ip: getClientIp(req),
     adminId: (req as AdminRequest).adminId,
@@ -1236,7 +1236,7 @@ router.post("/rides/:id/reassign", async (req, res) => {
     "swap-horizontal-outline"
   );
 
-  addAuditEntry({
+  void addAuditEntry({
     action: "ride_reassign",
     ip: getClientIp(req),
     adminId: (req as AdminRequest).adminId,

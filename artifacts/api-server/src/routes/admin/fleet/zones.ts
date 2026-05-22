@@ -22,7 +22,7 @@ router.get("/", async (_req, res) => {
       .from(serviceZonesTable)
       .orderBy(serviceZonesTable.city, serviceZonesTable.name);
     sendSuccess(res, zones);
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -93,7 +93,7 @@ router.post("/", async (req, res) => {
 
     invalidateZoneCache();
     sendCreated(res, zone);
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -171,7 +171,7 @@ router.put("/:id", async (req, res) => {
 
     invalidateZoneCache();
     sendSuccess(res, updated);
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -197,7 +197,7 @@ router.delete("/:id", async (req, res) => {
 
     invalidateZoneCache();
     sendSuccess(res, { deleted: true, id });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });

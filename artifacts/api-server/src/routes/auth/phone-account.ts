@@ -53,7 +53,7 @@ router.post(
       const ip = getClientIp(req);
       const settings = await getCachedSettings();
       const otp = generateSecureOtp();
-      const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+      const _otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
       // Store merge OTP in otp_tokens (mergeOtpCode column was dropped from users table)
       const { saveOtpToken } = await import("../../modules/otp/otp.store.js");
@@ -86,7 +86,7 @@ router.post(
         await sendOtpSMS(phone, otp, settings, lang);
       }
 
-      writeAuthAuditLog("phone_change_requested", {
+      void writeAuthAuditLog("phone_change_requested", {
         userId: auth.userId,
         ip,
         userAgent: req.headers["user-agent"] as string,
@@ -187,7 +187,7 @@ router.post(
         })
         .where(eq(usersTable.id, auth.userId));
 
-      writeAuthAuditLog("phone_changed", {
+      void writeAuthAuditLog("phone_changed", {
         userId: auth.userId,
         ip,
         userAgent: req.headers["user-agent"] as string,

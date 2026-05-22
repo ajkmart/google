@@ -927,7 +927,7 @@ router.patch("/orders/:id/status", async (req, res, next) => {
     }
 
     /* ── Push notification to customer ── */
-    (async () => {
+    void (async () => {
       try {
         const { sendPushToUsers } = await import("../lib/webpush.js");
         if (msgs[status]) {
@@ -959,7 +959,7 @@ router.patch("/orders/:id/status", async (req, res, next) => {
     }
 
     if (status === "ready" && !updated.riderId) {
-      (async () => {
+      void (async () => {
         try {
           const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000);
           const onlineRiders = await db
@@ -1662,7 +1662,7 @@ router.post("/wallet/withdraw", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const user = req.vendorUser!;
-    const { amount, bankName, bankAccount, bankAccountTitle, method, notes } = req.body as Record<
+    const { amount, bankName, _bankAccount, _bankAccountTitle, method, _notes } = req.body as Record<
       string,
       unknown
     >;
@@ -1707,7 +1707,7 @@ router.post("/wallet/withdraw", async (req, res, next) => {
 router.post("/wallet/deposit", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
-    const { amount, method, reference, notes } = req.body as Record<string, unknown>;
+    const { amount, method, reference, _notes } = req.body as Record<string, unknown>;
     if (!amount || parseFloat(String(amount)) <= 0) {
       sendValidationError(res, "Valid amount is required");
       return;

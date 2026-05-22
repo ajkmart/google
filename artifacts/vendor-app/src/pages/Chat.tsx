@@ -496,8 +496,8 @@ export default function Chat() {
       .catch((e: unknown) => {
         showError(e instanceof Error ? e.message : "Failed to load your AJK ID");
       });
-    loadConversations();
-    loadRequests();
+    void loadConversations();
+    void loadRequests();
 
     const socket = io(window.location.origin, {
       path: "/api/socket.io",
@@ -508,7 +508,7 @@ export default function Chat() {
 
     socket.on("comm:message:new", (msg: Message) => {
       setMessages((prev) => [...prev, msg]);
-      loadConversations();
+      void loadConversations();
     });
     socket.on("comm:typing:start", () => setTyping(true));
     socket.on("comm:typing:stop", () => setTyping(false));
@@ -517,8 +517,8 @@ export default function Chat() {
     });
     socket.on("comm:request:new", () => loadRequests());
     socket.on("comm:request:accepted", () => {
-      loadConversations();
-      loadRequests();
+      void loadConversations();
+      void loadRequests();
     });
     socket.on("comm:request:cancelled", () => loadRequests());
     socket.on("comm:request:rejected", () => loadRequests());
@@ -605,7 +605,7 @@ export default function Chat() {
       });
       setMessages((prev) => [...prev, msg]);
       setInput("");
-      loadConversations();
+      void loadConversations();
       setTimeout(() => scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight), 100);
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to send message. Please try again.");
@@ -634,13 +634,13 @@ export default function Chat() {
 
   const acceptRequest = async (id: string) => {
     await apiFetch(`/communication/requests/${id}/accept`, { method: "PATCH" });
-    loadRequests();
-    loadConversations();
+    void loadRequests();
+    void loadConversations();
   };
 
   const rejectRequest = async (id: string) => {
     await apiFetch(`/communication/requests/${id}/reject`, { method: "PATCH" });
-    loadRequests();
+    void loadRequests();
   };
 
   const startVoiceRecording = async () => {
@@ -720,7 +720,7 @@ export default function Chat() {
     setVoiceRecordSecs(0);
   };
 
-  const translateMsg = async (text: string, lang: string) => {
+  const _translateMsg = async (text: string, lang: string) => {
     const result = await apiFetch("/communication/translate", {
       method: "POST",
       body: JSON.stringify({ text, targetLang: lang }),
@@ -770,7 +770,7 @@ export default function Chat() {
       pc.ontrack = (e) => {
         const audio = new Audio();
         audio.srcObject = e.streams[0];
-        audio.play();
+        void audio.play();
       };
 
       const offer = await pc.createOffer();
@@ -829,7 +829,7 @@ export default function Chat() {
       pc.ontrack = (e) => {
         const audio = new Audio();
         audio.srcObject = e.streams[0];
-        audio.play();
+        void audio.play();
       };
 
       setIncomingCall(null);
@@ -930,7 +930,7 @@ export default function Chat() {
               <button
                 onClick={() => {
                   setIncomingCall(null);
-                  apiFetch(`/communication/calls/${incomingCall.callId}/reject`, {
+                  void apiFetch(`/communication/calls/${incomingCall.callId}/reject`, {
                     method: "POST",
                   });
                 }}

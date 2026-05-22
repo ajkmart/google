@@ -107,7 +107,7 @@ export async function handleLoginVerifyOtp(req: Request, res: Response): Promise
       if (otpErr instanceof OtpInvalidError || otpErr instanceof OtpExpiredError) {
         if (lockoutEnabled) {
           const updated = await recordFailedAttempt(lockoutKey, maxAttempts, lockoutMinutes);
-          writeAuthAuditLog("otp_failed", {
+          void writeAuthAuditLog("otp_failed", {
             userId: user.id,
             ip,
             userAgent: req.headers["user-agent"] ?? undefined,
@@ -150,7 +150,7 @@ export async function handleLoginVerifyOtp(req: Request, res: Response): Promise
             401
           );
         } else {
-          writeAuthAuditLog("otp_failed", {
+          void writeAuthAuditLog("otp_failed", {
             userId: user.id,
             ip,
             userAgent: req.headers["user-agent"] ?? undefined,
@@ -181,7 +181,7 @@ export async function handleLoginVerifyOtp(req: Request, res: Response): Promise
       .where(eq(usersTable.id, user.id));
 
     await resetAttempts(lockoutKey);
-    writeAuthAuditLog("otp_verified", {
+    void writeAuthAuditLog("otp_verified", {
       userId: user.id,
       ip,
       userAgent: req.headers["user-agent"] ?? undefined,
@@ -242,7 +242,7 @@ export async function handleLoginVerifyOtp(req: Request, res: Response): Promise
     setRiderRefreshCookie(req, res, refreshRaw, user);
     setVendorRefreshCookie(req, res, refreshRaw, user);
 
-    writeAuthAuditLog("login_success", {
+    void writeAuthAuditLog("login_success", {
       userId: user.id,
       ip,
       userAgent: req.headers["user-agent"] ?? undefined,

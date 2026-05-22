@@ -37,7 +37,7 @@ router.get("/analytics", async (req, res) => {
     const wantRevenue = !metric || metric === "revenue_by_category";
     const wantGrowth = !metric || metric === "user_growth";
 
-    const [orderRows, pharmOrderRows, revenueRows, growthRows] = await Promise.all([
+    const [orderRows, _pharmOrderRows, revenueRows, growthRows] = await Promise.all([
       /* Orders over time (non-pharmacy) */
       wantOrders
         ? db

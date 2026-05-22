@@ -101,7 +101,7 @@ export function useVersionCheck() {
       }
     }
 
-    check();
+    void check();
     const timer = setInterval(check, POLL_INTERVAL_MS);
 
     return () => clearInterval(timer);

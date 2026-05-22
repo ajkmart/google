@@ -49,7 +49,7 @@ function penaltyIcon(type: string) {
 export default function PenaltyHistory() {
   const { config } = usePlatformConfig();
   const { language } = useLanguage();
-  const T = (key: Parameters<typeof tDual>[0]) => tDual(key, language);
+  const _T = (key: Parameters<typeof tDual>[0]) => tDual(key, language);
   const currency = config.platform?.currencySymbol ?? "Rs.";
   const tz = config.regional?.timezone ?? "Asia/Karachi";
   const qc = useQueryClient();

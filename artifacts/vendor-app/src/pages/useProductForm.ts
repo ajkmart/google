@@ -188,7 +188,7 @@ export function useProductForm({
     mutationFn: ({ id, isHidden }: { id: string; isHidden: boolean }) =>
       api.updateProduct(id, { isHidden }),
     onSuccess: (_, { isHidden }) => {
-      qc.invalidateQueries({ queryKey: ["vendor-products"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-products"] });
       showToast(isHidden ? "👁️ Hidden from customers" : "✅ Visible to customers");
     },
     onError: (e: Error) => showToast("❌ " + errMsg(e)),
@@ -234,8 +234,8 @@ export function useProductForm({
     },
     onSuccess: (result) => {
       if (result === null) return;
-      qc.invalidateQueries({ queryKey: ["vendor-products"] });
-      qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-products"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
       setShowAdd(false);
       setForm({ ...EMPTY_FORM });
       showToast("✅ Product added!");
@@ -292,8 +292,8 @@ export function useProductForm({
           saveThreshold(editProd.id, null);
         }
       }
-      qc.invalidateQueries({ queryKey: ["vendor-products"] });
-      qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-products"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
       setEditProd(null);
       setShowAdd(false);
       setEditThreshold("");
@@ -305,8 +305,8 @@ export function useProductForm({
   const deleteMut = useMutation({
     mutationFn: (id: string) => api.deleteProduct(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendor-products"] });
-      qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-products"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
       showToast("🗑️ Deleted");
     },
     onError: (e: Error) => showToast("❌ " + errMsg(e)),
@@ -316,7 +316,7 @@ export function useProductForm({
     mutationFn: ({ id, inStock }: { id: string; inStock: boolean }) =>
       api.updateProduct(id, { inStock }),
     onSuccess: (_, { inStock }) => {
-      qc.invalidateQueries({ queryKey: ["vendor-products"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-products"] });
       showToast(inStock ? "✅ Marked In Stock" : "📦 Marked Out of Stock");
     },
     onError: (e: Error) => showToast("❌ " + errMsg(e)),

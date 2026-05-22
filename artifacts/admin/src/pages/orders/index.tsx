@@ -119,12 +119,12 @@ export default function Orders() {
     };
   }, [state.accessToken, queryClient]);
 
-  // Cleanup timers on unmount
+  // Cleanup timers on unmount — liveTimers is a ref and intentionally excluded
   useEffect(() => {
     return () => {
-      liveTimers.current.forEach((t) => clearTimeout(t));
+      liveTimers.current.forEach((t) => clearTimeout(t)); // eslint-disable-line react-hooks/exhaustive-deps
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -400,7 +400,7 @@ export default function Orders() {
       });
       setSelectedIds(new Set());
       setBulkFulfilledConfirm(false);
-      qc.invalidateQueries({ queryKey: ["admin-orders-enriched"] });
+      void qc.invalidateQueries({ queryKey: ["admin-orders-enriched"] });
     } catch (e: unknown) {
       toast({
         title: "Bulk update failed",

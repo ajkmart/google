@@ -14,7 +14,7 @@ router.get("/experiments", async (_req, res) => {
       .from(abExperimentsTable)
       .orderBy(desc(abExperimentsTable.createdAt));
     sendSuccess(res, { experiments });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -65,7 +65,7 @@ router.post("/experiments", async (req, res) => {
       })
       .returning();
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "experiment_create",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -73,7 +73,7 @@ router.post("/experiments", async (req, res) => {
       result: "success",
     });
     sendSuccess(res, { experiment: created });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -138,7 +138,7 @@ router.get("/experiments/:id", async (req, res) => {
       return;
     }
     sendSuccess(res, { experiment });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -175,7 +175,7 @@ router.put("/experiments/:id", async (req, res) => {
       .set(updates)
       .where(eq(abExperimentsTable.id, id))
       .returning();
-    addAuditEntry({
+    void addAuditEntry({
       action: "experiment_update",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -183,7 +183,7 @@ router.put("/experiments/:id", async (req, res) => {
       result: "success",
     });
     sendSuccess(res, { experiment: updated });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -211,7 +211,7 @@ router.patch("/experiments/:id/status", async (req, res) => {
       .update(abExperimentsTable)
       .set({ status, updatedAt: new Date() })
       .where(eq(abExperimentsTable.id, id));
-    addAuditEntry({
+    void addAuditEntry({
       action: "experiment_status",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -219,7 +219,7 @@ router.patch("/experiments/:id/status", async (req, res) => {
       result: "success",
     });
     sendSuccess(res, { success: true });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -248,7 +248,7 @@ router.get("/experiments/:id/results", async (req, res) => {
       .groupBy(abAssignmentsTable.variant);
 
     sendSuccess(res, { experiment, results });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -298,7 +298,7 @@ router.post("/experiments/:id/convert", async (req, res) => {
       .where(eq(abAssignmentsTable.id, assignment.id));
 
     sendSuccess(res, { converted: true, variant: assignment.variant });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -318,7 +318,7 @@ router.delete("/experiments/:id", async (req, res) => {
 
     await db.delete(abAssignmentsTable).where(eq(abAssignmentsTable.experimentId, id));
     await db.delete(abExperimentsTable).where(eq(abExperimentsTable.id, id));
-    addAuditEntry({
+    void addAuditEntry({
       action: "experiment_delete",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -326,7 +326,7 @@ router.delete("/experiments/:id", async (req, res) => {
       result: "success",
     });
     sendSuccess(res, { success: true });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });

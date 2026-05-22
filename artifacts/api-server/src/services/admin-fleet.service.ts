@@ -438,7 +438,7 @@ export class FleetService {
           rideNotifKeys.icon
         );
       }
-    } catch (e) {
+    } catch (_e) {
       logger.warn("Notification failed (non-fatal)");
     }
 
@@ -551,7 +551,7 @@ export class FleetService {
           "close-circle-outline"
         );
       }
-    } catch (e) {
+    } catch (_e) {
       logger.warn("Cancel notifications failed");
     }
 
@@ -643,7 +643,7 @@ export class FleetService {
         "ride",
         "wallet-outline"
       );
-    } catch (e) {
+    } catch (_e) {
       logger.warn("Refund notification failed");
     }
 
@@ -733,7 +733,7 @@ export class FleetService {
         "ride",
         "swap-horizontal-outline"
       );
-    } catch (e) {
+    } catch (_e) {
       logger.warn("Reassign notifications failed");
     }
 

@@ -248,7 +248,7 @@ function AvatarInitial({ name }: { name: string | null }) {
 
 /* ── Main page ───────────────────────────────────────────────────────────── */
 
-type DeliveryOtpResult = {
+type _DeliveryOtpResult = {
   rideId: string;
   otp: string | null;
   otpVerified: boolean;
@@ -326,7 +326,7 @@ export default function OtpControl() {
     try {
       const d = await api("GET", "/otp/status");
       if (d?.data) setStatus(d.data);
-    } catch (err) {
+    } catch (_err) {
       toast({ title: "Failed to load OTP status", variant: "destructive" });
     } finally {
       setStatusLoading(false);
@@ -377,9 +377,9 @@ export default function OtpControl() {
   }, []);
 
   useEffect(() => {
-    loadStatus();
-    loadAudit();
-    loadRateLimits();
+    void loadStatus();
+    void loadAudit();
+    void loadRateLimits();
   }, [loadStatus, loadAudit, loadRateLimits]);
 
   useEffect(() => {
@@ -409,8 +409,8 @@ export default function OtpControl() {
           title: "OTP Suspended",
           description: `All OTPs suspended for ${suspendModal.mins} minute(s).`,
         });
-        loadStatus();
-        loadAudit();
+        void loadStatus();
+        void loadAudit();
         setSuspendModal({ open: false, mins: 0 });
         setSuspendReason("");
       } else {
@@ -528,7 +528,7 @@ export default function OtpControl() {
 
   useEffect(() => {
     const t = setTimeout(() => {
-      if (query.trim().length >= 2) searchUsers();
+      if (query.trim().length >= 2) void searchUsers();
     }, 400);
     return () => clearTimeout(t);
   }, [query, searchUsers]);
@@ -553,7 +553,7 @@ export default function OtpControl() {
         setUsers((prev) =>
           prev.map((u) => (u.id === userId ? { ...u, otpBypassUntil: d.data.bypassUntil } : u))
         );
-        loadStatus();
+        void loadStatus();
       } else {
         toast({
           title: "Error",
@@ -583,7 +583,7 @@ export default function OtpControl() {
       await api("DELETE", `/users/${userId}/otp/bypass`);
       toast({ title: "Bypass Removed" });
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, otpBypassUntil: null } : u)));
-      loadStatus();
+      void loadStatus();
     } catch (e: unknown) {
       toast({
         title: "Error",
@@ -699,8 +699,8 @@ export default function OtpControl() {
               size="sm"
               variant="outline"
               onClick={() => {
-                loadStatus();
-                loadAudit();
+                void loadStatus();
+                void loadAudit();
               }}
               disabled={statusLoading}
               className="gap-1.5 rounded-xl"
@@ -816,8 +816,8 @@ export default function OtpControl() {
                           title: "OTPs Restored",
                           description: "Global OTP suspension lifted.",
                         });
-                        loadStatus();
-                        loadAudit();
+                        void loadStatus();
+                        void loadAudit();
                       })
                       .catch((e: unknown) => {
                         toast({
@@ -1090,7 +1090,7 @@ export default function OtpControl() {
                                 <button
                                   onClick={() => {
                                     const m = parseInt(bypassMins[user.id] ?? "", 10);
-                                    if (m > 0) grantBypass(user.id, m);
+                                    if (m > 0) void grantBypass(user.id, m);
                                   }}
                                   className="border-border text-foreground hover:bg-muted/40 h-7 rounded-lg border bg-white px-2.5 py-1.5 text-xs font-semibold transition-colors"
                                 >
@@ -1339,7 +1339,7 @@ export default function OtpControl() {
                   setOtpLookupError(null);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") lookupDeliveryOtp();
+                  if (e.key === "Enter") void lookupDeliveryOtp();
                 }}
               />
               <Button

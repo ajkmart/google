@@ -1110,7 +1110,7 @@ export default function Profile() {
                                       onChange={(e) => {
                                         const f = e.target.files?.[0];
                                         if (f) {
-                                          uploadDoc(doc.key, f);
+                                          void uploadDoc(doc.key, f);
                                           e.target.value = "";
                                         }
                                       }}

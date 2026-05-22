@@ -251,7 +251,7 @@ setImmediate(() => {
   }, TOR_LIST_TTL_MS);
 });
 
-async function isTorExitNode(ip: string): Promise<boolean> {
+async function _isTorExitNode(ip: string): Promise<boolean> {
   /* If the live list has never been fetched (torListFetchedAt === 0) the static
      fallback set is already active — no need to await a live refresh here. */
   if (torListFetchedAt > 0 && Date.now() - torListFetchedAt > TOR_LIST_TTL_MS) {
@@ -276,7 +276,7 @@ const VPN_CACHE_TTL_MS = 10 * 60 * 1000;
 let _vpnCbFailures = 0;
 let _vpnCbOpenedAt = 0;
 const VPN_CB_THRESHOLD = 3; /* open after 3 consecutive failures */
-const VPN_CB_WINDOW_MS = 60_000; /* within 60 seconds */
+const _VPN_CB_WINDOW_MS = 60_000; /* within 60 seconds */
 const VPN_CB_RESET_MS = 5 * 60_000; /* stay open for 5 minutes */
 
 /** Returns the current VPN-detection circuit-breaker status for observability. */
@@ -293,7 +293,7 @@ export function getVpnCircuitBreakerStatus(): {
   };
 }
 
-async function isVpnOrProxy(ip: string): Promise<boolean> {
+async function _isVpnOrProxy(ip: string): Promise<boolean> {
   const cached = vpnCache.get(ip);
   if (cached && Date.now() - cached.cachedAt < VPN_CACHE_TTL_MS) {
     return cached.isVpn;

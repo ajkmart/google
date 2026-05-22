@@ -161,7 +161,7 @@ router.post(
         details: `Magic link sent to: ${normalized}`,
         result: "success",
       });
-      writeAuthAuditLog("magic_link_sent", { ip, metadata: { email: normalized } });
+      void writeAuthAuditLog("magic_link_sent", { ip, metadata: { email: normalized } });
 
       const isDevTokenLog =
         process.env.NODE_ENV === "development" && process.env["LOG_OTP"] === "1";

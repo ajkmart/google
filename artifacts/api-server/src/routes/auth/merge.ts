@@ -105,7 +105,7 @@ router.post(
           const smsResult = await sendOtpSMS(phone, otp, settings, lang);
           sent = smsResult.sent;
         }
-        const isDev = process.env.NODE_ENV !== "production";
+        const _isDev = process.env.NODE_ENV !== "production";
         sendSuccess(res, undefined, "OTP sent to phone");
       } else {
         const email = identifier.trim().toLowerCase();
@@ -119,7 +119,7 @@ router.post(
         sendSuccess(res, undefined, "OTP sent to email");
       }
 
-      writeAuthAuditLog("merge_otp_sent", {
+      void writeAuthAuditLog("merge_otp_sent", {
         ip,
         userId: auth.userId,
         userAgent: req.headers["user-agent"] ?? undefined,
@@ -160,7 +160,7 @@ router.post("/merge-account", sharedValidateBody(MergeAccountSchema), async (req
     }
 
     const ip = getClientIp(req);
-    const settings = await getCachedSettings();
+    const _settings = await getCachedSettings();
 
     const looksLikePhone = /^[\d\s\-+()]{7,15}$/.test(identifier.trim());
     const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier.trim());
@@ -236,7 +236,7 @@ router.post("/merge-account", sharedValidateBody(MergeAccountSchema), async (req
         })
         .where(eq(usersTable.id, auth.userId));
 
-      writeAuthAuditLog("account_merge_phone", {
+      void writeAuthAuditLog("account_merge_phone", {
         ip,
         userId: auth.userId,
         userAgent: req.headers["user-agent"] ?? undefined,
@@ -275,7 +275,7 @@ router.post("/merge-account", sharedValidateBody(MergeAccountSchema), async (req
         })
         .where(eq(usersTable.id, auth.userId));
 
-      writeAuthAuditLog("account_merge_email", {
+      void writeAuthAuditLog("account_merge_email", {
         ip,
         userId: auth.userId,
         userAgent: req.headers["user-agent"] ?? undefined,

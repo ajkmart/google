@@ -234,7 +234,7 @@ router.post("/2fa/verify-setup", validateBody(TotpCodeSchema), async (req, res) 
       .where(eq(usersTable.id, auth.userId));
 
     const ip = getClientIp(req);
-    writeAuthAuditLog("2fa_enabled", {
+    void writeAuthAuditLog("2fa_enabled", {
       userId: auth.userId,
       ip,
       userAgent: req.headers["user-agent"] as string,
@@ -319,7 +319,7 @@ router.post("/totp/enable", validateBody(TotpCodeSchema), async (req, res) => {
       .where(eq(usersTable.id, auth.userId));
 
     const ip = getClientIp(req);
-    writeAuthAuditLog("2fa_enabled", {
+    void writeAuthAuditLog("2fa_enabled", {
       userId: auth.userId,
       ip,
       userAgent: req.headers["user-agent"] as string,
@@ -349,7 +349,7 @@ router.post("/totp/enable", validateBody(TotpCodeSchema), async (req, res) => {
 
 router.post("/2fa/verify", validateBody(TwoFaVerifySchema), async (req, res) => {
   try {
-    const { tempToken, code, deviceFingerprint } = req.body;
+    const { tempToken, code, _deviceFingerprint } = req.body;
     if (!tempToken || !code) {
       sendError(res, "tempToken and code required", 400);
       return;
@@ -405,7 +405,7 @@ router.post("/2fa/verify", validateBody(TwoFaVerifySchema), async (req, res) => 
       return;
     }
 
-    writeAuthAuditLog("2fa_verified", {
+    void writeAuthAuditLog("2fa_verified", {
       userId: user.id,
       ip,
       userAgent: req.headers["user-agent"] as string,
@@ -478,7 +478,7 @@ router.post("/2fa/disable", validateBody(TotpCodeSchema), async (req, res) => {
       .where(eq(trustedDevicesTable.userId, auth.userId));
 
     const ip = getClientIp(req);
-    writeAuthAuditLog("2fa_disabled", {
+    void writeAuthAuditLog("2fa_disabled", {
       userId: auth.userId,
       ip,
       userAgent: req.headers["user-agent"] as string,
@@ -721,7 +721,7 @@ router.post("/2fa/trust-device", validateBody(TrustDeviceSchema), async (req, re
       });
 
     const ip = getClientIp(req);
-    writeAuthAuditLog("device_trusted", {
+    void writeAuthAuditLog("device_trusted", {
       userId: auth.userId,
       ip,
       userAgent: req.headers["user-agent"] as string,

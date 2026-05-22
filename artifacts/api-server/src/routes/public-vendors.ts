@@ -88,7 +88,7 @@ router.get("/", async (req, res) => {
         };
       }),
     });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -156,7 +156,7 @@ router.get("/:id/store", async (req, res) => {
         rating: p.rating ? parseFloat(p.rating) : null,
       })),
     });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });

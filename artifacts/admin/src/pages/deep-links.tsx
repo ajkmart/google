@@ -105,7 +105,7 @@ export default function DeepLinksPage() {
     mutationFn: (body: any) =>
       adminFetch("/deep-links", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-deep-links"] });
+      void qc.invalidateQueries({ queryKey: ["admin-deep-links"] });
       toast({ title: "Deep link created" });
       resetForm();
     },
@@ -115,7 +115,7 @@ export default function DeepLinksPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminFetch(`/deep-links/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-deep-links"] });
+      void qc.invalidateQueries({ queryKey: ["admin-deep-links"] });
       toast({ title: "Link deleted" });
     },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),

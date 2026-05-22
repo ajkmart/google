@@ -106,7 +106,7 @@ export default function Reviews() {
     mutationFn: ({ reviewId, reply }: { reviewId: string; reply: string }) =>
       api.postVendorReply(reviewId, reply),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendor-reviews"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-reviews"] });
       setReplyOpen(null);
       setReplyText("");
       showToast(`✅ ${T("replyPostedMsg")}`);
@@ -118,7 +118,7 @@ export default function Reviews() {
     mutationFn: ({ reviewId, reply }: { reviewId: string; reply: string }) =>
       api.updateVendorReply(reviewId, reply),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendor-reviews"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-reviews"] });
       setReplyOpen(null);
       setReplyText("");
       showToast(`✅ ${T("replyUpdatedMsg")}`);
@@ -129,7 +129,7 @@ export default function Reviews() {
   const delM = useMutation({
     mutationFn: (reviewId: string) => api.deleteVendorReply(reviewId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendor-reviews"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-reviews"] });
       setReplyOpen(null);
       setReplyText("");
       showToast(`🗑️ ${T("replyDeletedMsg")}`);

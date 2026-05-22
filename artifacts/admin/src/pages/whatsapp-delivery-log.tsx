@@ -124,7 +124,7 @@ export default function WhatsAppDeliveryLog() {
               variant="outline"
               size="sm"
               onClick={() => {
-                refetch();
+                void refetch();
                 setPage(1);
                 setAllLogs([]);
               }}

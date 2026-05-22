@@ -23,7 +23,7 @@ router.get("/", async (_req, res) => {
   try {
     const config = await getOrCreateConfig();
     sendSuccess(res, { config });
-  } catch (err: unknown) {
+  } catch (_err: unknown) {
     sendError(res, "Failed to load weather config", 500);
   }
 });
@@ -44,7 +44,7 @@ router.patch("/", async (req, res) => {
       .where(eq(weatherConfigTable.id, "default"))
       .returning();
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "weather_config_update",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -52,7 +52,7 @@ router.patch("/", async (req, res) => {
       result: "success",
     });
     sendSuccess(res, { config: updated });
-  } catch (err: unknown) {
+  } catch (_err: unknown) {
     sendError(res, "Failed to update weather config", 500);
   }
 });

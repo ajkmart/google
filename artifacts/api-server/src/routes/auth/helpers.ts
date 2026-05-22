@@ -428,7 +428,7 @@ export async function issueTokensForUser(
       logger.error("[auth] Expired token cleanup failed:", err);
     });
   await db.update(usersTable).set({ lastLoginAt: new Date() }).where(eq(usersTable.id, user.id));
-  writeAuthAuditLog("login_success", { userId: user.id, ip, userAgent, metadata: { method } });
+  void writeAuthAuditLog("login_success", { userId: user.id, ip, userAgent, metadata: { method } });
 
   if (req && res) {
     setRiderRefreshCookie(req, res, refreshRaw, user);
@@ -525,7 +525,7 @@ export async function issueTokensForUser(
 export function isDeviceTrusted(
   user: typeof usersTable.$inferSelect,
   deviceFingerprint: string,
-  trustedDays: number
+  _trustedDays: number
 ): boolean {
   if (!user.trustedDevices || !deviceFingerprint) return false;
   try {

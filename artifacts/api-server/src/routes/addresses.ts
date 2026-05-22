@@ -32,7 +32,7 @@ router.get("/", async (req, res) => {
     sendSuccess(res, {
       addresses: addresses.map((a) => ({ ...a, createdAt: a.createdAt.toISOString() })),
     });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -109,7 +109,7 @@ router.post("/", validateBody(createAddressSchema), async (req, res) => {
       .where(eq(savedAddressesTable.id, id))
       .limit(1);
     sendCreated(res, { ...addr, createdAt: addr!.createdAt.toISOString() });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -155,7 +155,7 @@ router.put("/:id", validateBody(updateAddressSchema), async (req, res) => {
     });
 
     sendSuccess(res, null);
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -191,7 +191,7 @@ router.patch("/:id/set-default", async (req, res) => {
     });
 
     sendSuccess(res, null);
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -237,7 +237,7 @@ router.delete("/:id", async (req, res) => {
     });
 
     sendSuccess(res, null);
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });

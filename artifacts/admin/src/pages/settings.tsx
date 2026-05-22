@@ -98,7 +98,7 @@ export default function SettingsPage() {
   /* ── Global settings search (cross-section) ──────────────────────────── */
   const [searchQ, setSearchQ] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [highlightKey, setHighlightKey] = useState<string | null>(null);
+  const [_highlightKey, setHighlightKey] = useState<string | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const jumpTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -227,7 +227,7 @@ export default function SettingsPage() {
   }, [toast]);
 
   useEffect(() => {
-    loadSettings();
+    void loadSettings();
   }, [loadSettings]);
 
   const handleChange = (key: string, value: string) => {
@@ -283,7 +283,7 @@ export default function SettingsPage() {
         title: "Settings saved ✅",
         description: `${changed.length} change(s) applied instantly.`,
       });
-      queryClient.invalidateQueries({ queryKey: ["platform-settings"] });
+      void queryClient.invalidateQueries({ queryKey: ["platform-settings"] });
     } catch (e: unknown) {
       toast({
         title: "Save failed",
@@ -561,7 +561,7 @@ export default function SettingsPage() {
 
   /* Children of the active top-10 group + total settings rendered in this view. */
   const activeChildren = activeCfg.children;
-  const totalChildSettingsCount = activeChildren.reduce((n, c) => n + (grouped[c]?.length ?? 0), 0);
+  const _totalChildSettingsCount = activeChildren.reduce((n, c) => n + (grouped[c]?.length ?? 0), 0);
 
   /* Renders one legacy sub-section inside the active top-10 group. */
   const renderLegacyChild = (cat: CatKey) => {
@@ -727,7 +727,7 @@ export default function SettingsPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  loadSettings();
+                  void loadSettings();
                   toast({ title: "Reloaded" });
                 }}
                 disabled={loading}
@@ -774,7 +774,7 @@ export default function SettingsPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                loadSettings();
+                void loadSettings();
                 toast({ title: "Reloaded" });
               }}
               disabled={loading}

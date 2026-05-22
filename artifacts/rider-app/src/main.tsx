@@ -19,7 +19,7 @@ registerErrorHandler(reportError);
    instead of broken-image placeholders. */
 patchLeafletDefaultIcon();
 
-(async () => {
+void (async () => {
   const container = document.getElementById("root")!;
   const root = createRoot(container);
 

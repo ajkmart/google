@@ -104,9 +104,9 @@ function getAnimationClass(animation: string | null, type: string): string {
 }
 
 export function PopupEngine() {
-  const { user, token } = useAuth();
+  const { _user, token } = useAuth();
   const [, setLocation] = useLocation();
-  const [queue, setQueue] = useState<Popup[]>([]);
+  const [_queue, setQueue] = useState<Popup[]>([]);
   const [current, setCurrent] = useState<Popup | null>(null);
   const [visible, setVisible] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -128,7 +128,7 @@ export function PopupEngine() {
       setCurrent(popup);
       setVisible(true);
       setLeaving(false);
-      sendImpression(popup.id, "view", token, sessionId.current);
+      void sendImpression(popup.id, "view", token, sessionId.current);
       markPopupSeen(popup);
 
       if (popup.popupType === "top_banner") {
@@ -152,7 +152,7 @@ export function PopupEngine() {
         clearTimeout(autoDismissTimer.current);
         autoDismissTimer.current = null;
       }
-      sendImpression(current.id, action, token, sessionId.current);
+      void sendImpression(current.id, action, token, sessionId.current);
       setLeaving(true);
       setTimeout(() => {
         setVisible(false);
@@ -175,7 +175,7 @@ export function PopupEngine() {
   useEffect(() => {
     if (loadedRef.current) return;
     loadedRef.current = true;
-    (async () => {
+    void (async () => {
       try {
         const url = `${BASE}/popups/active?sessionId=${sessionId.current}`;
         const res = await fetch(url, {

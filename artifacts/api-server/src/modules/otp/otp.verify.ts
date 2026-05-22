@@ -192,7 +192,7 @@ export async function verifyOtp(options: OtpVerifyOptions): Promise<OtpVerifyRes
   if (!token) {
     // No active token — could be expired or never sent
     await recordAttempt(identifier, false);
-    const fresh = await getAttemptStatus(identifier);
+    const _fresh = await getAttemptStatus(identifier);
     throw new OtpExpiredError();
   }
 

@@ -77,7 +77,7 @@ function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number):
 }
 
 /* Haversine speed in km/h */
-function speedKmh(
+function _speedKmh(
   lat1: number,
   lon1: number,
   t1: Date,
@@ -329,7 +329,7 @@ async function processLocationUpdate(opts: {
      Distance threshold (tracking_distance_threshold, default 10 m) controls
      how frequently history points are persisted to avoid bloating the table. */
   if (effectiveRole === "rider") {
-    (async () => {
+    void (async () => {
       try {
         const histThresholdM = parseInt(settings["tracking_distance_threshold"] ?? "10", 10);
         const distFromCached = cachedPrev

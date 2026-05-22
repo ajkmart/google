@@ -1394,7 +1394,7 @@ function RoleFormDialog({
       setAiAvailable(null);
       adminFetch("/communication/roles/ai-status")
         .then(() => setAiAvailable(true))
-        .catch((err: unknown) => {
+        .catch((_err: unknown) => {
           setAiAvailable(false);
         });
     }
@@ -1875,7 +1875,7 @@ function AjkIdsTab() {
     try {
       const data = await adminFetch(`/communication/users/search?q=${encodeURIComponent(q)}`);
       setSearchResults(data as UserItem[]);
-    } catch (err) {
+    } catch (_err) {
       setSearchResults([]);
       toast({
         title: "User search failed",

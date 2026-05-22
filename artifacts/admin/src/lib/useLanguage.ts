@@ -84,7 +84,7 @@ export function useLanguage() {
       setInitialised(true);
     };
 
-    bootstrap();
+    void bootstrap();
   }, []);
 
   const setLanguage = useCallback(async (lang: Language) => {

@@ -17,10 +17,10 @@ async function runWithConcurrencyLimit<T>(
   for (const task of tasks) {
     const p = task().then(
       () => {
-        executing.splice(executing.indexOf(p), 1);
+        void executing.splice(executing.indexOf(p), 1);
       },
       (err: Error) => {
-        executing.splice(executing.indexOf(p), 1);
+        void executing.splice(executing.indexOf(p), 1);
         logger.error({ err: err.message }, "[webhook-emitter] concurrency dispatch failed");
       }
     );

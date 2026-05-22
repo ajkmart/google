@@ -185,7 +185,7 @@ export default function FlashDealsPage() {
       return adminFetch("/flash-deals", { method: "POST", body: JSON.stringify(body) });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-flash-deals"] });
+      void qc.invalidateQueries({ queryKey: ["admin-flash-deals"] });
       setDealDialog(false);
       setEditingDeal(null);
       setDealForm({ ...EMPTY_DEAL });
@@ -198,7 +198,7 @@ export default function FlashDealsPage() {
   const deleteDeal = useMutation({
     mutationFn: (id: string) => adminFetch(`/flash-deals/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-flash-deals"] });
+      void qc.invalidateQueries({ queryKey: ["admin-flash-deals"] });
       toast({ title: "Deal deleted" });
     },
     onError: (e: Error) =>

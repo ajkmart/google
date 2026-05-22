@@ -34,7 +34,7 @@ router.get("/wishlist-analytics", async (_req, res) => {
       .orderBy(desc(count()));
 
     sendSuccess(res, { products: results });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -60,7 +60,7 @@ router.get("/wishlist-analytics/timeline", async (req, res) => {
       .orderBy(sql`DATE(${wishlistTable.createdAt})`);
 
     sendSuccess(res, { timeline: rows, days });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });

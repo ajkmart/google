@@ -33,11 +33,11 @@ interface Setting {
 }
 
 export function WeatherSection({
-  localValues = {},
-  dirtyKeys = new Set<string>(),
-  handleChange = () => {},
-  handleToggle = () => {},
-  settings = [],
+  _localValues = {},
+  _dirtyKeys = new Set<string>(),
+  _handleChange = () => {},
+  _handleToggle = () => {},
+  _settings = [],
 }: {
   localValues?: Record<string, string>;
   dirtyKeys?: Set<string>;
@@ -71,7 +71,7 @@ export function WeatherSection({
     mutationFn: (body: { widgetEnabled: boolean; cities: string }) =>
       adminFetch("/weather-config", { method: "PATCH", body: JSON.stringify(body) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-weather-config"] });
+      void qc.invalidateQueries({ queryKey: ["admin-weather-config"] });
       toast({ title: "Weather config saved" });
     },
     onError: (e: any) =>

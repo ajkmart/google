@@ -151,7 +151,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
         const { latitude, longitude } = pos.coords;
         setVendorLat(latitude);
         setVendorLng(longitude);
-        saveVendorLocationToBackend(latitude, longitude);
+        void saveVendorLocationToBackend(latitude, longitude);
       },
       (err) => {
         if (err.code === err.PERMISSION_DENIED) setLocationPermission("denied");
@@ -185,7 +185,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
     mutationFn: ({ orderId, riderId }: { orderId: string; riderId: string }) =>
       api.assignRider(orderId, riderId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendor-orders"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-orders"] });
       setAssignModal(null);
       showToast("✅ Rider assigned successfully!");
     },
@@ -195,7 +195,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
   const autoAssignMut = useMutation({
     mutationFn: (orderId: string) => api.autoAssignRider(orderId),
     onSuccess: (d) => {
-      qc.invalidateQueries({ queryKey: ["vendor-orders"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-orders"] });
       setAssignModal(null);
       showToast(`✅ Auto-assigned to ${d.riderName || "nearest rider"}!`);
     },
@@ -251,7 +251,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
           const { latitude, longitude } = pos.coords;
           setVendorLat(latitude);
           setVendorLng(longitude);
-          saveVendorLocationToBackend(latitude, longitude);
+          void saveVendorLocationToBackend(latitude, longitude);
         },
         () => {}
       );
@@ -270,7 +270,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
           const { latitude, longitude } = pos.coords;
           setVendorLat(latitude);
           setVendorLng(longitude);
-          saveVendorLocationToBackend(latitude, longitude);
+          void saveVendorLocationToBackend(latitude, longitude);
         },
         () => {}
       );
@@ -358,7 +358,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
       setSocketConnected(true);
       if (!isFirstConnect) {
         /* Catch-up: fetch any orders that arrived while disconnected. */
-        qc.invalidateQueries({ queryKey: ["vendor-orders"] });
+        void qc.invalidateQueries({ queryKey: ["vendor-orders"] });
       }
       isFirstConnect = false;
     });
@@ -394,14 +394,14 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
       const orderId = payload?.id;
       const alreadySeen = orderId ? wasOrderSeenRecently(orderId) : false;
       if (orderId && !alreadySeen) markOrderSeen(orderId);
-      qc.invalidateQueries({ queryKey: ["vendor-orders"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-orders"] });
       if (!payload?._isTest && !alreadySeen) {
         playOrderSound();
         setUnreadCount((c) => c + 1);
       }
     });
     socket.on("order:update", () => {
-      qc.invalidateQueries({ queryKey: ["vendor-orders"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-orders"] });
     });
     return () => {
       socket.io.off("reconnect");
@@ -470,8 +470,8 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
     onSuccess: (_, { status }) => {
       setSelectedIds(new Set());
       setBulkConfirm(null);
-      qc.invalidateQueries({ queryKey: ["vendor-orders"] });
-      qc.invalidateQueries({ queryKey: ["vendor-stats"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-orders"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-stats"] });
       showToast(status === "confirmed" ? "✅ Orders accepted!" : "❌ Orders rejected!");
     },
     onError: (e: Error) => {
@@ -500,10 +500,10 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
         n.delete(id);
         return n;
       });
-      qc.invalidateQueries({ queryKey: ["vendor-orders"] });
-      qc.invalidateQueries({ queryKey: ["vendor-stats"] });
-      qc.invalidateQueries({ queryKey: ["vendor-orders-count"] });
-      qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-orders"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-stats"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-orders-count"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
       const msg: Record<string, string> = {
         confirmed: "✅ " + T("orderAccepted"),
         preparing: "🍳 " + T("preparingStarted"),

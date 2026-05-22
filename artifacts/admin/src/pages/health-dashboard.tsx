@@ -588,14 +588,14 @@ export default function HealthDashboard() {
   const { data: raw, isLoading, isFetching, dataUpdatedAt } = useHealthDashboard();
 
   const handleRefresh = useCallback(() => {
-    qc.invalidateQueries({ queryKey: ["admin-health-dashboard"] });
-    qc.invalidateQueries({ queryKey: ["public-health-check"] });
-    qc.invalidateQueries({ queryKey: ["stats-active-users"] });
-    qc.invalidateQueries({ queryKey: ["stats-socket-connections"] });
-    qc.invalidateQueries({ queryKey: ["stats-storage"] });
-    qc.invalidateQueries({ queryKey: ["stats-queue"] });
-    qc.invalidateQueries({ queryKey: ["schema-drift"] });
-    qc.invalidateQueries({ queryKey: ["admin-diagnostics"] });
+    void qc.invalidateQueries({ queryKey: ["admin-health-dashboard"] });
+    void qc.invalidateQueries({ queryKey: ["public-health-check"] });
+    void qc.invalidateQueries({ queryKey: ["stats-active-users"] });
+    void qc.invalidateQueries({ queryKey: ["stats-socket-connections"] });
+    void qc.invalidateQueries({ queryKey: ["stats-storage"] });
+    void qc.invalidateQueries({ queryKey: ["stats-queue"] });
+    void qc.invalidateQueries({ queryKey: ["schema-drift"] });
+    void qc.invalidateQueries({ queryKey: ["admin-diagnostics"] });
   }, [qc]);
 
   /* auto-refresh every 30 seconds */

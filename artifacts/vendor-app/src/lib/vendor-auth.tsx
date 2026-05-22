@@ -126,7 +126,7 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
     navigate("/login");
   };
 
-  const { refreshToken: sdkRefreshToken } = useTokenRefresh({
+  const { refreshToken: _sdkRefreshToken } = useTokenRefresh({
     tokenStorage: getTokenStorage(),
     baseURL: getVendorApiBase(),
     refreshEndpoint: "/auth/refresh",
@@ -151,7 +151,7 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
       let activeToken: string | null = null;
       try {
         activeToken = api.getToken();
-      } catch (e) {
+      } catch (_e) {
         setStorageError(true);
         setLoading(false);
         return;
@@ -209,7 +209,7 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
       }
     };
 
-    initAuth();
+    void initAuth();
     return () => {
       controller.abort();
     };

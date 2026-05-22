@@ -347,7 +347,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           ...prev,
           isLoading: false,
         }));
-      } catch (err) {
+      } catch (_err) {
         setState((prev) => ({
           ...prev,
           isLoading: false,
@@ -356,7 +356,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    restoreSession();
+    void restoreSession();
   }, [refreshAccessToken]);
 
   /**
@@ -683,7 +683,6 @@ export function readCsrfFromCookie(): string {
         }
       }
     }
-    // eslint-disable-next-line ajk-local/no-silent-catch -- cookie parse failure is expected for malformed cookies; falls through to empty string
   } catch (_e) {
     /* ignore - fall through to empty string */
   }

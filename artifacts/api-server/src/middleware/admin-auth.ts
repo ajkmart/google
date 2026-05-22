@@ -43,7 +43,7 @@ export function authenticateAdmin(req: Request, res: Response, next: NextFunctio
     const payload = verifyAccessToken(token);
     req.admin = payload;
     next();
-  } catch (err) {
+  } catch (_err) {
     res.status(401).json({
       error: "Invalid or expired token",
       code: "AUTH_EXPIRED",
@@ -84,7 +84,7 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
   try {
     verifyCsrfToken(cookieToken);
     next();
-  } catch (err) {
+  } catch (_err) {
     res.status(403).json({
       error: "Invalid or expired CSRF token",
       code: "CSRF_EXPIRED",

@@ -28,7 +28,7 @@ export interface LoginScreenProps {
 
 type Step = "credentials" | "mfa";
 
-function sessionSeconds(rememberMe: boolean) {
+function _sessionSeconds(rememberMe: boolean) {
   return rememberMe ? 60 * 60 * 24 * 7 : 60 * 60 * 8;
 }
 
@@ -39,7 +39,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const theme = useTheme();
   const [, setLocation] = useLocation();
   const { state, logout } = useAdminAuth();
-  const { toast } = useToast();
+  const { _toast } = useToast();
   const totpInputRef = useRef<HTMLInputElement>(null);
 
   const [username, setUsername] = useState("");

@@ -42,7 +42,7 @@ export default [
   {
     files: ["**/*.ts", "**/*.tsx"],
     linterOptions: {
-      reportUnusedDisableDirectives: "warn",
+      reportUnusedDisableDirectives: "off",
     },
     languageOptions: {
       parser: tsParser,
@@ -58,9 +58,10 @@ export default [
     },
     rules: {
       // ── Type safety ───────────────────────────────────────────────
-      // Downgraded to warn: legitimate any usage exists in ORM queries,
-      // Express req.body, and dynamic Drizzle patterns throughout.
-      "@typescript-eslint/no-explicit-any": "warn",
+      // Off (explicit decision): `any` is unavoidable in ORM query builders,
+      // Express req.body dynamic shapes, and dynamic Drizzle patterns.
+      // Enforcing this would require hundreds of low-value casts with no safety gain.
+      "@typescript-eslint/no-explicit-any": "off",
       // Off: these fire on every ORM/Express any-typed value and produce
       // thousands of low-signal warnings across the codebase.
       "@typescript-eslint/no-unsafe-assignment": "off",
@@ -71,10 +72,8 @@ export default [
       "@typescript-eslint/explicit-function-return-type": "off",
 
       // ── Variables ─────────────────────────────────────────────────
-      // Warn instead of error: lets CI pass while still surfacing unused
-      // vars as visible feedback during development.
       "@typescript-eslint/no-unused-vars": [
-        "warn",
+        "error",
         {
           argsIgnorePattern: "^_",
           varsIgnorePattern: "^_",
@@ -84,9 +83,9 @@ export default [
       ],
 
       // ── Async / Promises ──────────────────────────────────────────
-      // Warn: Express 5 handles async route handler errors internally,
-      // so floating promises in route files are intentional.
-      "@typescript-eslint/no-floating-promises": "warn",
+      // Error: all floating promises must be explicitly marked void, awaited,
+      // or handled with .catch(). Use `void fn()` for intentional fire-and-forget.
+      "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/await-thenable": "error",
       // Off: false-positives on interface-implementing methods that must
       // match an async signature even when the body is synchronous.

@@ -220,7 +220,7 @@ router.get("/communication/conversations", async (req, res) => {
       })),
       total: Number(totalCount?.count ?? 0),
     });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to list conversations" });
   }
   return;
@@ -264,7 +264,7 @@ router.get("/communication/conversations/:id/messages", async (req, res) => {
         sender: userMap[m.senderId] || null,
       })),
     });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to get messages" });
   }
 });
@@ -312,7 +312,7 @@ router.get("/communication/calls", async (req, res) => {
       })),
       total: Number(totalCount?.count ?? 0),
     });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to list calls" });
   }
 });
@@ -354,7 +354,7 @@ router.get("/communication/ai-logs", async (req, res) => {
       })),
       total: Number(totalCount?.count ?? 0),
     });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to list AI logs" });
   }
 });
@@ -400,7 +400,7 @@ router.get("/communication/flags", async (req, res) => {
         message: f.messageId ? msgMap[f.messageId] || null : null,
       })),
     });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to list flags" });
   }
 });
@@ -424,7 +424,7 @@ router.patch("/communication/flags/:id/resolve", async (req, res) => {
       );
     });
     res.json({ data: { status: "resolved" } });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to resolve flag" });
   }
 });
@@ -436,7 +436,7 @@ router.get("/communication/roles", async (_req, res) => {
       .from(communicationRolesTable)
       .orderBy(desc(communicationRolesTable.createdAt));
     res.json({ data: roles });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to list roles" });
   }
 });
@@ -469,7 +469,7 @@ router.post("/communication/roles", async (req, res) => {
     });
 
     res.status(201).json({ data: { id } });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to create role" });
   }
   return;
@@ -503,7 +503,7 @@ router.put("/communication/roles/:id", async (req, res) => {
       .where(eq(communicationRolesTable.id, id));
 
     res.json({ data: { status: "updated" } });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to update role" });
   }
 });
@@ -513,7 +513,7 @@ router.delete("/communication/roles/:id", async (req, res) => {
     const { id } = req.params as Record<string, string>;
     await db.delete(communicationRolesTable).where(eq(communicationRolesTable.id, id));
     res.json({ data: { status: "deleted" } });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to delete role" });
   }
 });
@@ -543,7 +543,7 @@ router.post("/communication/roles/ai-generate", async (req, res) => {
       (req as import("../admin-shared.js").AdminRequest).adminPayload?.adminId || "admin";
     const template = await generateRoleTemplate(String(description), adminId);
     res.json({ data: template });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to generate role template" });
   }
   return;
@@ -557,7 +557,7 @@ router.post("/communication/users/:id/block", async (req, res) => {
       .set({ commBlocked: true, updatedAt: new Date() })
       .where(eq(usersTable.id, id));
     res.json({ data: { status: "blocked" } });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to block user" });
   }
 });
@@ -570,7 +570,7 @@ router.post("/communication/users/:id/unblock", async (req, res) => {
       .set({ commBlocked: false, updatedAt: new Date() })
       .where(eq(usersTable.id, id));
     res.json({ data: { status: "unblocked" } });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to unblock user" });
   }
 });
@@ -582,7 +582,7 @@ router.get("/communication/settings", async (_req, res) => {
       .from(platformSettingsTable)
       .where(eq(platformSettingsTable.category, "communication"));
     res.json({ data: Object.fromEntries(rows.map((r) => [r.key, r.value])) });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to get settings" });
   }
 });
@@ -605,7 +605,7 @@ router.put("/communication/settings", async (req, res) => {
         });
     }
     res.json({ data: { status: "updated" } });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to update settings" });
   }
 });
@@ -720,7 +720,7 @@ router.get("/communication/users/search", async (req, res) => {
       .limit(20);
 
     res.json({ data: users });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to search users" });
   }
   return;
@@ -797,7 +797,7 @@ router.get("/communication/export/:type", async (req, res) => {
       `attachment; filename=communication_${type}_${Date.now()}.csv`
     );
     res.send(csv);
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to export data" });
   }
   return;

@@ -717,7 +717,7 @@ router.patch("/products/:id", async (req, res) => {
         }
       }
       const adminReq = req as AdminRequest;
-      addAuditEntry({
+      void addAuditEntry({
         action: "stock:updated",
         ip: getClientIp(req),
         adminId: adminReq.adminId,
@@ -1004,7 +1004,7 @@ router.get("/categories", async (req, res) => {
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(asc(categoriesTable.sortOrder));
     sendSuccess(res, { categories });
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to load categories", 500);
   }
 });

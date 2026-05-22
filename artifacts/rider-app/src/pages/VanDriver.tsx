@@ -166,7 +166,7 @@ const riderMarkerIcon = L.divIcon({
 });
 
 export default function VanDriver() {
-  const { user } = useAuth();
+  const { _user } = useAuth();
   const { config } = usePlatformConfig();
   const qc = useQueryClient();
 
@@ -247,7 +247,7 @@ export default function VanDriver() {
     mutationFn: () =>
       selectedSchedule ? startTrip(selectedSchedule.id, selectedSchedule.date) : Promise.resolve(),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["van-driver-today"] });
+      void qc.invalidateQueries({ queryKey: ["van-driver-today"] });
       startGpsBroadcast();
     },
     onError: (e: Error) => setError(e.message),
@@ -259,8 +259,8 @@ export default function VanDriver() {
         ? completeTrip(selectedSchedule.id, selectedSchedule.date)
         : Promise.resolve(),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["van-passengers"] });
-      qc.invalidateQueries({ queryKey: ["van-driver-today"] });
+      void qc.invalidateQueries({ queryKey: ["van-passengers"] });
+      void qc.invalidateQueries({ queryKey: ["van-driver-today"] });
       stopGpsBroadcast();
       setTripEndingOffline(false);
       setSelectedSchedule(null);
@@ -292,8 +292,8 @@ export default function VanDriver() {
       if (action.entityId !== scheduleId) return;
       setTripEndingOffline(false);
       stopGpsBroadcast();
-      qc.invalidateQueries({ queryKey: ["van-driver-today"] });
-      qc.invalidateQueries({ queryKey: ["van-passengers"] });
+      void qc.invalidateQueries({ queryKey: ["van-driver-today"] });
+      void qc.invalidateQueries({ queryKey: ["van-passengers"] });
       setSelectedSchedule(null);
     });
     return unsub;

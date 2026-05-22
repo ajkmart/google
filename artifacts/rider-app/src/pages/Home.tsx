@@ -75,7 +75,7 @@ export default function Home() {
   const [audioLocked, setAudioLocked] = useState(false);
 
   useEffect(() => {
-    sweepAndLoadDismissed().then((ids) => {
+    void sweepAndLoadDismissed().then((ids) => {
       if (ids.size > 0) setDismissed(ids);
     });
     /* Check audio lock state on mount */
@@ -318,10 +318,10 @@ export default function Home() {
         /* Recheck audio lock — browser may re-suspend AudioContext while hidden */
         setAudioLocked(isAudioLocked());
         /* Sweep expired dismissed entries before triggering the refetch */
-        sweepAndLoadDismissed().then((freshIds) => {
+        void sweepAndLoadDismissed().then((freshIds) => {
           setDismissed(freshIds);
-          qc.invalidateQueries({ queryKey: ["rider-requests"] });
-          qc.invalidateQueries({ queryKey: ["rider-active"] });
+          void qc.invalidateQueries({ queryKey: ["rider-requests"] });
+          void qc.invalidateQueries({ queryKey: ["rider-active"] });
         });
       }
     };
@@ -356,7 +356,7 @@ export default function Home() {
       }
     };
 
-    acquire();
+    void acquire();
 
     return () => {
       cancelled = true;
@@ -372,7 +372,7 @@ export default function Home() {
   useEffect(() => {
     const handleLogout = () => {
       setDismissed(new Set());
-      clearAllDismissed();
+      void clearAllDismissed();
     };
     window.addEventListener("ajkmart:logout", handleLogout);
     return () => window.removeEventListener("ajkmart:logout", handleLogout);
@@ -423,12 +423,12 @@ export default function Home() {
   useEffect(() => {
     if (!sharedSocket) return;
     const handleNewRequest = () => {
-      qc.invalidateQueries({ queryKey: ["rider-requests"] });
+      void qc.invalidateQueries({ queryKey: ["rider-requests"] });
     };
     /* Also listen for admin/customer-driven state changes */
     const handleStateChange = () => {
-      qc.invalidateQueries({ queryKey: ["rider-requests"] });
-      qc.invalidateQueries({ queryKey: ["rider-active"] });
+      void qc.invalidateQueries({ queryKey: ["rider-requests"] });
+      void qc.invalidateQueries({ queryKey: ["rider-active"] });
     };
     /* Invalidate earnings immediately when a delivery or ride completes so the
        Home screen progress bar updates within seconds instead of waiting for the
@@ -436,9 +436,9 @@ export default function Home() {
        happy-path; this socket handler covers cases where the update arrives via
        server push (e.g. admin marks delivered, or another tab completes the task). */
     const handleCompletionEvent = () => {
-      qc.invalidateQueries({ queryKey: ["rider-requests"] });
-      qc.invalidateQueries({ queryKey: ["rider-active"] });
-      qc.invalidateQueries({ queryKey: ["rider-earnings"] });
+      void qc.invalidateQueries({ queryKey: ["rider-requests"] });
+      void qc.invalidateQueries({ queryKey: ["rider-active"] });
+      void qc.invalidateQueries({ queryKey: ["rider-earnings"] });
     };
     /* ride:assigned — server pushes the assigned ride summary to the rider.
        We validate the payload shape before invalidating queries so malformed
@@ -446,8 +446,8 @@ export default function Home() {
     const handleRideAssigned = (raw: unknown) => {
       const payload = parseRideAssignedPayload(raw);
       if (!payload) return;
-      qc.invalidateQueries({ queryKey: ["rider-requests"] });
-      qc.invalidateQueries({ queryKey: ["rider-active"] });
+      void qc.invalidateQueries({ queryKey: ["rider-requests"] });
+      void qc.invalidateQueries({ queryKey: ["rider-active"] });
     };
     sharedSocket.on("rider:new_request", handleNewRequest);
     sharedSocket.on("new:request", handleNewRequest);
@@ -598,7 +598,7 @@ export default function Home() {
 
   const dismiss = useCallback(
     (id: string) => {
-      addDismissed(id);
+      void addDismissed(id);
       setDismissed((prev) => {
         const next = new Set([...prev, id]);
         const serverIds = new Set<string>([
@@ -661,7 +661,7 @@ export default function Home() {
         }
       );
       stopRequestSoundIfEmpty();
-      qc.invalidateQueries({ queryKey: ["rider-active"] });
+      void qc.invalidateQueries({ queryKey: ["rider-active"] });
       showToast("Order accepted! Check Active tab.", "success");
     },
     onError: (e: Error & { status?: number }, id) => {
@@ -689,7 +689,7 @@ export default function Home() {
       }
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ["rider-requests"] });
+      void qc.invalidateQueries({ queryKey: ["rider-requests"] });
     },
   });
 
@@ -697,11 +697,11 @@ export default function Home() {
     mutationFn: (id: string) => api.rejectOrder(id),
     onSuccess: (_: unknown, id: string) => {
       dismiss(id);
-      qc.invalidateQueries({ queryKey: ["rider-requests"] });
+      void qc.invalidateQueries({ queryKey: ["rider-requests"] });
       showToast("Order rejected.", "success");
     },
     onError: (e: Error) => {
-      qc.invalidateQueries({ queryKey: ["rider-requests"] });
+      void qc.invalidateQueries({ queryKey: ["rider-requests"] });
       showToast(e.message || "Could not reject order", "error");
     },
   });
@@ -727,7 +727,7 @@ export default function Home() {
         }
       );
       stopRequestSoundIfEmpty();
-      qc.invalidateQueries({ queryKey: ["rider-active"] });
+      void qc.invalidateQueries({ queryKey: ["rider-active"] });
       logRideEvent(id, "accepted", (msg, isErr) => showToast(msg, isErr ? "error" : "success"));
       showToast("Ride accepted! Check Active tab.", "success");
     },
@@ -756,7 +756,7 @@ export default function Home() {
       }
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ["rider-requests"] });
+      void qc.invalidateQueries({ queryKey: ["rider-requests"] });
     },
   });
 
@@ -764,11 +764,11 @@ export default function Home() {
     mutationFn: ({ id, counterFare }: { id: string; counterFare: number }) =>
       api.counterRide(id, { counterFare }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["rider-requests"] });
+      void qc.invalidateQueries({ queryKey: ["rider-requests"] });
       showToast("Counter offer submitted!", "success");
     },
     onError: (e: Error) => {
-      qc.invalidateQueries({ queryKey: ["rider-requests"] });
+      void qc.invalidateQueries({ queryKey: ["rider-requests"] });
       showToast(e.message || "Counter offer failed", "error");
     },
   });
@@ -777,11 +777,11 @@ export default function Home() {
     mutationFn: (id: string) => api.rejectOffer(id),
     onSuccess: (_: unknown, id: string) => {
       dismiss(id);
-      qc.invalidateQueries({ queryKey: ["rider-requests"] });
+      void qc.invalidateQueries({ queryKey: ["rider-requests"] });
       showToast("Ride skipped.", "success");
     },
     onError: (e: Error) => {
-      qc.invalidateQueries({ queryKey: ["rider-requests"] });
+      void qc.invalidateQueries({ queryKey: ["rider-requests"] });
       showToast(e.message, "error");
     },
   });
@@ -797,7 +797,7 @@ export default function Home() {
     mutationFn: (id: string) => api.ignoreRide(id),
     onSuccess: (data: IgnorePenaltyData, id: string) => {
       dismiss(id);
-      qc.invalidateQueries({ queryKey: ["rider-requests"] });
+      void qc.invalidateQueries({ queryKey: ["rider-requests"] });
       const p = data?.ignorePenalty ?? data;
       if ((p?.penaltyApplied ?? 0) > 0) {
         showToast(
@@ -809,7 +809,7 @@ export default function Home() {
       }
     },
     onError: (e: Error) => {
-      qc.invalidateQueries({ queryKey: ["rider-requests"] });
+      void qc.invalidateQueries({ queryKey: ["rider-requests"] });
       showToast(e.message || "Ignore failed", "error");
     },
   });
@@ -942,7 +942,7 @@ export default function Home() {
           riderNotice={config.content.riderNotice}
           riderNoticeDismissed={dismissed.has("rider-notice")}
           onDismissRiderNotice={() => {
-            addDismissed("rider-notice");
+            void addDismissed("rider-notice");
             setDismissed((prev) => {
               const next = new Set(prev);
               next.add("rider-notice");
@@ -1046,7 +1046,7 @@ export default function Home() {
                 dismissed={dismissed}
                 onClearDismissed={() => {
                   setDismissed(new Set());
-                  clearAllDismissed();
+                  void clearAllDismissed();
                 }}
                 orders={orders}
                 rides={rides}

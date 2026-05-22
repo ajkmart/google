@@ -300,7 +300,7 @@ export default function PopupsPage() {
       return adminFetch("/popups", { method: "POST", body: JSON.stringify(body) });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-popups"] });
+      void qc.invalidateQueries({ queryKey: ["admin-popups"] });
       setBuilderOpen(false);
       resetForm();
       toast({ title: editingId ? "Campaign updated" : "Campaign created" });
@@ -312,7 +312,7 @@ export default function PopupsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminFetch(`/popups/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-popups"] });
+      void qc.invalidateQueries({ queryKey: ["admin-popups"] });
       toast({ title: "Campaign deleted" });
     },
   });
@@ -326,7 +326,7 @@ export default function PopupsPage() {
   const cloneMutation = useMutation({
     mutationFn: (id: string) => adminFetch(`/popups/clone/${id}`, { method: "POST", body: "{}" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-popups"] });
+      void qc.invalidateQueries({ queryKey: ["admin-popups"] });
       toast({ title: "Campaign cloned" });
     },
   });
@@ -341,7 +341,7 @@ export default function PopupsPage() {
       return adminFetch("/popups/templates", { method: "POST", body: JSON.stringify(body) });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-popup-templates"] });
+      void qc.invalidateQueries({ queryKey: ["admin-popup-templates"] });
       setTplEditorOpen(false);
       setEditingTplId(null);
       toast({ title: editingTplId ? "Template updated" : "Template created" });
@@ -353,7 +353,7 @@ export default function PopupsPage() {
   const deleteTplMutation = useMutation({
     mutationFn: (id: string) => adminFetch(`/popups/templates/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-popup-templates"] });
+      void qc.invalidateQueries({ queryKey: ["admin-popup-templates"] });
       toast({ title: "Template deleted" });
     },
     onError: (e: Error) =>
@@ -549,7 +549,7 @@ export default function PopupsPage() {
     };
   };
 
-  const handleSubmit = () => {
+  const _handleSubmit = () => {
     if (!form.title.trim()) {
       toast({ title: "Title is required", variant: "destructive" });
       return;

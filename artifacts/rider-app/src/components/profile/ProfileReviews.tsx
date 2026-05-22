@@ -4,7 +4,7 @@ import { tDual, type TranslationKey } from "@workspace/i18n";
 import { Star } from "lucide-react";
 import { api } from "../../lib/api";
 
-const fc = (n: string | number | null | undefined, currencySymbol = "Rs.") =>
+const _fc = (n: string | number | null | undefined, currencySymbol = "Rs.") =>
   _sharedFcP(n !== null ? String(n) : (n as null | undefined), currencySymbol);
 
 interface ProfileReviewsProps {
@@ -12,7 +12,7 @@ interface ProfileReviewsProps {
   currency: string;
 }
 
-export function ProfileReviews({ language, currency }: ProfileReviewsProps) {
+export function ProfileReviews({ language, _currency }: ProfileReviewsProps) {
   const T = (key: TranslationKey) => tDual(key, language as never);
 
   const { data: reviewsData } = useQuery({

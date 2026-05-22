@@ -490,7 +490,7 @@ router.patch("/users/bulk-ban", requirePermission("users.ban"), async (req, res)
         }
       }
     });
-    addAuditEntry({
+    void addAuditEntry({
       action: `bulk_${action}`,
       ip: getClientIp(req),
       adminId: adminReq.adminId,
@@ -791,7 +791,7 @@ router.post("/users/:id/wallet-topup", requirePermission("users.wallet"), async 
   }
 
   try {
-    const result = await AuditService.executeWithAudit(
+    const _result = await AuditService.executeWithAudit(
       {
         adminId: adminReq.adminId,
         adminName: adminReq.adminName,
@@ -1197,7 +1197,7 @@ router.patch("/users/:id/identity", requirePermission("users.edit"), async (req,
 
     const ip = getClientIp(req);
     const changedFields = Object.keys(updates).filter((k) => k !== "updatedAt");
-    addAuditEntry({
+    void addAuditEntry({
       action: "admin_identity_update",
       ip,
       details: `Admin updated identity for ${userId}: ${changedFields.join(", ")}`,
@@ -1267,7 +1267,7 @@ router.get("/users/:id/otp", requirePermission("users.view"), async (req, res) =
     const emailToken = activeTokens.find((t) => t.identifierType === "email");
 
     const adminReq = req as AdminRequest;
-    addAuditEntry({
+    void addAuditEntry({
       action: "admin_view_otp",
       ip: getClientIp(req),
       adminId: adminReq.adminId,
@@ -1333,7 +1333,7 @@ router.patch("/users/:id/verify-contact", requirePermission("users.edit"), async
     await db.update(usersTable).set(updates).where(eq(usersTable.id, userId));
 
     const adminReq = req as AdminRequest;
-    addAuditEntry({
+    void addAuditEntry({
       action: "admin_verify_contact",
       ip: getClientIp(req),
       adminId: adminReq.adminId,
@@ -1392,7 +1392,7 @@ router.post(
         });
 
       const adminReq = req as AdminRequest;
-      addAuditEntry({
+      void addAuditEntry({
         action: "admin_force_password_reset",
         ip: getClientIp(req),
         adminId: adminReq.adminId,
@@ -1493,14 +1493,14 @@ router.post("/users/:id/otp/bypass", requirePermission("users.edit"), async (req
 
     const ip = getClientIp(req);
     const adminReq = req as AdminRequest;
-    addAuditEntry({
+    void addAuditEntry({
       action: "admin_otp_bypass_set",
       ip,
       adminId: adminReq.adminId,
       details: `Admin set ${minutes}min OTP bypass for user ${userId} (${user.phone}), expires ${bypassUntil.toISOString()}`,
       result: "success",
     });
-    writeAuthAuditLog("admin_otp_bypass_set", {
+    void writeAuthAuditLog("admin_otp_bypass_set", {
       userId,
       ip,
       userAgent: req.headers["user-agent"] ?? undefined,
@@ -1560,7 +1560,7 @@ router.post("/users/:id/otp/generate", requirePermission("users.edit"), async (r
     });
 
     const ip = getClientIp(req);
-    addAuditEntry({
+    void addAuditEntry({
       action: "admin_generate_otp",
       ip,
       adminId: adminReq.adminId,
@@ -1599,7 +1599,7 @@ router.delete("/users/:id/otp/attempts", requirePermission("users.edit"), async 
     if (user.email) await db.delete(otpAttemptsTable).where(eq(otpAttemptsTable.key, user.email));
 
     const ip = getClientIp(req);
-    addAuditEntry({
+    void addAuditEntry({
       action: "admin_clear_otp_attempts",
       ip,
       adminId: adminReq.adminId,
@@ -1639,14 +1639,14 @@ router.delete("/users/:id/otp/bypass", requirePermission("users.edit"), async (r
 
     const ip = getClientIp(req);
     const adminReq = req as AdminRequest;
-    addAuditEntry({
+    void addAuditEntry({
       action: "admin_otp_bypass_cancel",
       ip,
       adminId: adminReq.adminId,
       details: `Admin cancelled OTP bypass for user ${userId} (${user.phone})`,
       result: "success",
     });
-    writeAuthAuditLog("admin_otp_bypass_cancel", {
+    void writeAuthAuditLog("admin_otp_bypass_cancel", {
       userId,
       ip,
       userAgent: req.headers["user-agent"] ?? undefined,
@@ -1687,13 +1687,13 @@ router.post("/users/:id/2fa/disable", requirePermission("users.edit"), async (re
       .where(eq(usersTable.id, userId));
 
     const ip = getClientIp(req);
-    addAuditEntry({
+    void addAuditEntry({
       action: "admin_2fa_disable",
       ip,
       details: `Admin force-disabled 2FA for user ${userId} (${user.phone})`,
       result: "success",
     });
-    writeAuthAuditLog("admin_2fa_disabled", {
+    void writeAuthAuditLog("admin_2fa_disabled", {
       userId,
       ip,
       userAgent: req.headers["user-agent"] as string,
@@ -1763,7 +1763,7 @@ router.patch(
         sendNotFound(res, "User not found");
         return;
       }
-      addAuditEntry({
+      void addAuditEntry({
         action: "user_correction_requested",
         ip: getClientIp(req),
         adminId: (req as AdminRequest).adminId,
@@ -1953,7 +1953,7 @@ router.delete(
           }
         }
       );
-      writeAuthAuditLog("admin_session_revoked", {
+      void writeAuthAuditLog("admin_session_revoked", {
         userId: id!,
         ip: req.ip ?? "",
         metadata: { sessionId },
@@ -2005,7 +2005,7 @@ router.delete("/users/:id/sessions", requirePermission("users.edit"), async (req
           .where(eq(usersTable.id, id!));
       }
     );
-    writeAuthAuditLog("admin_all_sessions_revoked", { userId: id!, ip: req.ip ?? "" });
+    void writeAuthAuditLog("admin_all_sessions_revoked", { userId: id!, ip: req.ip ?? "" });
     sendSuccess(res, { revoked: true, message: "All sessions revoked for user" });
   } catch (err: unknown) {
     logger.error({ err }, "[admin/users] revoke all sessions failed");
@@ -2117,7 +2117,7 @@ router.post("/users/:id/sessions/revoke", requirePermission("users.edit"), async
           }
         }
       );
-      writeAuthAuditLog("admin_session_revoked", {
+      void writeAuthAuditLog("admin_session_revoked", {
         userId: id!,
         ip: req.ip ?? "",
         metadata: { sessionId },
@@ -2159,7 +2159,7 @@ router.post("/users/:id/sessions/revoke", requirePermission("users.edit"), async
             .where(eq(usersTable.id, id!));
         }
       );
-      writeAuthAuditLog("admin_all_sessions_revoked", { userId: id!, ip: req.ip ?? "" });
+      void writeAuthAuditLog("admin_all_sessions_revoked", { userId: id!, ip: req.ip ?? "" });
       sendSuccess(res, { revoked: true, message: "All sessions revoked for user" });
     }
   } catch (err: unknown) {
@@ -2271,7 +2271,7 @@ router.post("/users/export", requirePermission("users.view"), async (req, res) =
     }
 
     const mode = ids?.length ? `selection (${ids.length} IDs)` : "filter";
-    addAuditEntry({
+    void addAuditEntry({
       action: "csv_export",
       ip: getClientIp(req),
       adminId: adminReq.adminId,
@@ -2417,7 +2417,7 @@ router.post("/users/:userId/recovery", requirePermission("users.edit"), async (r
     );
 
     /* Audit trail */
-    addAuditEntry({
+    void addAuditEntry({
       action: "account_recovery_initiated",
       ip,
       details: `Admin ${adminReq.adminId ?? "unknown"} initiated recovery for user ${targetUser.id} (${targetUser.email}). Link expires at ${expiresAt.toISOString()}.`,

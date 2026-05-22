@@ -58,7 +58,7 @@ export default function ResetPassword() {
       setValidation({ status: "invalid", reason: "missing_token" });
       return;
     }
-    (async () => {
+    void (async () => {
       try {
         const res = await fetch(
           `/api/admin/auth/reset-password/validate?token=${encodeURIComponent(token)}`

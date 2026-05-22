@@ -105,7 +105,7 @@ const CustomPieLabel = ({
   innerRadius,
   outerRadius,
   percent,
-  name,
+  _name,
 }: {
   cx: number;
   cy: number;

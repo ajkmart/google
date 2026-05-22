@@ -58,7 +58,7 @@ router.get("/campaigns", adminAuth, async (_req, res) => {
                   : c.status,
       })),
     });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -92,7 +92,7 @@ router.get("/campaigns/:id", adminAuth, async (req, res) => {
       offers: offers.map(mapOffer),
       participations,
     });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -135,7 +135,7 @@ router.post("/campaigns", marketingAuth, async (req, res) => {
       })
       .returning();
     sendCreated(res, mapCampaign(campaign));
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -173,7 +173,7 @@ router.patch("/campaigns/:id", marketingAuth, async (req, res) => {
       return;
     }
     sendSuccess(res, mapCampaign(campaign));
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -182,7 +182,7 @@ router.delete("/campaigns/:id", marketingAuth, async (req, res) => {
   try {
     await db.delete(campaignsTable).where(eq(campaignsTable.id, req.params["id"] as string));
     sendSuccess(res, { success: true });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -247,7 +247,7 @@ router.get("/vendor/campaigns/:id/performance", requireRole("vendor"), async (re
         totalDiscount: redemptions.reduce((s, r) => s + Number(r.totalValue ?? 0), 0),
       },
     });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -278,7 +278,7 @@ router.get("/vendor/campaigns", requireRole("vendor"), async (req, res) => {
           isParticipating: !!myMap[c.id],
         })),
     });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -303,7 +303,7 @@ router.post("/vendor/campaigns/:id/participate", requireRole("vendor"), async (r
       return;
     }
 
-    const [existing] = await db
+    const [_existing] = await db
       .select()
       .from(campaignParticipationsTable)
       .where(eq(campaignParticipationsTable.campaignId, campaignId))
@@ -329,7 +329,7 @@ router.post("/vendor/campaigns/:id/participate", requireRole("vendor"), async (r
       })
       .returning();
     sendCreated(res, { participation });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -352,7 +352,7 @@ router.delete("/vendor/participations/:id", requireRole("vendor"), async (req, r
       .delete(campaignParticipationsTable)
       .where(eq(campaignParticipationsTable.id, participationId));
     sendSuccess(res, { success: true });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });

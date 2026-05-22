@@ -124,7 +124,7 @@ const BIDIRECTIONAL: Array<{ roman: string; urdu: string; english: string[] }> =
 ];
 
 /* Build fast lookup sets */
-const ROMAN_WORDS = new Set(BIDIRECTIONAL.map((b) => b.roman.toLowerCase()));
+const _ROMAN_WORDS = new Set(BIDIRECTIONAL.map((b) => b.roman.toLowerCase()));
 const URDU_TO_ROMAN = new Map(BIDIRECTIONAL.map((b) => [b.urdu, b.roman]));
 
 /** Expand a raw query into all equivalent search variants */

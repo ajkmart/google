@@ -181,6 +181,7 @@ const svcClr = (type: string) => SVC_CLR[type] ?? "bg-gray-50 text-gray-600 bord
 const svcName = (type: string) => type?.replace(/_/g, " ") ?? "ride";
 const isTerminal = (s: string) => s === "completed" || s === "cancelled";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function TimeAgo({ date }: { date: string }) {
   const [label, setLabel] = useState("");
   useEffect(() => {
@@ -310,7 +311,7 @@ function RideDetailModal({ rideId, onClose }: { rideId: string; onClose: () => v
         onSuccess: (d: any) => {
           toast({ title: `Refunded ${formatCurrency(Number(d.refundedAmount))}` });
           setShowRefund(false);
-          refetch();
+          void refetch();
         },
         onError: (e: unknown) => {
           toast({
@@ -352,7 +353,7 @@ function RideDetailModal({ rideId, onClose }: { rideId: string; onClose: () => v
         onSuccess: () => {
           toast({ title: "Rider reassigned" });
           setShowReassign(false);
-          refetch();
+          void refetch();
         },
         onError: (e: unknown) => {
           toast({
@@ -1124,8 +1125,8 @@ function DispatchMonitor() {
     });
 
     socket.on("ride:dispatch-update", () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-dispatch-monitor"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-dispatch-monitor"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
     });
 
     socket.on("connect_error", (err) => {
@@ -3064,7 +3065,7 @@ function FleetAnalyticsTab() {
 export default function Rides() {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
-  const { toast } = useToast();
+  const { _toast } = useToast();
   const queryClient = useQueryClient();
 
   const [tab, setTab] = useState<Tab>("rides");
@@ -3097,7 +3098,7 @@ export default function Rides() {
     return () => clearTimeout(t);
   }, [riderFilter]);
 
-  const { data, isLoading, dataUpdatedAt, refetch, isFetching } = useRidesEnriched({
+  const { data, _isLoading, dataUpdatedAt, refetch, isFetching } = useRidesEnriched({
     page,
     limit: PAGE_SIZE,
     status: statusFilter,
@@ -3121,8 +3122,8 @@ export default function Rides() {
       transports: ["websocket", "polling"],
     });
     socket.on("ride:dispatch-update", () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-rides"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-rides"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
     });
     socket.on("connect_error", (err) => {
       log.warn("WebSocket connect_error:", err?.message ?? err);

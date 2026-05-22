@@ -106,7 +106,7 @@ router.post("/delivery-log/retry", async (req, res) => {
       })
       .where(eq(whatsappDeliveryLogsTable.id, id));
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "whatsapp_delivery_retry",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,

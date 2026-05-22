@@ -1246,7 +1246,7 @@ export default function Vendors() {
                           value={v.accountLevel || ""}
                           onChange={(e) => {
                             if (e.target.value)
-                              handleTierChange(v.id, e.target.value as VendorTier);
+                              void handleTierChange(v.id, e.target.value as VendorTier);
                           }}
                           disabled={tierUpdating === v.id || !canWrite}
                           className="h-9 cursor-pointer appearance-none rounded-xl border border-amber-200 bg-amber-50 pr-6 pl-2 text-xs text-amber-700 focus:ring-2 focus:ring-amber-300 focus:outline-none disabled:opacity-50"

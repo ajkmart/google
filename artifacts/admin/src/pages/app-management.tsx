@@ -381,7 +381,7 @@ function SessionsTab() {
 
 export default function AppManagement() {
   const { language } = useLanguage();
-  const T = (key: TranslationKey) => tDual(key, language);
+  const _T = (key: TranslationKey) => tDual(key, language);
   const { toast } = useToast();
   const qc = useQueryClient();
   const { state: authState } = useAdminAuth();
@@ -441,7 +441,7 @@ export default function AppManagement() {
   const {
     data: rnData,
     isLoading: rnLoading,
-    refetch: refetchRn,
+    refetch: _refetchRn,
   } = useQuery({
     queryKey: ["admin-release-notes"],
     queryFn: () => adminFetch("/release-notes"),
@@ -477,7 +477,7 @@ export default function AppManagement() {
       return adminFetch("/release-notes", { method: "POST", body: JSON.stringify(body) });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-release-notes"] });
+      void qc.invalidateQueries({ queryKey: ["admin-release-notes"] });
       setRnDialog(false);
       setEditingRn(null);
       setRnForm({
@@ -500,7 +500,7 @@ export default function AppManagement() {
   const deleteRn = useMutation({
     mutationFn: (id: string) => adminFetch(`/release-notes/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-release-notes"] });
+      void qc.invalidateQueries({ queryKey: ["admin-release-notes"] });
       toast({ title: "Release note deleted" });
     },
   });
@@ -563,7 +563,7 @@ export default function AppManagement() {
         method: "PUT",
         body: JSON.stringify({ settings: pairs }),
       });
-      qc.invalidateQueries({ queryKey: ["admin-platform-settings"] });
+      void qc.invalidateQueries({ queryKey: ["admin-platform-settings"] });
       toast({ title: "Compliance settings saved" });
     } catch (e: unknown) {
       toast({
@@ -586,8 +586,8 @@ export default function AppManagement() {
       return adminFetch("/admin-accounts", { method: "POST", body: JSON.stringify(body) });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-accounts"] });
-      qc.invalidateQueries({ queryKey: ["admin-app-overview"] });
+      void qc.invalidateQueries({ queryKey: ["admin-accounts"] });
+      void qc.invalidateQueries({ queryKey: ["admin-app-overview"] });
       setAdminDialog(false);
       setEditingAdmin(null);
       setAdminForm({ ...EMPTY_ADMIN });
@@ -604,7 +604,7 @@ export default function AppManagement() {
   const deleteAdmin = useMutation({
     mutationFn: (id: string) => adminFetch(`/admin-accounts/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-accounts"] });
+      void qc.invalidateQueries({ queryKey: ["admin-accounts"] });
       toast({ title: "Admin removed" });
     },
   });
@@ -770,8 +770,8 @@ export default function AppManagement() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  refetchOverview();
-                  refetchAdmins();
+                  void refetchOverview();
+                  void refetchAdmins();
                 }}
                 className="h-10 gap-2 rounded-xl"
               >

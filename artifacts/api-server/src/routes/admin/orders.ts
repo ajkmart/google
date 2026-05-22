@@ -303,7 +303,7 @@ router.patch(
         io.to(getSocketRoom(orderId, order.type ?? "mart")).emit("order:update", payload);
         io.to(`user:${preOrder.userId}`).emit("order:update", payload);
       }
-      addAuditEntry({
+      void addAuditEntry({
         action: "order_status_cancelled_refunded",
         adminId: (req as AdminRequest).adminId,
         ip: getClientIp(req),
@@ -375,7 +375,7 @@ router.patch(
 
     /* Audit: record terminal status transitions for compliance trail */
     if (["delivered", "cancelled"].includes(status)) {
-      addAuditEntry({
+      void addAuditEntry({
         action: `order_status_${status}`,
         adminId: (req as AdminRequest).adminId,
         ip: getClientIp(req),
@@ -500,7 +500,7 @@ router.post(
       "wallet-outline"
     );
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "order_refunded",
       adminId: (req as AdminRequest).adminId,
       ip: getClientIp(req),
@@ -659,7 +659,7 @@ router.patch(
     }
 
     if (["delivered", "cancelled"].includes(status)) {
-      addAuditEntry({
+      void addAuditEntry({
         action: `pharmacy_order_${status}`,
         adminId: (req as AdminRequest).adminId,
         ip: getClientIp(req),
@@ -818,7 +818,7 @@ router.patch(
     }
 
     if (["completed", "cancelled"].includes(status)) {
-      addAuditEntry({
+      void addAuditEntry({
         action: `parcel_booking_${status}`,
         adminId: (req as AdminRequest).adminId,
         ip: getClientIp(req),
@@ -1018,7 +1018,7 @@ const ACTIVE_STATUSES = [
 ];
 
 function buildOrderFilters(query: Record<string, string | undefined>) {
-  const { status, type, search, dateFrom, dateTo } = query;
+  const { status, type, _search, dateFrom, dateTo } = query;
   const conditions: SQL<unknown>[] = [];
 
   if (status && status !== "all") {
@@ -1098,7 +1098,7 @@ router.patch(
       sendNotFound(res, "Order not found");
       return;
     }
-    addAuditEntry({
+    void addAuditEntry({
       action: "order_rider_assigned",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -1179,7 +1179,7 @@ router.post(
     };
     const existing = await loadJson<ReturnRecord>(`return_log_${orderId}`);
     await saveJson(`return_log_${orderId}`, [...existing, entry]);
-    addAuditEntry({
+    void addAuditEntry({
       action: "order_return_logged",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -1234,7 +1234,7 @@ router.post(
     };
     const existing = await loadJson<DisputeRecord>(`dispute_log_${orderId}`);
     await saveJson(`dispute_log_${orderId}`, [...existing, entry]);
-    addAuditEntry({
+    void addAuditEntry({
       action: "order_dispute_logged",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -1287,7 +1287,7 @@ router.get("/orders-stats", async (_req, res) => {
       refunded: Number(stats["refunded"] ?? 0),
       revenue: parseFloat(String(stats["revenue"] ?? "0")),
     });
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to load order stats", 500);
   }
 });
@@ -1370,7 +1370,7 @@ router.post(
         channel = "no_channel";
       }
 
-      addAuditEntry({
+      void addAuditEntry({
         action: "vendor_invite_sent",
         ip: getClientIp(req),
         adminId: adminReq.adminId,
@@ -1378,7 +1378,7 @@ router.post(
         result: "success",
       });
       sendSuccess(res, { invited: true, email, phone, name, channel });
-    } catch (e) {
+    } catch (_e) {
       sendError(res, "Failed to send vendor invite", 500);
     }
   }
@@ -1401,7 +1401,7 @@ router.patch(
       sendNotFound(res, "Vendor not found");
       return;
     }
-    addAuditEntry({
+    void addAuditEntry({
       action: "vendor_tier_update",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -1429,7 +1429,7 @@ router.patch(
         .set({ status, updatedAt: new Date() })
         .where(inArray(ordersTable.id, ids))
         .returning({ id: ordersTable.id });
-      addAuditEntry({
+      void addAuditEntry({
         action: "orders_bulk_status",
         ip: getClientIp(req),
         adminId: (req as AdminRequest).adminId,

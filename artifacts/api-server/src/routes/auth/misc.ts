@@ -60,7 +60,7 @@ router.delete("/sessions/:id", async (req, res) => {
         .where(eq(refreshTokensTable.id, session.refreshTokenId));
     }
 
-    writeAuthAuditLog("session_revoked", {
+    void writeAuthAuditLog("session_revoked", {
       userId: auth.userId,
       ip: getClientIp(req),
       metadata: { sessionId: id },
@@ -215,7 +215,7 @@ router.post("/recovery/reset-password", async (req, res) => {
       );
     await revokeAllUserRefreshTokens(claimed.userId);
 
-    writeAuthAuditLog("password_reset_via_recovery", {
+    void writeAuthAuditLog("password_reset_via_recovery", {
       userId: claimed.userId,
       ip,
       userAgent: req.headers["user-agent"] ?? undefined,

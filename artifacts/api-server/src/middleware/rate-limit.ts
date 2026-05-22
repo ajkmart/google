@@ -286,7 +286,7 @@ export function createRateLimiter(options: RateLimiterOptions): RequestHandler {
 }
 
 /** @deprecated Use `createRateLimiter()` instead. */
-function makeOptions(
+function _makeOptions(
   prefix: string,
   max: number,
   windowMs: number,

@@ -28,12 +28,12 @@ if (import.meta.env.DEV) {
   });
 }
 
-loadPlatformConfig();
+void loadPlatformConfig();
 
 // Core Web Vitals — only in production so dev noise doesn't pollute analytics
 if (import.meta.env.PROD) {
-  import("web-vitals").then(({ onCLS, onFCP, onLCP, onTTFB, onINP }) => {
-    import("./lib/analytics").then(({ trackEvent }) => {
+  void import("web-vitals").then(({ onCLS, onFCP, onLCP, onTTFB, onINP }) => {
+    void import("./lib/analytics").then(({ trackEvent }) => {
       const report = ({
         name,
         value,
@@ -54,7 +54,7 @@ if (import.meta.env.PROD) {
   });
 }
 
-(async () => {
+void (async () => {
   const container = document.getElementById("root")!;
   const root = createRoot(container);
 

@@ -39,7 +39,7 @@ router.get("/", customerAuth, async (req, res) => {
       const result = await checkUserOnlyEligibility(userId, serviceType);
       sendSuccess(res, result);
     }
-  } catch (e: unknown) {
+  } catch (_e: unknown) {
     sendSuccess(res, { eligible: true });
   }
 });

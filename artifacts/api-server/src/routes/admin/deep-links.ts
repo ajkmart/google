@@ -25,7 +25,7 @@ router.get("/deep-links", async (_req, res) => {
   try {
     const links = await db.select().from(deepLinksTable).orderBy(desc(deepLinksTable.createdAt));
     sendSuccess(res, { links });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -69,7 +69,7 @@ router.post("/deep-links", async (req, res) => {
       })
       .returning();
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "deep_link_create",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -77,7 +77,7 @@ router.post("/deep-links", async (req, res) => {
       result: "success",
     });
     sendSuccess(res, { link: created });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -96,7 +96,7 @@ router.delete("/deep-links/:id", async (req, res) => {
     }
 
     await db.delete(deepLinksTable).where(eq(deepLinksTable.id, id));
-    addAuditEntry({
+    void addAuditEntry({
       action: "deep_link_delete",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -104,7 +104,7 @@ router.delete("/deep-links/:id", async (req, res) => {
       result: "success",
     });
     sendSuccess(res, { success: true });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });

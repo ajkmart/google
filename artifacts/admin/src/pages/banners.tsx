@@ -166,7 +166,7 @@ export default function BannersPage() {
       return adminFetch("/banners", { method: "POST", body: JSON.stringify(body) });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-banners"] });
+      void qc.invalidateQueries({ queryKey: ["admin-banners"] });
       setDialogOpen(false);
       setEditing(null);
       setForm({ ...EMPTY_BANNER });
@@ -179,7 +179,7 @@ export default function BannersPage() {
   const deleteBanner = useMutation({
     mutationFn: (id: string) => adminFetch(`/banners/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-banners"] });
+      void qc.invalidateQueries({ queryKey: ["admin-banners"] });
       toast({ title: "Banner deleted" });
     },
   });

@@ -54,7 +54,7 @@ import {
 import { useState } from "react";
 
 /* ── Types ── */
-interface TopOffer {
+interface _TopOffer {
   offerId: string;
   redemptions: number;
   discountGiven: number;
@@ -225,7 +225,7 @@ function CampaignModal({ campaign, onClose }: { campaign?: Campaign; onClose: ()
           })
         : adminFetch("/promotions/campaigns", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-campaigns"] });
+      void qc.invalidateQueries({ queryKey: ["admin-campaigns"] });
       toast({ title: isEdit ? "Campaign updated" : "Campaign created" });
       onClose();
     },
@@ -482,10 +482,10 @@ function OfferModal({
   const qc = useQueryClient();
   const isEdit = !!offer;
 
-  const selectedType =
+  const _selectedType =
     OFFER_TYPES.find((t) => t.value === (offer?.type || "percentage")) ?? OFFER_TYPES[0]!;
   const [step, setStep] = useState<"template" | "details">(isEdit ? "details" : "template");
-  const [selectedTypeVal, setSelectedTypeVal] = useState(offer?.type || "percentage");
+  const [_selectedTypeVal, setSelectedTypeVal] = useState(offer?.type || "percentage");
 
   const [form, setForm] = useState(
     offer
@@ -557,8 +557,8 @@ function OfferModal({
           })
         : adminFetch("/promotions/offers", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-offers"] });
-      qc.invalidateQueries({ queryKey: ["admin-campaigns"] });
+      void qc.invalidateQueries({ queryKey: ["admin-offers"] });
+      void qc.invalidateQueries({ queryKey: ["admin-campaigns"] });
       toast({ title: isEdit ? "Offer updated" : "Offer created" });
       onClose();
     },
@@ -1255,7 +1255,7 @@ export default function PromotionsHub() {
   const deleteCampaign = useMutation({
     mutationFn: (id: string) => adminFetch(`/promotions/campaigns/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-campaigns"] });
+      void qc.invalidateQueries({ queryKey: ["admin-campaigns"] });
       toast({ title: "Campaign deleted" });
     },
     onError: (e: Error) =>
@@ -1265,7 +1265,7 @@ export default function PromotionsHub() {
   const deleteOffer = useMutation({
     mutationFn: (id: string) => adminFetch(`/promotions/offers/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-offers"] });
+      void qc.invalidateQueries({ queryKey: ["admin-offers"] });
       toast({ title: "Offer deleted" });
     },
     onError: (e: Error) =>
@@ -1275,7 +1275,7 @@ export default function PromotionsHub() {
   const cloneOffer = useMutation({
     mutationFn: (id: string) => adminFetch(`/promotions/offers/${id}/clone`, { method: "POST" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-offers"] });
+      void qc.invalidateQueries({ queryKey: ["admin-offers"] });
       toast({ title: "Offer cloned" });
     },
     onError: (e: Error) =>
@@ -1285,8 +1285,8 @@ export default function PromotionsHub() {
   const approveOffer = useMutation({
     mutationFn: (id: string) => adminFetch(`/promotions/offers/${id}/approve`, { method: "POST" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-offers"] });
-      qc.invalidateQueries({ queryKey: ["admin-offers-pending"] });
+      void qc.invalidateQueries({ queryKey: ["admin-offers"] });
+      void qc.invalidateQueries({ queryKey: ["admin-offers-pending"] });
       toast({ title: "Offer approved" });
     },
     onError: (e: Error) =>
@@ -1300,8 +1300,8 @@ export default function PromotionsHub() {
         body: JSON.stringify({ reason }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-offers"] });
-      qc.invalidateQueries({ queryKey: ["admin-offers-pending"] });
+      void qc.invalidateQueries({ queryKey: ["admin-offers"] });
+      void qc.invalidateQueries({ queryKey: ["admin-offers-pending"] });
       toast({ title: "Offer rejected" });
     },
     onError: (e: Error) =>
@@ -1311,8 +1311,8 @@ export default function PromotionsHub() {
   const submitForApproval = useMutation({
     mutationFn: (id: string) => adminFetch(`/promotions/offers/${id}/submit`, { method: "POST" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-offers"] });
-      qc.invalidateQueries({ queryKey: ["admin-offers-pending"] });
+      void qc.invalidateQueries({ queryKey: ["admin-offers"] });
+      void qc.invalidateQueries({ queryKey: ["admin-offers-pending"] });
       toast({ title: "Offer submitted for approval" });
     },
     onError: (e: Error) =>
@@ -1326,7 +1326,7 @@ export default function PromotionsHub() {
         body: JSON.stringify({ ids, action }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-offers"] });
+      void qc.invalidateQueries({ queryKey: ["admin-offers"] });
       setSelectedOffers(new Set());
       toast({ title: "Bulk action completed" });
     },
@@ -1372,8 +1372,8 @@ export default function PromotionsHub() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  refetchCampaigns();
-                  refetchOffers();
+                  void refetchCampaigns();
+                  void refetchOffers();
                 }}
                 className="h-9 gap-2 rounded-xl"
               >

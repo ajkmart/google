@@ -204,7 +204,7 @@ router.post(
       if (existingRoles.includes("rider")) {
         const vendorSettings = await getCachedSettings();
         if (vendorSettings["allow_dual_role"] !== "on") {
-          writeAuthAuditLog("dual_role_denied", {
+          void writeAuthAuditLog("dual_role_denied", {
             userId: user.id,
             ip,
             userAgent: req.headers["user-agent"] ?? undefined,
@@ -221,7 +221,7 @@ router.post(
           );
           return;
         }
-        writeAuthAuditLog("dual_role_allowed", {
+        void writeAuthAuditLog("dual_role_allowed", {
           userId: user.id,
           ip,
           userAgent: req.headers["user-agent"] ?? undefined,
@@ -542,7 +542,7 @@ router.post(
       const hasCity = updates.city || user.city;
       const hasCnic = updates.cnic || user.cnic;
       const hasPassword = updates.passwordHash || user.passwordHash;
-      const filledCount = [hasName, hasEmail, hasAddress, hasCity, hasCnic, hasPassword].filter(
+      const _filledCount = [hasName, hasEmail, hasAddress, hasCity, hasCnic, hasPassword].filter(
         Boolean
       ).length;
       updates.accountLevel = "bronze";
@@ -1003,7 +1003,7 @@ router.post(
       const otpBypassed = otpGlobalBypass || otpTimedBypass;
 
       const otp = generateSecureOtp();
-      const otpExpiry = new Date(Date.now() + AUTH_OTP_TTL_MS);
+      const _otpExpiry = new Date(Date.now() + AUTH_OTP_TTL_MS);
       const userId = generateId();
 
       const ajkChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -1123,7 +1123,7 @@ router.post(
         throw err;
       }
 
-      writeAuthAuditLog("register", {
+      void writeAuthAuditLog("register", {
         ip,
         userAgent: req.headers["user-agent"] ?? undefined,
         metadata: { phone: normalizedPhone, role: userRole },
@@ -1142,7 +1142,7 @@ router.post(
 
       /* ── OTP bypass: skip delivery; issue tokens when account is immediately active ── */
       if (otpBypassed) {
-        writeAuthAuditLog("register_otp_bypassed", {
+        void writeAuthAuditLog("register_otp_bypassed", {
           ip,
           userAgent: req.headers["user-agent"] ?? undefined,
           metadata: { phone: normalizedPhone, role: userRole },
@@ -1208,7 +1208,7 @@ router.post(
      emailOtpEnabledForRole are false). phoneVerified was already set to true
      in the insert. Issue tokens and return early. */
       if (otpMethodsDisabled) {
-        writeAuthAuditLog("register_otp_skipped", {
+        void writeAuthAuditLog("register_otp_skipped", {
           ip,
           userAgent: req.headers["user-agent"] ?? undefined,
           metadata: { phone: normalizedPhone, role: userRole, reason: "otp_disabled_for_role" },
@@ -1405,7 +1405,7 @@ router.post(
 
       const rawToken = generateVerificationToken();
       const tokenHash = hashVerificationToken(rawToken);
-      const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const _verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
       const resolvedPhone = phone?.trim() || tempPhone;
       const resolvedVehicleRegNo = vehicleRegNo || vehicleRegistration || null;
@@ -1473,7 +1473,7 @@ router.post(
         verifyLang
       );
 
-      writeAuthAuditLog("email_register", {
+      void writeAuthAuditLog("email_register", {
         userId,
         ip,
         userAgent: req.headers["user-agent"] ?? undefined,
@@ -1593,7 +1593,7 @@ router.get("/verify-email", async (req, res) => {
       .where(eq(usersTable.id, user.id));
 
     await resetAttempts(verifyKey);
-    writeAuthAuditLog("email_verified", { userId: user.id, ip });
+    void writeAuthAuditLog("email_verified", { userId: user.id, ip });
 
     sendSuccess(res, undefined, "Email verified successfully. You can now log in.");
   } catch (err) {

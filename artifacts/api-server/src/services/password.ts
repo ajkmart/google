@@ -114,7 +114,7 @@ export function makeTokenHash(value: string): string {
 
 const TOTP_ALGO = "aes-256-gcm" as const;
 const TOTP_IV_LEN = 12;
-const TOTP_TAG_LEN = 16;
+const _TOTP_TAG_LEN = 16;
 
 function getTotpEncryptionKey(): Buffer {
   const raw = resolveRequiredSecret("TOTP_ENCRYPTION_KEY", "JWT_SECRET");

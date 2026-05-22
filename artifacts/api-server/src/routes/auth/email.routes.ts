@@ -397,7 +397,7 @@ router.post(
           result: "success",
         });
         // Issue access-only token for pending accounts
-        const { signAccessToken, getAccessTokenTtlSec: ttl } =
+        const { signAccessToken, getAccessTokenTtlSec: _ttl } =
           await import("../../middleware/security.js");
         const accessToken = signAccessToken(
           user.id,
@@ -429,7 +429,7 @@ router.post(
         details: `Email OTP login: ${normalized}`,
         result: "success",
       });
-      writeAuthAuditLog("login_success", {
+      void writeAuthAuditLog("login_success", {
         userId: user.id,
         ip,
         userAgent: req.headers["user-agent"] ?? undefined,

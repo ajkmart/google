@@ -451,7 +451,7 @@ export default function Riders() {
   }, [filtered, sortKey, sortDir]);
 
   const onlineRiders = riders.filter((r: any) => r.isOnline && r.isActive).length;
-  const activeRiders = riders.filter((r: any) => r.isActive && !r.isBanned).length;
+  const _activeRiders = riders.filter((r: any) => r.isActive && !r.isBanned).length;
   const pendingRiders = riders.filter((r: any) => r.approvalStatus === "pending").length;
   const totalWallet = riders.reduce((s: number, r: any) => s + r.walletBalance, 0);
 
@@ -474,7 +474,7 @@ export default function Riders() {
       {
         onSuccess: () => {
           toast({ title: "Rider approved" });
-          refetch();
+          void refetch();
         },
         onError: (e: any) =>
           toast({ title: "Failed", description: e.message, variant: "destructive" }),
@@ -494,7 +494,7 @@ export default function Riders() {
       {
         onSuccess: () => {
           toast({ title: "Rider rejected" });
-          refetch();
+          void refetch();
         },
         onError: (e: any) =>
           toast({ title: "Failed", description: e.message, variant: "destructive" }),

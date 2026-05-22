@@ -833,7 +833,7 @@ export default function LiveRidersMap() {
   const [quickProvider, setQuickProvider] = useState<string | null>(null);
   const [showProviderPicker, setShowProviderPicker] = useState(false);
 
-  const { data: mapConfigData, error: mapConfigError } = useQuery<MapConfig | undefined>({
+  const { data: mapConfigData, error: _mapConfigError } = useQuery<MapConfig | undefined>({
     queryKey: ["map-config"],
     // Failures are surfaced via React Query's `error` channel and a console
     // log — previously a bare `catch {}` made every map-config failure
@@ -1023,12 +1023,12 @@ export default function LiveRidersMap() {
     );
 
     socket.on("order:new", () => {
-      qc.invalidateQueries({ queryKey: ["admin-orders"] });
-      qc.invalidateQueries({ queryKey: ["admin-orders-enriched"] });
+      void qc.invalidateQueries({ queryKey: ["admin-orders"] });
+      void qc.invalidateQueries({ queryKey: ["admin-orders-enriched"] });
     });
     socket.on("order:update", () => {
-      qc.invalidateQueries({ queryKey: ["admin-orders"] });
-      qc.invalidateQueries({ queryKey: ["admin-orders-enriched"] });
+      void qc.invalidateQueries({ queryKey: ["admin-orders"] });
+      void qc.invalidateQueries({ queryKey: ["admin-orders-enriched"] });
     });
 
     return () => {
@@ -1997,7 +1997,7 @@ export default function LiveRidersMap() {
                     {showRiders &&
                       filteredRiders.map((rider) => {
                         const status = getRiderStatus(rider);
-                        const stale = isGpsStale(rider, offlineAfterSec);
+                        const _stale = isGpsStale(rider, offlineAfterSec);
                         return (
                           <AnimatedMarker
                             key={rider.userId}

@@ -342,7 +342,7 @@ export function startDispatchEngine() {
   if (dispatchInterval) return;
   dispatchInterval = setInterval(runDispatchCycle, 10_000);
   logger.info("[dispatch-engine] started (every 10s)");
-  runDispatchCycle();
+  void runDispatchCycle();
 }
 
 export function stopDispatchEngine() {

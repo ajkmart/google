@@ -100,7 +100,7 @@ function nonceCanReadDoc(docKey: string, nonce: string): boolean {
 /* ── Combined user + admin auth for the registration-doc proxy ────────────
    Accepts either a valid end-user JWT or a valid admin access token.
    Sets req.userId (user path) or req.adminId (admin path) before next(). */
-function anyAuthOrAdmin(req: Request, res: Response, next: NextFunction): void {
+function _anyAuthOrAdmin(req: Request, res: Response, next: NextFunction): void {
   const header = req.headers["authorization"] as string | undefined;
   const tokenHeader = req.headers["x-auth-token"] as string | undefined;
   const raw = tokenHeader || (header?.startsWith("Bearer ") ? header.slice(7) : null);

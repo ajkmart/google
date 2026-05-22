@@ -145,7 +145,7 @@ export function GlobalSearch({ inputRef: externalRef, onClose }: GlobalSearchPro
   }, []);
 
   useEffect(() => {
-    doSearch(debouncedQuery);
+    void doSearch(debouncedQuery);
   }, [debouncedQuery, doSearch]);
 
   useEffect(() => {

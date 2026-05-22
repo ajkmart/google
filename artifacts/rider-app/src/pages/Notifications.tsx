@@ -243,8 +243,8 @@ export default function Notifications() {
   const markAllMut = useMutation({
     mutationFn: () => api.markAllRead(),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["rider-notifications"] });
-      qc.invalidateQueries({ queryKey: ["rider-notifs-count"] });
+      void qc.invalidateQueries({ queryKey: ["rider-notifications"] });
+      void qc.invalidateQueries({ queryKey: ["rider-notifs-count"] });
       showToast("All notifications marked as read");
     },
     onError: (err: Error) => showToast(err.message || "Failed to mark all as read", true),
@@ -267,8 +267,8 @@ export default function Notifications() {
       return { prev };
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["rider-notifications"] });
-      qc.invalidateQueries({ queryKey: ["rider-notifs-count"] });
+      void qc.invalidateQueries({ queryKey: ["rider-notifications"] });
+      void qc.invalidateQueries({ queryKey: ["rider-notifs-count"] });
     },
     onError: (err: Error, _id: string, ctx: { prev: NotifQueryData | undefined } | undefined) => {
       /* Revert optimistic update on error */

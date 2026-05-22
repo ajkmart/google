@@ -895,7 +895,7 @@ router.post("/firebase-verify", sharedValidateBody(FirebaseVerifySchema), async 
     const userAgent = req.headers["user-agent"] as string | undefined;
     const tokenData = await issueTokensForUser(user, ip, "firebase", userAgent, req, res);
 
-    writeAuthAuditLog("firebase_login", {
+    void writeAuthAuditLog("firebase_login", {
       userId: user.id,
       ip,
       userAgent,

@@ -127,7 +127,7 @@ export default function Profile() {
   const kycMut = useMutation({
     mutationFn: () => api.requestKycReview(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["rider-me"] });
+      void queryClient.invalidateQueries({ queryKey: ["rider-me"] });
     },
   });
 

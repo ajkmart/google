@@ -115,7 +115,7 @@ export function StockNotificationBell() {
   const [notifications, setNotifications] = useState<StockNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [lastRead, setLastRead] = useState<number>(() => {
+  const [_lastRead, setLastRead] = useState<number>(() => {
     try {
       return parseInt(localStorage.getItem("ajkmart_stock_bell_read") ?? "0", 10) || 0;
     } catch {
@@ -146,7 +146,7 @@ export function StockNotificationBell() {
   }, []);
 
   useEffect(() => {
-    fetchNotifications();
+    void fetchNotifications();
   }, [fetchNotifications]);
 
   useEffect(() => {

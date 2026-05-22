@@ -1211,7 +1211,7 @@ router.patch(
       }
       const amt = parseFloat(String(tx.amount));
 
-      addAuditEntry({
+      void addAuditEntry({
         action: "withdrawal_approved",
         ip: adminReq.adminIp || getClientIp(req),
         details: `Withdrawal ${txId} approved for user ${tx.userId} — Rs. ${amt.toFixed(2)}${refNo ? ` (ref: ${refNo})` : ""}`,
@@ -1327,7 +1327,7 @@ router.patch(
         return;
       }
 
-      addAuditEntry({
+      void addAuditEntry({
         action: "withdrawal_rejected",
         ip: adminReq.adminIp || getClientIp(req),
         details: `Withdrawal ${txId} rejected for user ${tx.userId} — Rs. ${amt.toFixed(2)} refunded. Reason: ${rejReason}`,
@@ -1657,7 +1657,7 @@ router.patch(
   requirePermission("finance.deposits.review"),
   async (req, res) => {
     try {
-      const { refNo, note } = req.body;
+      const { refNo, _note } = req.body;
       const txId = req.params["id"] as string;
 
       const [tx] = await db
@@ -2311,7 +2311,7 @@ router.patch(
         sendNotFound(res, "Vendor not found");
         return;
       }
-      addAuditEntry({
+      void addAuditEntry({
         action: "vendor_commission_override",
         ip: getClientIp(req),
         adminId: (req as AdminRequest).adminId,

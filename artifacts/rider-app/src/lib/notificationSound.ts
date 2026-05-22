@@ -45,7 +45,7 @@ function getCtx(): AudioContext | null {
 export function unlockAudio() {
   const ctx = getCtx();
   if (!ctx) return;
-  if (ctx.state === "suspended") ctx.resume();
+  if (ctx.state === "suspended") void ctx.resume();
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.connect(ctx.destination);

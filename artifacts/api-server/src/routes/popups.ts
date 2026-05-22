@@ -290,7 +290,7 @@ const aiGenerateSchema = z.object({
   platform: z.enum(["web", "mobile"]).optional(),
 });
 
-type AIGenerateRequest = z.infer<typeof aiGenerateSchema>;
+type _AIGenerateRequest = z.infer<typeof aiGenerateSchema>;
 type AIPopupContent = {
   title: string;
   body: string;

@@ -445,7 +445,7 @@ export function SosButton({
   rideId,
   riderPos,
   T,
-  showToast,
+  _showToast,
 }: {
   rideId?: string | null;
   riderPos?: { lat: number; lng: number } | null;
@@ -687,7 +687,7 @@ export function TurnByTurnPanel({
             const now = Date.now();
             if (now - lastRerouteTimeRef.current >= REROUTE_COOLDOWN_MS) {
               lastRerouteTimeRef.current = now;
-              fetchRoute(riderLat, riderLng);
+              void fetchRoute(riderLat, riderLng);
             }
           }, 5000);
         }
@@ -721,7 +721,7 @@ export function TurnByTurnPanel({
     <div className="overflow-hidden rounded-2xl border border-indigo-200">
       <button
         onClick={() => {
-          if (!open && !route) fetchRoute();
+          if (!open && !route) void fetchRoute();
           setOpen((o) => !o);
         }}
         className="flex w-full items-center gap-3 bg-gradient-to-r from-indigo-50 to-blue-50 px-4 py-3 text-left"

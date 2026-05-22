@@ -150,7 +150,7 @@ const ALLOWED_SOS_STATUSES = new Set(["pending", "acknowledged", "resolved"]);
 /* ── GET /sos/alerts — Admin: list SOS alerts with optional ?status= filter ── */
 router.get("/alerts", adminAuth, async (req, res) => {
   try {
-    const admin = getAdminFromReq(req);
+    const _admin = getAdminFromReq(req);
 
     const page = Math.max(1, parseInt(String(req.query["page"] || "1"), 10));
     const limit = Math.min(50, Math.max(1, parseInt(String(req.query["limit"] || "20"), 10)));

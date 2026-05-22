@@ -108,7 +108,7 @@ export default function QrCodesPage() {
         qrCode?: { code?: string };
       }>,
     onSuccess: (data: { qrCode?: { code?: string } }) => {
-      qc.invalidateQueries({ queryKey: ["admin-qr-codes"] });
+      void qc.invalidateQueries({ queryKey: ["admin-qr-codes"] });
       toast({
         title: "QR Code generated",
         description: `Code: ${data?.qrCode?.code || "created"}`,
@@ -128,7 +128,7 @@ export default function QrCodesPage() {
         body: "{}",
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-qr-codes"] });
+      void qc.invalidateQueries({ queryKey: ["admin-qr-codes"] });
       toast({ title: "QR Code updated" });
     },
     onError: (e: Error) =>

@@ -223,9 +223,9 @@ export const useApproveUser = () => {
       if (context?.prevUsers) restoreSnapshots(queryClient, context.prevUsers);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-users-pending"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-riders"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users-pending"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-riders"] });
     },
   });
 };
@@ -264,9 +264,9 @@ export const useRejectUser = () => {
       if (context?.prevUsers) restoreSnapshots(queryClient, context.prevUsers);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-users-pending"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-riders"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users-pending"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-riders"] });
     },
   });
 };
@@ -289,8 +289,8 @@ export const useUpdateUser = () => {
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"], exact: false });
-      queryClient.invalidateQueries({ queryKey: ["admin-transactions"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"], exact: false });
+      void queryClient.invalidateQueries({ queryKey: ["admin-transactions"] });
     },
     onError: (error: any) => {
       toast({
@@ -324,7 +324,7 @@ export const useUpdateUserSecurity = () => {
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"], exact: false });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"], exact: false });
     },
     onError: (error: any) => {
       toast({
@@ -354,9 +354,9 @@ export const useWalletTopup = () => {
         body: JSON.stringify({ amount, description }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-transactions"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
     },
     onError: (error: unknown) => {
       toast({
@@ -435,9 +435,9 @@ export const useUpdateOrder = () => {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-orders-enriched"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-orders-stats"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-orders-enriched"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-orders-stats"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
     },
   });
 };
@@ -484,12 +484,12 @@ export const useUpdateRide = () => {
         body: JSON.stringify({ status, riderName, riderPhone }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-rides"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-rides"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
     },
     onError: (error: any) => {
-      queryClient.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
       handleUpdateRideError(error);
       toast({ title: "Failed to update ride", description: error.message, variant: "destructive" });
       log.error("update ride status failed:", error.message || error);
@@ -528,8 +528,8 @@ export const useUpdatePharmacyOrder = () => {
         body: JSON.stringify({ status }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-pharmacy"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-pharmacy"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
     },
     onError: (error: any) => {
       toast({
@@ -572,8 +572,8 @@ export const useUpdateParcelBooking = () => {
         body: JSON.stringify({ status }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-parcel"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-parcel"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
     },
     onError: (error: any) => {
       toast({
@@ -644,8 +644,8 @@ export const useCreateUser = () => {
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
     },
     onError: (error: any) => {
       toast({
@@ -676,7 +676,7 @@ export const useUpdateUserIdentity = () => {
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"], exact: false });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"], exact: false });
       toast({ title: "Identity updated", description: "User identity fields saved successfully." });
     },
     onError: (error: any) => {
@@ -696,7 +696,7 @@ export const useDisable2FA = () => {
     mutationFn: (userId: string) =>
       adminFetch(`/users/${userId}/2fa/disable`, { method: "POST", body: "{}" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"], exact: false });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"], exact: false });
       toast({
         title: "2FA disabled",
         description: "Two-factor authentication has been turned off for this user.",
@@ -719,7 +719,7 @@ export const useResetWalletPin = () => {
     mutationFn: (userId: string) =>
       adminFetch(`/users/${userId}/reset-wallet-pin`, { method: "POST", body: "{}" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"], exact: false });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"], exact: false });
       toast({
         title: "MPIN reset",
         description: "User's wallet MPIN has been cleared. They will need to create a new one.",
@@ -786,7 +786,7 @@ export const useWaiveDebt = () => {
   return useMutation({
     mutationFn: (userId: string) => adminFetch(`/users/${userId}/waive-debt`, { method: "PATCH" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"], exact: false });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"], exact: false });
     },
     onError: (error: any) => {
       toast({
@@ -805,8 +805,8 @@ export const useDeleteUser = () => {
   return useMutation({
     mutationFn: (id: string) => adminFetch(`/users/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"], exact: false });
-      queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"], exact: false });
+      void queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
     },
     onError: (error: any) => {
       toast({
@@ -901,8 +901,8 @@ export const useCreateProduct = () => {
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
     },
     onError: (error: any) => {
       toast({
@@ -943,8 +943,8 @@ export const useDeleteProduct = () => {
         method: "DELETE",
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
     },
     onError: (error: any) => {
       toast({
@@ -1027,8 +1027,8 @@ export const useApproveProduct = () => {
       });
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ["admin-products-pending"] });
-      qc.invalidateQueries({ queryKey: ["admin-products"] });
+      void qc.invalidateQueries({ queryKey: ["admin-products-pending"] });
+      void qc.invalidateQueries({ queryKey: ["admin-products"] });
     },
   });
 };
@@ -1039,8 +1039,8 @@ export const useRejectProduct = () => {
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       adminFetch(`/products/${id}/reject`, { method: "PATCH", body: JSON.stringify({ reason }) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-products-pending"] });
-      qc.invalidateQueries({ queryKey: ["admin-products"] });
+      void qc.invalidateQueries({ queryKey: ["admin-products-pending"] });
+      void qc.invalidateQueries({ queryKey: ["admin-products"] });
     },
   });
 };
@@ -1071,9 +1071,9 @@ export const useOrderRefund = () => {
         body: JSON.stringify({ amount, reason }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-orders-enriched"] });
-      qc.invalidateQueries({ queryKey: ["admin-transactions"] });
-      qc.invalidateQueries({ queryKey: ["admin-stats"] });
+      void qc.invalidateQueries({ queryKey: ["admin-orders-enriched"] });
+      void qc.invalidateQueries({ queryKey: ["admin-transactions"] });
+      void qc.invalidateQueries({ queryKey: ["admin-stats"] });
     },
   });
 };
@@ -1288,7 +1288,7 @@ export const useUnlockAdminIpLockout = () => {
     mutationFn: (key: string) =>
       adminFetch(`/system/admin-ip-lockouts/${encodeURIComponent(key)}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-health-dashboard"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-health-dashboard"] });
     },
   });
 };
@@ -1360,7 +1360,7 @@ export const useUpdateVendorStatus = () => {
           }),
         };
       });
-      qc.invalidateQueries({ queryKey: ["admin-vendors"] });
+      void qc.invalidateQueries({ queryKey: ["admin-vendors"] });
     },
   });
 };
@@ -1382,10 +1382,10 @@ export const useVendorPayout = () => {
         body: JSON.stringify({ amount, description }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-vendors"] });
-      qc.invalidateQueries({ queryKey: ["admin-users"] });
-      qc.invalidateQueries({ queryKey: ["admin-transactions"] });
-      qc.invalidateQueries({ queryKey: ["admin-stats"] });
+      void qc.invalidateQueries({ queryKey: ["admin-vendors"] });
+      void qc.invalidateQueries({ queryKey: ["admin-users"] });
+      void qc.invalidateQueries({ queryKey: ["admin-transactions"] });
+      void qc.invalidateQueries({ queryKey: ["admin-stats"] });
     },
   });
 };
@@ -1407,10 +1407,10 @@ export const useVendorCredit = () => {
         body: JSON.stringify({ amount, description }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-vendors"] });
-      qc.invalidateQueries({ queryKey: ["admin-users"] });
-      qc.invalidateQueries({ queryKey: ["admin-transactions"] });
-      qc.invalidateQueries({ queryKey: ["admin-stats"] });
+      void qc.invalidateQueries({ queryKey: ["admin-vendors"] });
+      void qc.invalidateQueries({ queryKey: ["admin-users"] });
+      void qc.invalidateQueries({ queryKey: ["admin-transactions"] });
+      void qc.invalidateQueries({ queryKey: ["admin-stats"] });
     },
   });
 };
@@ -1452,10 +1452,10 @@ export const useRiderPayout = () => {
         body: JSON.stringify({ amount, description }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-riders"] });
-      qc.invalidateQueries({ queryKey: ["admin-users"] });
-      qc.invalidateQueries({ queryKey: ["admin-transactions"] });
-      qc.invalidateQueries({ queryKey: ["admin-stats"] });
+      void qc.invalidateQueries({ queryKey: ["admin-riders"] });
+      void qc.invalidateQueries({ queryKey: ["admin-users"] });
+      void qc.invalidateQueries({ queryKey: ["admin-transactions"] });
+      void qc.invalidateQueries({ queryKey: ["admin-stats"] });
     },
   });
 };
@@ -1477,10 +1477,10 @@ export const useRiderBonus = () => {
         body: JSON.stringify({ amount, description }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-riders"] });
-      qc.invalidateQueries({ queryKey: ["admin-users"] });
-      qc.invalidateQueries({ queryKey: ["admin-transactions"] });
-      qc.invalidateQueries({ queryKey: ["admin-stats"] });
+      void qc.invalidateQueries({ queryKey: ["admin-riders"] });
+      void qc.invalidateQueries({ queryKey: ["admin-users"] });
+      void qc.invalidateQueries({ queryKey: ["admin-transactions"] });
+      void qc.invalidateQueries({ queryKey: ["admin-stats"] });
     },
   });
 };
@@ -1569,9 +1569,9 @@ export const useApproveDeposit = () => {
         body: JSON.stringify({ refNo, note }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-deposits"] });
-      qc.invalidateQueries({ queryKey: ["admin-transactions"] });
-      qc.invalidateQueries({ queryKey: ["admin-stats"] });
+      void qc.invalidateQueries({ queryKey: ["admin-deposits"] });
+      void qc.invalidateQueries({ queryKey: ["admin-transactions"] });
+      void qc.invalidateQueries({ queryKey: ["admin-stats"] });
     },
   });
 };
@@ -1585,7 +1585,7 @@ export const useRejectDeposit = () => {
         body: JSON.stringify({ reason }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-deposits"] });
+      void qc.invalidateQueries({ queryKey: ["admin-deposits"] });
     },
   });
 };
@@ -1599,9 +1599,9 @@ export const useBulkApproveDeposits = () => {
         body: JSON.stringify({ ids, refNo }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-deposits"] });
-      qc.invalidateQueries({ queryKey: ["admin-transactions"] });
-      qc.invalidateQueries({ queryKey: ["admin-stats"] });
+      void qc.invalidateQueries({ queryKey: ["admin-deposits"] });
+      void qc.invalidateQueries({ queryKey: ["admin-transactions"] });
+      void qc.invalidateQueries({ queryKey: ["admin-stats"] });
     },
   });
 };
@@ -1615,9 +1615,9 @@ export const useBulkRejectDeposits = () => {
         body: JSON.stringify({ ids, reason }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-deposits"] });
-      qc.invalidateQueries({ queryKey: ["admin-transactions"] });
-      qc.invalidateQueries({ queryKey: ["admin-stats"] });
+      void qc.invalidateQueries({ queryKey: ["admin-deposits"] });
+      void qc.invalidateQueries({ queryKey: ["admin-transactions"] });
+      void qc.invalidateQueries({ queryKey: ["admin-stats"] });
     },
   });
 };
@@ -1698,8 +1698,8 @@ export const useCreditRiderWallet = () => {
         body: JSON.stringify({ amount, description, type }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-riders"] });
-      qc.invalidateQueries({ queryKey: ["admin-transactions"] });
+      void qc.invalidateQueries({ queryKey: ["admin-riders"] });
+      void qc.invalidateQueries({ queryKey: ["admin-transactions"] });
     },
   });
 };
@@ -1897,8 +1897,8 @@ export const useRequestUserCorrection = () => {
         body: JSON.stringify({ field, note }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-users"] });
-      qc.invalidateQueries({ queryKey: ["admin-users-pending"] });
+      void qc.invalidateQueries({ queryKey: ["admin-users"] });
+      void qc.invalidateQueries({ queryKey: ["admin-users-pending"] });
     },
   });
 };
@@ -1969,7 +1969,7 @@ export const useAssignRider = () => {
       if (context?.prev) restoreSnapshots(qc, context.prev);
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ["admin-orders-enriched"] });
+      void qc.invalidateQueries({ queryKey: ["admin-orders-enriched"] });
     },
   });
 };
@@ -2023,15 +2023,15 @@ export const useAdminCancelRide = () => {
     mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
       adminFetch(`/rides/${id}/cancel`, { method: "POST", body: JSON.stringify({ reason }) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
-      qc.invalidateQueries({ queryKey: ["admin-rides"] });
-      qc.invalidateQueries({ queryKey: ["admin-stats"] });
-      qc.invalidateQueries({ queryKey: ["admin-dispatch-monitor"] });
-      qc.invalidateQueries({ queryKey: ["admin-ride-detail"] });
-      qc.invalidateQueries({ queryKey: ["admin-ride-audit"] });
+      void qc.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
+      void qc.invalidateQueries({ queryKey: ["admin-rides"] });
+      void qc.invalidateQueries({ queryKey: ["admin-stats"] });
+      void qc.invalidateQueries({ queryKey: ["admin-dispatch-monitor"] });
+      void qc.invalidateQueries({ queryKey: ["admin-ride-detail"] });
+      void qc.invalidateQueries({ queryKey: ["admin-ride-audit"] });
     },
     onError: (error: unknown) => {
-      qc.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
+      void qc.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
       handleCancelRideError(error);
       log.error("cancel ride failed:", error);
     },
@@ -2048,14 +2048,14 @@ export const useAdminRefundRide = () => {
         body: JSON.stringify({ amount, reason }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
-      qc.invalidateQueries({ queryKey: ["admin-transactions"] });
-      qc.invalidateQueries({ queryKey: ["admin-stats"] });
-      qc.invalidateQueries({ queryKey: ["admin-ride-detail"] });
-      qc.invalidateQueries({ queryKey: ["admin-ride-audit"] });
+      void qc.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
+      void qc.invalidateQueries({ queryKey: ["admin-transactions"] });
+      void qc.invalidateQueries({ queryKey: ["admin-stats"] });
+      void qc.invalidateQueries({ queryKey: ["admin-ride-detail"] });
+      void qc.invalidateQueries({ queryKey: ["admin-ride-audit"] });
     },
     onError: (error: unknown) => {
-      qc.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
+      void qc.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
       handleRefundRideError(error);
       log.error("refund ride failed:", error);
     },
@@ -2084,14 +2084,14 @@ export const useAdminReassignRide = () => {
         body: JSON.stringify({ riderId, riderName, riderPhone }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
-      qc.invalidateQueries({ queryKey: ["admin-rides"] });
-      qc.invalidateQueries({ queryKey: ["admin-stats"] });
-      qc.invalidateQueries({ queryKey: ["admin-ride-detail"] });
-      qc.invalidateQueries({ queryKey: ["admin-ride-audit"] });
+      void qc.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
+      void qc.invalidateQueries({ queryKey: ["admin-rides"] });
+      void qc.invalidateQueries({ queryKey: ["admin-stats"] });
+      void qc.invalidateQueries({ queryKey: ["admin-ride-detail"] });
+      void qc.invalidateQueries({ queryKey: ["admin-ride-audit"] });
     },
     onError: (error: unknown) => {
-      qc.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
+      void qc.invalidateQueries({ queryKey: ["admin-rides-enriched"] });
       handleReassignRideError(error);
       log.error("reassign ride failed:", error);
     },
@@ -2204,8 +2204,8 @@ export const useApproveReview = () => {
   return useMutation({
     mutationFn: (id: string) => adminFetch(`/reviews/${id}/approve`, { method: "PATCH" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-moderation-queue"] });
-      qc.invalidateQueries({ queryKey: ["admin-reviews"] });
+      void qc.invalidateQueries({ queryKey: ["admin-moderation-queue"] });
+      void qc.invalidateQueries({ queryKey: ["admin-reviews"] });
     },
   });
 };
@@ -2215,8 +2215,8 @@ export const useRejectReview = () => {
   return useMutation({
     mutationFn: (id: string) => adminFetch(`/reviews/${id}/reject`, { method: "PATCH" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-moderation-queue"] });
-      qc.invalidateQueries({ queryKey: ["admin-reviews"] });
+      void qc.invalidateQueries({ queryKey: ["admin-moderation-queue"] });
+      void qc.invalidateQueries({ queryKey: ["admin-reviews"] });
     },
   });
 };
@@ -2230,8 +2230,8 @@ export const useOverrideSuspension = (role: "riders" | "vendors") => {
     mutationFn: (id: string) =>
       adminFetch(`/${role}/${id}/override-suspension`, { method: "POST" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-riders"] });
-      qc.invalidateQueries({ queryKey: ["admin-vendors"] });
+      void qc.invalidateQueries({ queryKey: ["admin-riders"] });
+      void qc.invalidateQueries({ queryKey: ["admin-vendors"] });
     },
   });
 };
@@ -2300,7 +2300,7 @@ export const useUpdateDeliveryMode = () => {
     mutationFn: (mode: string) =>
       adminFetch("/delivery-access/mode", { method: "PUT", body: JSON.stringify({ mode }) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-delivery-access"] });
+      void qc.invalidateQueries({ queryKey: ["admin-delivery-access"] });
     },
   });
 };
@@ -2387,8 +2387,8 @@ export const useResolveDeliveryRequest = () => {
         body: JSON.stringify({ status, notes }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-delivery-requests"] });
-      qc.invalidateQueries({ queryKey: ["admin-delivery-access"] });
+      void qc.invalidateQueries({ queryKey: ["admin-delivery-requests"] });
+      void qc.invalidateQueries({ queryKey: ["admin-delivery-access"] });
     },
   });
 };
@@ -2423,10 +2423,10 @@ export const useApplyCondition = () => {
     mutationFn: (data: Record<string, any>) =>
       adminFetch("/conditions", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-conditions"] });
-      qc.invalidateQueries({ queryKey: ["admin-users"] });
-      qc.invalidateQueries({ queryKey: ["admin-vendors"] });
-      qc.invalidateQueries({ queryKey: ["admin-riders"] });
+      void qc.invalidateQueries({ queryKey: ["admin-conditions"] });
+      void qc.invalidateQueries({ queryKey: ["admin-users"] });
+      void qc.invalidateQueries({ queryKey: ["admin-vendors"] });
+      void qc.invalidateQueries({ queryKey: ["admin-riders"] });
     },
   });
 };
@@ -2437,8 +2437,8 @@ export const useUpdateCondition = () => {
     mutationFn: ({ id, ...data }: { id: string; [key: string]: any }) =>
       adminFetch(`/conditions/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-conditions"] });
-      qc.invalidateQueries({ queryKey: ["admin-users"] });
+      void qc.invalidateQueries({ queryKey: ["admin-conditions"] });
+      void qc.invalidateQueries({ queryKey: ["admin-users"] });
     },
   });
 };
@@ -2448,7 +2448,7 @@ export const useDeleteCondition = () => {
   return useMutation({
     mutationFn: (id: string) => adminFetch(`/conditions/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-conditions"] });
+      void qc.invalidateQueries({ queryKey: ["admin-conditions"] });
     },
   });
 };
@@ -2459,7 +2459,7 @@ export const useBulkConditionAction = () => {
     mutationFn: (data: { ids: string[]; action: string; reason?: string }) =>
       adminFetch("/conditions/bulk", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-conditions"] });
+      void qc.invalidateQueries({ queryKey: ["admin-conditions"] });
     },
   });
 };
@@ -2477,7 +2477,7 @@ export const useCreateConditionRule = () => {
     mutationFn: (data: Record<string, any>) =>
       adminFetch("/condition-rules", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-condition-rules"] });
+      void qc.invalidateQueries({ queryKey: ["admin-condition-rules"] });
     },
   });
 };
@@ -2488,7 +2488,7 @@ export const useUpdateConditionRule = () => {
     mutationFn: ({ id, ...data }: { id: string; [key: string]: any }) =>
       adminFetch(`/condition-rules/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-condition-rules"] });
+      void qc.invalidateQueries({ queryKey: ["admin-condition-rules"] });
     },
   });
 };
@@ -2498,7 +2498,7 @@ export const useDeleteConditionRule = () => {
   return useMutation({
     mutationFn: (id: string) => adminFetch(`/condition-rules/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-condition-rules"] });
+      void qc.invalidateQueries({ queryKey: ["admin-condition-rules"] });
     },
   });
 };
@@ -2508,7 +2508,7 @@ export const useSeedDefaultRules = () => {
   return useMutation({
     mutationFn: () => adminFetch("/condition-rules/seed-defaults", { method: "POST", body: "{}" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-condition-rules"] });
+      void qc.invalidateQueries({ queryKey: ["admin-condition-rules"] });
     },
   });
 };
@@ -2526,7 +2526,7 @@ export const useUpdateConditionSettings = () => {
     mutationFn: (data: Record<string, any>) =>
       adminFetch("/condition-settings", { method: "PATCH", body: JSON.stringify(data) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-condition-settings"] });
+      void qc.invalidateQueries({ queryKey: ["admin-condition-settings"] });
     },
   });
 };
@@ -2537,7 +2537,7 @@ export const useEvaluateRules = () => {
     mutationFn: (userId: string) =>
       adminFetch(`/condition-rules/evaluate/${userId}`, { method: "POST" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-conditions"] });
+      void qc.invalidateQueries({ queryKey: ["admin-conditions"] });
     },
   });
 };
@@ -2673,7 +2673,7 @@ export const useAdminResetOtp = () => {
     mutationFn: (userId: string) =>
       adminFetch(`/users/${userId}/reset-otp`, { method: "POST", body: "{}" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-users"], exact: false });
+      void qc.invalidateQueries({ queryKey: ["admin-users"], exact: false });
     },
   });
 };
@@ -2696,7 +2696,7 @@ export const useAdminVerifyContact = () => {
         body: JSON.stringify({ type }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-users"], exact: false });
+      void qc.invalidateQueries({ queryKey: ["admin-users"], exact: false });
     },
   });
 };
@@ -2707,7 +2707,7 @@ export const useAdminForcePasswordReset = () => {
     mutationFn: (userId: string) =>
       adminFetch(`/users/${userId}/force-password-reset`, { method: "POST", body: "{}" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-users"], exact: false });
+      void qc.invalidateQueries({ queryKey: ["admin-users"], exact: false });
     },
   });
 };
@@ -2729,9 +2729,9 @@ export const useAdminKycApprove = () => {
         body: JSON.stringify({ reason: reason ?? "" }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-users"], exact: false });
-      qc.invalidateQueries({ queryKey: ["admin-kyc-by-user"], exact: false });
-      qc.invalidateQueries({ queryKey: ["admin-kyc"] });
+      void qc.invalidateQueries({ queryKey: ["admin-users"], exact: false });
+      void qc.invalidateQueries({ queryKey: ["admin-kyc-by-user"], exact: false });
+      void qc.invalidateQueries({ queryKey: ["admin-kyc"] });
     },
   });
 };
@@ -2745,9 +2745,9 @@ export const useAdminKycReject = () => {
         body: JSON.stringify({ reason }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-users"], exact: false });
-      qc.invalidateQueries({ queryKey: ["admin-kyc-by-user"], exact: false });
-      qc.invalidateQueries({ queryKey: ["admin-kyc"] });
+      void qc.invalidateQueries({ queryKey: ["admin-users"], exact: false });
+      void qc.invalidateQueries({ queryKey: ["admin-kyc-by-user"], exact: false });
+      void qc.invalidateQueries({ queryKey: ["admin-kyc"] });
     },
   });
 };

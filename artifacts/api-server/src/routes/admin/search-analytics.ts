@@ -51,7 +51,7 @@ router.get("/search-analytics/interaction-timeline", async (req, res) => {
 
     const timeline = Array.from(dayMap.values());
     sendSuccess(res, { timeline, days });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -94,7 +94,7 @@ router.get("/search-analytics/interaction-stats", async (req, res) => {
       cartRate,
       days,
     });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -119,7 +119,7 @@ router.get("/search-analytics/zero-results", async (req, res) => {
       .limit(limit);
 
     sendSuccess(res, { queries: rows, days, total: rows.length });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -144,7 +144,7 @@ router.get("/search-analytics/top-terms", async (req, res) => {
       .limit(limit);
 
     sendSuccess(res, { terms: rows, days, total: rows.length });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });

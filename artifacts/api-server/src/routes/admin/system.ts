@@ -82,7 +82,7 @@ router.patch("/settings/auth-methods", adminAuth, async (req, res, next) => {
       });
     invalidateSettingsCache();
     invalidatePlatformSettingsCache();
-    addAuditEntry({
+    void addAuditEntry({
       action: "auth_methods_update",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,

@@ -78,7 +78,7 @@ function AdjustPointsModal({ user, onClose }: { user: LoyaltyUser; onClose: () =
         body: JSON.stringify(body),
       }),
     onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ["admin-loyalty-users"] });
+      void qc.invalidateQueries({ queryKey: ["admin-loyalty-users"] });
       toast({
         title: type === "credit" ? "Points credited" : "Points debited",
         description: `${amount} loyalty points ${type === "credit" ? "added to" : "removed from"} ${user.name || user.phone}'s account. New balance: ${data.loyaltyPoints?.available ?? "N/A"} pts`,

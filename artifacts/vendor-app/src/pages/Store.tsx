@@ -96,10 +96,9 @@ function DraggableMarker({
 /* ── Auto-pan map when lat/lng change ── */
 function PanTo({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     map.setView([lat, lng], map.getZoom());
-  }, [lat, lng]);
+  }, [lat, lng]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }
 
@@ -111,7 +110,7 @@ const DEFAULT_HOURS = Object.fromEntries(
 export default function Store() {
   const { user, refreshUser } = useAuth();
   const { config } = usePlatformConfig();
-  const { symbol: currencySymbol, code: currencyCode } = useCurrency();
+  const { symbol: currencySymbol, code: _currencyCode } = useCurrency();
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const promoEnabled = config.vendor?.promoEnabled !== false;
@@ -196,7 +195,7 @@ export default function Store() {
   const storeMut = useMutation({
     mutationFn: () => api.updateStore({ ...sf, storeMinOrder: Number(sf.storeMinOrder) }),
     onSuccess: () => {
-      refreshUser();
+      void refreshUser();
       showToast("✅ Store info saved!");
     },
     onError: (e: Error) => showToast("❌ " + errMsg(e)),
@@ -214,7 +213,7 @@ export default function Store() {
     },
     onSuccess: () => {
       setHoursError("");
-      refreshUser();
+      void refreshUser();
       showToast("✅ Hours saved!");
     },
     onError: (e: Error) => {
@@ -265,7 +264,7 @@ export default function Store() {
   const locMut = useMutation({
     mutationFn: () => api.updateStore({ storeLat: locLat, storeLng: locLng }),
     onSuccess: () => {
-      refreshUser();
+      void refreshUser();
       showToast("✅ Store location saved!");
     },
     onError: (e: Error) => showToast("❌ " + errMsg(e)),
@@ -288,7 +287,7 @@ export default function Store() {
       });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendor-promos"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-promos"] });
       setPf({
         code: "",
         description: "",
@@ -315,7 +314,7 @@ export default function Store() {
         expiresAt: pf.expiresAt || null,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendor-promos"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-promos"] });
       setEditingPromo(null);
       setPf({
         code: "",
@@ -341,7 +340,7 @@ export default function Store() {
   const deletePromoMut = useMutation({
     mutationFn: (id: string) => api.deletePromo(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendor-promos"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-promos"] });
       showToast("🗑️ Promo deleted");
     },
     onError: (e: Error) => showToast("❌ " + errMsg(e)),

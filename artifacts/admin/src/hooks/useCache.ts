@@ -12,11 +12,11 @@ export function useCache() {
   const queryClient = useQueryClient();
 
   function invalidate(keys: string[]) {
-    queryClient.invalidateQueries({ queryKey: keys });
+    void queryClient.invalidateQueries({ queryKey: keys });
   }
 
   function reset(keys: string[]) {
-    queryClient.resetQueries({ queryKey: keys });
+    void queryClient.resetQueries({ queryKey: keys });
   }
 
   return { invalidate, reset, queryClient };

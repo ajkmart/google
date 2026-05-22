@@ -36,7 +36,7 @@ router.post(
   sharedValidateBody(checkIdentifierSchema),
   async (req, res) => {
     try {
-      const { identifier, role, deviceId } = req.body;
+      const { identifier, role, _deviceId } = req.body;
 
       const ip = getClientIp(req);
       const settings = await getCachedSettings();
@@ -79,7 +79,7 @@ router.post(
       }
 
       const exists = !!user;
-      const isNewUser = !exists;
+      const _isNewUser = !exists;
 
       /* ── Phone / email enumeration hardening ─────────────────────────────────
      For phone/email identifiers we must return an IDENTICAL response whether
@@ -289,7 +289,7 @@ router.post("/check-available", sharedValidateBody(CheckAvailableSchema), async 
     const { phone, email, username } = req.body;
     const result: Record<string, { available: boolean; suggestions?: string[] }> = {};
 
-    const lang = await getPlatformDefaultLanguage();
+    const _lang = await getPlatformDefaultLanguage();
 
     if (phone) {
       const canonPhone = canonicalizePhone(phone);

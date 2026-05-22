@@ -294,7 +294,7 @@ export async function loadDismissed(): Promise<Set<string>> {
     const valid = entries.filter((e) => e.expiresAt > now);
     const expired = entries.filter((e) => e.expiresAt <= now);
     if (expired.length) {
-      purgeExpiredDismissed(expired.map((e) => e.id));
+      void purgeExpiredDismissed(expired.map((e) => e.id));
     }
     return new Set(valid.map((e) => e.id));
   } catch (err) {
@@ -356,7 +356,7 @@ let _draining = false;
 export function registerDrainHandler(fn: (pings: QueuedPing[]) => Promise<void>): () => void {
   _drainFn = fn;
   if (typeof navigator !== "undefined" && navigator.onLine) {
-    drainQueue();
+    void drainQueue();
   }
   return () => {
     if (_drainFn === fn) _drainFn = null;
@@ -406,7 +406,7 @@ async function drainQueue(): Promise<void> {
         if (_drainBackoffTimer !== null) clearTimeout(_drainBackoffTimer);
         _drainBackoffTimer = setTimeout(() => {
           _drainBackoffTimer = null;
-          drainQueue();
+          void drainQueue();
         }, backoffMs);
         continue;
       }

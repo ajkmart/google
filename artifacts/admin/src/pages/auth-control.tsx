@@ -57,7 +57,7 @@ type LockedUser = {
   locked_since: string | null;
 };
 
-type PlatformSetting = { key: string; value: string };
+type _PlatformSetting = { key: string; value: string };
 
 const METHOD_ROWS: { key: MethodKey; label: string; platformKey?: string; note: string }[] = [
   {
@@ -116,7 +116,7 @@ const defaultMatrix = (): MethodMatrix => ({
   auth_totp_enabled: { customer: true, rider: true, vendor: true },
 });
 
-const parseRoleValue = (raw: string | undefined, fallback: boolean) => {
+const _parseRoleValue = (raw: string | undefined, fallback: boolean) => {
   const next = { customer: fallback, rider: fallback, vendor: fallback };
   if (!raw) return next;
   try {
@@ -143,10 +143,10 @@ const DragHandle = () => <GripVertical className="text-muted-foreground h-4 w-4"
 
 export default function AuthControlPage() {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [eventsLoading, setEventsLoading] = useState(false);
-  const [lockedLoading, setLockedLoading] = useState(false);
+  const [_lockedLoading, setLockedLoading] = useState(false);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [matrix, setMatrix] = useState<MethodMatrix>(defaultMatrix());
   const [events, setEvents] = useState<AuthEvent[]>([]);

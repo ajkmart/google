@@ -185,7 +185,7 @@ router.get("/", customerAuth, async (req, res, next) => {
 
 router.get("/:id", customerAuth, verifyOwnership("parcel_booking"), async (req, res, next) => {
   try {
-    const userId = req.customerId!;
+    const _userId = req.customerId!;
     const [booking] = await db
       .select()
       .from(parcelBookingsTable)

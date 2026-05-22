@@ -298,7 +298,7 @@ function ReviewRow({
 /* ── Moderation Queue Modal ── */
 function ModerationModal({
   onClose,
-  T,
+  _T,
 }: {
   onClose: () => void;
   T: (k: TranslationKey) => string;
@@ -579,7 +579,7 @@ export default function ReviewsPage() {
   const hideOrder = useMutation({
     mutationFn: (id: string) => adminFetch(`/reviews/${id}/hide`, { method: "PATCH" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-reviews"] });
+      void qc.invalidateQueries({ queryKey: ["admin-reviews"] });
       toast({ title: T("visibilityToggled") });
     },
     onError: (e: Error) =>
@@ -588,7 +588,7 @@ export default function ReviewsPage() {
   const deleteOrder = useMutation({
     mutationFn: (id: string) => adminFetch(`/reviews/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-reviews"] });
+      void qc.invalidateQueries({ queryKey: ["admin-reviews"] });
       toast({ title: T("reviewDeleted") });
     },
     onError: (e: Error) =>
@@ -597,7 +597,7 @@ export default function ReviewsPage() {
   const hideRide = useMutation({
     mutationFn: (id: string) => adminFetch(`/ride-ratings/${id}/hide`, { method: "PATCH" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-reviews"] });
+      void qc.invalidateQueries({ queryKey: ["admin-reviews"] });
       toast({ title: T("visibilityToggled") });
     },
     onError: (e: Error) =>
@@ -606,7 +606,7 @@ export default function ReviewsPage() {
   const deleteRide = useMutation({
     mutationFn: (id: string) => adminFetch(`/ride-ratings/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-reviews"] });
+      void qc.invalidateQueries({ queryKey: ["admin-reviews"] });
       toast({ title: T("reviewDeleted") });
     },
     onError: (e: Error) =>
@@ -649,7 +649,7 @@ export default function ReviewsPage() {
       ...toHide.map((r) => adminFetch(`/reviews/${r.id}/hide`, { method: "PATCH" })),
       ...toHideR.map((r) => adminFetch(`/ride-ratings/${r.id}/hide`, { method: "PATCH" })),
     ]);
-    qc.invalidateQueries({ queryKey: ["admin-reviews"] });
+    void qc.invalidateQueries({ queryKey: ["admin-reviews"] });
     setSelected(new Set());
     toast({ title: `${ids.length} ${T("visibilityToggled").toLowerCase()}` });
   }
@@ -664,7 +664,7 @@ export default function ReviewsPage() {
       ...orders.map((r) => adminFetch(`/reviews/${r.id}`, { method: "DELETE" })),
       ...rides.map((r) => adminFetch(`/ride-ratings/${r.id}`, { method: "DELETE" })),
     ]);
-    qc.invalidateQueries({ queryKey: ["admin-reviews"] });
+    void qc.invalidateQueries({ queryKey: ["admin-reviews"] });
     setSelected(new Set());
     toast({ title: `${ids.length} ${T("reviewDeleted").toLowerCase()}` });
   }
@@ -705,7 +705,7 @@ export default function ReviewsPage() {
       a.download = `reviews-${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
-    } catch (err: unknown) {
+    } catch (_err: unknown) {
       toast({
         title: "Export failed",
         description: "Unable to download reviews. Please try again.",

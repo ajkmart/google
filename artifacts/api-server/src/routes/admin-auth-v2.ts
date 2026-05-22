@@ -325,7 +325,7 @@ router.post("/2fa", adminAuthLimiter, verifyTotpLimiter, async (req: Request, re
       try {
         const payload = verify2faChallengeToken(body.tempToken);
         adminId = payload.sub;
-      } catch (err) {
+      } catch (_err) {
         await logAdminAudit("admin_2fa_failed_invalid_token", {
           ip,
           userAgent,
@@ -1349,7 +1349,7 @@ router.post("/rotate-secret", adminAuth, csrfProtection, async (req, res) => {
     details: "Master admin secret rotated at runtime — in-memory and DB updated",
     result: "success",
   });
-  writeAuthAuditLog("admin_secret_rotation", {
+  void writeAuthAuditLog("admin_secret_rotation", {
     ip,
     metadata: { note: "Secret rotated in-memory and persisted to platform_settings" },
   });

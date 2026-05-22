@@ -9,7 +9,7 @@ interface DeliverConfirmDialogProps {
 }
 
 export function DeliverConfirmDialog({
-  orderId,
+  _orderId,
   isPending,
   onConfirm,
   onClose,

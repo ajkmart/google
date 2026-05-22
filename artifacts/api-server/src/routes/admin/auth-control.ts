@@ -34,6 +34,7 @@ const ALLOWED_METHODS = [
 ] as const;
 
 type AllowedMethod = (typeof ALLOWED_METHODS)[number];
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ROLE_KEYS = ["customer", "rider", "vendor"] as const;
 type Role = (typeof ROLE_KEYS)[number];
 
@@ -144,7 +145,7 @@ router.patch("/auth/methods", adminAuth, async (req, res, next) => {
       });
     invalidateSettingsCache();
     invalidatePlatformSettingsCache();
-    addAuditEntry({
+    void addAuditEntry({
       action: "auth_methods_update",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -329,7 +330,7 @@ router.post("/auth/broadcast-logout", adminAuth, async (req, res, next) => {
         .where(role ? eq(usersTable.roles, role) : undefined);
     }
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "broadcast_logout",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,

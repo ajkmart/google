@@ -76,8 +76,8 @@ function NotificationsSection() {
   const markAllMut = useMutation({
     mutationFn: () => api.markAllRead(),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendor-notifications"] });
-      qc.invalidateQueries({ queryKey: ["vendor-notifs-count"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-notifications"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-notifs-count"] });
     },
   });
 
@@ -407,7 +407,7 @@ export default function Dashboard() {
     mutationFn: (data: { serviceType?: string; reason?: string }) =>
       api.requestDeliveryAccess(data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendor-delivery-access"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-delivery-access"] });
       showToast("✅ Delivery access request submitted");
     },
     onError: (e: Error) => showToast("❌ " + errMsg(e)),
@@ -416,8 +416,8 @@ export default function Dashboard() {
   const toggleMut = useMutation({
     mutationFn: (isOpen: boolean) => api.updateStore({ storeIsOpen: isOpen }),
     onSuccess: () => {
-      refreshUser();
-      qc.invalidateQueries({ queryKey: ["vendor-stats"] });
+      void refreshUser();
+      void qc.invalidateQueries({ queryKey: ["vendor-stats"] });
     },
     onError: (e: Error) => showToast("❌ " + errMsg(e)),
   });
@@ -455,8 +455,8 @@ export default function Dashboard() {
         n.delete(orderId);
         return n;
       });
-      qc.invalidateQueries({ queryKey: ["vendor-orders"] });
-      qc.invalidateQueries({ queryKey: ["vendor-stats"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-orders"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-stats"] });
       showToast(
         status === "confirmed" ? `✅ ${T("orderAcceptedMsg")}` : `❌ ${T("orderCancelledMsg")}`
       );

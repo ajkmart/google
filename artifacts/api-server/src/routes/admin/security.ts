@@ -374,7 +374,7 @@ router.get("/security/token-export/:userId", adminAuth, async (req, res) => {
 
     /* Audit log — treat the export itself as a sensitive action */
     const adminReq = req as AdminRequest;
-    addAuditEntry({
+    void addAuditEntry({
       action: "token_history_export",
       adminId: adminReq.adminId,
       ip: getClientIp(req),
@@ -462,7 +462,7 @@ router.post("/security/revoke-family/:userId/:familyId", adminAuth, async (req, 
     const ip = getClientIp(req);
     const userDisplay = userRow?.phone ?? userRow?.name ?? userId;
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "revoke_family",
       adminId: adminReq.adminId,
       ip,
@@ -540,7 +540,7 @@ router.post("/security/force-logout/:userId", adminAuth, async (req, res) => {
     const userDisplay = userRow?.phone ?? userRow?.name ?? userId;
 
     /* Admin audit log */
-    addAuditEntry({
+    void addAuditEntry({
       action: "force_logout",
       adminId: adminReq.adminId,
       ip,

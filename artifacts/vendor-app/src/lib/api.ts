@@ -327,7 +327,6 @@ const _resiClient = createResilientFetcher({
   cooldownMs: 30_000,
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function apiFetch(
   path: string,
   opts: RequestInit & { _timeoutMs?: number } = {}

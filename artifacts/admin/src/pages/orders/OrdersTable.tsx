@@ -67,7 +67,7 @@ export function OrdersTable({
   clearAll,
   pageSize,
   setPageSize,
-  page,
+  _page,
   setPage,
   totalPages,
   safePage,

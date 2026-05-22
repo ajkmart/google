@@ -91,7 +91,7 @@ router.post("/otp/disable", async (req, res) => {
   const adminReq = req as AdminRequest;
 
   try {
-    const auditDetails = reason
+    const _auditDetails = reason
       ? `Disabled OTP for ${minutes} minutes. Reason: ${reason}`
       : `Disabled OTP for ${minutes} minutes`;
 
@@ -108,7 +108,7 @@ router.post("/otp/disable", async (req, res) => {
       () => UserService.disableOtpGlobally(minutes)
     );
 
-    writeAuthAuditLog("admin_otp_global_disable", {
+    void writeAuthAuditLog("admin_otp_global_disable", {
       ip: getClientIp(req),
       userAgent: req.headers["user-agent"] ?? undefined,
       metadata: {
@@ -165,7 +165,7 @@ router.delete("/otp/disable", async (req, res) => {
       () => UserService.restoreOtpGlobally()
     );
 
-    writeAuthAuditLog("admin_otp_global_restore", {
+    void writeAuthAuditLog("admin_otp_global_restore", {
       ip: getClientIp(req),
       userAgent: req.headers["user-agent"] ?? undefined,
       metadata: { adminId: adminReq.adminId, result: "success" },
@@ -255,7 +255,7 @@ router.post("/users/:id/otp/generate", async (req, res) => {
       () => UserService.generateOtpForUser(userId)
     );
 
-    writeAuthAuditLog("admin_otp_generate", {
+    void writeAuthAuditLog("admin_otp_generate", {
       userId,
       ip: getClientIp(req),
       userAgent: req.headers["user-agent"] ?? undefined,

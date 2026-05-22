@@ -478,7 +478,7 @@ export const TEXT_KEYS = new Set([
   "van_holiday_dates",
 ]);
 
-const FEATURE_ICONS: Record<string, string> = {
+const _FEATURE_ICONS: Record<string, string> = {
   feature_mart: "🛒",
   feature_food: "🍔",
   feature_rides: "🚗",
@@ -1456,7 +1456,7 @@ export function renderSection(
 
     const commFields = catSettings.filter((s) => COMMISSION_KEYS.has(s.key));
     const taxFields = catSettings.filter((s) => TAX_KEYS.has(s.key));
-    const payoutField = catSettings.filter((s) => PAYOUT_KEYS.has(s.key));
+    const _payoutField = catSettings.filter((s) => PAYOUT_KEYS.has(s.key));
     const cashFields = catSettings.filter((s) => CASHBACK_KEYS.has(s.key));
     const invoiceField = catSettings.filter((s) => INVOICE_KEYS.has(s.key));
 
@@ -2547,16 +2547,16 @@ export function renderSection(
     const v = (k: string) => localValues[k] ?? settings.find((s) => s.key === k)?.value ?? "";
     const d = (k: string) => dirtyKeys.has(k);
 
-    const maxOrdersDay = parseInt(v("customer_max_orders_day") || "10");
-    const signupBonus = parseFloat(v("customer_signup_bonus") || "0");
+    const _maxOrdersDay = parseInt(v("customer_max_orders_day") || "10");
+    const _signupBonus = parseFloat(v("customer_signup_bonus") || "0");
     const minTopup = parseFloat(v("wallet_min_topup") || "100");
     const walletMax = parseFloat(v("wallet_max_balance") || "50000");
     const minTransfer = parseFloat(v("wallet_min_withdrawal") || "200");
     const p2pEnabled = v("wallet_p2p_enabled") === "on";
     const referralEnabled = v("customer_referral_enabled") === "on";
     const referralBonus = parseFloat(v("customer_referral_bonus") || "100");
-    const loyaltyEnabled = v("customer_loyalty_enabled") === "on";
-    const loyaltyPts = parseFloat(v("customer_loyalty_pts") || "5");
+    const _loyaltyEnabled = v("customer_loyalty_enabled") === "on";
+    const _loyaltyPts = parseFloat(v("customer_loyalty_pts") || "5");
     const cbOrders = v("wallet_cashback_on_orders") === "on";
     const cbRides = v("wallet_cashback_on_rides") === "on";
     const cbPharmacy = v("wallet_cashback_on_pharmacy") === "on";
@@ -3296,7 +3296,7 @@ export function renderSection(
     const settleDays = parseInt(v("vendor_settlement_days") || "7");
     const minPayout = parseFloat(v("vendor_min_payout") || "500");
     const maxPayout = parseFloat(v("vendor_max_payout") || "50000");
-    const minOrder = parseFloat(v("vendor_min_order") || "100");
+    const _minOrder = parseFloat(v("vendor_min_order") || "100");
     const maxItems = parseInt(v("vendor_max_items") || "100");
     const autoApprove = v("vendor_auto_approve") === "on";
     const promoOn = v("vendor_promo_enabled") !== "off";

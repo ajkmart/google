@@ -126,8 +126,8 @@ export default function Broadcast() {
         setFormData({ title: "", body: "", type: "system", icon: "notifications-outline" });
         setAllUsers(true);
         setSelectedRoles([]);
-        recipientCountQuery.refetch();
-        qc.invalidateQueries({ queryKey: ["admin-broadcasts-history"] });
+        void recipientCountQuery.refetch();
+        void qc.invalidateQueries({ queryKey: ["admin-broadcasts-history"] });
       },
       onError: (err) => {
         toast({ title: "Failed to send", description: err.message, variant: "destructive" });

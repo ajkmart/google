@@ -81,7 +81,7 @@ function register(
     }
   };
 
-  executeWithRetry();
+  void executeWithRetry();
 
   const handle = setInterval(async () => {
     try {

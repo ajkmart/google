@@ -1191,7 +1191,7 @@ const REMOVABLE_TABLES = [
   "users",
 ];
 
-router.post("/remove-all", async (_req, res, next: NextFunction) => {
+router.post("/remove-all", async (_req, res, _next: NextFunction) => {
   try {
     const snap = await snapshotBefore("Remove All Data", "remove-all", REMOVABLE_TABLES);
 
@@ -2318,7 +2318,7 @@ router.post("/undo/:id", async (req, res, next: NextFunction) => {
 });
 
 /* DELETE /admin/system/snapshots/:id — dismiss (discard undo without restoring) */
-router.delete("/snapshots/:id", async (req, res, next: NextFunction) => {
+router.delete("/snapshots/:id", async (req, res, _next: NextFunction) => {
   const { id } = req.params as Record<string, string>;
   await db.delete(systemSnapshotsTable).where(eq(systemSnapshotsTable.id, id));
   res.json({ success: true, message: "Snapshot dismissed. The action is now permanent." });

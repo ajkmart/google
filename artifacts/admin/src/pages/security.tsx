@@ -224,7 +224,7 @@ export default function SecurityPage() {
   const [secTab, setSecTab] = useState<SecTab>("auth");
 
   /* ── Live Security State ── */
-  const [secDash, setSecDash] = useState<SecurityDashboard | null>(null);
+  const [_secDash, setSecDash] = useState<SecurityDashboard | null>(null);
   const [lockouts, setLockouts] = useState<LockoutEntry[]>([]);
   const [blockedIPsList, setBlockedIPsList] = useState<string[]>([]);
   const [secEvents, setSecEvents] = useState<SecurityEvent[]>([]);
@@ -279,7 +279,7 @@ export default function SecurityPage() {
   }, [toast]);
 
   useEffect(() => {
-    loadSettings();
+    void loadSettings();
   }, [loadSettings]);
 
   /* ── Load live data (lockouts, blocked IPs, events, dashboard) ── */
@@ -311,7 +311,7 @@ export default function SecurityPage() {
     try {
       const data = await fetchAdminAbsolute(`/api/admin/auth/mfa/status`);
       setMfaStatus(data);
-    } catch (err) {
+    } catch (_err) {
       toast({
         title: "Could not load MFA status",
         description: "Auth settings may be unavailable.",
@@ -380,10 +380,10 @@ export default function SecurityPage() {
 
   /* ── Auto-load live data when switching to auth or fraud tabs ── */
   useEffect(() => {
-    if (secTab === "auth" || secTab === "fraud") fetchLiveData();
-    if (secTab === "auth") fetchMfaStatus();
-    if (secTab === "dataexports") fetchDataExports();
-    if (secTab === "tokenaudit") fetchTokenAudit(0, tokenAuditSearch, tokenAuditReason);
+    if (secTab === "auth" || secTab === "fraud") void fetchLiveData();
+    if (secTab === "auth") void fetchMfaStatus();
+    if (secTab === "dataexports") void fetchDataExports();
+    if (secTab === "tokenaudit") void fetchTokenAudit(0, tokenAuditSearch, tokenAuditReason);
   }, [secTab, fetchLiveData, fetchMfaStatus, fetchDataExports, fetchTokenAudit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Platform settings handlers ── */
@@ -474,7 +474,7 @@ export default function SecurityPage() {
         method: "DELETE",
       });
       toast({ title: "Account Unlocked", description: `${phone} has been unlocked.` });
-      fetchLiveData();
+      void fetchLiveData();
     } catch (e: unknown) {
       toast({
         title: "Error",
@@ -505,7 +505,7 @@ export default function SecurityPage() {
       });
       setNewBlockIP("");
       toast({ title: "IP Blocked", description: `${ip} has been blocked.` });
-      fetchLiveData();
+      void fetchLiveData();
     } catch (e: unknown) {
       toast({
         title: "Error",
@@ -521,7 +521,7 @@ export default function SecurityPage() {
         method: "DELETE",
       });
       toast({ title: "IP Unblocked", description: `${ip} has been unblocked.` });
-      fetchLiveData();
+      void fetchLiveData();
     } catch (e: unknown) {
       toast({
         title: "Error",
@@ -573,7 +573,7 @@ export default function SecurityPage() {
         });
         setMfaSetupData(null);
         setMfaToken("");
-        fetchMfaStatus();
+        void fetchMfaStatus();
       } else {
         toast({
           title: "Invalid Code",
@@ -608,7 +608,7 @@ export default function SecurityPage() {
           description: "Two-factor authentication has been disabled.",
         });
         setDisableToken("");
-        fetchMfaStatus();
+        void fetchMfaStatus();
       } else {
         toast({
           title: "Error",
@@ -775,7 +775,7 @@ export default function SecurityPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  loadSettings();
+                  void loadSettings();
                   toast({ title: "Reloaded" });
                 }}
                 disabled={loading}
@@ -2179,7 +2179,7 @@ export default function SecurityPage() {
             pageSize={DATA_EXPORTS_PAGE_SIZE}
             onPageChange={(p) => {
               setDataExportsPage(p);
-              fetchDataExports(p);
+              void fetchDataExports(p);
             }}
             onRefresh={() => fetchDataExports(dataExportsPage)}
           />
@@ -2198,11 +2198,11 @@ export default function SecurityPage() {
             onReasonChange={setTokenAuditReason}
             onSearch={() => {
               setTokenAuditPage(0);
-              fetchTokenAudit(0, tokenAuditSearch, tokenAuditReason);
+              void fetchTokenAudit(0, tokenAuditSearch, tokenAuditReason);
             }}
             onPageChange={(p) => {
               setTokenAuditPage(p);
-              fetchTokenAudit(p, tokenAuditSearch, tokenAuditReason);
+              void fetchTokenAudit(p, tokenAuditSearch, tokenAuditReason);
             }}
             onRefresh={() => fetchTokenAudit(tokenAuditPage, tokenAuditSearch, tokenAuditReason)}
           />

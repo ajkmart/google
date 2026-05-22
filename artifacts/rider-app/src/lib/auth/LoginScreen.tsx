@@ -50,7 +50,7 @@ export default function LoginScreen({ onSuccess }: LoginScreenProps) {
   }, [resendCooldown]);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         const { isBiometricEnabled } = await import("../biometric");
         setBiometricAvailable(await isBiometricEnabled());

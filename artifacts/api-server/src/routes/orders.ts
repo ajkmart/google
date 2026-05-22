@@ -34,7 +34,7 @@ import { getPlatformSettings } from "./admin.js";
 
 const router: IRouter = Router();
 
-const stripHtml = (s: string) => s.replace(/<[^>]*>/g, "").trim();
+const _stripHtml = (s: string) => s.replace(/<[^>]*>/g, "").trim();
 
 /* ── Decrement stock for all items in an order (inside a transaction) ── */
 async function decrementStock(
@@ -369,7 +369,7 @@ async function notifyOnlineRidersOfOrder(orderId: string, orderType: string): Pr
   }
 }
 
-function haversineMetres(lat1: number, lng1: number, lat2: number, lng2: number): number {
+function _haversineMetres(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6_371_000;
   const toRad = (d: number) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
@@ -1068,7 +1068,7 @@ router.patch(
     try {
       const customerId = req.customerId!;
       const orderId = req.params["id"] as string;
-      const { status } = req.body as z.infer<typeof customerStatusUpdateSchema>;
+      const { _status } = req.body as z.infer<typeof customerStatusUpdateSchema>;
 
       const [order] = await db
         .select()

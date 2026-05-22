@@ -13,7 +13,7 @@ auditVendorEnv();
 initErrorReporter();
 registerErrorHandler(reportError);
 
-(async () => {
+void (async () => {
   const container = document.getElementById("root")!;
   const root = createRoot(container);
 

@@ -99,7 +99,7 @@ function WithdrawModal({
         note,
       }),
     onSuccess: (data: any) => {
-      qc.invalidateQueries({ queryKey: ["vendor-wallet"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-wallet"] });
       setTxId(data?.transactionId || "");
       setStep("done");
     },
@@ -368,7 +368,7 @@ function DepositModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
         note,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendor-wallet"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-wallet"] });
       setStep("done");
     },
     onError: (e: Error) => setErr(e.message),
@@ -1024,8 +1024,8 @@ export default function Wallet() {
             defaultAcName={user?.bankAccountTitle}
             onClose={() => setShowWithdraw(false)}
             onSuccess={() => {
-              qc.invalidateQueries({ queryKey: ["vendor-wallet"] });
-              refreshUser();
+              void qc.invalidateQueries({ queryKey: ["vendor-wallet"] });
+              void refreshUser();
               showToast(`✅ ${T("withdrawalSubmitted")}`);
             }}
           />
@@ -1034,7 +1034,7 @@ export default function Wallet() {
           <DepositModal
             onClose={() => setShowDeposit(false)}
             onSuccess={() => {
-              qc.invalidateQueries({ queryKey: ["vendor-wallet"] });
+              void qc.invalidateQueries({ queryKey: ["vendor-wallet"] });
               showToast("✅ Deposit request submitted! Admin will verify within 24–48 hours.");
             }}
           />

@@ -41,7 +41,7 @@ router.get("/release-notes", async (_req, res) => {
         createdAt: r.created_at,
       })),
     });
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to fetch release notes");
   }
 });
@@ -71,7 +71,7 @@ router.post("/release-notes", async (req, res) => {
       VALUES (${id}, ${version}, ${releaseDate}, ${notesStr}, ${order}, NOW(), NOW())
     `);
       sendCreated(res, { id, version, releaseDate, notes, sortOrder: order });
-    } catch (e) {
+    } catch (_e) {
       sendError(res, "Failed to create release note");
     }
   } catch (err) {
@@ -121,7 +121,7 @@ router.patch("/release-notes/:id", async (req, res) => {
       WHERE id = ${id}
     `);
       sendSuccess(res, { updated: true });
-    } catch (e) {
+    } catch (_e) {
       sendError(res, "Failed to update release note");
     }
   } catch (err) {
@@ -143,7 +143,7 @@ router.delete("/release-notes/:id", async (req, res) => {
     try {
       await db.execute(sql`DELETE FROM release_notes WHERE id = ${id}`);
       sendSuccess(res, { deleted: true });
-    } catch (e) {
+    } catch (_e) {
       sendError(res, "Failed to delete release note");
     }
   } catch (err) {
@@ -206,7 +206,7 @@ router.get("/consent-log", async (req, res) => {
         limit,
         pages: Math.ceil(total / limit),
       });
-    } catch (e) {
+    } catch (_e) {
       sendError(res, "Failed to fetch consent log");
     }
   } catch (err) {

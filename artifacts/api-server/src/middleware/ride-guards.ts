@@ -20,7 +20,7 @@ export function loadRide() {
 
       req.ride = ride;
       next();
-    } catch (err) {
+    } catch (_err) {
       res.status(500).json({ error: "Internal server error" });
     }
   };
@@ -48,7 +48,7 @@ export function requireRideState(allowedStates: string[]) {
           return;
         }
         ride = found;
-      } catch (err) {
+      } catch (_err) {
         res.status(500).json({ error: "Internal server error" });
         return;
       }

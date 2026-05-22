@@ -123,7 +123,7 @@ router.post("/", async (req, res) => {
       })
       .returning();
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "business_rule_create",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -190,7 +190,7 @@ router.put("/:id", async (req, res) => {
       .where(eq(businessRulesTable.id, id))
       .returning();
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "business_rule_update",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -226,7 +226,7 @@ router.delete("/:id", async (req, res) => {
 
     await db.delete(businessRulesTable).where(eq(businessRulesTable.id, id));
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "business_rule_delete",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,

@@ -145,7 +145,7 @@ router.post("/broadcasts/record", async (req, res) => {
         ${adminId ?? null}, NOW(), NOW()
       )
     `);
-      addAuditEntry({
+      void addAuditEntry({
         action: "broadcast_sent",
         ip: getClientIp(req),
         adminId: (req as AdminRequest).adminId,
@@ -199,7 +199,7 @@ router.patch("/broadcasts/:id/delivery-stats", async (req, res) => {
         return;
       }
 
-      addAuditEntry({
+      void addAuditEntry({
         action: "broadcast_delivery_update",
         ip: getClientIp(req),
         adminId: (req as AdminRequest).adminId,

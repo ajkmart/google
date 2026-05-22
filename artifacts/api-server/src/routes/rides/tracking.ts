@@ -768,7 +768,7 @@ router.post(
         })
         .where(eq(ridesTable.id, rideId));
 
-      broadcastRide(rideId);
+      void broadcastRide(rideId);
       emitRideUpdate(rideId);
 
       sendSuccess(res, undefined, "Dispatch restarted");

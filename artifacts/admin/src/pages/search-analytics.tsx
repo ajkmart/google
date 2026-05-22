@@ -216,7 +216,7 @@ export default function SearchAnalyticsPage() {
     staleTime: 5 * 60_000,
   });
 
-  const { data: trendingSearchData, isLoading: searchLoading } = useQuery<{ searches: string[] }>({
+  const { data: trendingSearchData, isLoading: _searchLoading } = useQuery<{ searches: string[] }>({
     queryKey: ["admin-trending-searches"],
     queryFn: () => apiFetch("/products/trending-searches?limit=20"),
     staleTime: 5 * 60_000,

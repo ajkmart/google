@@ -243,7 +243,7 @@ export default function Campaigns() {
       }),
     onMutate: (id) => setJoiningId(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendor-campaigns"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-campaigns"] });
       setJoiningId(null);
       showToast("✅ Participation request submitted! Awaiting admin approval.");
     },
@@ -258,7 +258,7 @@ export default function Campaigns() {
       apiFetch(`/promotions/vendor/participations/${participationId}`, { method: "DELETE" }),
     onMutate: (id) => setWithdrawingId(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendor-campaigns"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-campaigns"] });
       setWithdrawingId(null);
       showToast("Participation request withdrawn.");
     },

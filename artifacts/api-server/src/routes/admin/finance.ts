@@ -1192,7 +1192,7 @@ router.patch(
   "/deposit-requests/:id/approve",
   requirePermission("finance.deposits.review"),
   async (req, res) => {
-    const { refNo, note } = req.body;
+    const { refNo, _note } = req.body;
     const txId = req.params["id"] as string;
 
     const [tx] = await db
@@ -1655,7 +1655,7 @@ router.patch(
       res.status(404).json({ error: "Vendor not found" });
       return;
     }
-    addAuditEntry({
+    void addAuditEntry({
       action: "vendor_commission_override",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,

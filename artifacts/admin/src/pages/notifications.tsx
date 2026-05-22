@@ -42,7 +42,7 @@ export default function Notifications() {
 
   const { data: nData, isLoading, isError, refetch } = useAllNotifications(roleFilter || undefined);
   const notifications: any[] = nData?.notifications || [];
-  const unreadCount = Number(nData?.unreadCount ?? 0);
+  const _unreadCount = Number(nData?.unreadCount ?? 0);
 
   return (
     <ErrorBoundary

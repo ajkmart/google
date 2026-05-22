@@ -61,7 +61,7 @@ import {
    All auth OTPs (phone, email, forgot-password) expire in 5 minutes.
    Account-merge OTPs use a longer 10-minute window.
    ──────────────────────────────────────────────────────────── */
-const AUTH_OTP_TTL_MS = 5 * 60 * 1000;
+const _AUTH_OTP_TTL_MS = 5 * 60 * 1000;
 
 /* ── Auth Zod schemas ─────────────────────────────────────────
    All schemas are imported from ./helpers.js so only one source
@@ -76,7 +76,7 @@ import { decryptPii } from "./helpers.js";
    secret from persisting on the user record when they abandon setup. */
 const PENDING_TOTP_TTL_MS = 10 * 60 * 1000;
 
-async function storePendingTotpSecret(
+async function _storePendingTotpSecret(
   userId: string,
   secret: string,
   encryptedSecret: string
@@ -95,7 +95,7 @@ async function storePendingTotpSecret(
     });
 }
 
-async function getPendingTotpSecret(
+async function _getPendingTotpSecret(
   userId: string
 ): Promise<{ secret: string; encryptedSecret: string } | null> {
   const [row] = await db
@@ -112,7 +112,7 @@ async function getPendingTotpSecret(
   return { secret: row.secret, encryptedSecret: row.encryptedSecret };
 }
 
-async function deletePendingTotpSecret(userId: string): Promise<void> {
+async function _deletePendingTotpSecret(userId: string): Promise<void> {
   await db.delete(userTotpSetupTable).where(eq(userTotpSetupTable.userId, userId));
 }
 
@@ -176,7 +176,7 @@ export async function doRefresh(refreshToken: string, ip: string, req: Request, 
     await inFlight.catch((err) => {
       logger.warn({ err }, "[auth] concurrent refresh mutex swallowed error");
     });
-    writeAuthAuditLog("concurrent_refresh_blocked", {
+    void writeAuthAuditLog("concurrent_refresh_blocked", {
       ip,
       userAgent: req.headers["user-agent"] ?? undefined,
     });
@@ -194,12 +194,12 @@ export async function doRefresh(refreshToken: string, ip: string, req: Request, 
     /* ── Token family replay detection ── */
     let rt: typeof import("@workspace/db/schema").refreshTokensTable.$inferSelect;
     try {
-      const { detectAndInvalidateFamily, TokenFamilyBreachError } =
+      const { detectAndInvalidateFamily, _TokenFamilyBreachError } =
         await import("../../services/auth/tokenRotation.js");
       rt = await detectAndInvalidateFamily(tokenHash);
     } catch (err: unknown) {
       if ((err as { name?: string })?.name === "TokenFamilyBreachError") {
-        writeAuthAuditLog("token_family_breach", {
+        void writeAuthAuditLog("token_family_breach", {
           userId: (err as { userId?: string }).userId,
           ip,
           userAgent: req.headers["user-agent"] ?? undefined,
@@ -211,7 +211,7 @@ export async function doRefresh(refreshToken: string, ip: string, req: Request, 
         return;
       }
       /* Token not found */
-      writeAuthAuditLog("refresh_failed_not_found", {
+      void writeAuthAuditLog("refresh_failed_not_found", {
         ip,
         userAgent: req.headers["user-agent"] ?? undefined,
       });
@@ -227,7 +227,7 @@ export async function doRefresh(refreshToken: string, ip: string, req: Request, 
       } else {
         await revokeAllUserRefreshTokens(rt.userId, "REUSE_DETECTED");
       }
-      writeAuthAuditLog("refresh_token_reuse", {
+      void writeAuthAuditLog("refresh_token_reuse", {
         userId: rt.userId,
         ip,
         userAgent: req.headers["user-agent"] ?? undefined,
@@ -245,7 +245,7 @@ export async function doRefresh(refreshToken: string, ip: string, req: Request, 
 
     if (new Date() > rt.expiresAt) {
       await revokeRefreshToken(tokenHash, "EXPIRED");
-      writeAuthAuditLog("refresh_token_expired", { userId: rt.userId, ip });
+      void writeAuthAuditLog("refresh_token_expired", { userId: rt.userId, ip });
       sendUnauthorized(res, "Session expired. Please log in again.");
       return;
     }
@@ -308,7 +308,7 @@ export async function doRefresh(refreshToken: string, ip: string, req: Request, 
       ip
     );
 
-    writeAuthAuditLog("token_refresh", {
+    void writeAuthAuditLog("token_refresh", {
       userId: user.id,
       ip,
       userAgent: req.headers["user-agent"] ?? undefined,
@@ -622,7 +622,7 @@ export async function handleUnifiedLogin(req: Request, res: Response) {
       return;
     }
 
-    writeAuthAuditLog("otp_sent", {
+    void writeAuthAuditLog("otp_sent", {
       userId: user.id,
       ip,
       userAgent: req.headers["user-agent"] ?? undefined,
@@ -643,14 +643,14 @@ export async function handleUnifiedLogin(req: Request, res: Response) {
   }
 
   if (pwPerUserBypass) {
-    writeAuthAuditLog("login_otp_bypass", {
+    void writeAuthAuditLog("login_otp_bypass", {
       userId: user.id,
       ip,
       userAgent: req.headers["user-agent"] ?? undefined,
       metadata: { method: "password", reason: "per_user_bypass" },
     });
   } else if (pwGlobalSuspended || pwDangerBypass) {
-    writeAuthAuditLog("login_global_otp_bypass", {
+    void writeAuthAuditLog("login_global_otp_bypass", {
       userId: user.id,
       ip,
       userAgent: req.headers["user-agent"] ?? undefined,
@@ -732,7 +732,7 @@ export async function handleUnifiedLogin(req: Request, res: Response) {
   setRiderRefreshCookie(req, res, refreshRaw, user);
   setVendorRefreshCookie(req, res, refreshRaw, user);
 
-  writeAuthAuditLog("login_success", {
+  void writeAuthAuditLog("login_success", {
     userId: user.id,
     ip,
     userAgent: req.headers["user-agent"] ?? undefined,
@@ -814,7 +814,7 @@ export async function consumeRecoveryCode(
       return { error: "Invalid recovery code", status: 401 };
     }
     const codesRemaining = unusedRows.length - 1;
-    writeAuthAuditLog("2fa_recovery_used", {
+    void writeAuthAuditLog("2fa_recovery_used", {
       userId: user.id,
       ip,
       userAgent: "",
@@ -899,7 +899,7 @@ export async function consumeRecoveryCode(
       .set({ backupCodes: null, updatedAt: new Date() })
       .where(eq(usersTable.id, user.id));
     const codesRemaining = legacyStoredCodes.length;
-    writeAuthAuditLog("2fa_recovery_used", {
+    void writeAuthAuditLog("2fa_recovery_used", {
       userId: user.id,
       ip,
       userAgent: "",

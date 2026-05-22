@@ -62,7 +62,7 @@ router.get("/rides", async (req: Request, res: Response) => {
   }
 });
 
-const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
+const _VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
   pending: ["searching", "bargaining", "accepted", "cancelled"],
   searching: ["bargaining", "accepted", "cancelled"],
   bargaining: ["searching", "accepted", "cancelled"],
@@ -129,7 +129,7 @@ router.patch("/rides/:id/status", async (req: Request, res: Response) => {
 
     // Audit: record terminal ride status transitions for compliance
     if (["completed", "cancelled"].includes(status)) {
-      addAuditEntry({
+      void addAuditEntry({
         action: `ride_status_${status}`,
         adminId: adminReq.adminId,
         ip: getClientIp(req),
@@ -810,7 +810,7 @@ router.patch("/riders/:id/online", async (req: Request, res: Response) => {
       sendNotFound(res, "Rider not found");
       return;
     }
-    addAuditEntry({
+    void addAuditEntry({
       action: "rider_online_toggle",
       ip: getClientIp(req),
       adminId: (req as AdminReq).adminId,

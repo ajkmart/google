@@ -201,7 +201,7 @@ function RoutesTab() {
         : vanFetch("/admin/routes", { method: "POST", body: JSON.stringify(payload) });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["van-admin-routes"] });
+      void qc.invalidateQueries({ queryKey: ["van-admin-routes"] });
       setEditRoute(null);
       setNewRouteOpen(false);
       toast({ title: "Route saved" });
@@ -217,7 +217,7 @@ function RoutesTab() {
   const deleteMut = useMutation({
     mutationFn: (id: string) => vanFetch(`/admin/routes/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["van-admin-routes"] });
+      void qc.invalidateQueries({ queryKey: ["van-admin-routes"] });
       toast({ title: "Route deactivated" });
     },
     onError: (e: Error) =>
@@ -604,7 +604,7 @@ function VehiclesTab() {
         : vanFetch("/admin/vehicles", { method: "POST", body: JSON.stringify(payload) });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["van-admin-vehicles"] });
+      void qc.invalidateQueries({ queryKey: ["van-admin-vehicles"] });
       setEditVehicle(null);
       setNewOpen(false);
       toast({ title: "Vehicle saved" });
@@ -1123,7 +1123,7 @@ function SchedulesTab() {
         }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["van-admin-schedules"] });
+      void qc.invalidateQueries({ queryKey: ["van-admin-schedules"] });
       setNewOpen(false);
       toast({ title: "Schedule created" });
     },
@@ -1148,7 +1148,7 @@ function SchedulesTab() {
         }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["van-admin-schedules"] });
+      void qc.invalidateQueries({ queryKey: ["van-admin-schedules"] });
       setEditSchedule(null);
       toast({ title: "Schedule updated" });
     },
@@ -1163,7 +1163,7 @@ function SchedulesTab() {
   const deleteMut = useMutation({
     mutationFn: (id: string) => vanFetch(`/admin/schedules/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["van-admin-schedules"] });
+      void qc.invalidateQueries({ queryKey: ["van-admin-schedules"] });
       toast({ title: "Schedule deactivated" });
     },
   });
@@ -1569,7 +1569,7 @@ function DriversTab() {
         }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["van-admin-drivers"] });
+      void qc.invalidateQueries({ queryKey: ["van-admin-drivers"] });
       setNewOpen(false);
       toast({ title: "Van driver created" });
     },
@@ -1588,7 +1588,7 @@ function DriversTab() {
         body: JSON.stringify({ approvalStatus: status }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["van-admin-drivers"] });
+      void qc.invalidateQueries({ queryKey: ["van-admin-drivers"] });
       toast({ title: "Status updated" });
     },
     onError: (e: Error) =>
@@ -1602,7 +1602,7 @@ function DriversTab() {
   const deactivateMut = useMutation({
     mutationFn: (id: string) => vanFetch(`/admin/drivers/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["van-admin-drivers"] });
+      void qc.invalidateQueries({ queryKey: ["van-admin-drivers"] });
       toast({ title: "Driver deactivated" });
     },
   });
@@ -1820,7 +1820,7 @@ function BookingsTab() {
         body: JSON.stringify({ status }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["van-admin-bookings"] });
+      void qc.invalidateQueries({ queryKey: ["van-admin-bookings"] });
       toast({ title: "Status updated" });
     },
     onError: (e: Error) =>
@@ -2271,7 +2271,7 @@ function RulesTab() {
         body: JSON.stringify({ value }),
       });
       toast({ title: "Setting saved" });
-      qc.invalidateQueries({ queryKey: ["van-admin-rules"] });
+      void qc.invalidateQueries({ queryKey: ["van-admin-rules"] });
     } catch (e: unknown) {
       toast({
         title: "Error",
@@ -2300,7 +2300,7 @@ function RulesTab() {
       toast({ title: "Custom rule added" });
       setCustomDialogOpen(false);
       setCustomForm({ key: "", label: "", type: "number", value: "", description: "" });
-      qc.invalidateQueries({ queryKey: ["van-admin-rules"] });
+      void qc.invalidateQueries({ queryKey: ["van-admin-rules"] });
     } catch (e: unknown) {
       toast({
         title: "Error",

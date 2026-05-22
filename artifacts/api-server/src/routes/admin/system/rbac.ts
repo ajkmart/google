@@ -66,7 +66,7 @@ router.post("/roles", requirePermission("system.roles.manage"), async (req, res)
   try {
     const body = createRoleSchema.parse(req.body);
     const role = await createRole(body);
-    addAuditEntry({
+    void addAuditEntry({
       action: "rbac_role_create",
       adminId: aReq.adminId,
       ip: aReq.adminIp || "unknown",
@@ -91,7 +91,7 @@ router.patch("/roles/:id", requirePermission("system.roles.manage"), async (req,
     const body = updateRoleSchema.parse(req.body);
     const role = await updateRole(req.params["id"] as string, body);
     if (!role) return sendNotFound(res, "Role not found");
-    addAuditEntry({
+    void addAuditEntry({
       action: "rbac_role_update",
       adminId: aReq.adminId,
       ip: aReq.adminIp || "unknown",
@@ -113,7 +113,7 @@ router.delete("/roles/:id", requirePermission("system.roles.manage"), async (req
       return sendError(res, "Built-in roles cannot be deleted", 400);
     return sendNotFound(res, "Role not found");
   }
-  addAuditEntry({
+  void addAuditEntry({
     action: "rbac_role_delete",
     adminId: aReq.adminId,
     ip: aReq.adminIp || "unknown",
@@ -137,7 +137,7 @@ router.put("/roles/:id/permissions", requirePermission("system.roles.manage"), a
     const removed = before.filter((p: string) => !after.includes(p));
     // Bumping permissions invalidates active sessions for affected admins
     const affected = await revokeSessionsForRole(role.id);
-    addAuditEntry({
+    void addAuditEntry({
       action: "rbac_role_permissions_set",
       adminId: aReq.adminId,
       ip: aReq.adminIp || "unknown",
@@ -159,7 +159,7 @@ router.put("/admins/:adminId/roles", requirePermission("system.roles.manage"), a
   try {
     const { roleIds } = setAdminRolesSchema.parse(req.body);
     await setAdminRoles(req.params["adminId"] as string, roleIds, aReq.adminId ?? null);
-    addAuditEntry({
+    void addAuditEntry({
       action: "rbac_admin_roles_set",
       adminId: aReq.adminId,
       ip: aReq.adminIp || "unknown",

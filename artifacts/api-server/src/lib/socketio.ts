@@ -333,14 +333,14 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
       for (const room of roomList) {
         if (room === "admin-fleet") {
           if (isAuthorizedForAdminFleet(headers, query, auth)) {
-            socket.join(room);
+            void socket.join(room);
           } else {
             logger.debug({ socketId: socket.id, room }, "Socket denied admin-fleet (unauthorized)");
           }
         } else if (room.startsWith("vendor:")) {
           const vendorId = room.slice("vendor:".length);
           if (isAuthorizedForVendorRoom(vendorId, socket.id, headers, auth)) {
-            socket.join(room);
+            void socket.join(room);
           } else {
             logger.debug({ socketId: socket.id, room }, "Socket denied vendor room (unauthorized)");
           }
@@ -354,7 +354,7 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
               const buffered = _pendingRideJoins.get(key) ?? [];
               _pendingRideJoins.delete(key);
               if (ok) {
-                socket.join(room);
+                void socket.join(room);
                 for (const payload of buffered) {
                   socket.emit("rider:location", payload);
                 }
@@ -377,7 +377,7 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
           isAuthorizedForOrderRoom(orderId, headers, auth)
             .then((ok) => {
               if (ok) {
-                socket.join(room);
+                void socket.join(room);
               } else {
                 logger.debug(
                   { socketId: socket.id, room },
@@ -398,7 +398,7 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
           if (sess2?.userId) {
             isAuthorizedForConversationRoom(convId, sess2.userId)
               .then((ok) => {
-                if (ok) socket.join(room);
+                if (ok) void socket.join(room);
               })
               .catch((e: Error) =>
                 logger.warn(
@@ -414,7 +414,7 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
             isAuthorizedForVanRoom(room, vanSess.userId)
               .then((ok) => {
                 if (ok) {
-                  socket.join(room);
+                  void socket.join(room);
                   logger.debug({ socketId: socket.id, room }, "Socket joined van room");
                 }
               })
@@ -434,8 +434,8 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
     const userToken = getTokenFromHandshake(headers, auth);
     const cachedSession = getCachedSession(socket.id, userToken);
     if (cachedSession?.userId) {
-      socket.join(`rider:${cachedSession.userId}`);
-      socket.join(`user:${cachedSession.userId}`);
+      void socket.join(`rider:${cachedSession.userId}`);
+      void socket.join(`user:${cachedSession.userId}`);
     }
 
     /* Heartbeat: rider sends rider:heartbeat with batteryLevel, coordinates, isOnline status.
@@ -555,9 +555,9 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
       if (!payload || typeof payload.token !== "string") return;
       const adminAuth = { token: payload.token };
       if (isAuthorizedForAdminFleet(headers, query, adminAuth)) {
-        socket.join("admin-fleet");
-        socket.join("admin-orders");
-        socket.join("admin-support");
+        void socket.join("admin-fleet");
+        void socket.join("admin-orders");
+        void socket.join("admin-support");
         logger.debug({ socketId: socket.id }, "Socket joined admin rooms via admin:join");
       } else {
         logger.debug({ socketId: socket.id }, "Socket admin:join denied (unauthorized)");
@@ -570,7 +570,7 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
 
       if (room === "admin-fleet") {
         if (isAuthorizedForAdminFleet(headers, query, auth)) {
-          socket.join(room);
+          void socket.join(room);
           logger.debug({ socketId: socket.id, room }, "Socket joined admin-fleet");
         } else {
           logger.debug(
@@ -581,7 +581,7 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
       } else if (room.startsWith("vendor:")) {
         const vendorId = room.slice("vendor:".length);
         if (isAuthorizedForVendorRoom(vendorId, socket.id, headers, auth)) {
-          socket.join(room);
+          void socket.join(room);
           logger.debug({ socketId: socket.id, room }, "Socket joined vendor room");
         } else {
           logger.debug(
@@ -598,7 +598,7 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
             const buffered = _pendingRideJoins.get(key) ?? [];
             _pendingRideJoins.delete(key);
             if (ok) {
-              socket.join(room);
+              void socket.join(room);
               for (const payload of buffered) {
                 socket.emit("rider:location", payload);
               }
@@ -622,7 +622,7 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
         isAuthorizedForOrderRoom(orderId, headers, auth)
           .then((ok) => {
             if (ok) {
-              socket.join(room);
+              void socket.join(room);
               logger.debug({ socketId: socket.id, room }, "Socket joined order room");
             } else {
               logger.debug(
@@ -642,7 +642,7 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
         if (cachedSession?.userId) {
           isAuthorizedForConversationRoom(convId, cachedSession.userId)
             .then((ok) => {
-              if (ok) socket.join(room);
+              if (ok) void socket.join(room);
             })
             .catch((e: Error) =>
               logger.warn(

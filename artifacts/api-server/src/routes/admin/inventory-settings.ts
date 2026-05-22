@@ -203,7 +203,7 @@ router.put(
         invalidateSettingsCache();
         invalidatePlatformSettingsCache();
 
-        addAuditEntry({
+        void addAuditEntry({
           action: "inventory_settings_update",
           ip: getClientIp(req),
           adminId: (req as AdminRequest).adminId,

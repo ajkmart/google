@@ -32,7 +32,7 @@ router.get("/", async (_req, res) => {
         updatedAt: g.updatedAt,
       })),
     });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -79,7 +79,7 @@ router.post("/", async (req, res) => {
       .returning();
 
     sendSuccess(res, { gateway: row });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -131,7 +131,7 @@ router.patch("/:id", async (req, res) => {
       .where(eq(smsGatewaysTable.id, id!))
       .returning();
     sendSuccess(res, { gateway: updated });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -146,7 +146,7 @@ router.delete("/:id", async (req, res) => {
     }
     await db.delete(smsGatewaysTable).where(eq(smsGatewaysTable.id, id!));
     sendSuccess(res, { deleted: true });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -170,7 +170,7 @@ router.patch("/:id/toggle", async (req, res) => {
       .where(eq(smsGatewaysTable.id, id!))
       .returning();
     sendSuccess(res, { gateway: updated });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });

@@ -47,7 +47,7 @@ async function vendorAuth(req: Request, res: Response, next: NextFunction) {
   }
   const payload = verifyUserJwt(raw);
   if (!payload) {
-    writeAuthAuditLog("auth_denied_invalid_token", {
+    void writeAuthAuditLog("auth_denied_invalid_token", {
       ip,
       metadata: { url: req.url, role: "vendor" },
     });
@@ -310,7 +310,7 @@ router.get("/can-review/:productId", customerAuth, async (req, res, next) => {
 router.post("/", customerAuth, async (req, res, next) => {
   try {
     const userId = req.customerId!;
-    const { orderId, vendorId, riderId, orderType, rating, riderRating, productId, photos } =
+    const { orderId, _vendorId, _riderId, orderType, rating, riderRating, productId, photos } =
       req.body;
     const comment =
       typeof req.body.comment === "string" ? stripHtml(req.body.comment) : req.body.comment;

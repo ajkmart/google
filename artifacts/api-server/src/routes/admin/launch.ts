@@ -248,7 +248,7 @@ router.post("/reset-defaults", async (req, res) => {
   }
   invalidateSettingsCache();
   invalidatePlatformSettingsCache();
-  addAuditEntry({
+  void addAuditEntry({
     action: "launch_reset_defaults",
     ip: getClientIp(req),
     adminId: (req as AdminRequest).adminId,
@@ -284,7 +284,7 @@ router.patch("/feature/:key", async (req, res) => {
   }
   invalidateSettingsCache();
   invalidatePlatformSettingsCache();
-  addAuditEntry({
+  void addAuditEntry({
     action: "launch_feature_toggle",
     ip: getClientIp(req),
     adminId: (req as AdminRequest).adminId,
@@ -364,7 +364,7 @@ router.post("/vendor-plans", async (req, res) => {
       updatedAt: new Date(),
     })
     .returning();
-  addAuditEntry({
+  void addAuditEntry({
     action: "vendor_plan_create",
     ip: getClientIp(req),
     adminId: (req as AdminRequest).adminId,
@@ -418,7 +418,7 @@ router.put("/vendor-plans/:id", async (req, res) => {
     sendNotFound(res, "Plan not found");
     return;
   }
-  addAuditEntry({
+  void addAuditEntry({
     action: "vendor_plan_update",
     ip: getClientIp(req),
     adminId: (req as AdminRequest).adminId,
@@ -452,7 +452,7 @@ router.post("/vendor-plans/:id/set-default", async (req, res) => {
     sendNotFound(res, "Plan not found");
     return;
   }
-  addAuditEntry({
+  void addAuditEntry({
     action: "vendor_plan_set_default",
     ip: getClientIp(req),
     adminId: (req as AdminRequest).adminId,
@@ -475,7 +475,7 @@ router.delete("/vendor-plans/:id", async (req, res) => {
     sendNotFound(res, "Plan not found");
     return;
   }
-  addAuditEntry({
+  void addAuditEntry({
     action: "vendor_plan_delete",
     ip: getClientIp(req),
     adminId: (req as AdminRequest).adminId,
@@ -501,7 +501,7 @@ router.get("/role-presets", async (_req, res) => {
         permissions: JSON.parse(p.permissionsJson || "[]"),
       })),
     });
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to load role presets", 500);
   }
 });
@@ -530,7 +530,7 @@ router.post("/role-presets", async (req, res) => {
         isBuiltIn: false,
       })
       .returning();
-    addAuditEntry({
+    void addAuditEntry({
       action: "role_preset_create",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -579,7 +579,7 @@ router.put("/role-presets/:id", async (req, res) => {
       .set(updates)
       .where(eq(adminRolePresetsTable.id, id!))
       .returning();
-    addAuditEntry({
+    void addAuditEntry({
       action: "role_preset_update",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -587,7 +587,7 @@ router.put("/role-presets/:id", async (req, res) => {
       result: "success",
     });
     sendSuccess(res, { ...updated, permissions: JSON.parse(updated.permissionsJson || "[]") });
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to update role preset", 500);
   }
 });
@@ -613,7 +613,7 @@ router.delete("/role-presets/:id", async (req, res) => {
       return;
     }
     await db.delete(adminRolePresetsTable).where(eq(adminRolePresetsTable.id, id!));
-    addAuditEntry({
+    void addAuditEntry({
       action: "role_preset_delete",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -621,7 +621,7 @@ router.delete("/role-presets/:id", async (req, res) => {
       result: "success",
     });
     sendSuccess(res, { deleted: true });
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to delete role preset", 500);
   }
 });
@@ -774,7 +774,7 @@ router.post("/mode", async (req, res) => {
   invalidatePlatformSettingsCache();
   const { invalidateDemoSnapshotCache } = await import("../../lib/demo-snapshot.js");
   invalidateDemoSnapshotCache();
-  addAuditEntry({
+  void addAuditEntry({
     action: "launch_mode_switch",
     ip: getClientIp(req),
     adminId: (req as AdminRequest).adminId,

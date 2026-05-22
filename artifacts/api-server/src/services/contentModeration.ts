@@ -18,7 +18,7 @@ const EMAIL_PATTERN = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
 const CNIC_PATTERN = /\b\d{5}[\s\-]?\d{7}[\s\-]?\d{1}\b/g;
 
 const IBAN_PATTERN = /\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}([A-Z0-9]?){0,16}\b/g;
-const BANK_ACCOUNT_PATTERN = /\b\d{10,16}\b/g;
+const _BANK_ACCOUNT_PATTERN = /\b\d{10,16}\b/g;
 
 const ADDRESS_PATTERNS = [
   /\b(?:house|flat|apartment|plot|street|road|sector|block|phase|gulberg|dha|bahria|model\s*town|garden\s*town|cantt|saddar|blue\s*area|f-\d+|g-\d+|i-\d+|h-\d+)\b[^.!?\n]{0,60}/gi,

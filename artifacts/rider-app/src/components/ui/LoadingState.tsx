@@ -6,7 +6,7 @@ interface LoadingStateProps {
   className?: string;
 }
 
-export function LoadingState({ message, rows = 3, className = "" }: LoadingStateProps) {
+export function LoadingState({ message, _rows = 3, className = "" }: LoadingStateProps) {
   return (
     <div className={`flex flex-col items-center justify-center px-4 py-16 ${className}`}>
       <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100">

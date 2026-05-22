@@ -212,7 +212,7 @@ router.post(
       await revokeAllUserRefreshTokens(userId, "PASSWORD_CHANGED").catch((err: unknown) => {
         logger.warn({ userId, err }, "[auth] revokeAllUserRefreshTokens after set-password failed");
       });
-      writeAuthAuditLog("password_changed", {
+      void writeAuthAuditLog("password_changed", {
         userId,
         ip: getClientIp(req),
         userAgent: req.headers["user-agent"] ?? undefined,
@@ -397,7 +397,7 @@ router.post(
         await sendPasswordResetEmail(email!, otp, user.name ?? undefined, forgotLang);
       }
 
-      writeAuthAuditLog("forgot_password", {
+      void writeAuthAuditLog("forgot_password", {
         userId: user.id,
         ip,
         userAgent: req.headers["user-agent"] ?? undefined,
@@ -513,7 +513,7 @@ router.post(
           updatedAt: new Date(),
         })
         .catch(() => undefined);
-      writeAuthAuditLog("verify_reset_otp", {
+      void writeAuthAuditLog("verify_reset_otp", {
         userId: user.id,
         ip,
         userAgent: req.headers["user-agent"] ?? undefined,
@@ -756,7 +756,7 @@ router.post(
 
       await resetAttempts(lockoutKey);
 
-      writeAuthAuditLog("password_reset", {
+      void writeAuthAuditLog("password_reset", {
         userId: user.id,
         ip,
         userAgent: req.headers["user-agent"] ?? undefined,

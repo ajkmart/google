@@ -59,7 +59,7 @@ async function resolveRxRefId(refId: string, ownerId?: string | null): Promise<s
   return null;
 }
 
-function mapOrderSync(
+function _mapOrderSync(
   o: typeof pharmacyOrdersTable.$inferSelect,
   resolvedPhotoOverride?: string | null
 ) {
@@ -141,7 +141,7 @@ router.get("/", customerAuth, async (req, res) => {
 });
 
 router.get("/:id", customerAuth, verifyOwnership("pharmacy_order"), async (req, res) => {
-  const userId = req.customerId!;
+  const _userId = req.customerId!;
   const [order] = await db
     .select()
     .from(pharmacyOrdersTable)
@@ -158,7 +158,7 @@ router.get("/:id", customerAuth, verifyOwnership("pharmacy_order"), async (req, 
 
 /* ── GET /pharmacy-orders/:id/track — Live rider location for active pharmacy orders ── */
 router.get("/:id/track", customerAuth, verifyOwnership("pharmacy_order"), async (req, res) => {
-  const userId = req.customerId!;
+  const _userId = req.customerId!;
   const [order] = await db
     .select({
       id: pharmacyOrdersTable.id,

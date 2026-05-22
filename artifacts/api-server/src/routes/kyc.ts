@@ -34,7 +34,7 @@ import { adminAuth } from "./admin.js";
 
 const UPLOADS_DIR = path.resolve(process.cwd(), "uploads/kyc");
 const DEFAULT_ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
-const DEFAULT_MAX_KYC_IMAGE_SIZE = 5 * 1024 * 1024;
+const _DEFAULT_MAX_KYC_IMAGE_SIZE = 5 * 1024 * 1024;
 
 function kycFormatToMime(fmt: string): string {
   const f = fmt.trim().toLowerCase();

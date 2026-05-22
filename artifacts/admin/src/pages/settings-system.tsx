@@ -56,11 +56,11 @@ interface Setting {
 }
 
 export function SystemSection({
-  localValues = {},
-  dirtyKeys = new Set<string>(),
-  handleChange = () => {},
-  handleToggle = () => {},
-  settings = [],
+  _localValues = {},
+  _dirtyKeys = new Set<string>(),
+  _handleChange = () => {},
+  _handleToggle = () => {},
+  _settings = [],
 }: {
   localValues?: Record<string, string>;
   dirtyKeys?: Set<string>;
@@ -130,8 +130,8 @@ export function SystemSection({
   };
 
   useAbortableEffect((signal) => {
-    loadStats();
-    loadDemoBackups();
+    void loadStats();
+    void loadDemoBackups();
     apiFetch("/snapshots", { signal })
       .then((data) => {
         if (signal.aborted) return;
@@ -487,7 +487,7 @@ export function SystemSection({
         };
       }
 
-      const data = await fetchAdminAbsolute(endpoint, {
+      const _data = await fetchAdminAbsolute(endpoint, {
         method: "POST",
         body: JSON.stringify(body),
       });
@@ -1142,7 +1142,7 @@ export function SystemSection({
                 disabled={!!actionLoading}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) handleRestore(f);
+                  if (f) void handleRestore(f);
                   e.target.value = "";
                 }}
               />
@@ -1177,7 +1177,7 @@ export function SystemSection({
               placeholder="Snapshot name (e.g. Clean Demo State)"
               className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none"
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !demoSaving) handleSaveDemoBackup();
+                if (e.key === "Enter" && !demoSaving) void handleSaveDemoBackup();
               }}
             />
             <button
@@ -1438,8 +1438,8 @@ export function SystemSection({
                     !!actionLoading
                   }
                   onClick={() => {
-                    if (confirmDialog.type === "remove") handleRemoveAll();
-                    else handleSeedDemo();
+                    if (confirmDialog.type === "remove") void handleRemoveAll();
+                    else void handleSeedDemo();
                   }}
                   className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2 text-sm font-bold text-white transition-all disabled:opacity-40 ${confirmDialog.type === "remove" ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"}`}
                 >

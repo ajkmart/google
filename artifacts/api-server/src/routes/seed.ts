@@ -1459,7 +1459,6 @@ router.post("/products", devSeedAuth, async (req, res) => {
 
     let seededMart = 0;
     let seededFood = 0;
-    let seededPharmacy = 0;
 
     if (existingMart.length === 0) {
       for (const p of MART_PRODUCTS) {
@@ -1542,7 +1541,7 @@ router.post("/products", devSeedAuth, async (req, res) => {
           rating: (3.9 + Math.random() * 1.0).toFixed(1),
           reviewCount: Math.floor(Math.random() * 150) + 5,
         });
-        seededPharmacy++;
+        _seededPharmacy++;
       }
     } else {
       for (const p of PHARMACY_PRODUCTS) {

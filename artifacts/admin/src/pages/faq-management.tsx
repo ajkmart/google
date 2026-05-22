@@ -216,7 +216,7 @@ export default function FAQManagementPage() {
     mutationFn: (body: typeof EMPTY_FORM) =>
       apiFetch("/faqs", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-faqs"] });
+      void qc.invalidateQueries({ queryKey: ["admin-faqs"] });
       setEditFaq(null);
     },
     onError: (e: Error) =>
@@ -227,7 +227,7 @@ export default function FAQManagementPage() {
     mutationFn: ({ id, ...body }: typeof EMPTY_FORM & { id: string }) =>
       apiFetch(`/faqs/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-faqs"] });
+      void qc.invalidateQueries({ queryKey: ["admin-faqs"] });
       setEditFaq(null);
     },
     onError: (e: Error) =>
@@ -237,7 +237,7 @@ export default function FAQManagementPage() {
   const deleteMut = useMutation({
     mutationFn: (id: string) => apiFetch(`/faqs/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-faqs"] });
+      void qc.invalidateQueries({ queryKey: ["admin-faqs"] });
       setDeleteId(null);
     },
     onError: (e: Error) =>

@@ -329,7 +329,7 @@ router.get("/search/:ajkId", async (req: CommRequest, res) => {
         ajkId: user.ajkId,
       },
     });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Search failed" });
   }
   return;
@@ -478,7 +478,7 @@ router.patch("/requests/:id/accept", async (req: CommRequest, res) => {
     }
 
     res.json({ data: { conversationId: convId } });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to accept request" });
   }
   return;
@@ -507,7 +507,7 @@ router.patch("/requests/:id/reject", async (req: CommRequest, res) => {
     }
 
     res.json({ data: { status: "rejected" } });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to reject request" });
   }
   return;
@@ -538,7 +538,7 @@ router.patch("/requests/:id/cancel", async (req: CommRequest, res) => {
     }
 
     res.json({ data: { status: "cancelled" } });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to cancel request" });
   }
   return;
@@ -633,7 +633,7 @@ router.get("/requests", async (req: CommRequest, res) => {
         receiver: userMap[r.receiverId] || null,
       })),
     });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to list requests" });
   }
 });
@@ -764,7 +764,7 @@ router.get("/conversations/:id/messages", async (req: CommRequest, res) => {
 
     const sanitized = messages.reverse().map(({ originalContent, ...rest }) => rest);
     res.json({ data: sanitized });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to get messages" });
   }
   return;
@@ -943,7 +943,7 @@ router.patch("/messages/:id/read", async (req: CommRequest, res) => {
     }
 
     res.json({ data: { status: "read" } });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to mark as read" });
   }
   return;
@@ -983,7 +983,7 @@ router.patch("/conversations/:id/read-all", async (req: CommRequest, res) => {
     }
 
     res.json({ data: { status: "ok" } });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to mark all as read" });
   }
   return;
@@ -1004,7 +1004,7 @@ router.post("/translate", async (req: CommRequest, res) => {
 
     const translated = await translateMessage(text, targetLang, req.user.userId);
     res.json({ data: { translated } });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Translation failed" });
   }
   return;
@@ -1024,7 +1024,7 @@ router.post("/compose-assist", async (req: CommRequest, res) => {
 
     const composed = await composeMessage(intent, language || "english", req.user.userId);
     res.json({ data: { message: composed } });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Compose failed" });
   }
   return;
@@ -1266,7 +1266,7 @@ router.get("/calls/:id/ice-config", async (req: CommRequest, res) => {
         trickleIce: settings["comm_trickle_ice_enabled"] !== "off",
       },
     });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to get ICE config" });
   }
   return;
@@ -1299,7 +1299,7 @@ router.post("/calls/:id/answer", async (req: CommRequest, res) => {
         trickleIce: settings["comm_trickle_ice_enabled"] !== "off",
       },
     });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to answer call" });
   }
   return;
@@ -1333,7 +1333,7 @@ router.post("/calls/:id/end", async (req: CommRequest, res) => {
     }
 
     res.json({ data: { status: finalStatus } });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to end call" });
   }
   return;
@@ -1359,7 +1359,7 @@ router.post("/calls/:id/reject", async (req: CommRequest, res) => {
     }
 
     res.json({ data: { status: "rejected" } });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to reject call" });
   }
   return;
@@ -1403,7 +1403,7 @@ router.get("/calls/history", async (req: CommRequest, res) => {
         direction: c.callerId === userId ? "outgoing" : "incoming",
       })),
     });
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ error: "Failed to get call history" });
   }
 });

@@ -107,7 +107,7 @@ router.post("/sessions/revoke", async (req, res) => {
         }
         await blacklistSessionHash(session.tokenHash).catch(() => undefined);
       }
-      writeAuthAuditLog("sessions_revoked_except_current", {
+      void writeAuthAuditLog("sessions_revoked_except_current", {
         userId: auth.userId,
         ip,
         metadata: { revokedCount: otherSessions.length },
@@ -152,7 +152,7 @@ router.post("/sessions/revoke", async (req, res) => {
     await blacklistSessionHash(session.tokenHash).catch(() => undefined);
     if (session.tokenHash === currentHash && auth.jti && auth.exp)
       await blacklistJti(auth.jti, auth.exp).catch(() => undefined);
-    writeAuthAuditLog("session_revoked", {
+    void writeAuthAuditLog("session_revoked", {
       userId: auth.userId,
       ip,
       metadata: { sessionId, isSelf: session.tokenHash === currentHash },

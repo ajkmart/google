@@ -26,7 +26,7 @@ router.get("/users/:id/addresses", requirePermission("users.view"), async (req, 
       .where(eq(savedAddressesTable.userId, userId));
 
     sendSuccess(res, { addresses });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });

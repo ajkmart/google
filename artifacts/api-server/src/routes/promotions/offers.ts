@@ -51,7 +51,7 @@ router.get("/offers", adminAuth, async (req, res) => {
     if (status) mapped = mapped.filter((o) => o.computedStatus === status || o.status === status);
 
     sendSuccess(res, { offers: mapped, total: mapped.length });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -64,7 +64,7 @@ router.get("/offers/pending", managerAuth, async (_req: Request, res) => {
       .where(eq(offersTable.status, "pending_approval"))
       .orderBy(asc(offersTable.createdAt));
     sendSuccess(res, { offers: pending.map((o) => mapOffer(o)) });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -111,7 +111,7 @@ router.get("/offers/:id", adminAuth, async (req, res) => {
       },
       recentRedemptions: redemptions,
     });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -162,7 +162,7 @@ router.post("/offers", marketingAuth, async (req, res) => {
       })
       .returning();
     sendCreated(res, mapOffer(offer));
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -228,7 +228,7 @@ router.patch("/offers/:id", marketingAuth, async (req, res) => {
       return;
     }
     sendSuccess(res, mapOffer(offer));
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -255,7 +255,7 @@ router.post("/offers/bulk", marketingAuth, async (req, res) => {
       .set({ status: newStatus, updatedAt: new Date() })
       .where(inArray(offersTable.id, ids));
     sendSuccess(res, { success: true, updated: ids.length });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -286,7 +286,7 @@ router.post("/offers/:id/clone", marketingAuth, async (req, res) => {
       })
       .returning();
     sendCreated(res, mapOffer(cloned));
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -295,7 +295,7 @@ router.delete("/offers/:id", marketingAuth, async (req, res) => {
   try {
     await db.delete(offersTable).where(eq(offersTable.id, req.params["id"] as string));
     sendSuccess(res, { success: true });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -307,7 +307,7 @@ router.get("/templates", adminAuth, async (_req, res) => {
       .from(offerTemplatesTable)
       .orderBy(asc(offerTemplatesTable.sortOrder), desc(offerTemplatesTable.createdAt));
     sendSuccess(res, { templates, total: templates.length });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -324,7 +324,7 @@ router.get("/templates/:id", adminAuth, async (req, res) => {
       return;
     }
     sendSuccess(res, tpl);
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -365,7 +365,7 @@ router.post("/templates", marketingAuth, async (req: Request, res) => {
       })
       .returning();
     sendCreated(res, tpl);
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -411,7 +411,7 @@ router.patch("/templates/:id", marketingAuth, async (req, res) => {
       return;
     }
     sendSuccess(res, tpl);
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -422,7 +422,7 @@ router.delete("/templates/:id", marketingAuth, async (req, res) => {
       .delete(offerTemplatesTable)
       .where(eq(offerTemplatesTable.id, req.params["id"] as string));
     sendSuccess(res, { success: true });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -477,7 +477,7 @@ router.post("/templates/:id/instantiate", marketingAuth, async (req: Request, re
       })
       .returning();
     sendCreated(res, mapOffer(offer));
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -549,7 +549,7 @@ router.get("/analytics", adminAuth, async (req, res) => {
       activeCampaigns: activeCampaigns[0]?.count ?? 0,
       activeOffers: activeOffers[0]?.count ?? 0,
     });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -655,7 +655,7 @@ router.get("/ai-recommendations", adminAuth, async (_req, res) => {
     }
 
     sendSuccess(res, { recommendations });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -677,7 +677,7 @@ router.patch("/vendor/participations/:id", adminAuth, async (req, res) => {
       return;
     }
     sendSuccess(res, participation);
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -693,7 +693,7 @@ router.get("/vendor/participations", adminAuth, async (req, res) => {
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(desc(campaignParticipationsTable.createdAt));
     sendSuccess(res, { participations });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -726,7 +726,7 @@ router.delete("/vendor/participations/:id", requireRole("vendor"), async (req: R
       .delete(campaignParticipationsTable)
       .where(eq(campaignParticipationsTable.id, req.params["id"] as string));
     sendSuccess(res, { message: "Participation withdrawn" });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -777,7 +777,7 @@ router.post("/bookmarks/:offerId", async (req: Request, res) => {
     });
 
     sendSuccess(res, { bookmarked: true });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -809,7 +809,7 @@ router.get("/bookmarks", async (req: Request, res) => {
     const offerIds = bookmarkRows.map((r) => r.offerId);
     const offers = await db.select().from(offersTable).where(inArray(offersTable.id, offerIds));
     sendSuccess(res, { offers: offers.map((o) => mapOffer(o)) });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -831,7 +831,7 @@ router.post("/offers/:id/submit", marketingAuth, async (req: Request, res) => {
       .set({ status: "pending_approval", updatedAt: new Date() })
       .where(eq(offersTable.id, id));
     sendSuccess(res, { id, status: "pending_approval" });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -853,7 +853,7 @@ router.post("/offers/:id/approve", managerAuth, async (req: Request, res) => {
       .set({ status: "scheduled", approvedBy: req.adminId, updatedAt: new Date() })
       .where(eq(offersTable.id, id));
     sendSuccess(res, { id, status: "scheduled", approvedBy: req.adminId });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -876,7 +876,7 @@ router.post("/offers/:id/reject", managerAuth, async (req: Request, res) => {
       .set({ status: "rejected", approvedBy: req.adminId, updatedAt: new Date() })
       .where(eq(offersTable.id, id));
     sendSuccess(res, { id, status: "rejected", reason: reason ?? null });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });

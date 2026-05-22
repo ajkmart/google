@@ -56,7 +56,7 @@ interface ProviderPanelProps {
 }
 
 function ProviderPanel({
-  name,
+  _name,
   label,
   color,
   enabledKey,
@@ -335,7 +335,7 @@ export function MapsMgmtSection({ localValues, dirtyKeys, handleChange, handleTo
     try {
       await mapsApiFetch("/maps/admin/cache/clear", { method: "POST" });
       toast({ title: "Cache cleared", description: "Geocoding cache has been flushed." });
-      loadMapConfig();
+      void loadMapConfig();
     } catch (e: unknown) {
       toast({
         title: "Failed",

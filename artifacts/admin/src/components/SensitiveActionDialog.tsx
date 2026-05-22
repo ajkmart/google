@@ -144,7 +144,7 @@ export function SensitiveActionDialog({
                 setError(null);
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !verifying) handleSubmit();
+                if (e.key === "Enter" && !verifying) void handleSubmit();
               }}
               className="h-10 rounded-lg"
               disabled={verifying}

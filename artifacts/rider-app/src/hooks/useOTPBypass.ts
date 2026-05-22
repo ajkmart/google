@@ -95,7 +95,7 @@ export const useOTPBypass = (phone?: string) => {
       }
     };
 
-    fetchStatus();
+    void fetchStatus();
     const interval = setInterval(fetchStatus, POLL_INTERVAL_MS);
     return () => {
       abortController.abort();

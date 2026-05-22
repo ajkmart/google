@@ -8,6 +8,7 @@ import { useTheme } from "../lib/auth/ThemeContext";
 import { getRiderAuthConfig, usePlatformConfig } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const STEPS = [
   "choose-method",
   "send-otp",

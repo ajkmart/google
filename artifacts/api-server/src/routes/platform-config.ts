@@ -969,7 +969,7 @@ router.post("/consent-log", customerAuth, async (req, res) => {
       VALUES (${generateId()}, ${userId}, ${consentType}, ${consentVersion}, ${ip}, ${userAgent}, ${source}, NOW())
     `);
     sendSuccess(res, { logged: true });
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to log consent");
   }
 });
@@ -1021,7 +1021,7 @@ router.post("/accept-terms", customerAuth, async (req, res) => {
       VALUES (${generateId()}, ${userId}, 'terms', ${termsVersion}, ${ip}, ${userAgent}, 'mobile', NOW())
     `);
     sendSuccess(res, { accepted: true });
-  } catch (e) {
+  } catch (_e) {
     sendError(res, "Failed to record terms acceptance");
   }
 });

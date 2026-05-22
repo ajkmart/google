@@ -474,7 +474,7 @@ function KycDetailPanel({
       });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-kyc"] });
+      void qc.invalidateQueries({ queryKey: ["admin-kyc"] });
       setShowApprove(false);
       onApprove();
       onClose();
@@ -489,7 +489,7 @@ function KycDetailPanel({
       });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-kyc"] });
+      void qc.invalidateQueries({ queryKey: ["admin-kyc"] });
       setShowReject(false);
       onReject("");
       onClose();
@@ -504,7 +504,7 @@ function KycDetailPanel({
       });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-kyc"] });
+      void qc.invalidateQueries({ queryKey: ["admin-kyc"] });
       setShowResubmit(false);
       onReject("");
       onClose();
@@ -860,7 +860,7 @@ export default function KycPage() {
       });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-kyc"] });
+      void qc.invalidateQueries({ queryKey: ["admin-kyc"] });
       setInlineLoadingId(null);
     },
     onError: () => setInlineLoadingId(null),
@@ -875,7 +875,7 @@ export default function KycPage() {
       });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-kyc"] });
+      void qc.invalidateQueries({ queryKey: ["admin-kyc"] });
       setInlineLoadingId(null);
       setInlineRejectId(null);
     },
@@ -984,10 +984,10 @@ export default function KycPage() {
             record={selected}
             onClose={() => setSelected(null)}
             onApprove={() => {
-              qc.invalidateQueries({ queryKey: ["admin-kyc"] });
+              void qc.invalidateQueries({ queryKey: ["admin-kyc"] });
             }}
             onReject={() => {
-              qc.invalidateQueries({ queryKey: ["admin-kyc"] });
+              void qc.invalidateQueries({ queryKey: ["admin-kyc"] });
             }}
           />
         )}

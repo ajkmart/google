@@ -89,7 +89,7 @@ export default function Active() {
     if (!sharedSocket) return;
     const onOrderUpdate = () => {
       if (!isMountedRef.current) return;
-      qc.invalidateQueries({ queryKey: ["rider-active"] });
+      void qc.invalidateQueries({ queryKey: ["rider-active"] });
     };
     sharedSocket.on("order:update", onOrderUpdate);
     sharedSocket.on("order:assigned", onOrderUpdate);
@@ -200,7 +200,7 @@ export default function Active() {
     if (statusUpdates.length === 0) return;
     pendingUpdatesRef.current = allPending.filter((item) => item.kind === "location");
     setSyncFailedCount(0);
-    Promise.allSettled(statusUpdates.map((item) => item.run())).then((results) => {
+    void Promise.allSettled(statusUpdates.map((item) => item.run())).then((results) => {
       results.forEach((result, i) => {
         if (result.status === "rejected") log.error(`Status update ${i} failed:`, result.reason);
       });
@@ -210,10 +210,10 @@ export default function Active() {
         setSyncFailedCount(failed.length);
       }
       if (results.some((r) => r.status === "fulfilled")) {
-        qc.invalidateQueries({ queryKey: ["rider-active"] });
-        qc.invalidateQueries({ queryKey: ["rider-history"] });
-        qc.invalidateQueries({ queryKey: ["rider-earnings"] });
-        qc.invalidateQueries({ queryKey: ["rider-requests"] });
+        void qc.invalidateQueries({ queryKey: ["rider-active"] });
+        void qc.invalidateQueries({ queryKey: ["rider-history"] });
+        void qc.invalidateQueries({ queryKey: ["rider-earnings"] });
+        void qc.invalidateQueries({ queryKey: ["rider-requests"] });
         showToastRef.current?.(TRef.current?.("statusUpdated") ?? "Status updated");
       }
     });
@@ -228,7 +228,7 @@ export default function Active() {
   refetchRef.current = refetch;
 
   useEffect(() => {
-    if (tabVisible) refetch();
+    if (tabVisible) void refetch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabVisible]);
 
@@ -415,7 +415,7 @@ export default function Active() {
           });
           queueUpdate({ kind: "location", run: doUpdate });
         } else {
-          doUpdate();
+          void doUpdate();
         }
       },
       () => {
@@ -570,10 +570,10 @@ export default function Active() {
     onMutate: () => ({ enqueued: false }),
 
     onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ["rider-active"] });
-      qc.invalidateQueries({ queryKey: ["rider-history"] });
-      qc.invalidateQueries({ queryKey: ["rider-earnings"] });
-      qc.invalidateQueries({ queryKey: ["rider-requests"] });
+      void qc.invalidateQueries({ queryKey: ["rider-active"] });
+      void qc.invalidateQueries({ queryKey: ["rider-history"] });
+      void qc.invalidateQueries({ queryKey: ["rider-earnings"] });
+      void qc.invalidateQueries({ queryKey: ["rider-requests"] });
       if (vars.status === "delivered") {
         setProofPhoto(null);
         setProofFileName("");
@@ -627,10 +627,10 @@ export default function Active() {
     },
     onMutate: () => ({ enqueued: false }),
     onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ["rider-active"] });
-      qc.invalidateQueries({ queryKey: ["rider-history"] });
-      qc.invalidateQueries({ queryKey: ["rider-earnings"] });
-      qc.invalidateQueries({ queryKey: ["rider-requests"] });
+      void qc.invalidateQueries({ queryKey: ["rider-active"] });
+      void qc.invalidateQueries({ queryKey: ["rider-history"] });
+      void qc.invalidateQueries({ queryKey: ["rider-earnings"] });
+      void qc.invalidateQueries({ queryKey: ["rider-requests"] });
       logRideEvent(vars.id, vars.status, (msg, isErr) => showToast(msg, isErr));
       if (vars.status === "completed") showToast(T("rideCompletedEarnings"));
       else if (vars.status === "cancelled") showToast(T("rideCancelledMsg"));
@@ -662,7 +662,7 @@ export default function Active() {
     onSuccess: () => {
       setShowOtpModal(false);
       setOtpInput("");
-      qc.invalidateQueries({ queryKey: ["rider-active"] });
+      void qc.invalidateQueries({ queryKey: ["rider-active"] });
       showToast("OTP verified! You can now start the ride.");
     },
     onError: (e: Error) => showToast(e.message, true),

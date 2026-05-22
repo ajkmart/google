@@ -395,7 +395,7 @@ export default function Wallet() {
   const { config } = usePlatformConfig();
   const currency = config.platform.currencySymbol ?? "Rs.";
   const tz = config.regional?.timezone ?? "Asia/Karachi";
-  const fd = (d: string | Date) =>
+  const _fd = (d: string | Date) =>
     formatDateTz(d, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }, tz);
   const riderKeepPct = config.rider?.keepPct ?? config.finance.riderEarningPct;
   const minPayout = config.rider?.minPayout ?? config.finance.minRiderPayout;
@@ -599,7 +599,7 @@ export default function Wallet() {
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting && !isFetchingNextPage) {
-            fetchNextPage();
+            void fetchNextPage();
             break;
           }
         }
@@ -1081,7 +1081,7 @@ export default function Wallet() {
             className="flex w-full items-center justify-between px-5 py-4"
             onClick={() => {
               setShowDeposits((v) => !v);
-              if (!showDeposits) refetchDeposits();
+              if (!showDeposits) void refetchDeposits();
             }}
           >
             <div className="flex items-center gap-2.5">
@@ -1449,12 +1449,12 @@ export default function Wallet() {
           codCollected={codCollected}
           onClose={() => setShowRemittance(false)}
           onSuccess={() => {
-            qc.invalidateQueries({ queryKey: ["rider-cod"] });
-            qc.invalidateQueries({ queryKey: ["rider-wallet"] });
-            qc.invalidateQueries({ queryKey: ["rider-deposits"] });
-            refetch();
-            refetchCod();
-            refetchDeposits();
+            void qc.invalidateQueries({ queryKey: ["rider-cod"] });
+            void qc.invalidateQueries({ queryKey: ["rider-wallet"] });
+            void qc.invalidateQueries({ queryKey: ["rider-deposits"] });
+            void refetch();
+            void refetchCod();
+            void refetchDeposits();
             showToast(T("codRemittanceSubmitted"));
           }}
         />
@@ -1467,12 +1467,12 @@ export default function Wallet() {
           maxPayout={maxPayout}
           onClose={() => setShowWithdraw(false)}
           onSuccess={() => {
-            qc.invalidateQueries({ queryKey: ["rider-wallet"] });
-            qc.invalidateQueries({ queryKey: ["rider-cod"] });
-            qc.invalidateQueries({ queryKey: ["rider-deposits"] });
-            refetch();
-            refetchCod();
-            refetchDeposits();
+            void qc.invalidateQueries({ queryKey: ["rider-wallet"] });
+            void qc.invalidateQueries({ queryKey: ["rider-cod"] });
+            void qc.invalidateQueries({ queryKey: ["rider-deposits"] });
+            void refetch();
+            void refetchCod();
+            void refetchDeposits();
             refreshUser().catch((err) => {
               log.error(
                 { err: err instanceof Error ? err.message : String(err) },
@@ -1492,11 +1492,11 @@ export default function Wallet() {
           minBalance={minBalance}
           onClose={() => setShowDeposit(false)}
           onSuccess={() => {
-            qc.invalidateQueries({ queryKey: ["rider-wallet"] });
-            qc.invalidateQueries({ queryKey: ["rider-deposits"] });
-            refetch();
-            refetchCod();
-            refetchDeposits();
+            void qc.invalidateQueries({ queryKey: ["rider-wallet"] });
+            void qc.invalidateQueries({ queryKey: ["rider-deposits"] });
+            void refetch();
+            void refetchCod();
+            void refetchDeposits();
             showToast(T("depositSubmittedMsg"));
           }}
         />

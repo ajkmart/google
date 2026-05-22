@@ -63,7 +63,7 @@ export default function Promos() {
         }),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendor-promos"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-promos"] });
       setShowAdd(false);
       setForm({ ...EMPTY_PROMO });
       showToast("✅ Promo created!");
@@ -74,7 +74,7 @@ export default function Promos() {
   const deleteMut = useMutation({
     mutationFn: (id: string) => apiFetch(`/vendors/promos/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendor-promos"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-promos"] });
       showToast("🗑️ Promo deleted");
     },
     onError: (e: Error) => showToast("❌ " + errMsg(e)),

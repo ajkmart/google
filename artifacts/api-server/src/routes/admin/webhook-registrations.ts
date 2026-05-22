@@ -77,7 +77,7 @@ router.post("/webhooks", async (req, res, next: NextFunction) => {
       })
       .returning();
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "webhook_create",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -108,7 +108,7 @@ router.patch("/webhooks/:id/toggle", async (req, res, next: NextFunction) => {
       .update(webhookRegistrationsTable)
       .set({ isActive: newState, updatedAt: new Date() })
       .where(eq(webhookRegistrationsTable.id, id));
-    addAuditEntry({
+    void addAuditEntry({
       action: "webhook_toggle",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -261,7 +261,7 @@ router.delete("/webhooks/:id", async (req, res, next: NextFunction) => {
 
     await db.delete(webhookLogsTable).where(eq(webhookLogsTable.webhookId, id));
     await db.delete(webhookRegistrationsTable).where(eq(webhookRegistrationsTable.id, id));
-    addAuditEntry({
+    void addAuditEntry({
       action: "webhook_delete",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,

@@ -178,7 +178,7 @@ export default function History() {
             </div>
             <button
               onClick={() => {
-                refetch();
+                void refetch();
               }}
               disabled={isFetching}
               className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.08] transition-opacity active:bg-white/[0.12] disabled:opacity-50"

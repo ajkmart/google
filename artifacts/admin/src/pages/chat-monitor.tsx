@@ -134,7 +134,7 @@ export default function ChatMonitor() {
     mutationFn: (userId: string) =>
       adminFetch(`/chat-monitor/users/${userId}/chat-mute`, { method: "POST", body: "{}" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-chat-conversations"] });
+      void qc.invalidateQueries({ queryKey: ["admin-chat-conversations"] });
       toast({ title: "User muted from chat" });
     },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
@@ -143,7 +143,7 @@ export default function ChatMonitor() {
     mutationFn: (userId: string) =>
       adminFetch(`/chat-monitor/users/${userId}/chat-unmute`, { method: "POST", body: "{}" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-chat-conversations"] });
+      void qc.invalidateQueries({ queryKey: ["admin-chat-conversations"] });
       toast({ title: "User unmuted" });
     },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
@@ -152,7 +152,7 @@ export default function ChatMonitor() {
     mutationFn: (id: string) =>
       adminFetch(`/chat-monitor/reports/${id}/resolve`, { method: "PATCH", body: "{}" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-chat-reports"] });
+      void qc.invalidateQueries({ queryKey: ["admin-chat-reports"] });
       toast({ title: "Report resolved" });
     },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),

@@ -69,7 +69,7 @@ export function ImageUploader({
     e.preventDefault();
     if (uploading) return;
     const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
+    if (file) void handleFile(file);
   };
 
   return (
@@ -122,7 +122,7 @@ export function ImageUploader({
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) handleFile(file);
+              if (file) void handleFile(file);
               e.target.value = "";
             }}
           />

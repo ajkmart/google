@@ -659,7 +659,7 @@ function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
                   variant="outline"
                   className="rounded-lg"
                   onClick={() => {
-                    navigator.clipboard?.writeText(createdTempPassword);
+                    void navigator.clipboard?.writeText(createdTempPassword);
                     toast({ title: "Copied!" });
                   }}
                 >
@@ -982,7 +982,7 @@ function SecurityModal({ user, onClose }: { user: any; onClose: () => void }) {
     onSuccess: (d: any) => {
       setBypassActive(true);
       setBypassUntil(d.bypassUntil);
-      qc.invalidateQueries({ queryKey: ["admin-users"] });
+      void qc.invalidateQueries({ queryKey: ["admin-users"] });
       toast({
         title: "OTP bypass enabled",
         description: `User can log in without OTP until ${new Date(d.bypassUntil).toLocaleTimeString()}`,
@@ -997,7 +997,7 @@ function SecurityModal({ user, onClose }: { user: any; onClose: () => void }) {
     onSuccess: () => {
       setBypassActive(false);
       setBypassUntil(null);
-      qc.invalidateQueries({ queryKey: ["admin-users"] });
+      void qc.invalidateQueries({ queryKey: ["admin-users"] });
       toast({ title: "OTP bypass cancelled" });
     },
     onError: (e: any) =>
@@ -2615,7 +2615,7 @@ export default function Users() {
     );
   };
 
-  const handleUpdate = (id: string, updates: any) => {
+  const _handleUpdate = (id: string, updates: any) => {
     updateMutation.mutate(
       { id, ...updates },
       {

@@ -20,7 +20,7 @@ import { AuditService } from "../services/admin-audit.service.js";
 import { adminAuth } from "./admin.js";
 
 /* ── IS_PRODUCTION guard — independent of NODE_ENV for simulate-topup hardening ── */
-const IS_PRODUCTION =
+const _IS_PRODUCTION =
   process.env["IS_PRODUCTION"] === "true" || process.env["NODE_ENV"] === "production";
 
 /* ── DB idempotency helpers for wallet operations ───────────────────────────

@@ -955,7 +955,7 @@ router.post("/condition-rules/seed-defaults", async (_req, res) => {
 async function computeUserMetric(userId: string, metric: string): Promise<number | null> {
   const now = new Date();
   const ago30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const ago7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const _ago7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   switch (metric) {
     case "van_cancellation_count_30d": {

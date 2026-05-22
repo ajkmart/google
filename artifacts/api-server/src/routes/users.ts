@@ -45,7 +45,7 @@ import { validateBody } from "../middleware/validate.js";
 import { sendAdminAlert } from "../services/email.js";
 import { getCachedSettings } from "./admin-shared.js";
 
-const stripHtml = (s: string) => s.replace(/<[^>]*>/g, "").trim();
+const _stripHtml = (s: string) => s.replace(/<[^>]*>/g, "").trim();
 
 const UPLOADS_DIR = path.resolve(process.cwd(), "uploads");
 const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
@@ -190,7 +190,7 @@ router.post("/add-role", anyUserAuth, validateBody(AddRoleSchema), async (req, r
       .where(eq(usersTable.id, userId));
 
     const ip = getClientIp(req);
-    writeAuthAuditLog("role_added_customer", {
+    void writeAuthAuditLog("role_added_customer", {
       userId,
       ip,
       userAgent: req.headers["user-agent"] as string,
@@ -380,7 +380,7 @@ router.post(
 
       const completedAt = new Date();
 
-      writeAuthAuditLog("data_export", { userId, ip, userAgent, metadata: { maskedPhone } });
+      void writeAuthAuditLog("data_export", { userId, ip, userAgent, metadata: { maskedPhone } });
 
       db.update(dataExportLogsTable)
         .set({ success: true, completedAt })
@@ -675,7 +675,7 @@ router.put("/profile", validateBody(ProfileUpdateSchema), async (req, res, next)
   }
 });
 
-router.delete("/delete-account", validateBody(DeleteAccountSchema), async (req, res, next) => {
+router.delete("/delete-account", validateBody(DeleteAccountSchema), async (req, res, _next) => {
   const userId = req.customerId!;
 
   try {
@@ -791,7 +791,7 @@ router.delete("/delete-account", validateBody(DeleteAccountSchema), async (req, 
     await db.delete(dataExportLogsTable).where(eq(dataExportLogsTable.userId, userId));
 
     const ip = getClientIp(req);
-    writeAuthAuditLog("account_deleted", {
+    void writeAuthAuditLog("account_deleted", {
       userId,
       ip,
       userAgent: req.headers["user-agent"] as string,
@@ -894,7 +894,7 @@ router.delete("/sessions/all", async (req, res, next) => {
     }
 
     const ip = getClientIp(req);
-    writeAuthAuditLog("sessions_revoked_all", {
+    void writeAuthAuditLog("sessions_revoked_all", {
       userId,
       ip,
       userAgent: req.headers["user-agent"] as string,
@@ -946,7 +946,7 @@ router.delete("/sessions/:sessionId", async (req, res, next) => {
     }
 
     const ip = getClientIp(req);
-    writeAuthAuditLog("session_revoked", {
+    void writeAuthAuditLog("session_revoked", {
       userId,
       ip,
       userAgent: req.headers["user-agent"] as string,

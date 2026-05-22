@@ -159,8 +159,8 @@ export default function Products() {
       /* Always invalidate on connect — including the first connect — to flush
          any stock updates that were broadcast during the socket setup window
          (between component mount and the socket completing its handshake). */
-      qc.invalidateQueries({ queryKey: ["vendor-products"] });
-      qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-products"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
     });
     socket.on(
       "product:stock_updated",
@@ -194,8 +194,8 @@ export default function Products() {
           );
         } else {
           /* Product not in cache (e.g. arrived before initial fetch completed) — re-fetch */
-          qc.invalidateQueries({ queryKey: ["vendor-products"] });
-          qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
+          void qc.invalidateQueries({ queryKey: ["vendor-products"] });
+          void qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
         }
         setLastStockSync(new Date());
       }
@@ -313,7 +313,7 @@ export default function Products() {
       return api.bulkEditProducts(ids.map((id) => ({ id, ...patch })));
     },
     onSuccess: (res: any) => {
-      qc.invalidateQueries({ queryKey: ["vendor-products"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-products"] });
       setBulkEditMode(false);
       setBulkEditSelected(new Set());
       setBulkEditPrice("");
@@ -572,12 +572,12 @@ export default function Products() {
       }
     }
     setBulkImporting(false);
-    qc.invalidateQueries({ queryKey: ["vendor-products"] });
-    qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
+    void qc.invalidateQueries({ queryKey: ["vendor-products"] });
+    void qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
     showToast(`✅ ${successCount} of ${valid.length} products added!`);
   }, [bulkRows, totalProductCount, maxItems, bulkCat, qc]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const bulkMut = useMutation({
+  const _bulkMut = useMutation({
     mutationFn: () => {
       const valid = bulkRows.filter(
         (r) => r.name.trim() && r.price && !Number.isNaN(Number(r.price))
@@ -603,8 +603,8 @@ export default function Products() {
       );
     },
     onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ["vendor-products"] });
-      qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-products"] });
+      void qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
       setView("list");
       setBulkRows([{ ...EMPTY_ROW }, { ...EMPTY_ROW }, { ...EMPTY_ROW }]);
       setBulkCat("");

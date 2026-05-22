@@ -28,7 +28,7 @@ export function TwoFactorVerify({
 
       const fullCode = newDigits.join("");
       if (fullCode.length === 6) {
-        onVerify(fullCode);
+        void onVerify(fullCode);
       }
     },
     [digits, onVerify]
@@ -54,7 +54,7 @@ export function TwoFactorVerify({
       }
       setDigits(newDigits);
       if (pasted.length === 6) {
-        onVerify(pasted);
+        void onVerify(pasted);
       }
     },
     [onVerify]
@@ -64,7 +64,7 @@ export function TwoFactorVerify({
     (e: React.FormEvent) => {
       e.preventDefault();
       if (backupCode.trim() && onBackupCode) {
-        onBackupCode(backupCode.trim());
+        void onBackupCode(backupCode.trim());
       }
     },
     [backupCode, onBackupCode]

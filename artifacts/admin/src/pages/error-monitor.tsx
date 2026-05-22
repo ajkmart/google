@@ -661,8 +661,8 @@ export default function ErrorMonitor() {
         body: JSON.stringify({ status: newStatus }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["error-reports"] });
-      queryClient.invalidateQueries({ queryKey: ["error-count"] });
+      void queryClient.invalidateQueries({ queryKey: ["error-reports"] });
+      void queryClient.invalidateQueries({ queryKey: ["error-count"] });
     },
     onError: (err: unknown) => {
        
@@ -685,8 +685,8 @@ export default function ErrorMonitor() {
         body: JSON.stringify({ status, adminNote }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["customer-reports"] });
-      queryClient.invalidateQueries({ queryKey: ["customer-reports-count"] });
+      void queryClient.invalidateQueries({ queryKey: ["customer-reports"] });
+      void queryClient.invalidateQueries({ queryKey: ["customer-reports-count"] });
     },
     onError: (err: unknown) => {
        
@@ -719,8 +719,8 @@ export default function ErrorMonitor() {
         body: JSON.stringify({ method, resolutionNotes, rootCause }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["error-reports"] });
-      queryClient.invalidateQueries({ queryKey: ["error-count"] });
+      void queryClient.invalidateQueries({ queryKey: ["error-reports"] });
+      void queryClient.invalidateQueries({ queryKey: ["error-count"] });
     },
     onError: (err: unknown) => {
        
@@ -739,8 +739,8 @@ export default function ErrorMonitor() {
   const undoMutation = useMutation({
     mutationFn: (id: string) => adminFetch(`/error-reports/${id}/undo`, { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["error-reports"] });
-      queryClient.invalidateQueries({ queryKey: ["error-count"] });
+      void queryClient.invalidateQueries({ queryKey: ["error-reports"] });
+      void queryClient.invalidateQueries({ queryKey: ["error-count"] });
     },
     onError: (err: unknown) => {
        
@@ -771,7 +771,7 @@ export default function ErrorMonitor() {
         body: JSON.stringify(settings),
       }),
     onSuccess: () => {
-      refetchAutoSettings();
+      void refetchAutoSettings();
     },
     onError: (err: unknown) => {
        
@@ -797,9 +797,9 @@ export default function ErrorMonitor() {
   const runAutoResolveMutation = useMutation({
     mutationFn: () => adminFetch("/error-reports/auto-resolve-run", { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["error-reports"] });
-      queryClient.invalidateQueries({ queryKey: ["error-count"] });
-      refetchAutoLog();
+      void queryClient.invalidateQueries({ queryKey: ["error-reports"] });
+      void queryClient.invalidateQueries({ queryKey: ["error-count"] });
+      void refetchAutoLog();
     },
     onError: (err: unknown) => {
        
@@ -821,8 +821,8 @@ export default function ErrorMonitor() {
     try {
       const result = await adminFetch(`/error-reports/${id}/generate-task`, { method: "POST" });
       setTaskPlanContent(result.taskPlan);
-      queryClient.invalidateQueries({ queryKey: ["error-reports"] });
-    } catch (err) {
+      void queryClient.invalidateQueries({ queryKey: ["error-reports"] });
+    } catch (_err) {
       setTaskPlanContent("Failed to generate task plan.");
     } finally {
       setTaskPlanLoading(false);
@@ -853,7 +853,7 @@ export default function ErrorMonitor() {
         body: JSON.stringify({ ids }),
       });
       setBulkTaskContent(result.taskPlan);
-    } catch (err) {
+    } catch (_err) {
       setBulkTaskContent("Failed to generate bulk task plan.");
     } finally {
       setBulkTaskLoading(false);
@@ -868,7 +868,7 @@ export default function ErrorMonitor() {
       await adminFetch("/error-reports/file-scan/run", { method: "POST" });
       await refetchFileScanLatest();
       await refetchFileScanHistory();
-    } catch (err) {
+    } catch (_err) {
       setFileScanError("File scan failed. Check the API server connection.");
     } finally {
       setFileScanRunning(false);
@@ -885,7 +885,7 @@ export default function ErrorMonitor() {
         body: JSON.stringify({ finding }),
       });
       setTaskPlanContent(result.taskPlan);
-    } catch (err) {
+    } catch (_err) {
       setTaskPlanContent("Failed to generate task plan.");
     } finally {
       setTaskPlanLoading(false);
@@ -914,10 +914,10 @@ export default function ErrorMonitor() {
       const result = await adminFetch("/error-reports/scan", { method: "POST" });
       setScanResult(result);
       setLastScanAt(new Date().toISOString());
-      queryClient.invalidateQueries({ queryKey: ["error-reports"] });
-      queryClient.invalidateQueries({ queryKey: ["error-count"] });
-      queryClient.invalidateQueries({ queryKey: ["customer-reports-count"] });
-    } catch (err) {
+      void queryClient.invalidateQueries({ queryKey: ["error-reports"] });
+      void queryClient.invalidateQueries({ queryKey: ["error-count"] });
+      void queryClient.invalidateQueries({ queryKey: ["customer-reports-count"] });
+    } catch (_err) {
       setScanError("Scan failed. Check the API server connection.");
     } finally {
       setIsScanning(false);
@@ -926,7 +926,7 @@ export default function ErrorMonitor() {
 
   const startAutoScan = useCallback(() => {
     if (autoIntervalRef.current) clearInterval(autoIntervalRef.current);
-    runScan();
+    void runScan();
     autoIntervalRef.current = setInterval(runScan, autoInterval);
     setIsAutoRunning(true);
   }, [runScan, autoInterval]);
@@ -950,7 +950,7 @@ export default function ErrorMonitor() {
     if (specificTimeoutRef.current) clearTimeout(specificTimeoutRef.current);
     const delay = target - now;
     specificTimeoutRef.current = setTimeout(() => {
-      runScan();
+      void runScan();
     }, delay);
     setScanError(null);
   }, [specificDateTime, runScan]);
@@ -964,7 +964,7 @@ export default function ErrorMonitor() {
     const delay = target.getTime() - now.getTime();
     if (specificTimeoutRef.current) clearTimeout(specificTimeoutRef.current);
     specificTimeoutRef.current = setTimeout(() => {
-      runScan();
+      void runScan();
       scheduleDailyScan();
     }, delay);
     setScanError(null);
@@ -993,8 +993,8 @@ export default function ErrorMonitor() {
               : [],
         }),
       });
-      queryClient.invalidateQueries({ queryKey: ["error-reports"] });
-      queryClient.invalidateQueries({ queryKey: ["error-count"] });
+      void queryClient.invalidateQueries({ queryKey: ["error-reports"] });
+      void queryClient.invalidateQueries({ queryKey: ["error-count"] });
       setActiveTab("completed");
       setPage(1);
     } catch (err) {
@@ -4417,6 +4417,7 @@ export default function ErrorMonitor() {
                         document.body.removeChild(ta);
                          
                       } catch (clipErr) {
+                        // eslint-disable-next-line no-console
                         console.debug("[error-monitor] clipboard fallback failed:", clipErr);
                       }
                     }
@@ -4565,6 +4566,7 @@ export default function ErrorMonitor() {
                           document.body.removeChild(ta);
                            
                         } catch (clipErr) {
+                          // eslint-disable-next-line no-console
                           console.debug("[error-monitor] clipboard fallback failed:", clipErr);
                         }
                       }

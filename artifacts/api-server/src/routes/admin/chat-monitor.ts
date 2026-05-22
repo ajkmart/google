@@ -79,7 +79,7 @@ router.get("/conversations", async (req, res) => {
     }));
 
     sendSuccess(res, { conversations: enriched, total: enriched.length });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -124,7 +124,7 @@ router.get("/conversations/:id/messages", async (req, res) => {
     }));
 
     sendSuccess(res, { messages: enriched.reverse() });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -143,7 +143,7 @@ router.post("/users/:id/chat-mute", async (req, res) => {
       .set({ chatMuted: true, updatedAt: new Date() })
       .where(eq(usersTable.id, userId));
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "chat_mute_user",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -151,7 +151,7 @@ router.post("/users/:id/chat-mute", async (req, res) => {
       result: "success",
     });
     sendSuccess(res, { success: true, message: `Chat muted for ${user.name || user.phone}` });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -170,7 +170,7 @@ router.post("/users/:id/chat-unmute", async (req, res) => {
       .set({ chatMuted: false, updatedAt: new Date() })
       .where(eq(usersTable.id, userId));
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "chat_unmute_user",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -178,7 +178,7 @@ router.post("/users/:id/chat-unmute", async (req, res) => {
       result: "success",
     });
     sendSuccess(res, { success: true, message: `Chat unmuted for ${user.name || user.phone}` });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -218,7 +218,7 @@ router.get("/reports", async (req, res) => {
     }));
 
     sendSuccess(res, { reports: enriched });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -245,7 +245,7 @@ router.patch("/reports/:id/resolve", async (req, res) => {
       })
       .where(eq(chatReportsTable.id, reportId));
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "chat_report_resolve",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -253,7 +253,7 @@ router.patch("/reports/:id/resolve", async (req, res) => {
       result: "success",
     });
     sendSuccess(res, { success: true });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });

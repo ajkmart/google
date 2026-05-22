@@ -95,7 +95,7 @@ router.patch("/admin-accounts/:id", requirePermission("system.roles.manage"), as
       });
     }
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "admin_account_update",
       adminId: aReq.adminId,
       ip: aReq.adminIp || "unknown",
@@ -128,7 +128,7 @@ router.post(
 
       await revokeAllUserSessions(id);
 
-      addAuditEntry({
+      void addAuditEntry({
         action: "admin_account_revoke_sessions",
         adminId: aReq.adminId,
         ip: aReq.adminIp || "unknown",
@@ -164,7 +164,7 @@ router.delete("/admin-accounts/:id", requirePermission("system.roles.manage"), a
     });
     await db.delete(adminAccountsTable).where(eq(adminAccountsTable.id, id));
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "admin_account_delete",
       adminId: aReq.adminId,
       ip: aReq.adminIp || "unknown",

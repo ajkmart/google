@@ -91,10 +91,10 @@ if (isDevMock) {
   };
 
   process.on("SIGTERM", () => {
-    shutdownPool("SIGTERM");
+    void shutdownPool("SIGTERM");
   });
   process.on("SIGINT", () => {
-    shutdownPool("SIGINT");
+    void shutdownPool("SIGINT");
   });
 }
 

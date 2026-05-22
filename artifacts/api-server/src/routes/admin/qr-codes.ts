@@ -12,7 +12,7 @@ router.get("/", async (_req, res) => {
   try {
     const codes = await db.select().from(qrCodesTable).orderBy(desc(qrCodesTable.createdAt));
     sendSuccess(res, { codes });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -41,7 +41,7 @@ router.post("/", async (req, res) => {
       })
       .returning();
 
-    addAuditEntry({
+    void addAuditEntry({
       action: "qr_code_create",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -49,7 +49,7 @@ router.post("/", async (req, res) => {
       result: "success",
     });
     sendSuccess(res, { qrCode: created });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -67,7 +67,7 @@ router.patch("/:id/activate", async (req, res) => {
       .update(qrCodesTable)
       .set({ isActive: true, updatedAt: new Date() })
       .where(eq(qrCodesTable.id, id));
-    addAuditEntry({
+    void addAuditEntry({
       action: "qr_code_activate",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -75,7 +75,7 @@ router.patch("/:id/activate", async (req, res) => {
       result: "success",
     });
     sendSuccess(res, { success: true });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });
@@ -93,7 +93,7 @@ router.patch("/:id/deactivate", async (req, res) => {
       .update(qrCodesTable)
       .set({ isActive: false, updatedAt: new Date() })
       .where(eq(qrCodesTable.id, id));
-    addAuditEntry({
+    void addAuditEntry({
       action: "qr_code_deactivate",
       ip: getClientIp(req),
       adminId: (req as AdminRequest).adminId,
@@ -101,7 +101,7 @@ router.patch("/:id/deactivate", async (req, res) => {
       result: "success",
     });
     sendSuccess(res, { success: true });
-  } catch (err) {
+  } catch (_err) {
     sendError(res, "Internal server error", 500);
   }
 });

@@ -25,7 +25,7 @@ router.get("/conversations", async (_req, res) => {
       .orderBy(desc(max(supportMessagesTable.createdAt)));
 
     return sendSuccess(res, { conversations: rows });
-  } catch (e) {
+  } catch (_e) {
     return sendError(res, "Failed to fetch conversations", 500);
   }
 });
