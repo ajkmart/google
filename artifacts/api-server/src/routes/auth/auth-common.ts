@@ -194,7 +194,7 @@ export async function doRefresh(refreshToken: string, ip: string, req: Request, 
     /* ── Token family replay detection ── */
     let rt: typeof import("@workspace/db/schema").refreshTokensTable.$inferSelect;
     try {
-      const { detectAndInvalidateFamily, _TokenFamilyBreachError } =
+      const { detectAndInvalidateFamily } =
         await import("../../services/auth/tokenRotation.js");
       rt = await detectAndInvalidateFamily(tokenHash);
     } catch (err: unknown) {

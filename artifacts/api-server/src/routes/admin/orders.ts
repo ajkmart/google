@@ -1018,7 +1018,7 @@ const ACTIVE_STATUSES = [
 ];
 
 function buildOrderFilters(query: Record<string, string | undefined>) {
-  const { status, type, _search, dateFrom, dateTo } = query;
+  const { status, type, search: _search, dateFrom, dateTo } = query;
   const conditions: SQL<unknown>[] = [];
 
   if (status && status !== "all") {

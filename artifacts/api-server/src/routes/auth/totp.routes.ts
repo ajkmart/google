@@ -349,7 +349,7 @@ router.post("/totp/enable", validateBody(TotpCodeSchema), async (req, res) => {
 
 router.post("/2fa/verify", validateBody(TwoFaVerifySchema), async (req, res) => {
   try {
-    const { tempToken, code, _deviceFingerprint } = req.body;
+    const { tempToken, code, deviceFingerprint: _deviceFingerprint } = req.body;
     if (!tempToken || !code) {
       sendError(res, "tempToken and code required", 400);
       return;

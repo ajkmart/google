@@ -310,7 +310,7 @@ router.get("/can-review/:productId", customerAuth, async (req, res, next) => {
 router.post("/", customerAuth, async (req, res, next) => {
   try {
     const userId = req.customerId!;
-    const { orderId, _vendorId, _riderId, orderType, rating, riderRating, productId, photos } =
+    const { orderId, vendorId: _vendorId, riderId: _riderId, orderType, rating, riderRating, productId, photos } =
       req.body;
     const comment =
       typeof req.body.comment === "string" ? stripHtml(req.body.comment) : req.body.comment;

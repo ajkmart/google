@@ -1657,7 +1657,7 @@ router.patch(
   requirePermission("finance.deposits.review"),
   async (req, res) => {
     try {
-      const { refNo, _note } = req.body;
+      const { refNo, note: _note } = req.body;
       const txId = req.params["id"] as string;
 
       const [tx] = await db

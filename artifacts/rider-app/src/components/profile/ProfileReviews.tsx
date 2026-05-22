@@ -12,7 +12,7 @@ interface ProfileReviewsProps {
   currency: string;
 }
 
-export function ProfileReviews({ language, _currency }: ProfileReviewsProps) {
+export function ProfileReviews({ language, currency: _currency }: ProfileReviewsProps) {
   const T = (key: TranslationKey) => tDual(key, language as never);
 
   const { data: reviewsData } = useQuery({

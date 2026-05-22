@@ -8,7 +8,9 @@ import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
 const { rules: localRules } = require("./eslint-rules/no-silent-catch.cjs");
-const { rules: destructureRules } = require("./eslint-rules/no-underscore-shorthand-destructure.cjs");
+const {
+  rules: destructureRules,
+} = require("./eslint-rules/no-underscore-shorthand-destructure.cjs");
 
 export default [
   // ─── Global ignores (replaces .eslintignore) ──────────────────────
@@ -99,7 +101,9 @@ export default [
       // Catches `{ _foo }` (reads literal prop "_foo") when the intent
       // was `{ foo: _foo }` (rename "foo" to local var "_foo").
       // Auto-fixable: eslint --fix converts `_foo` → `foo: _foo`.
-      "ajk-local/no-underscore-shorthand-destructure": "error",
+      // allow: _sc is a legitimate internal key in the idempotency cache
+      //        JSON format ({ _sc: statusCode, ...body }).
+      "ajk-local/no-underscore-shorthand-destructure": ["error", { allow: ["_sc"] }],
 
       // ── General ───────────────────────────────────────────────────
       "no-console": ["warn", { allow: ["warn", "error"] }],

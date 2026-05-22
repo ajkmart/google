@@ -1662,7 +1662,7 @@ router.post("/wallet/withdraw", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
     const user = req.vendorUser!;
-    const { amount, bankName, _bankAccount, _bankAccountTitle, method, _notes } =
+    const { amount, bankName, bankAccount: _bankAccount, bankAccountTitle: _bankAccountTitle, method, notes: _notes } =
       req.body as Record<string, unknown>;
     if (!amount || parseFloat(String(amount)) <= 0) {
       sendValidationError(res, "Valid amount is required");
@@ -1705,7 +1705,7 @@ router.post("/wallet/withdraw", async (req, res, next) => {
 router.post("/wallet/deposit", async (req, res, next) => {
   try {
     const vendorId = req.vendorId!;
-    const { amount, method, reference, _notes } = req.body as Record<string, unknown>;
+    const { amount, method, reference, notes: _notes } = req.body as Record<string, unknown>;
     if (!amount || parseFloat(String(amount)) <= 0) {
       sendValidationError(res, "Valid amount is required");
       return;

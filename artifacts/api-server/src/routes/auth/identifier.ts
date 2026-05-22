@@ -36,7 +36,7 @@ router.post(
   sharedValidateBody(checkIdentifierSchema),
   async (req, res) => {
     try {
-      const { identifier, role, _deviceId } = req.body;
+      const { identifier, role, deviceId: _deviceId } = req.body;
 
       const ip = getClientIp(req);
       const settings = await getCachedSettings();

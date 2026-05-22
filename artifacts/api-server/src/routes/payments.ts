@@ -843,7 +843,7 @@ router.post("/verify-manual", adminAuth, async (req, res) => {
 
 router.post("/reconcile", adminAuth, async (req, res) => {
   try {
-    const { orderId, txnRef, status: forcedStatus, _gateway, notes } = req.body;
+    const { orderId, txnRef, status: forcedStatus, gateway: _gateway, notes } = req.body;
     if (!orderId && !txnRef) {
       sendValidationError(res, "orderId or txnRef is required");
       return;

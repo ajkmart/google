@@ -941,7 +941,7 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
   const theme = useTheme();
   const { sendOtp } = useAuth();
   const [, navigate] = useLocation();
-  const { _config } = usePlatformConfig();
+  const { config: _config } = usePlatformConfig();
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
 

@@ -2661,7 +2661,7 @@ router.patch("/rides/:id/status", rideStatusLimiter, async (req, res) => {
       return;
     }
     const riderId = req.riderId!;
-    const { status, _lat, _lng } = parsed.data;
+    const { status, lat: _lat, lng: _lng } = parsed.data;
 
     const [ride] = await db
       .select()
@@ -3879,7 +3879,7 @@ router.get("/wallet/transactions", async (req, res) => {
         return JSON.stringify({ createdAt: createdAt.toISOString(), id: row.id });
       },
     });
-    const { data: page, nextCursor, _hasMore } = cursorPage;
+    const { data: page, nextCursor, hasMore: _hasMore } = cursorPage;
 
     const [promoRow] = await db
       .select({ s: sum(walletTransactionsTable.amount) })

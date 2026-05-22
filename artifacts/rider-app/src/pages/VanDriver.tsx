@@ -166,7 +166,7 @@ const riderMarkerIcon = L.divIcon({
 });
 
 export default function VanDriver() {
-  const { _user } = useAuth();
+  const { user: _user } = useAuth();
   const { config } = usePlatformConfig();
   const qc = useQueryClient();
 

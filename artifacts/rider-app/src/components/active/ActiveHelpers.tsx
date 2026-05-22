@@ -445,7 +445,7 @@ export function SosButton({
   rideId,
   riderPos,
   T,
-  _showToast,
+  showToast: _showToast,
 }: {
   rideId?: string | null;
   riderPos?: { lat: number; lng: number } | null;

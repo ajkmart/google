@@ -1068,7 +1068,7 @@ router.patch(
     try {
       const customerId = req.customerId!;
       const orderId = req.params["id"] as string;
-      const { _status } = req.body as z.infer<typeof customerStatusUpdateSchema>;
+      const { status: _status } = req.body as z.infer<typeof customerStatusUpdateSchema>;
 
       const [order] = await db
         .select()

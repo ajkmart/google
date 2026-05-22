@@ -104,7 +104,7 @@ function getAnimationClass(animation: string | null, type: string): string {
 }
 
 export function PopupEngine() {
-  const { _user, token } = useAuth();
+  const { user: _user, token } = useAuth();
   const [, setLocation] = useLocation();
   const [_queue, setQueue] = useState<Popup[]>([]);
   const [current, setCurrent] = useState<Popup | null>(null);
