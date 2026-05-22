@@ -11,3 +11,5 @@ lib/db/migrations/
 .replit_integration_files/
 .local/
 pnpm-lock.yaml
+.cache/
+artifacts/mockup-sandbox/src/.generated/

@@ -79,7 +79,7 @@ jobs:
         run: HUSKY=0 pnpm install --no-frozen-lockfile
 
       - name: Type-check (all workspaces)
-        run: pnpm typecheck:all
+        run: pnpm typecheck:ci
         env:
           NODE_ENV: development
 
