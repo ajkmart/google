@@ -79,9 +79,40 @@ jobs:
         run: HUSKY=0 pnpm install --no-frozen-lockfile
 
       - name: Type-check (all workspaces)
-        run: pnpm typecheck:ci
+        run: |
+          set -o pipefail
+          pnpm typecheck:ci 2>&1 | tee /tmp/typecheck.log
         env:
           NODE_ENV: development
+
+      - name: Type-check error summary
+        if: failure()
+        run: |
+          log=/tmp/typecheck.log
+
+          echo "## TypeScript Error Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Package | Status | Errors |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|--------|-------:|" >> "$GITHUB_STEP_SUMMARY"
+
+          total=0
+          for pkg in db i18n auth-utils auth-react api-client api admin rider vendor; do
+            if [ -f "$log" ]; then
+              count=$(grep -c "^\[$pkg\].*error TS" "$log" 2>/dev/null || true)
+              [ -z "$count" ] && count=0
+            else
+              count=0
+            fi
+            if [ "$count" -gt 0 ]; then
+              echo "| \`$pkg\` | ❌ Fail | $count |" >> "$GITHUB_STEP_SUMMARY"
+              total=$((total + count))
+            else
+              echo "| \`$pkg\` | ✅ Pass | 0 |" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "> **Total type errors: $total**" >> "$GITHUB_STEP_SUMMARY"
 
   # ─────────────────────────────────────────────────────────────────────────
   # JOB 3 — ESLint (all workspaces)
