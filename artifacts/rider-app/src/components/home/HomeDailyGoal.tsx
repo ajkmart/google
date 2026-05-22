@@ -33,7 +33,7 @@ export function HomeDailyGoal({
         <p className="flex items-center gap-1.5 text-xs font-bold text-gray-700">
           <Target size={12} className={reached ? "text-green-500" : "text-gray-400"} />
           {T("dailyGoal")}
-          {personalGoal !== null && (
+          {personalGoal != null && (
             <span className="rounded-full bg-gray-900 px-1.5 py-0.5 text-[8px] font-bold tracking-wider text-white uppercase">
               {T("myGoalBadge")}
             </span>

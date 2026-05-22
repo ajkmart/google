@@ -57,7 +57,7 @@ function timeoutSignal(ms: number, externalSignal?: AbortSignal): AbortSignal {
 
   // Clean up timer on internal abort
   const internalAbortListener = () => {
-    if (timerId !== null) clearTimeout(timerId);
+    if (timerId != null) clearTimeout(timerId);
   };
   controller.signal.addEventListener("abort", internalAbortListener, { once: true });
 
@@ -65,7 +65,7 @@ function timeoutSignal(ms: number, externalSignal?: AbortSignal): AbortSignal {
   if (externalSignal) {
     if (externalSignal.aborted) {
       // External signal already aborted, abort immediately
-      if (timerId !== null) {
+      if (timerId != null) {
         clearTimeout(timerId);
         timerId = null;
       }
@@ -73,7 +73,7 @@ function timeoutSignal(ms: number, externalSignal?: AbortSignal): AbortSignal {
     } else {
       // Listen for external signal abort
       const externalAbortListener = () => {
-        if (timerId !== null) {
+        if (timerId != null) {
           clearTimeout(timerId);
           timerId = null;
         }

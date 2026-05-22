@@ -53,7 +53,7 @@ interface ApiError {
 }
 
 function isApiError(value: unknown): value is ApiError {
-  return typeof value === "object" && value !== null && ("status" in value || "message" in value);
+  return typeof value === "object" && value != null && ("status" in value || "message" in value);
 }
 
 function errorMessage(value: unknown, fallback = "Something went wrong"): string {
@@ -731,7 +731,7 @@ export default function OtpControl() {
             icon={status?.isGloballyDisabled ? ShieldOff : Shield}
             label="Global OTP"
             value={
-              status === null ? (
+              status == null ? (
                 <span className="flex items-center gap-1">
                   <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
                 </span>
@@ -753,7 +753,7 @@ export default function OtpControl() {
           <StatCard
             icon={Users}
             label="Active Bypasses"
-            value={status === null ? "—" : status.activeBypassCount}
+            value={status == null ? "—" : status.activeBypassCount}
             sub="Users skipping OTP"
             accent="bg-blue-100 text-blue-600"
           />
@@ -785,7 +785,7 @@ export default function OtpControl() {
           />
           <div className="space-y-4 p-5">
             {/* Status banner */}
-            {status === null ? (
+            {status == null ? (
               <div className="bg-muted/30 border-border flex h-16 items-center justify-center rounded-xl border">
                 <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
               </div>

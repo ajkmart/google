@@ -1618,9 +1618,9 @@ router.post("/admin/routes", adminAuth, async (req, res, next) => {
         id: generateId(),
         ...p.data,
         farePerSeat: String(p.data.farePerSeat),
-        fareWindow: p.data.fareWindow !== null ? String(p.data.fareWindow) : null,
-        fareAisle: p.data.fareAisle !== null ? String(p.data.fareAisle) : null,
-        fareEconomy: p.data.fareEconomy !== null ? String(p.data.fareEconomy) : null,
+        fareWindow: p.data.fareWindow != null ? String(p.data.fareWindow) : null,
+        fareAisle: p.data.fareAisle != null ? String(p.data.fareAisle) : null,
+        fareEconomy: p.data.fareEconomy != null ? String(p.data.fareEconomy) : null,
         distanceKm: p.data.distanceKm ? String(p.data.distanceKm) : null,
         fromLat: p.data.fromLat ? String(p.data.fromLat) : null,
         fromLng: p.data.fromLng ? String(p.data.fromLng) : null,
@@ -1647,11 +1647,11 @@ router.patch("/admin/routes/:id", adminAuth, async (req, res, next) => {
     };
     if (p.data.farePerSeat !== undefined) updates["farePerSeat"] = String(p.data.farePerSeat);
     if (p.data.fareWindow !== undefined)
-      updates["fareWindow"] = p.data.fareWindow !== null ? String(p.data.fareWindow) : null;
+      updates["fareWindow"] = p.data.fareWindow != null ? String(p.data.fareWindow) : null;
     if (p.data.fareAisle !== undefined)
-      updates["fareAisle"] = p.data.fareAisle !== null ? String(p.data.fareAisle) : null;
+      updates["fareAisle"] = p.data.fareAisle != null ? String(p.data.fareAisle) : null;
     if (p.data.fareEconomy !== undefined)
-      updates["fareEconomy"] = p.data.fareEconomy !== null ? String(p.data.fareEconomy) : null;
+      updates["fareEconomy"] = p.data.fareEconomy != null ? String(p.data.fareEconomy) : null;
     if (p.data.distanceKm !== undefined) updates["distanceKm"] = String(p.data.distanceKm);
     if (p.data.fromLat !== undefined) updates["fromLat"] = String(p.data.fromLat);
     if (p.data.fromLng !== undefined) updates["fromLng"] = String(p.data.fromLng);

@@ -250,7 +250,7 @@ async function authPost(path: string, body?: unknown): Promise<unknown> {
   }
 
   /* Unwrap server envelope { data: T } → T, or return the raw parsed body */
-  return parsed !== null && typeof parsed === "object" && "data" in parsed ? parsed.data : parsed;
+  return parsed != null && typeof parsed === "object" && "data" in parsed ? parsed.data : parsed;
 }
 
 function clearTokens() {
@@ -705,7 +705,7 @@ export const api = {
   /* Rider assignment */
   getAvailableRiders: (lat: number | null, lng: number | null, maxKm = 10) => {
     const params = new URLSearchParams({ maxKm: String(maxKm) });
-    if (lat !== null && lng !== null) {
+    if (lat != null && lng != null) {
       params.set("lat", String(lat));
       params.set("lng", String(lng));
     }

@@ -16,7 +16,7 @@ import { Link } from "wouter";
 type RoleFlags = { customer: boolean; rider: boolean; vendor: boolean };
 
 function parseRoleFlags(val: string | undefined, defaultOn: boolean): RoleFlags {
-  if (val === undefined || val === null || val === "") {
+  if (val === undefined || val == null || val === "") {
     return { customer: defaultOn, rider: defaultOn, vendor: defaultOn };
   }
   if (val === "on") return { customer: true, rider: true, vendor: true };

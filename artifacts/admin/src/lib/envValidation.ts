@@ -35,7 +35,7 @@ export function auditAdminEnv(): AdminEnv {
     typeof env["BASE_URL"] === "string" && (env["BASE_URL"] as string).length > 0
       ? (env["BASE_URL"] as string)
       : "/";
-  if (env["BASE_URL"] === null) {
+  if (env["BASE_URL"] == null) {
     warnings.push("BASE_URL missing — defaulting to '/'");
   } else if (typeof env["BASE_URL"] !== "string") {
     warnings.push(`BASE_URL has unexpected type ${typeof env["BASE_URL"]} — defaulting to '/'`);
@@ -70,7 +70,7 @@ export function auditAdminEnv(): AdminEnv {
   const viteKeys = Object.keys(env).filter((k) => k.startsWith("VITE_"));
   for (const key of viteKeys) {
     const v = env[key];
-    if (v === undefined || v === null || v === "") {
+    if (v === undefined || v == null || v === "") {
       if (!OPTIONAL_VITE_KEYS.has(key)) {
         warnings.push(`${key} is empty — consumers may receive undefined`);
       }

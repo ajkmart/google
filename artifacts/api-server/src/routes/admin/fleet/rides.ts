@@ -1555,10 +1555,10 @@ router.get("/fleet-analytics", async (req: Request, res: Response) => {
     const ridesAvgMs = ridesResponseRow?.avgMs ? Number(ridesResponseRow.avgMs) : null;
     const ordersAvgMs = ordersResponseRow?.avgMs ? Number(ordersResponseRow.avgMs) : null;
     const blendedMs =
-      ridesAvgMs !== null && ordersAvgMs !== null
+      ridesAvgMs != null && ordersAvgMs != null
         ? (ridesAvgMs + ordersAvgMs) / 2
         : (ridesAvgMs ?? ordersAvgMs);
-    const avgResponseTimeMin = blendedMs !== null ? Math.round((blendedMs / 60000) * 10) / 10 : null;
+    const avgResponseTimeMin = blendedMs != null ? Math.round((blendedMs / 60000) * 10) / 10 : null;
 
     /* Per-rider distance estimation from location logs */
     const riderLogs = await db
@@ -1746,8 +1746,8 @@ router.get("/riders/:userId/route", async (req: Request, res: Response) => {
     const points = logs.map((l) => ({
       latitude: (l.coords as { lat: number; lng: number }).lat,
       longitude: (l.coords as { lat: number; lng: number }).lng,
-      speed: l.speed !== null ? parseFloat(String(l.speed)) : null,
-      heading: l.heading !== null ? parseFloat(String(l.heading)) : null,
+      speed: l.speed != null ? parseFloat(String(l.speed)) : null,
+      heading: l.heading != null ? parseFloat(String(l.heading)) : null,
       createdAt: l.createdAt.toISOString(),
     }));
 

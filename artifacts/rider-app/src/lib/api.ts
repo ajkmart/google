@@ -989,8 +989,8 @@ export const api = {
     limit: number;
   }> => {
     const params = new URLSearchParams();
-    if (opts.limit !== null) params.set("limit", String(opts.limit));
-    if (opts.cursor !== null) params.set("cursor", opts.cursor);
+    if (opts.limit != null) params.set("limit", String(opts.limit));
+    if (opts.cursor != null) params.set("cursor", opts.cursor);
     const qs = params.toString();
     return apiFetch(`/riders/wallet/transactions${qs ? `?${qs}` : ""}`);
   },

@@ -392,9 +392,9 @@ router.patch("/store", validateBody(patchStoreSchema), async (req, res, next) =>
     if (body.storeHours !== undefined)
       updates.storeHours =
         typeof body.storeHours === "string" ? body.storeHours : JSON.stringify(body.storeHours);
-    if (body.storeLat !== undefined && body.storeLat !== null)
+    if (body.storeLat !== undefined && body.storeLat != null)
       updates.storeLat = String(body.storeLat);
-    if (body.storeLng !== undefined && body.storeLng !== null)
+    if (body.storeLng !== undefined && body.storeLng != null)
       updates.storeLng = String(body.storeLng);
     const [user] = await db
       .update(usersTable)
@@ -1286,7 +1286,7 @@ router.post("/products", async (req, res, next) => {
         vendorId,
         vendorName: user.name ?? user.storeName ?? null,
         inStock: inStock !== false,
-        stock: stock !== undefined && stock !== null ? Number(stock) : null,
+        stock: stock !== undefined && stock != null ? Number(stock) : null,
         unit: unit ? String(unit) : null,
         deliveryTime: deliveryTime ? String(deliveryTime) : null,
         approvalStatus: autoApprove ? "approved" : "pending",
@@ -1336,7 +1336,7 @@ router.post("/products/bulk", async (req, res, next) => {
       vendorId,
       vendorName: user.name ?? null,
       inStock: p.inStock !== false,
-      stock: p.stock !== undefined && p.stock !== null ? Number(p.stock) : null,
+      stock: p.stock !== undefined && p.stock != null ? Number(p.stock) : null,
       unit: p.unit ? String(p.unit) : null,
       approvalStatus: autoApprove ? "approved" : "pending",
     }));
@@ -1368,8 +1368,8 @@ router.patch("/products/bulk", async (req, res, next) => {
       if (item.price !== undefined)
         updates.price = String(parseFloat(String(item.price)).toFixed(2));
       if (item.stock !== undefined) {
-        updates.stock = item.stock !== null ? Number(item.stock) : null;
-        updates.inStock = item.stock === null || Number(item.stock) > 0;
+        updates.stock = item.stock != null ? Number(item.stock) : null;
+        updates.inStock = item.stock == null || Number(item.stock) > 0;
       }
       if (item.inStock !== undefined) updates.inStock = item.inStock;
       await db
@@ -1465,8 +1465,8 @@ router.patch("/products/:id", async (req, res, next) => {
     if (image !== undefined) updates.image = image ? String(image) : null;
     if (images !== undefined) updates.images = Array.isArray(images) ? images.map(String) : null;
     if (stock !== undefined) {
-      updates.stock = stock !== null ? Number(stock) : null;
-      updates.inStock = stock === null || Number(stock) > 0;
+      updates.stock = stock != null ? Number(stock) : null;
+      updates.inStock = stock == null || Number(stock) > 0;
     }
     if (inStock !== undefined) updates.inStock = Boolean(inStock);
     if (unit !== undefined) updates.unit = unit ? String(unit) : null;

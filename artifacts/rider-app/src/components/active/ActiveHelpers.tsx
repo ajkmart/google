@@ -113,7 +113,7 @@ function useRiderTileConfig() {
 
 function AutoFitMap({ positions }: { positions: [number, number][] }) {
   const map = useMap();
-  const validPositions = positions.filter((p) => p !== null && p[0] !== null && p[1] !== null);
+  const validPositions = positions.filter((p) => p != null && p[0] != null && p[1] != null);
   useEffect(() => {
     if (!validPositions.length) return;
     if (validPositions.length === 1) {
@@ -192,7 +192,7 @@ export function RideRouteMap({
   const positions: [number, number][] = [
     [pickupLat, pickupLng],
     [dropLat, dropLng],
-    ...(riderLat !== null && riderLng !== null ? [[riderLat, riderLng] as [number, number]] : []),
+    ...(riderLat != null && riderLng != null ? [[riderLat, riderLng] as [number, number]] : []),
   ];
 
   const mapCenter: [number, number] = isValidCoord(pickupLat, pickupLng)
@@ -258,7 +258,7 @@ export function RideRouteMap({
                 <span className="text-xs font-bold text-red-700">🎯 {dropLabel ?? "Drop-off"}</span>
               </Popup>
             </Marker>
-            {riderLat !== null && riderLng !== null && (
+            {riderLat != null && riderLng != null && (
               <Marker position={[riderLat, riderLng]} icon={riderIcon}>
                 <Popup>
                   <span className="text-xs font-bold text-blue-700">🏍️ You</span>
@@ -354,7 +354,7 @@ export function useElapsedTimer(startIso?: string | null) {
 }
 
 export function formatCurrency(n: string | number | null | undefined, currencySymbol = "Rs.") {
-  return _sharedFc(n !== null ? String(n) : (n as null | undefined), currencySymbol);
+  return _sharedFc(n != null ? String(n) : (n as null | undefined), currencySymbol);
 }
 
 export function ElapsedBadge({ startIso }: { startIso?: string | null }) {
@@ -415,7 +415,7 @@ export function NavButton({
   address?: string | null;
   color?: "blue" | "green" | "orange";
 }) {
-  const validCoords = lat !== null && lng !== null && Number.isFinite(lat) && Number.isFinite(lng);
+  const validCoords = lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng);
   const href = validCoords
     ? buildMapsDeepLink(lat!, lng!)
     : address
@@ -467,8 +467,8 @@ export function SosButton({
 
   const fireSos = async (lat?: number, lng?: number) => {
     const hasCoords =
-      lat !== null &&
-      lng !== null &&
+      lat != null &&
+      lng != null &&
       Number.isFinite(lat) &&
       Number.isFinite(lng) &&
       !(Math.abs(lat) < 0.001 && Math.abs(lng) < 0.001);
@@ -543,8 +543,8 @@ export function SosButton({
               } // eslint-disable-line no-console
             }
             const hasCoords =
-              lat !== null &&
-              lng !== null &&
+              lat != null &&
+              lng != null &&
               Number.isFinite(lat) &&
               Number.isFinite(lng) &&
               !(Math.abs(lat) < 0.001 && Math.abs(lng) < 0.001);
@@ -654,13 +654,13 @@ export function TurnByTurnPanel({
   };
 
   useEffect(() => {
-    if (!route || riderLat === null || riderLng === null) return;
+    if (!route || riderLat == null || riderLng == null) return;
 
     const steps = route.steps;
     let newStep = currentStep;
     for (let i = currentStep; i < steps.length - 1; i++) {
       const step = steps[i + 1]!;
-      if (step.maneuverLat !== null && step.maneuverLng !== null) {
+      if (step.maneuverLat != null && step.maneuverLng != null) {
         const distM =
           haversineDistance(riderLat, riderLng, step.maneuverLat, step.maneuverLng) * 1000;
         if (distM <= STEP_ADVANCE_M) {
@@ -898,7 +898,7 @@ export function EstimatedArrivalBadge({
   pickupLng?: number | null;
   vehicleType?: string | null;
 }) {
-  if (!riderPos || pickupLat === null || pickupLng === null) return null;
+  if (!riderPos || pickupLat == null || pickupLng == null) return null;
   const distKm = haversineDistance(riderPos.lat, riderPos.lng, pickupLat, pickupLng);
   const speedKmh =
     vehicleType === "car"

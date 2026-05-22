@@ -240,7 +240,7 @@ function StatsBar({ roles, catalog, adminRoleMap, adminsLoaded, loading }: Stats
     {
       label: "Admins assigned",
       value: assignedAdminCount,
-      display: assignedAdminCount === null ? "—" : String(assignedAdminCount),
+      display: assignedAdminCount == null ? "—" : String(assignedAdminCount),
       icon: Users,
       color: "bg-violet-50 text-violet-600",
     },

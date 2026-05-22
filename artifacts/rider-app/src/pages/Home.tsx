@@ -130,7 +130,7 @@ export default function Home() {
 
   const [wakeLockWarning, setWakeLockWarning] = useState(false);
   const [optimisticOnline, setOptimisticOnline] = useState<boolean | null>(null);
-  const effectiveOnline = optimisticOnline !== null ? optimisticOnline : !!user?.isOnline;
+  const effectiveOnline = optimisticOnline != null ? optimisticOnline : !!user?.isOnline;
 
   const isMountedRef = useRef(true);
   useEffect(() => {
@@ -492,7 +492,7 @@ export default function Home() {
            speed=0 AND no heading simultaneously. A single zero is not enough
            to trigger because some chipsets legitimately return accuracy=0 on a
            perfect fix. Server-side spoof detection is the authoritative gate. */
-        const isMockGps = accuracy === 0 && speed === 0 && heading === null;
+        const isMockGps = accuracy === 0 && speed === 0 && heading == null;
         if (isMockGps) {
           setGpsWarningWithRef(
             "Suspicious GPS accuracy detected. Please disable mock location apps."
@@ -507,13 +507,13 @@ export default function Home() {
         setRiderPosition(latitude, longitude);
 
         /* memoized haversine — skip REST ping if position hasn't changed meaningfully */
-        if (lastLat !== null && lastLng !== null) {
+        if (lastLat != null && lastLng != null) {
           const dist = haversineMeters(lastLat, lastLng, latitude, longitude);
           if (dist < MIN_DISTANCE_METERS) return;
         }
         /* No previous position — record it but don't send a keepalive ping;
            the socket heartbeat already signals liveness to the server. */
-        if (lastLat === null) {
+        if (lastLat == null) {
           lastLat = latitude;
           lastLng = longitude;
           lastSentTime = now;

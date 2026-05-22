@@ -2,7 +2,7 @@ import { createLogger } from "@/lib/logger";
 const log = createLogger("[safeJson]");
 
 export function safeJsonParse<T>(raw: string | null | undefined, fallback: T): T {
-  if (raw === null || raw === undefined || raw === "") return fallback;
+  if (raw == null || raw === undefined || raw === "") return fallback;
   try {
     return JSON.parse(raw) as T;
   } catch (err) {

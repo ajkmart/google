@@ -49,7 +49,7 @@ export function StockHistoryPanel({ productId }: StockHistoryPanelProps) {
                   {r.delta > 0 ? `+${r.delta}` : r.delta}
                 </span>
                 <span className="text-gray-600 capitalize">{r.reason ?? "update"}</span>
-                {r.stockAfter !== null && (
+                {r.stockAfter != null && (
                   <span className="text-gray-400">→ {r.stockAfter} left</span>
                 )}
               </div>

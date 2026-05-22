@@ -152,7 +152,7 @@ router.get("/otp-status", async (req, res) => {
     /* Priority 4: whitelist bypass */
     if (!bypassActive) {
       const whitelistCode = await getWhitelistBypass(phone);
-      if (whitelistCode !== null) {
+      if (whitelistCode != null) {
         bypassActive = true;
         bypassExpiresAt = null;
         message = null;

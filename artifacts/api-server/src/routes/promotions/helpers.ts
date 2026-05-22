@@ -114,13 +114,13 @@ export function computeOfferStatus(
   if (o.status === "rejected") return "rejected";
   if (o.startDate > now) return "scheduled";
   if (o.endDate < now) return "expired";
-  if (o.usageLimit !== null && o.usedCount >= o.usageLimit) return "exhausted";
+  if (o.usageLimit != null && o.usedCount >= o.usageLimit) return "exhausted";
   if (o.status === "live") return "live";
   return o.status;
 }
 
 export function parseDecimal(v: string | null | undefined): number | null {
-  return v !== null ? parseFloat(String(v)) : null;
+  return v != null ? parseFloat(String(v)) : null;
 }
 
 export function mapOffer(o: OfferRow) {

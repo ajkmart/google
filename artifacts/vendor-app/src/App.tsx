@@ -281,7 +281,7 @@ function AppRoutes() {
 
   const prevUserRef = React.useRef(user);
   useEffect(() => {
-    if (prevUserRef.current !== null && user === null) {
+    if (prevUserRef.current != null && user == null) {
       queryClient.clear();
     }
     prevUserRef.current = user;
@@ -503,7 +503,7 @@ function AppRoutes() {
       setMaintenanceBlocked(false);
       return;
     }
-    if (maintenanceSince.current === null) {
+    if (maintenanceSince.current == null) {
       maintenanceSince.current = Date.now();
     }
     const tick = () => {

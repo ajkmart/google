@@ -44,7 +44,7 @@ export function parseIntegrationTestResponse(
   raw: unknown,
   defaultMessage: string
 ): IntegrationTestResponse {
-  if (raw === null || typeof raw !== "object") {
+  if (raw == null || typeof raw !== "object") {
     return { ok: true, message: defaultMessage };
   }
   const r = raw as RawTestResponse;
@@ -62,7 +62,7 @@ export function parseIntegrationTestResponse(
     defaultMessage;
 
   let ok: boolean;
-  if (explicitOk !== null) {
+  if (explicitOk != null) {
     ok = explicitOk;
   } else if (errorText) {
     ok = false;

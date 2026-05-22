@@ -431,17 +431,17 @@ router.get("/stats/storage", adminAuth, (_req, res, next) => {
   try {
     const freeGb = getDiskFreeGb();
     const pct = getDiskPct();
-    const totalGb = freeGb !== null && pct !== null && pct > 0 ? freeGb / (1 - pct / 100) : null;
-    const usedGb = totalGb !== null && freeGb !== null ? totalGb - freeGb : null;
-    const status = pct === null ? "unknown" : pct > 90 ? "critical" : pct > 80 ? "warning" : "ok";
+    const totalGb = freeGb != null && pct != null && pct > 0 ? freeGb / (1 - pct / 100) : null;
+    const usedGb = totalGb != null && freeGb != null ? totalGb - freeGb : null;
+    const status = pct == null ? "unknown" : pct > 90 ? "critical" : pct > 80 ? "warning" : "ok";
 
     sendSuccess(res, {
       status,
-      usedGb: usedGb !== null ? Math.round(usedGb * 10) / 10 : null,
-      freeGb: freeGb !== null ? Math.round(freeGb * 10) / 10 : null,
-      totalGb: totalGb !== null ? Math.round(totalGb * 10) / 10 : null,
-      usedMb: usedGb !== null ? Math.round(usedGb * 1024) : null,
-      totalMb: totalGb !== null ? Math.round(totalGb * 1024) : null,
+      usedGb: usedGb != null ? Math.round(usedGb * 10) / 10 : null,
+      freeGb: freeGb != null ? Math.round(freeGb * 10) / 10 : null,
+      totalGb: totalGb != null ? Math.round(totalGb * 10) / 10 : null,
+      usedMb: usedGb != null ? Math.round(usedGb * 1024) : null,
+      totalMb: totalGb != null ? Math.round(totalGb * 1024) : null,
       usedPct: pct,
     });
   } catch (err) {

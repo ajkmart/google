@@ -472,13 +472,13 @@ function RideDetailModal({ rideId, onClose }: { rideId: string; onClose: () => v
             <span className="font-bold">Total Fare</span>
             <span className="text-lg font-extrabold">{formatCurrency(fareBreakdown.total)}</span>
           </div>
-          {ride.offeredFare !== null && (
+          {ride.offeredFare != null && (
             <div className="flex justify-between text-orange-600">
               <span>Customer Offer</span>
               <span className="font-bold">{formatCurrency(ride.offeredFare)}</span>
             </div>
           )}
-          {ride.counterFare !== null && (
+          {ride.counterFare != null && (
             <div className="flex justify-between text-green-600">
               <span>Agreed Fare</span>
               <span className="font-bold">{formatCurrency(ride.counterFare)}</span>
@@ -748,7 +748,7 @@ function RideDetailModal({ rideId, onClose }: { rideId: string; onClose: () => v
                       {log.event.replace(/_/g, " ")}
                     </span>
                     <div className="min-w-0 flex-1">
-                      {log.lat !== null && log.lng !== null ? (
+                      {log.lat != null && log.lng != null ? (
                         <a
                           href={`https://www.google.com/maps?q=${log.lat},${log.lng}`}
                           target="_blank"
@@ -1003,7 +1003,7 @@ function makeRideIcon(color: string) {
 
 function DispatchMap({ rides }: { rides: any[] }) {
   const tile = useDispatchTileConfig();
-  const geoRides = rides.filter((r) => r.pickupLat !== null && r.pickupLng !== null);
+  const geoRides = rides.filter((r) => r.pickupLat != null && r.pickupLng != null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const positions: [number, number][] = geoRides.map((r) => [r.pickupLat, r.pickupLng]);
@@ -2803,7 +2803,7 @@ function FleetAnalyticsTab() {
           <p className="text-foreground text-3xl font-black">
             {isLoading ? (
               <span className="text-muted-foreground animate-pulse text-xl">—</span>
-            ) : data?.avgResponseTimeMin !== null ? (
+            ) : data?.avgResponseTimeMin != null ? (
               `${data.avgResponseTimeMin}m`
             ) : (
               "—"
@@ -3537,7 +3537,7 @@ export default function Rides() {
                             <span className="font-bold">
                               {formatCurrency(r.counterFare ?? r.fare)}
                             </span>
-                            {r.offeredFare !== null && r.offeredFare !== r.fare && (
+                            {r.offeredFare != null && r.offeredFare !== r.fare && (
                               <p className="text-muted-foreground text-[10px]">
                                 Offer: {formatCurrency(r.offeredFare)}
                               </p>

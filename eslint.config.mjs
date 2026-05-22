@@ -96,7 +96,9 @@ export default [
 
       // ── General ───────────────────────────────────────────────────
       "no-console": ["warn", { allow: ["warn", "error"] }],
-      eqeqeq: ["error", "always"],
+      // null:ignore allows `x == null` / `x != null` for nullish checks (matches
+      // both null and undefined). All other comparisons still require ===  / !==.
+      eqeqeq: ["error", "always", { null: "ignore" }],
       "no-var": "error",
       "prefer-const": "error",
     },

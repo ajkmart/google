@@ -43,7 +43,7 @@ router.post("/", async (req, res) => {
       notes,
     } = req.body as Record<string, unknown>;
 
-    if (!name || !city || lat === null || lng === null) {
+    if (!name || !city || lat == null || lng == null) {
       sendValidationError(res, "name, city, lat, lng are required");
       return;
     }
@@ -65,7 +65,7 @@ router.post("/", async (req, res) => {
     const s = await getCachedSettings();
     const defaultRadius = parseFloat(s["geo_default_zone_radius_km"] ?? "30");
     const radiusNum =
-      radiusKm !== null
+      radiusKm != null
         ? parseFloat(String(radiusKm))
         : Number.isFinite(defaultRadius)
           ? defaultRadius
@@ -122,18 +122,18 @@ router.put("/:id", async (req, res) => {
 
     const patch: Record<string, unknown> = { updatedAt: new Date() };
 
-    if (name !== null) patch.name = String(name);
-    if (city !== null) patch.city = String(city);
-    if (isActive !== null) patch.isActive = isActive === true || isActive === "true";
-    if (appliesToRides !== null)
+    if (name != null) patch.name = String(name);
+    if (city != null) patch.city = String(city);
+    if (isActive != null) patch.isActive = isActive === true || isActive === "true";
+    if (appliesToRides != null)
       patch.appliesToRides = appliesToRides === true || appliesToRides === "true";
-    if (appliesToOrders !== null)
+    if (appliesToOrders != null)
       patch.appliesToOrders = appliesToOrders === true || appliesToOrders === "true";
-    if (appliesToParcel !== null)
+    if (appliesToParcel != null)
       patch.appliesToParcel = appliesToParcel === true || appliesToParcel === "true";
-    if (notes !== null) patch.notes = String(notes) || null;
+    if (notes != null) patch.notes = String(notes) || null;
 
-    if (lat !== null) {
+    if (lat != null) {
       const latNum = parseFloat(String(lat));
       if (isNaN(latNum) || latNum < -90 || latNum > 90) {
         sendValidationError(res, "Invalid lat");
@@ -141,7 +141,7 @@ router.put("/:id", async (req, res) => {
       }
       patch.lat = latNum.toFixed(6);
     }
-    if (lng !== null) {
+    if (lng != null) {
       const lngNum = parseFloat(String(lng));
       if (isNaN(lngNum) || lngNum < -180 || lngNum > 180) {
         sendValidationError(res, "Invalid lng");
@@ -149,7 +149,7 @@ router.put("/:id", async (req, res) => {
       }
       patch.lng = lngNum.toFixed(6);
     }
-    if (radiusKm !== null) {
+    if (radiusKm != null) {
       const r = parseFloat(String(radiusKm));
       if (isNaN(r) || r <= 0 || r > 5000) {
         sendValidationError(res, "radius_km must be 1–5000");

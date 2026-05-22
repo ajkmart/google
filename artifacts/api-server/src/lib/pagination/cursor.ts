@@ -74,7 +74,7 @@ export function buildCursorPage<T>({
   const hasMore = data.length > limit;
   const pageData = hasMore ? data.slice(0, limit) : data;
   const lastRow = pageData[pageData.length - 1];
-  const nextCursor = hasMore && lastRow !== null ? encodeCursor(getCursorValue(lastRow)) : null;
+  const nextCursor = hasMore && lastRow != null ? encodeCursor(getCursorValue(lastRow)) : null;
 
   return { data: pageData, nextCursor, hasMore };
 }

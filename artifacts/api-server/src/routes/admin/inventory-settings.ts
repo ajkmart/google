@@ -70,7 +70,7 @@ interface InventorySettings {
 }
 
 function parseIntOrDefault(raw: string | undefined, fallback: number, min: number): number {
-  if (raw === undefined || raw === null || raw === "") return fallback;
+  if (raw === undefined || raw == null || raw === "") return fallback;
   const n = parseInt(raw, 10);
   if (!Number.isFinite(n)) return fallback;
   return Math.max(min, n);

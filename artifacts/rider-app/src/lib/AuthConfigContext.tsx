@@ -109,7 +109,7 @@ export function RiderAuthConfigProvider({ children }: { children: ReactNode }) {
 
 export function useRiderAuthConfig(): AuthConfig {
   const ctx = useContext(AuthConfigContext);
-  if (ctx === null) {
+  if (ctx == null) {
     throw new Error(
       "useRiderAuthConfig must be used within a <RiderAuthConfigProvider>. Ensure the provider wraps this component."
     );

@@ -184,7 +184,7 @@ export default function Reviews() {
       <PageHeader
         title={T("reviews")}
         subtitle={
-          avgRating !== null
+          avgRating != null
             ? `${avgRating.toFixed(1)} ★ · ${total} ${T("reviews")}`
             : T("customerFeedback")
         }
@@ -195,7 +195,7 @@ export default function Reviews() {
           <div className="flex items-start gap-6">
             <div className="flex-shrink-0 text-center">
               <p className="text-5xl font-black text-gray-900">
-                {avgRating !== null ? avgRating.toFixed(1) : "—"}
+                {avgRating != null ? avgRating.toFixed(1) : "—"}
               </p>
               <StarRating value={avgRating ?? 0} size="lg" />
               <p className="mt-1 text-xs text-gray-400">

@@ -211,8 +211,8 @@ router.get("/:id/stream", customerAuth, async (req, res, next) => {
     const cleanup = () => {
       if (cleaned) return;
       cleaned = true;
-      if (heartbeatTimer !== null) clearInterval(heartbeatTimer);
-      if (unsubscribeFn !== null) unsubscribeFn();
+      if (heartbeatTimer != null) clearInterval(heartbeatTimer);
+      if (unsubscribeFn != null) unsubscribeFn();
       const n = _sseCounts.get(rideId) ?? 1;
       if (n <= 1) _sseCounts.delete(rideId);
       else _sseCounts.set(rideId, n - 1);
@@ -477,7 +477,7 @@ router.get("/:id/track", customerAuth, async (req, res, next) => {
               ? parseFloat(ride.pickupLng)
               : null;
 
-        if (destinationLat !== null && destinationLng !== null && avgSpeedKmh > 0) {
+        if (destinationLat != null && destinationLng != null && avgSpeedKmh > 0) {
           try {
             const distKm = calcDistance(riderLat, riderLng, destinationLat, destinationLng);
             etaMinutes = Math.max(1, Math.round((distKm / avgSpeedKmh) * 60));
@@ -545,8 +545,8 @@ router.post(
         rideId,
         riderId,
         event,
-        lat: lat !== null ? String(lat) : null,
-        lng: lng !== null ? String(lng) : null,
+        lat: lat != null ? String(lat) : null,
+        lng: lng != null ? String(lng) : null,
         notes: notes ?? null,
         createdAt: new Date(),
       });
@@ -571,8 +571,8 @@ router.get("/:id/event-logs", adminAuth, async (req, res, next) => {
       rideId: l.rideId,
       riderId: l.riderId,
       event: l.event,
-      lat: l.lat !== null ? parseFloat(String(l.lat)) : null,
-      lng: l.lng !== null ? parseFloat(String(l.lng)) : null,
+      lat: l.lat != null ? parseFloat(String(l.lat)) : null,
+      lng: l.lng != null ? parseFloat(String(l.lng)) : null,
       notes: l.notes,
       createdAt: l.createdAt instanceof Date ? l.createdAt.toISOString() : l.createdAt,
     }));

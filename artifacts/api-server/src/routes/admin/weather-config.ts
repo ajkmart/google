@@ -89,7 +89,7 @@ router.post("/test", async (req, res) => {
       results?: Array<{ latitude: number; longitude: number; name?: string; country?: string }>;
     };
     const place = geo.results?.[0];
-    if (place?.latitude === null || place?.longitude === null) {
+    if (place?.latitude == null || place?.longitude == null) {
       sendValidationError(res, `City "${city}" not found in geocoder`);
       return;
     }

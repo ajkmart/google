@@ -401,8 +401,8 @@ async function processLocationUpdate(opts: {
             orderId: histOrderId,
             coords: { lat, lng: lon },
             heading:
-              opts.heading !== undefined && opts.heading !== null ? String(opts.heading) : null,
-            speed: opts.speed !== undefined && opts.speed !== null ? String(opts.speed) : null,
+              opts.heading !== undefined && opts.heading != null ? String(opts.heading) : null,
+            speed: opts.speed !== undefined && opts.speed != null ? String(opts.speed) : null,
           });
         }
       } catch (err) {
@@ -552,7 +552,7 @@ router.post("/update", gpsAntiSpoofMiddleware, async (req, res, next: NextFuncti
 
     const { latitude, longitude, accuracy, speed, heading, batteryLevel, action, mockProvider } =
       req.body;
-    if (latitude === null || longitude === null) {
+    if (latitude == null || longitude == null) {
       res.status(400).json({ error: "latitude and longitude are required" });
       return;
     }

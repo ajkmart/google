@@ -90,7 +90,7 @@ function NotificationRow({ n }: { n: StockNotification }) {
         </p>
         <div className="mt-0.5 flex items-center gap-2">
           <span className="text-[10px] text-gray-400">{reasonLabel(n.reason)}</span>
-          {n.quantityDelta !== null && n.quantityDelta !== 0 && (
+          {n.quantityDelta != null && n.quantityDelta !== 0 && (
             <span
               className={`text-[10px] font-bold ${n.quantityDelta < 0 ? "text-red-500" : "text-green-600"}`}
             >

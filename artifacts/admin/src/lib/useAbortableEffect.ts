@@ -21,7 +21,7 @@ export function useAbortableEffect(
 export function isAbortError(err: unknown): boolean {
   if (!err) return false;
   if (err instanceof DOMException && err.name === "AbortError") return true;
-  if (typeof err === "object" && err !== null && "name" in err) {
+  if (typeof err === "object" && err != null && "name" in err) {
     return (err as { name?: string }).name === "AbortError";
   }
   return false;

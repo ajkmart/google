@@ -263,7 +263,7 @@ export function AuthProvider({
   const value: AuthContextValue = {
     user,
     isLoading,
-    isAuthenticated: user !== null,
+    isAuthenticated: user != null,
     isInitializing,
     twoFactorPending,
     storageError,

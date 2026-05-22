@@ -199,7 +199,7 @@ interface PlatformSetting {
 
 function parseRoleValue(raw: string | undefined, defaultOn: boolean): Record<Role, boolean> {
   const fallback = { customer: defaultOn, rider: defaultOn, vendor: defaultOn };
-  if (raw === undefined || raw === null || raw === "") return fallback;
+  if (raw === undefined || raw == null || raw === "") return fallback;
   try {
     const parsed = JSON.parse(raw) as Partial<Record<Role, string>>;
     return {

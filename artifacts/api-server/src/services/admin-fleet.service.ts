@@ -205,7 +205,7 @@ export class FleetService {
       ...new Set(
         rides
           .map((r: any) => r.userId)
-          .concat(rides.map((r: any) => r.riderId).filter((id): id is string => id !== null))
+          .concat(rides.map((r: any) => r.riderId).filter((id): id is string => id != null))
       ),
     ];
     const users =

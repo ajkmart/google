@@ -393,7 +393,7 @@ export default function LaunchControl() {
   const differsFromAI = (key: string): boolean => {
     const curr = getSetting(key);
     const rec = getAI(key);
-    return curr !== null && rec !== null && curr !== rec;
+    return curr != null && rec != null && curr !== rec;
   };
 
   /* ── Helpers ── */
@@ -946,7 +946,7 @@ export default function LaunchControl() {
                                     <span className="text-foreground text-sm font-medium">
                                       {label}
                                     </span>
-                                    {rec !== null && <AiBadge differs={differs} />}
+                                    {rec != null && <AiBadge differs={differs} />}
                                   </div>
                                   <p className="text-muted-foreground mt-0.5 text-xs">{desc}</p>
                                   <p className="text-muted-foreground/70 mt-0.5 font-mono text-[10px]">
@@ -954,7 +954,7 @@ export default function LaunchControl() {
                                   </p>
                                 </div>
                                 <div className="flex shrink-0 flex-col items-end gap-1">
-                                  {isToggleable && curr !== null ? (
+                                  {isToggleable && curr != null ? (
                                     <button
                                       onClick={() => toggleFeature(key, curr)}
                                       disabled={isToggling}
@@ -969,7 +969,7 @@ export default function LaunchControl() {
                                     </button>
                                   ) : (
                                     <span className="text-muted-foreground text-[10px] italic">
-                                      {curr === null ? "not seeded" : curr}
+                                      {curr == null ? "not seeded" : curr}
                                     </span>
                                   )}
                                   {rec && curr !== rec && (
@@ -1216,13 +1216,13 @@ export default function LaunchControl() {
                   { label: "Total tracked", value: diffs.length, color: "text-slate-700" },
                   {
                     label: "Aligned with AI",
-                    value: diffs.filter((d) => !d.differsFromAI && d.current !== null).length,
+                    value: diffs.filter((d) => !d.differsFromAI && d.current != null).length,
                     color: "text-green-700",
                   },
                   { label: "Differ from AI", value: diffCount, color: "text-amber-700" },
                   {
                     label: "Not yet set",
-                    value: diffs.filter((d) => d.current === null).length,
+                    value: diffs.filter((d) => d.current == null).length,
                     color: "text-blue-700",
                   },
                 ].map((s) => (

@@ -853,7 +853,7 @@ export const useCategories = () => {
       return list.map((c) => ({
         id: String(c["id"] ?? c.id),
         name: String(c["name"] ?? c.name),
-        icon: (c["icon"] ?? c.icon) !== null ? String(c["icon"] ?? c.icon) : undefined,
+        icon: (c["icon"] ?? c.icon) != null ? String(c["icon"] ?? c.icon) : undefined,
       })) as { id: string; name: string; icon?: string }[];
     },
     staleTime: 5 * 60 * 1000,

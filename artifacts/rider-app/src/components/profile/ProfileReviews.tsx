@@ -5,7 +5,7 @@ import { Star } from "lucide-react";
 import { api } from "../../lib/api";
 
 const _fc = (n: string | number | null | undefined, currencySymbol = "Rs.") =>
-  _sharedFcP(n !== null ? String(n) : (n as null | undefined), currencySymbol);
+  _sharedFcP(n != null ? String(n) : (n as null | undefined), currencySymbol);
 
 interface ProfileReviewsProps {
   language: string;

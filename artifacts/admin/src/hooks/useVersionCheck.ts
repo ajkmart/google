@@ -37,11 +37,11 @@ export function useVersionCheck() {
       if (reloadScheduled.current) return;
 
       const epoch = await fetchServerEpoch();
-      if (epoch === null) return;
+      if (epoch == null) return;
 
       const stored = localStorage.getItem(STORAGE_KEY);
 
-      if (stored === null) {
+      if (stored == null) {
         localStorage.setItem(STORAGE_KEY, String(epoch));
         return;
       }

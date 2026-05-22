@@ -221,7 +221,7 @@ router.post("/auto-apply", customerAuth, async (req: Request, res) => {
 
     for (const offer of candidateOffers) {
       if (offer.code) continue;
-      if (offer.usageLimit !== null && offer.usedCount >= (offer.usageLimit ?? Infinity)) continue;
+      if (offer.usageLimit != null && offer.usedCount >= (offer.usageLimit ?? Infinity)) continue;
 
       const minAmt = parseFloat(String(offer.minOrderAmount ?? "0"));
       if (total < minAmt) continue;
@@ -235,7 +235,7 @@ router.post("/auto-apply", customerAuth, async (req: Request, res) => {
       if (rules.highValueUser && totalSpend < 5000) continue;
 
       const usagePerUser = offer.usagePerUser ? Number(offer.usagePerUser) : null;
-      if (usagePerUser !== null && usagePerUser > 0) {
+      if (usagePerUser != null && usagePerUser > 0) {
         const [redemptionRow] = await db
           .select({ c: count() })
           .from(offerRedemptionsTable)
@@ -348,7 +348,7 @@ router.post("/validate", customerAuth, async (req: Request, res) => {
             errors.push("This code is not active.");
           } else if (promo.expiresAt && now > promo.expiresAt) {
             errors.push("This code has expired.");
-          } else if (promo.usageLimit !== null && promo.usedCount >= promo.usageLimit) {
+          } else if (promo.usageLimit != null && promo.usedCount >= promo.usageLimit) {
             errors.push("This code has reached its usage limit.");
           } else {
             let discount = 0;
@@ -426,7 +426,7 @@ router.post("/validate", customerAuth, async (req: Request, res) => {
         }
       }
 
-      if (rules["minOrders"] !== null && userId) {
+      if (rules["minOrders"] != null && userId) {
         const [orderCount] = await db
           .select({ c: count() })
           .from(ordersTable)

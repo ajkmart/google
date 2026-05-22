@@ -54,7 +54,7 @@ export function createTimingRegistry<T extends Record<string, number>>(
       const next: T = { ...current };
       for (const key of Object.keys(defaults) as Array<keyof T>) {
         const raw = overrides[key];
-        if (raw === undefined || raw === null) continue;
+        if (raw === undefined || raw == null) continue;
         const numeric = typeof raw === "number" ? raw : Number(raw);
         if (Number.isFinite(numeric) && numeric > 0) {
           (next as Record<keyof T, number>)[key] = numeric;

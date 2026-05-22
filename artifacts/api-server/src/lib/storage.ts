@@ -121,7 +121,7 @@ async function saveFallback(buffer: Buffer, key: string): Promise<string> {
 }
 
 export function isS3Enabled(): boolean {
-  return s3Client !== null && resolvedBucketName !== null;
+  return s3Client != null && resolvedBucketName != null;
 }
 
 /**

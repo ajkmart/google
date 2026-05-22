@@ -158,7 +158,7 @@ router.post("/offers", marketingAuth, async (req, res) => {
         })(),
         startDate: new Date(String(body.startDate)),
         endDate: new Date(String(body.endDate)),
-        sortOrder: body.sortOrder !== null ? Number(body.sortOrder) : 0,
+        sortOrder: body.sortOrder != null ? Number(body.sortOrder) : 0,
       })
       .returning();
     sendCreated(res, mapOffer(offer));

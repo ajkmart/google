@@ -324,7 +324,7 @@ router.get("/", async (req, res) => {
       ): Record<string, boolean> | boolean {
         // Setting missing from DB → return the default (so a fresh install
         // doesn't lock everyone out with "No login methods available").
-        if (val === undefined || val === null || val === "") {
+        if (val === undefined || val == null || val === "") {
           const on = fallback === "on";
           return { customer: on, rider: on, vendor: on };
         }

@@ -201,7 +201,7 @@ export function verifyOwnership(resourceType: OwnershipResourceType) {
         }
       }
 
-      if (ownerId === null || ownerId === undefined) {
+      if (ownerId == null || ownerId === undefined) {
         res.status(404).json({ success: false, error: "Resource not found" });
         return;
       }

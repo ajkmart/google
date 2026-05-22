@@ -606,7 +606,7 @@ export function VendorKycModal({ onClose, rejectionReason }: Props) {
             )}
             <button
               type="button"
-              disabled={submitting || photoLoading !== null}
+              disabled={submitting || photoLoading != null}
               onClick={() => {
                 setError("");
                 if (step === 1) {
@@ -626,13 +626,13 @@ export function VendorKycModal({ onClose, rejectionReason }: Props) {
                 borderRadius: 14,
                 border: "none",
                 background:
-                  submitting || photoLoading !== null
+                  submitting || photoLoading != null
                     ? "#fdba74"
                     : "linear-gradient(135deg, #f97316, #ea580c)",
                 color: "#fff",
                 fontWeight: 700,
                 fontSize: 14,
-                cursor: submitting || photoLoading !== null ? "not-allowed" : "pointer",
+                cursor: submitting || photoLoading != null ? "not-allowed" : "pointer",
               }}
             >
               {step === 1

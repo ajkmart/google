@@ -150,7 +150,7 @@ export async function detectAndInvalidateFamily(
     throw new Error("Refresh token record not found");
   }
 
-  if (rt.usedAt !== null) {
+  if (rt.usedAt != null) {
     const familyId = rt.tokenFamilyId;
 
     logger.error(

@@ -593,7 +593,7 @@ export function OrderDetailDrawer({
                 </div>
               </section>
 
-              {selectedOrder.customerLat !== null && selectedOrder.customerLng !== null && (
+              {selectedOrder.customerLat != null && selectedOrder.customerLng != null && (
                 <GpsStampCard order={selectedOrder} />
               )}
 

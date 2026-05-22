@@ -121,7 +121,7 @@ const coordinateSchema = z.number().min(-180).max(180);
 const latitudeSchema = z.number().min(-90).max(90);
 
 export function toNumber(v: unknown): number | undefined {
-  if (v === null || v === undefined || v === "") return undefined;
+  if (v == null || v === undefined || v === "") return undefined;
   const n = Number(v);
   return Number.isNaN(n) ? undefined : n;
 }
@@ -138,7 +138,7 @@ export const bookRideSchema = z.object({
   dropLng: z.preprocess(toNumber, coordinateSchema),
   paymentMethod: z.string().min(1),
   offeredFare: z.preprocess(
-    (v) => (v !== null && v !== "" ? Number(v) : undefined),
+    (v) => (v != null && v !== "" ? Number(v) : undefined),
     z.number().positive().optional()
   ),
   bargainNote: z.string().max(500).transform(stripHtml).optional(),
@@ -631,7 +631,7 @@ export async function calcFare(
     if (!svc) {
       throw new RideApiError(`Unknown ride service type: '${type}'`, "UNKNOWN_SERVICE_TYPE", 422);
     }
-    if (svc.baseFare === null || svc.perKm === null || svc.minFare === null) {
+    if (svc.baseFare == null || svc.perKm == null || svc.minFare == null) {
       throw new RideApiError(
         `Ride service '${type}' is missing fare configuration (baseFare, perKm, or minFare).`,
         "SERVICE_FARE_NOT_CONFIGURED",

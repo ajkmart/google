@@ -355,7 +355,7 @@ export default function Active() {
            to trigger because some chipsets legitimately return accuracy=0 on a
            perfect fix. Server-side spoof detection is the authoritative gate. */
         const isMockGps =
-          pos.coords.accuracy === 0 && pos.coords.speed === 0 && pos.coords.heading === null;
+          pos.coords.accuracy === 0 && pos.coords.speed === 0 && pos.coords.heading == null;
         if (isMockGps) {
           if (isMountedRef.current)
             setGpsWarningWithRef(
@@ -622,7 +622,7 @@ export default function Active() {
       lat?: number;
       lng?: number;
     }) => {
-      const loc = lat !== null && lng !== null ? { lat, lng } : undefined;
+      const loc = lat != null && lng != null ? { lat, lng } : undefined;
       return api.updateRide(id, status, loc);
     },
     onMutate: () => ({ enqueued: false }),
@@ -640,7 +640,7 @@ export default function Active() {
       const looksLikeNetworkErr = /network|fetch|timeout|offline/i.test(e?.message || "");
       if (looksLikeNetworkErr && !context?.enqueued) {
         const loc =
-          vars.lat !== null && vars.lng !== null ? { lat: vars.lat, lng: vars.lng } : undefined;
+          vars.lat != null && vars.lng != null ? { lat: vars.lat, lng: vars.lng } : undefined;
         enqueueAction("update_ride", vars.id, { status: vars.status, ...(loc ?? {}) }).catch(
           (err) => {
             log.error(

@@ -105,7 +105,7 @@ export function listAdminI18nKeys(): string[] {
   const walk = (node: Record<string, unknown>): void => {
     for (const v of Object.values(node)) {
       if (typeof v === "string") out.push(v);
-      else if (typeof v === "object" && v !== null) walk(v as Record<string, unknown>);
+      else if (typeof v === "object" && v != null) walk(v as Record<string, unknown>);
     }
   };
   walk(ADMIN_I18N_KEYS as unknown as Record<string, unknown>);

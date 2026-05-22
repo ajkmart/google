@@ -645,7 +645,7 @@ export function RegisterScreen({
   /* ── Bare mode: caller owns the container ── */
   const isDev =
     typeof import.meta !== "undefined" &&
-    (import.meta as unknown as Record<string, Record<string, unknown>>).env !== null
+    (import.meta as unknown as Record<string, Record<string, unknown>>).env != null
       ? !(import.meta as unknown as Record<string, Record<string, unknown>>).env?.["PROD"]
       : false;
 

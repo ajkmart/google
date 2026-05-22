@@ -432,7 +432,7 @@ router.post(
     /* Validate refund amount — reject invalid/negative instead of silently defaulting */
     const maxRefund = parseFloat(String(order.total));
     const parsedAmount =
-      amount !== undefined && amount !== null && amount !== "" ? parseFloat(String(amount)) : NaN;
+      amount !== undefined && amount != null && amount !== "" ? parseFloat(String(amount)) : NaN;
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       sendValidationError(res, "amount must be a positive number");
       return;

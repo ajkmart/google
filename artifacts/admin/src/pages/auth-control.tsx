@@ -447,7 +447,7 @@ export default function AuthControlPage() {
                   draggable
                   onDragStart={() => setDragIndex(index)}
                   onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => dragIndex !== null && moveChannel(dragIndex, index)}
+                  onDrop={() => dragIndex != null && moveChannel(dragIndex, index)}
                   className="bg-muted/40 flex items-center gap-2 rounded-full border px-3 py-2"
                 >
                   <DragHandle /> {ch.toUpperCase()}

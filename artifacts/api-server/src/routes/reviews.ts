@@ -334,7 +334,7 @@ router.post("/", customerAuth, async (req, res, next) => {
       sendValidationError(res, "rating must be 1–5");
       return;
     }
-    if (riderRating !== undefined && riderRating !== null) {
+    if (riderRating !== undefined && riderRating != null) {
       if (typeof riderRating !== "number" || riderRating < 1 || riderRating > 5) {
         sendValidationError(res, "riderRating must be 1–5");
         return;

@@ -86,12 +86,12 @@ function describe(
       return {
         title: "Admin wallet top-up",
         subtitle:
-          p.amount !== null ? `Rs. ${Number(p.amount).toLocaleString()}` : "Balance credited",
+          p.amount != null ? `Rs. ${Number(p.amount).toLocaleString()}` : "Balance credited",
       };
     case "wallet:deposit-approved":
       return {
         title: "Deposit approved",
-        subtitle: p.amount !== null ? `Rs. ${Number(p.amount).toLocaleString()}` : "Wallet credited",
+        subtitle: p.amount != null ? `Rs. ${Number(p.amount).toLocaleString()}` : "Wallet credited",
       };
     case "product:stock_updated":
       return {

@@ -274,9 +274,9 @@ router.get("/search", async (req, res) => {
     if (type) baseConditions.push(eq(productsTable.type, type));
     if (category) baseConditions.push(eq(productsTable.category, category));
     if (vendorId) baseConditions.push(eq(productsTable.vendorId, vendorId));
-    if (minPrice !== null) baseConditions.push(gte(productsTable.price, String(minPrice)));
-    if (maxPrice !== null) baseConditions.push(lte(productsTable.price, String(maxPrice)));
-    if (minRating !== null) baseConditions.push(gte(productsTable.rating, String(minRating)));
+    if (minPrice != null) baseConditions.push(gte(productsTable.price, String(minPrice)));
+    if (maxPrice != null) baseConditions.push(lte(productsTable.price, String(maxPrice)));
+    if (minRating != null) baseConditions.push(gte(productsTable.rating, String(minRating)));
 
     let conditions: SQL[];
     if (useFullText) {

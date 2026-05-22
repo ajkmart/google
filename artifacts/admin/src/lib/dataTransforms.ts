@@ -6,7 +6,7 @@ import type { ApiPaginated } from "./adminApiTypes";
  * different keys (e.g. `data`, `results`).
  */
 export function normalizePaginated<T>(res: unknown): ApiPaginated<T> {
-  if (res === null || res === undefined || typeof res !== "object") {
+  if (res == null || res === undefined || typeof res !== "object") {
     return { items: [], total: 0 };
   }
 
@@ -59,7 +59,7 @@ export function toFormDefaults<T extends Record<string, unknown>>(
     const raw = (obj as Record<string, unknown>)[key];
     const schemaDefault = schema ? (schema as Record<string, unknown>)[key] : undefined;
 
-    if (raw === null || raw === undefined) {
+    if (raw == null || raw === undefined) {
       if (typeof schemaDefault === "number") {
         result[key] = 0;
       } else if (typeof schemaDefault === "boolean") {
@@ -76,7 +76,7 @@ export function toFormDefaults<T extends Record<string, unknown>>(
     for (const key of Object.keys(obj)) {
       if (!(key in result)) {
         const raw = (obj as Record<string, unknown>)[key];
-        result[key] = raw === null || raw === undefined ? "" : raw;
+        result[key] = raw == null || raw === undefined ? "" : raw;
       }
     }
   }

@@ -52,14 +52,14 @@ export function validatePromo(
     }
   }
 
-  if (typeof promo.maxUsage === "number" && promo.maxUsage !== null) {
+  if (typeof promo.maxUsage === "number" && promo.maxUsage != null) {
     const usageCount = promo.usageCount ?? 0;
     if (usageCount >= promo.maxUsage) {
       return { valid: false, reason: "Promo code usage limit has been reached" };
     }
   }
 
-  if (typeof promo.maxPerUserUsage === "number" && promo.maxPerUserUsage !== null) {
+  if (typeof promo.maxPerUserUsage === "number" && promo.maxPerUserUsage != null) {
     const perUser = promo.perUserUsage ?? 0;
     if (perUser >= promo.maxPerUserUsage) {
       return {

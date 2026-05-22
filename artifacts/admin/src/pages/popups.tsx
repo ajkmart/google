@@ -765,7 +765,7 @@ export default function PopupsPage() {
                               animation: c.animation ?? undefined,
                               templateId: c.templateId ?? undefined,
                               maxTotalImpressions:
-                                c.maxTotalImpressions !== null
+                                c.maxTotalImpressions != null
                                   ? String(c.maxTotalImpressions)
                                   : undefined,
                               targeting: {
@@ -773,19 +773,19 @@ export default function PopupsPage() {
                                 cities: (c.targeting?.cities as string[]) || [],
                                 newUsers: Boolean(c.targeting?.newUsers),
                                 minOrderCount:
-                                  c.targeting?.minOrderCount !== null
+                                  c.targeting?.minOrderCount != null
                                     ? String(c.targeting.minOrderCount)
                                     : "",
                                 maxOrderCount:
-                                  c.targeting?.maxOrderCount !== null
+                                  c.targeting?.maxOrderCount != null
                                     ? String(c.targeting.maxOrderCount)
                                     : "",
                                 minOrderValue:
-                                  c.targeting?.minOrderValue !== null
+                                  c.targeting?.minOrderValue != null
                                     ? String(c.targeting.minOrderValue)
                                     : "",
                                 maxOrderValue:
-                                  c.targeting?.maxOrderValue !== null
+                                  c.targeting?.maxOrderValue != null
                                     ? String(c.targeting.maxOrderValue)
                                     : "",
                               },

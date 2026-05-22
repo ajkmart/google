@@ -262,7 +262,7 @@ export async function verifyRecoveryCode(userId: string, code: string): Promise<
     .from(totpRecoveryCodesTable)
     .where(eq(totpRecoveryCodesTable.userId, userId));
 
-  const unusedCodes = unused.filter((row) => row.usedAt === null);
+  const unusedCodes = unused.filter((row) => row.usedAt == null);
 
   for (const row of unusedCodes) {
     const match = verifyPassword(code.trim(), row.codeHash);

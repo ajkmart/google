@@ -1384,7 +1384,7 @@ router.post(
           .trim()
           .replace(/[^a-z0-9_]/g, "")
           .slice(0, 20);
-        if (cleanUsername !== null && cleanUsername.length >= 3) {
+        if (cleanUsername != null && cleanUsername.length >= 3) {
           const [existingUsername] = await db
             .select({ id: usersTable.id })
             .from(usersTable)

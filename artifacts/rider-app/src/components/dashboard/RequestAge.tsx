@@ -10,7 +10,7 @@ export function RequestAge({ createdAt }: { createdAt: string }) {
     const tick = () => {
       setLabel(timeAgo(createdAt));
       const diffNow = Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000);
-      if (diffNow >= 60 && timerRef.id !== null) {
+      if (diffNow >= 60 && timerRef.id != null) {
         clearInterval(timerRef.id);
         timerRef.id = setInterval(() => setLabel(timeAgo(createdAt)), 10000);
       }

@@ -49,7 +49,7 @@ import { useTheme } from "../lib/useTheme";
 const log = createLogger("[Profile]");
 
 const fc = (n: string | number | null | undefined, currencySymbol = "Rs.") =>
-  _sharedFcP(n !== null ? String(n) : (n as null | undefined), currencySymbol);
+  _sharedFcP(n != null ? String(n) : (n as null | undefined), currencySymbol);
 
 const CITIES_FALLBACK = [
   "Muzaffarabad",
@@ -195,7 +195,7 @@ export default function Profile() {
      form is not currently open for editing — so we never overwrite what the
      rider is actively typing. */
   useEffect(() => {
-    if (editing !== null || !user) return;
+    if (editing != null || !user) return;
     setName(user.name || "");
     setEmail(user.email || "");
     setCnic(user.cnic || "");
@@ -507,7 +507,7 @@ export default function Profile() {
   ];
   /* Explicitly check for non-null AND non-empty-string to avoid false positives from empty string fields */
   const completionFilled = completionFieldMap.filter(
-    (f) => f.val !== null && f.val !== undefined && f.val !== ""
+    (f) => f.val != null && f.val !== undefined && f.val !== ""
   );
   const completionPct = Math.round((completionFilled.length / completionFieldMap.length) * 100);
   const missingCount = completionFieldMap.length - completionFilled.length;

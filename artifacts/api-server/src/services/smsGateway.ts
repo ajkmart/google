@@ -55,7 +55,7 @@ export async function getWhitelistBypass(identifier: string): Promise<string | n
  */
 export async function isWhitelistCode(identifier: string, code: string): Promise<boolean> {
   const bypass = await getWhitelistBypass(identifier);
-  return bypass !== null && bypass === code;
+  return bypass != null && bypass === code;
 }
 
 /* ── Gateway-based OTP send ──────────────────────────────────────────────── */
@@ -149,7 +149,7 @@ export async function sendOtpWithFailover(
 ): Promise<SMSResult> {
   /* Whitelist bypass — no SMS sent */
   const bypass = await getWhitelistBypass(phone);
-  if (bypass !== null) {
+  if (bypass != null) {
     logger.info({ phone }, "[SMS:whitelist] Phone is whitelisted — skipping real SMS");
     return { sent: true, provider: "whitelist" };
   }

@@ -216,7 +216,7 @@ router.patch("/products/:id/approve", async (req, res) => {
     /* Back-in-stock: notify subscribers when previously out-of-stock product is approved */
     if (
       prevProduct &&
-      (!prevProduct.inStock || (prevProduct.stock !== null && prevProduct.stock <= 0))
+      (!prevProduct.inStock || (prevProduct.stock != null && prevProduct.stock <= 0))
     ) {
       try {
         const subs = await db
@@ -668,8 +668,8 @@ router.patch("/products/:id", async (req, res) => {
     /* Back-in-stock: notify subscribers when product becomes available again */
     if (prevProduct) {
       const wasOutOfStock =
-        !prevProduct.inStock || (prevProduct.stock !== null && prevProduct.stock <= 0);
-      const isNowAvailable = product.inStock || (product.stock !== null && product.stock > 0);
+        !prevProduct.inStock || (prevProduct.stock != null && prevProduct.stock <= 0);
+      const isNowAvailable = product.inStock || (product.stock != null && product.stock > 0);
       if (wasOutOfStock && isNowAvailable) {
         try {
           const subs = await db
@@ -708,7 +708,7 @@ router.patch("/products/:id", async (req, res) => {
         if (product.vendorId)
           io.to(`vendor:${product.vendorId}`).emit("product:stock_updated", payload);
         io.to("admin-fleet").emit("product:stock_updated", payload);
-        if (product.stock !== null && product.stock < LOW_STOCK_THRESHOLD) {
+        if (product.stock != null && product.stock < LOW_STOCK_THRESHOLD) {
           io.to("admin-fleet").emit("product:stock_low", {
             ...payload,
             isLow: true,
@@ -779,7 +779,7 @@ function parseTargetRoles(input: unknown): {
   roles: BroadcastRole[];
   error: string | null;
 } {
-  if (input === undefined || input === null || input === "all") return { roles: [], error: null };
+  if (input === undefined || input == null || input === "all") return { roles: [], error: null };
   const list = Array.isArray(input) ? input : [input];
   const cleaned: BroadcastRole[] = [];
   for (const r of list) {
@@ -1347,7 +1347,7 @@ router.get("/flash-deals", async (_req, res) => {
             ? "scheduled"
             : now > d.endTime
               ? "expired"
-              : d.dealStock !== null && d.soldCount >= d.dealStock
+              : d.dealStock != null && d.soldCount >= d.dealStock
                 ? "sold_out"
                 : "live",
       })),
@@ -1470,7 +1470,7 @@ router.get("/promo-codes", async (_req, res) => {
           ? "inactive"
           : c.expiresAt && now > c.expiresAt
             ? "expired"
-            : c.usageLimit !== null && c.usedCount >= c.usageLimit
+            : c.usageLimit != null && c.usedCount >= c.usageLimit
               ? "exhausted"
               : "active",
       })),
@@ -1620,8 +1620,8 @@ router.get("/stock-notifications", adminAuth, async (req, res) => {
         .limit(60);
       const notifications = rows.map((r) => ({
         ...r,
-        isLow: r.newStock !== null && r.newStock < LOW_STOCK_THRESHOLD,
-        isOutOfStock: r.newStock !== null && r.newStock <= 0,
+        isLow: r.newStock != null && r.newStock < LOW_STOCK_THRESHOLD,
+        isOutOfStock: r.newStock != null && r.newStock <= 0,
       }));
       sendSuccess(res, { notifications, total: notifications.length });
     } catch (err: unknown) {

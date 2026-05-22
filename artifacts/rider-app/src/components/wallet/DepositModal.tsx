@@ -39,7 +39,7 @@ export default function DepositModal({
 }) {
   const { symbol: currencySymbol } = useCurrency();
   const fc = (n: string | number | null | undefined) =>
-    _sharedFcD(n !== null ? String(n) : (n as null | undefined), currencySymbol);
+    _sharedFcD(n != null ? String(n) : (n as null | undefined), currencySymbol);
   const [amount, setAmount] = useState("");
   const [selectedMethod, setMethod] = useState<PayMethod | null>(null);
   const [txId, setTxId] = useState("");

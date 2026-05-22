@@ -9,7 +9,7 @@ const SILENCE_KEY = "ajkmart_rider_silence_mode";
 export function getSilenceMode(): boolean {
   if (typeof window === "undefined") return false;
   const stored = localStorage.getItem(SILENCE_KEY);
-  if (stored !== null) silenceMode = stored === "on";
+  if (stored != null) silenceMode = stored === "on";
   return silenceMode;
 }
 

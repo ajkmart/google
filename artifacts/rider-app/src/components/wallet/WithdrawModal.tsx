@@ -79,7 +79,7 @@ export default function WithdrawModal({
   const T = (key: TranslationKey) => tDual(key, language);
   const currency = config.platform.currencySymbol ?? "Rs.";
   const fc = (n: string | number | null | undefined) =>
-    _sharedFcW2(n !== null ? String(n) : (n as null | undefined), currency);
+    _sharedFcW2(n != null ? String(n) : (n as null | undefined), currency);
 
   const [todayWithdrawn, setTodayWithdrawn] = useState(0);
   const [todayWithdrawCount, setTodayWithdrawCount] = useState(0);

@@ -875,7 +875,7 @@ router.delete("/sessions/all", async (req, res, next) => {
     /* Revoke refresh tokens that belong to the revoked sessions only — skip the current session's token */
     const revokedRefreshIds = revokedSessions
       .map((s) => s.refreshTokenId)
-      .filter((id): id is string => id !== null && id !== currentRefreshTokenId);
+      .filter((id): id is string => id != null && id !== currentRefreshTokenId);
 
     if (revokedRefreshIds.length > 0) {
       await db

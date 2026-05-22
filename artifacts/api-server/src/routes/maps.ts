@@ -1105,7 +1105,7 @@ function extractAuthToken(req: Request): string | null {
 function isRequestAuthenticated(req: Request): boolean {
   const token = extractAuthToken(req);
   if (!token) return false;
-  return verifyUserJwt(token) !== null;
+  return verifyUserJwt(token) != null;
 }
 
 /* ── GET /api/maps/config — Serves map provider config to authenticated clients.
@@ -1199,7 +1199,7 @@ router.get("/config", async (req, res, next) => {
         const override = appOverrideKeys[app];
         const provider = resolveAppProvider(override);
         const token =
-          authenticated && (scopedApp === null || scopedApp === app) ? tokenFor(provider) : "";
+          authenticated && (scopedApp == null || scopedApp === app) ? tokenFor(provider) : "";
         result[app] = { provider, token, override };
       }
       return result;

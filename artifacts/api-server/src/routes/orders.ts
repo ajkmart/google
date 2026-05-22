@@ -50,7 +50,7 @@ async function decrementStock(
         SELECT id, stock FROM product_variants WHERE id = ${item.variantId} FOR UPDATE
       `);
       const variantRow = (locked.rows ?? [])[0] as { id: string; stock: number | null } | undefined;
-      if (variantRow && variantRow.stock !== null) {
+      if (variantRow && variantRow.stock != null) {
         if (variantRow.stock < qty) {
           throw Object.assign(
             new Error(
@@ -76,7 +76,7 @@ async function decrementStock(
         | { id: string; stock: number | null; name: string; vendor_id: string }
         | undefined;
 
-      if (row && row.stock !== null) {
+      if (row && row.stock != null) {
         if (row.stock < qty) {
           /* Reject — do NOT silently floor to 0 for order placement */
           throw Object.assign(
@@ -164,7 +164,7 @@ async function broadcastStockUpdates(
       };
       io.to(`vendor:${row.vendorId}`).emit("product:stock_updated", payload);
       io.to("admin-fleet").emit("product:stock_updated", payload);
-      if (row.stock !== null && row.stock < LOW_STOCK_THRESHOLD) {
+      if (row.stock != null && row.stock < LOW_STOCK_THRESHOLD) {
         io.to("admin-fleet").emit("product:stock_low", {
           ...payload,
           isLow: true,
@@ -456,7 +456,7 @@ async function validatePromoCode(
     if (now < offer.startDate || now > offer.endDate) {
       return { valid: false, discount: 0, discountType: null, error: "This offer has expired." };
     }
-    if (offer.usageLimit !== null && offer.usedCount >= offer.usageLimit) {
+    if (offer.usageLimit != null && offer.usedCount >= offer.usageLimit) {
       return {
         valid: false,
         discount: 0,
@@ -533,7 +533,7 @@ async function validatePromoCode(
 
       /* ── Per-user usage limit enforcement (exclude bookmark records) ── */
       const usagePerUser = offer.usagePerUser ? Number(offer.usagePerUser) : null;
-      if (usagePerUser !== null && usagePerUser > 0) {
+      if (usagePerUser != null && usagePerUser > 0) {
         const [redemptionRow] = await db
           .select({ c: count() })
           .from(offerRedemptionsTable)
@@ -605,7 +605,7 @@ async function validatePromoCode(
       discountType: null,
       error: "Yeh promo code expire ho gaya hai.",
     };
-  if (promo.usageLimit !== null && promo.usedCount >= promo.usageLimit)
+  if (promo.usageLimit != null && promo.usedCount >= promo.usageLimit)
     return {
       valid: false,
       discount: 0,
@@ -899,10 +899,10 @@ router.post(
             paymentMethod: payment,
             paymentStatus: payment === "wallet" ? "success" : "pending",
             estimatedTime: estimatedTime ?? "30-45 min",
-            customerLat: customerLat !== null ? String(customerLat) : null,
-            customerLng: customerLng !== null ? String(customerLng) : null,
-            deliveryLat: deliveryLat !== null ? String(deliveryLat) : null,
-            deliveryLng: deliveryLng !== null ? String(deliveryLng) : null,
+            customerLat: customerLat != null ? String(customerLat) : null,
+            customerLng: customerLng != null ? String(customerLng) : null,
+            deliveryLat: deliveryLat != null ? String(deliveryLat) : null,
+            deliveryLng: deliveryLng != null ? String(deliveryLng) : null,
             gpsAccuracy: gpsAccuracy ?? null,
             createdAt: now,
             updatedAt: now,

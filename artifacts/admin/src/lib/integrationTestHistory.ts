@@ -26,7 +26,7 @@ export type IntegrationTestHistory = Record<string, IntegrationTestHistoryEntry>
 function isHistoryEntry(v: unknown): v is IntegrationTestHistoryEntry {
   return (
     typeof v === "object" &&
-    v !== null &&
+    v != null &&
     typeof (v as { ok?: unknown }).ok === "boolean" &&
     typeof (v as { msg?: unknown }).msg === "string" &&
     typeof (v as { at?: unknown }).at === "number"
@@ -38,7 +38,7 @@ export function loadIntegrationTestHistory(): IntegrationTestHistory {
   const raw = safeLocalGet(INTEGRATION_TEST_HISTORY_KEY);
   if (!raw) return {};
   const parsed = safeJsonParse<unknown>(raw, {});
-  if (typeof parsed !== "object" || parsed === null) return {};
+  if (typeof parsed !== "object" || parsed == null) return {};
   const out: IntegrationTestHistory = {};
   for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
     if (isHistoryEntry(v)) out[k] = v;

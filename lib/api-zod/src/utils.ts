@@ -12,7 +12,7 @@
  * from the server string.
  */
 export function formatCurrency(value: string | null | undefined, symbol = "Rs."): string {
-  if (value === null || value === undefined || value === "") return `${symbol} 0`;
+  if (value == null || value === undefined || value === "") return `${symbol} 0`;
   const str = String(value).trim();
   const dotIdx = str.indexOf(".");
   const intPart = dotIdx >= 0 ? str.slice(0, dotIdx) : str;

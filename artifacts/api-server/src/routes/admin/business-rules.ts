@@ -10,7 +10,7 @@ import { addAuditEntry, generateId, getClientIp, type AdminRequest } from "../ad
 const router = Router();
 
 function isJsonObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === "object" && value != null && !Array.isArray(value);
 }
 
 function parseJsonField(value: unknown): unknown {
@@ -52,7 +52,7 @@ function validateBusinessRule(payload: Record<string, unknown>, requireTrigger =
   if (actions !== undefined && !isJsonObject(actions)) {
     errors.push("actions must be a JSON object");
   }
-  if (priority !== undefined && priority !== null) {
+  if (priority !== undefined && priority != null) {
     const numericPriority = Number(priority);
     if (!Number.isInteger(numericPriority) || numericPriority < 0) {
       errors.push("priority must be a non-negative integer");

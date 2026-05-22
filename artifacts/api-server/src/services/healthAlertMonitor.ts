@@ -159,7 +159,7 @@ async function checkPerformanceMetrics(s: Record<string, string>): Promise<Healt
 
   /* ── p95 response time ── */
   const p95 = getP95Ms();
-  if (p95 !== null && p95 > thresholdP95Ms) {
+  if (p95 != null && p95 > thresholdP95Ms) {
     issues.push({
       key: "perf_p95_high",
       level: "error",
@@ -198,7 +198,7 @@ async function checkPerformanceMetrics(s: Record<string, string>): Promise<Healt
 
   /* ── Disk usage ── */
   const diskPct = getDiskPct();
-  if (diskPct !== null && diskPct > thresholdDiskPct) {
+  if (diskPct != null && diskPct > thresholdDiskPct) {
     issues.push({
       key: "perf_disk_high",
       level: "error",

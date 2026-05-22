@@ -183,7 +183,7 @@ function withTimeout(
 
 /** Checks whether a factory AbortController's timer was what triggered abort. */
 function isFactoryTimeout(ctrl: AbortController | null): boolean {
-  return ctrl !== null && ctrl.signal.reason instanceof FetchTimeoutError;
+  return ctrl != null && ctrl.signal.reason instanceof FetchTimeoutError;
 }
 
 // ── Factory ──────────────────────────────────────────────────────────────────

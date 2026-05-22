@@ -11,7 +11,7 @@ export function formatCurrency(
   value: string | number | null | undefined,
   currencySymbol = "Rs."
 ): string {
-  return _sharedFc(value !== null ? String(value) : (value as null | undefined), currencySymbol);
+  return _sharedFc(value != null ? String(value) : (value as null | undefined), currencySymbol);
 }
 
 export function timeAgo(d: string | Date): string {
@@ -27,7 +27,7 @@ export function buildMapsDeepLink(
   lng: number | null | undefined,
   address?: string | null
 ): string {
-  if (lat !== null && lng !== null && Number.isFinite(lat) && Number.isFinite(lng)) {
+  if (lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)) {
     const ua = navigator.userAgent || "";
     if (/iPhone|iPad|iPod/i.test(ua))
       return `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`;

@@ -463,7 +463,7 @@ function AnimatedMarker({
     if (fromLat === toLat && fromLng === toLng) return;
     const DURATION = 1200;
     const start = performance.now();
-    if (animRef.current !== null) cancelAnimationFrame(animRef.current);
+    if (animRef.current != null) cancelAnimationFrame(animRef.current);
     const step = (now: number) => {
       const t = Math.min((now - start) / DURATION, 1);
       const ease = 1 - Math.pow(1 - t, 3);
@@ -477,7 +477,7 @@ function AnimatedMarker({
     };
     animRef.current = requestAnimationFrame(step);
     return () => {
-      if (animRef.current !== null) cancelAnimationFrame(animRef.current);
+      if (animRef.current != null) cancelAnimationFrame(animRef.current);
     };
   }, [position]);
 
@@ -621,7 +621,7 @@ function FleetAnalyticsTab({ mapConfig }: { mapConfig?: MapConfig }) {
             Avg Response Time
           </p>
           <p className="text-foreground text-3xl font-black">
-            {data?.avgResponseTimeMin !== null ? `${data.avgResponseTimeMin}m` : "—"}
+            {data?.avgResponseTimeMin != null ? `${data.avgResponseTimeMin}m` : "—"}
           </p>
           <p className="text-muted-foreground mt-1 text-xs">Ride request to acceptance</p>
         </Card>
@@ -1215,7 +1215,7 @@ export default function LiveRidersMap() {
     (rider: Rider): string => {
       if (rider.name) return rider.name;
       const n = riderNumberMap.get(rider.userId);
-      return n !== null ? `Rider #${n}` : `Rider #?`;
+      return n != null ? `Rider #${n}` : `Rider #?`;
     },
     [riderNumberMap]
   );
@@ -1230,7 +1230,7 @@ export default function LiveRidersMap() {
       const labelText = showLabels
         ? rider.name
           ? rider.name.split(" ")[0]!.slice(0, 10)
-          : riderNumberMap.get(rider.userId) !== null
+          : riderNumberMap.get(rider.userId) != null
             ? `#${riderNumberMap.get(rider.userId)}`
             : undefined
         : undefined;
@@ -1328,7 +1328,7 @@ export default function LiveRidersMap() {
     }
     if (showSOS) {
       for (const sos of sosAlerts) {
-        if (sos.latitude === null || sos.longitude === null) continue;
+        if (sos.latitude == null || sos.longitude == null) continue;
         ms.push({
           id: `sos-${sos.userId}`,
           lat: sos.latitude,
@@ -1418,7 +1418,7 @@ export default function LiveRidersMap() {
     if (selectedSOS?.userId === userId) setSelectedSOS(null);
   };
 
-  const detailPanelOpen = selectedEntity !== null;
+  const detailPanelOpen = selectedEntity != null;
 
   if (activeTab === "analytics") {
     return (
@@ -1721,9 +1721,9 @@ export default function LiveRidersMap() {
                       const status = getRiderStatus(rider);
                       const stale = isGpsStale(rider, offlineAfterSec);
                       const battPct =
-                        rider.batteryLevel !== null ? Math.round(rider.batteryLevel * 100) : null;
+                        rider.batteryLevel != null ? Math.round(rider.batteryLevel * 100) : null;
                       const battColor =
-                        battPct !== null
+                        battPct != null
                           ? battPct > 50
                             ? "#22c55e"
                             : battPct > 20
@@ -1777,7 +1777,7 @@ export default function LiveRidersMap() {
                             >
                               {status === "busy" ? "Busy" : status === "online" ? "Online" : "Off"}
                             </Badge>
-                            {battPct !== null && (
+                            {battPct != null && (
                               <div className="flex items-center gap-0.5">
                                 <div className="h-1.5 w-8 overflow-hidden rounded-full bg-gray-200">
                                   <div
@@ -2153,7 +2153,7 @@ export default function LiveRidersMap() {
 
                     {showSOS &&
                       sosAlerts
-                        .filter((sos) => sos.latitude !== null && sos.longitude !== null)
+                        .filter((sos) => sos.latitude != null && sos.longitude != null)
                         .map((sos) => (
                           <Marker
                             key={`sos-${sos.userId}`}
@@ -2272,11 +2272,11 @@ export default function LiveRidersMap() {
                       const status = getRiderStatus(selectedRider);
                       const stale = isGpsStale(selectedRider, offlineAfterSec);
                       const battPct =
-                        selectedRider.batteryLevel !== null
+                        selectedRider.batteryLevel != null
                           ? Math.round(selectedRider.batteryLevel * 100)
                           : null;
                       const battColor =
-                        battPct !== null
+                        battPct != null
                           ? battPct > 50
                             ? "#22c55e"
                             : battPct > 20
@@ -2376,7 +2376,7 @@ export default function LiveRidersMap() {
                                     </span>
                                   </div>
                                 )}
-                                {battPct !== null && (
+                                {battPct != null && (
                                   <div className="flex items-center justify-between text-xs">
                                     <span className="text-muted-foreground">Battery</span>
                                     <div className="flex items-center gap-1.5">

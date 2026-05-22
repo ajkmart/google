@@ -164,12 +164,12 @@ function DbHealthBadge() {
     <Link href="/health-dashboard">
       <button
         className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors ${badge}`}
-        title={`Neon DB status · latency: ${latMs !== null ? `${latMs}ms` : "—"}`}
+        title={`Neon DB status · latency: ${latMs != null ? `${latMs}ms` : "—"}`}
       >
         <span className={`h-2 w-2 rounded-full ${dot}`} />
         <Database className="h-3.5 w-3.5" />
         {label}
-        {dbOk && latMs !== null && <span className="font-mono opacity-60">{latMs}ms</span>}
+        {dbOk && latMs != null && <span className="font-mono opacity-60">{latMs}ms</span>}
       </button>
     </Link>
   );
@@ -847,7 +847,7 @@ export default function Dashboard() {
               <div
                 className={`group relative flex min-h-[72px] cursor-pointer items-center gap-3 p-4 transition-colors ${pendingProductsCount && pendingProductsCount > 0 ? "bg-violet-50/50 hover:bg-violet-50" : "hover:bg-violet-50"}`}
               >
-                {pendingProductsCount !== null && pendingProductsCount > 0 && (
+                {pendingProductsCount != null && pendingProductsCount > 0 && (
                   <span className="absolute top-2 right-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-violet-600 px-1 text-[10px] leading-none font-black text-white">
                     {pendingProductsCount > 99 ? "99+" : pendingProductsCount}
                   </span>
@@ -864,7 +864,7 @@ export default function Dashboard() {
                     Product Approvals
                   </p>
                   <p className="text-muted-foreground truncate text-xs">
-                    {pendingProductsCount === null
+                    {pendingProductsCount == null
                       ? "Loading…"
                       : pendingProductsCount === 0
                         ? "All reviewed"

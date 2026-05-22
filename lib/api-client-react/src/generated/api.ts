@@ -336,7 +336,7 @@ export const getGetOtpStatusUrl = (params: GetOtpStatusParams) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -2265,7 +2265,7 @@ export const getGetProfileUrl = (params: GetProfileParams) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -2631,7 +2631,7 @@ export const getGetProductsUrl = (params?: GetProductsParams) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -2862,7 +2862,7 @@ export const getGetCategoriesUrl = (params?: GetCategoriesParams) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -2943,7 +2943,7 @@ export const getGetOrdersUrl = (params: GetOrdersParams) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -3256,7 +3256,7 @@ export const getGetWalletUrl = (params: GetWalletParams) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -4914,7 +4914,7 @@ export const getGetNotificationsUrl = (params?: GetNotificationsParams) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -5598,7 +5598,7 @@ export const getGetProductReviewsUrl = (productId: string, params?: GetProductRe
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -6654,7 +6654,7 @@ export const getGetSupportMessagesUrl = (params?: GetSupportMessagesParams) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -6820,7 +6820,7 @@ export const getGetDeliveryEligibilityUrl = (params?: GetDeliveryEligibilityPara
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -7198,7 +7198,7 @@ export const getGetBannersUrl = (params?: GetBannersParams) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -7279,7 +7279,7 @@ export const getGetTrendingProductsUrl = (params?: GetTrendingProductsParams) =>
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -8462,7 +8462,7 @@ export const getGeocodeAddressUrl = (params?: GeocodeAddressParams) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -8545,7 +8545,7 @@ export const getReverseGeocodeCoordinatesUrl = (params: ReverseGeocodeCoordinate
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -9201,7 +9201,7 @@ export const getGetVendorOrdersUrl = (params?: GetVendorOrdersParams) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -9369,7 +9369,7 @@ export const getGetVendorProductsUrl = (params?: GetVendorProductsParams) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -9693,7 +9693,7 @@ export const getGetVendorWalletTransactionsUrl = (params?: GetVendorWalletTransa
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -9862,7 +9862,7 @@ export const getGetVendorAnalyticsUrl = (params?: GetVendorAnalyticsParams) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -11018,7 +11018,7 @@ export const getGetRiderHistoryUrl = (params?: GetRiderHistoryParams) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -11101,7 +11101,7 @@ export const getGetRiderEarningsUrl = (params?: GetRiderEarningsParams) => {
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 
@@ -11184,7 +11184,7 @@ export const getGetRiderWalletTransactionsUrl = (params?: GetRiderWalletTransact
 
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
+      normalizedParams.append(key, value == null ? "null" : value.toString());
     }
   });
 

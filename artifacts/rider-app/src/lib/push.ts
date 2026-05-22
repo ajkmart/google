@@ -201,7 +201,7 @@ async function registerFcmPush(
       PushNotifications.addListener("pushNotificationReceived", (notification) => {
         const raw = notification.data ?? {};
         const validated = validatePushPayload(raw);
-        if (validated === null) return;
+        if (validated == null) return;
         /* Suppress ai_chat notifications while the rider already has the AI
            Help tab open — they can see the reply directly without a banner. */
         if (validated.type === "ai_chat" && _aiTabActive) return;
@@ -220,7 +220,7 @@ async function registerFcmPush(
       PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
         const raw = action.notification?.data ?? {};
         const validated = validatePushPayload(raw);
-        if (validated === null) return;
+        if (validated == null) return;
         onNotificationTap(validated as Record<string, string>);
       })
         .then((h) => cleanups.push(h))

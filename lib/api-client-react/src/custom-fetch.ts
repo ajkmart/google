@@ -161,7 +161,7 @@ function hasNoBody(response: Response, method: string): boolean {
   if (method === "HEAD") return true;
   if (NO_BODY_STATUS.has(response.status)) return true;
   if (response.headers.get("content-length") === "0") return true;
-  if (response.body === null) return true;
+  if (response.body == null) return true;
   return false;
 }
 
@@ -322,7 +322,7 @@ function inferResponseType(response: Response): "json" | "text" | "blob" {
   const mediaType = getMediaType(response.headers);
 
   if (isJsonMediaType(mediaType)) return "json";
-  if (isTextMediaType(mediaType) || mediaType === null) return "text";
+  if (isTextMediaType(mediaType) || mediaType == null) return "text";
   return "blob";
 }
 
@@ -432,7 +432,7 @@ export async function customFetch<T = unknown>(
 
   const method = resolveMethod(input, init.method);
 
-  if (init.body !== null && (method === "GET" || method === "HEAD")) {
+  if (init.body != null && (method === "GET" || method === "HEAD")) {
     throw new TypeError(`customFetch: ${method} requests cannot have a body.`);
   }
 
@@ -514,7 +514,7 @@ export async function customFetch<T = unknown>(
 
     const parsed = await parseSuccessBody(response, responseType, requestInfo);
     if (
-      parsed !== null &&
+      parsed != null &&
       typeof parsed === "object" &&
       "success" in parsed &&
       (parsed as Record<string, unknown>).success === true &&

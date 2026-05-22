@@ -225,11 +225,11 @@ export default function FlashDealsPage() {
       productId: d.productId,
       title: d.title || "",
       badge: d.badge,
-      discountPct: d.discountPct !== null ? String(d.discountPct) : "",
-      discountFlat: d.discountFlat !== null ? String(d.discountFlat) : "",
+      discountPct: d.discountPct != null ? String(d.discountPct) : "",
+      discountFlat: d.discountFlat != null ? String(d.discountFlat) : "",
       startTime: d.startTime.slice(0, 16),
       endTime: d.endTime.slice(0, 16),
-      dealStock: d.dealStock !== null ? String(d.dealStock) : "",
+      dealStock: d.dealStock != null ? String(d.dealStock) : "",
       isActive: d.isActive,
     });
     setDealDialog(true);
@@ -365,7 +365,7 @@ export default function FlashDealsPage() {
                                 minute: "2-digit",
                               })}
                             </span>
-                            {deal.dealStock !== null && (
+                            {deal.dealStock != null && (
                               <span className="text-muted-foreground flex items-center gap-1 text-xs">
                                 <Package className="h-3 w-3" />
                                 {deal.soldCount}/{deal.dealStock} sold
@@ -373,7 +373,7 @@ export default function FlashDealsPage() {
                             )}
                           </div>
                           {/* Stock progress bar */}
-                          {stockPct !== null && (
+                          {stockPct != null && (
                             <div className="bg-muted mt-2 h-1.5 w-40 overflow-hidden rounded-full">
                               <div
                                 className={`h-full rounded-full ${stockPct >= 90 ? "bg-red-500" : stockPct >= 50 ? "bg-amber-500" : "bg-green-500"}`}

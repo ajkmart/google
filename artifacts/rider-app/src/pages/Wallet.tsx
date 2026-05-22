@@ -47,7 +47,7 @@ import DepositModal from "../components/wallet/DepositModal";
 import RemittanceModal from "../components/wallet/RemittanceModal";
 
 const fc = (n: string | number | null | undefined, currencySymbol = "Rs.") =>
-  _sharedFcW(n !== null ? String(n) : (n as null | undefined), currencySymbol);
+  _sharedFcW(n != null ? String(n) : (n as null | undefined), currencySymbol);
 const fd = (d: string | Date, tz?: string) =>
   formatDateTz(
     d,
@@ -507,7 +507,7 @@ export default function Wallet() {
   }, [pages]);
   const balanceFromServer = pages[0]?.balance;
   const balance = balanceFromServer ?? "0";
-  const balanceNum = balanceFromServer !== null ? Number(balanceFromServer) : 0;
+  const balanceNum = balanceFromServer != null ? Number(balanceFromServer) : 0;
   const isBalanceStale = false;
 
   const today = new Date();
@@ -552,7 +552,7 @@ export default function Wallet() {
   const codOrderCount = codData?.codOrderCount ?? 0;
   const codRemittances: WalletTx[] = codData?.remittances ?? [];
   const codPending = codRemittances.filter(
-    (r) => !r.reference || r.reference === "pending" || r.reference === null
+    (r) => !r.reference || r.reference === "pending" || r.reference == null
   );
 
   const filtered = useMemo(() => {

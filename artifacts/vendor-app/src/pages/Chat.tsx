@@ -172,7 +172,7 @@ function ShortcutsModal({
   };
 
   const saveEdit = () => {
-    if (editIdx === null) return;
+    if (editIdx == null) return;
     const trimmed = editText.trim();
     if (!trimmed) {
       setEditIdx(null);
@@ -189,7 +189,7 @@ function ShortcutsModal({
     setOverIdx(idx);
   };
   const handleDrop = (idx: number) => {
-    if (dragIdx === null || dragIdx === idx) {
+    if (dragIdx == null || dragIdx === idx) {
       setDragIdx(null);
       setOverIdx(null);
       return;

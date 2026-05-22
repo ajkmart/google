@@ -172,7 +172,7 @@ router.get("/settings", async (_req, res) => {
     const platformDefault = DEFAULT_PLATFORM_SETTINGS.find((d) => d.key === key)?.value ?? "";
     const recommended = aiOverrides[key] ?? platformDefault;
     const curr = current[key] ?? null;
-    const differsFromAI = curr !== null && curr !== recommended;
+    const differsFromAI = curr != null && curr !== recommended;
     const row = rows.find((r) => r.key === key);
     diffs.push({
       key,

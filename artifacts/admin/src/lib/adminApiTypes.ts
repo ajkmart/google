@@ -311,13 +311,13 @@ export interface AdminKycRecord {
 /* ── Type guards ───────────────────────────────────────────────────── */
 
 export function isApiOk<T>(v: unknown): v is ApiOk<T> {
-  return typeof v === "object" && v !== null && (v as { ok?: unknown }).ok === true;
+  return typeof v === "object" && v != null && (v as { ok?: unknown }).ok === true;
 }
 
 export function isApiErr(v: unknown): v is ApiErr {
   return (
     typeof v === "object" &&
-    v !== null &&
+    v != null &&
     (v as { ok?: unknown }).ok === false &&
     typeof (v as { error?: unknown }).error === "string"
   );
@@ -326,7 +326,7 @@ export function isApiErr(v: unknown): v is ApiErr {
 export function isApiPaginated<T>(v: unknown): v is ApiPaginated<T> {
   return (
     typeof v === "object" &&
-    v !== null &&
+    v != null &&
     Array.isArray((v as { items?: unknown }).items) &&
     typeof (v as { total?: unknown }).total === "number"
   );

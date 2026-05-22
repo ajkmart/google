@@ -240,7 +240,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
   };
 
   useEffect(() => {
-    if (vendorLocData?.latitude !== null && vendorLocData?.longitude !== null) {
+    if (vendorLocData?.latitude != null && vendorLocData?.longitude != null) {
       setVendorLat(vendorLocData.latitude);
       setVendorLng(vendorLocData.longitude);
     } else if (navigator.geolocation) {
@@ -490,7 +490,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
       return api.updateOrder(id, status);
     },
     onSuccess: (result, { id, status }) => {
-      if (result === null) {
+      if (result == null) {
         /* Queued offline — clear pending state and notify user */
         showToast(`📴 Saved offline — will sync when reconnected`);
         return;
@@ -727,7 +727,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
                 const timerRed = minsLeft <= 2 && isPendingTimer;
                 const isOrderPending = pendingOrderIds.has(o.id);
                 const orderDeliveryFee =
-                  o.deliveryFee !== null ? o.deliveryFee : (dlvFeeMap[o.type] ?? dlvFeeMap.mart);
+                  o.deliveryFee != null ? o.deliveryFee : (dlvFeeMap[o.type] ?? dlvFeeMap.mart);
                 /* Cancel window: vendor can only cancel within 5 minutes */
                 const msSincePlacedForCancel = o.createdAt
                   ? Date.now() - new Date(o.createdAt).getTime()
@@ -900,8 +900,8 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
                               {/* Live distance/ETA badge */}
                               {o.riderId &&
                                 riderPositions[o.riderId] &&
-                                vendorLat !== null &&
-                                vendorLng !== null &&
+                                vendorLat != null &&
+                                vendorLng != null &&
                                 (() => {
                                   const rp = riderPositions[o.riderId!]!;
                                   const distKm = haversineKm(rp.lat, rp.lng, vendorLat, vendorLng);
@@ -1129,7 +1129,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
               </div>
 
               {/* Location guidance banner — shown when vendor location is unavailable */}
-              {vendorLat === null && (
+              {vendorLat == null && (
                 <div
                   className={`mx-5 mt-3 flex gap-2.5 rounded-xl p-3 ${locationPermission === "denied" ? "border border-red-200 bg-red-50" : "border border-amber-200 bg-amber-50"}`}
                 >
@@ -1204,7 +1204,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
               {/* Manual rider list */}
               <div className="px-5 py-3">
                 <p className="mb-2 text-xs font-bold tracking-wider text-gray-500 uppercase">
-                  {vendorLat === null ? "All Online Riders" : "Or choose manually"}
+                  {vendorLat == null ? "All Online Riders" : "Or choose manually"}
                 </p>
                 {ridersLoading ? (
                   <div className="space-y-2">
@@ -1239,7 +1239,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
                           <p className="text-xs text-gray-400">{rider.phone}</p>
                         </div>
                         <div className="flex-shrink-0 text-right">
-                          {rider.distanceKm !== null ? (
+                          {rider.distanceKm != null ? (
                             <p className="text-xs font-bold text-indigo-600">
                               {rider.distanceKm.toFixed(1)} km
                             </p>

@@ -111,7 +111,7 @@ export const useOTPBypass = (phone?: string) => {
   const remainingSeconds = effectiveExpiresAt
     ? Math.max(0, Math.ceil((effectiveExpiresAt.getTime() - Date.now()) / 1000))
     : 0;
-  const isExpired = remainingSeconds === 0 && effectiveBypassActive && effectiveExpiresAt !== null;
+  const isExpired = remainingSeconds === 0 && effectiveBypassActive && effectiveExpiresAt != null;
 
   return {
     bypassActive: effectiveBypassActive && !isExpired,

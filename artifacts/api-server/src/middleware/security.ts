@@ -32,7 +32,7 @@ export async function getCachedSettings(): Promise<Record<string, string>> {
     const rows = await db.select().from(platformSettingsTable);
     const map: Record<string, string> = {};
     for (const r of rows) {
-      if (r.value !== null) map[r.key] = r.value;
+      if (r.value != null) map[r.key] = r.value;
     }
     settingsCache = map;
     _settingsCacheTimestamp = now;

@@ -183,7 +183,7 @@ describe("useLoginFlow — return shape", () => {
     expect(typeof result.current.verifyPassword).toBe("function");
     expect(typeof result.current.twoFactorVerify).toBe("function");
     expect(typeof result.current.loading).toBe("boolean");
-    expect(result.current.error === null || typeof result.current.error === "string").toBe(true);
+    expect(result.current.error == null || typeof result.current.error === "string").toBe(true);
   });
 
   it("initial loading is false and error is null", () => {

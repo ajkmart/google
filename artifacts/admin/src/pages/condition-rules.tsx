@@ -105,7 +105,7 @@ function RuleFormModal({ rule, onClose }: { rule?: any; onClose: () => void }) {
   const [cooldownHours, setCooldownHours] = useState(String(rule?.cooldownHours || 24));
 
   const handleSave = () => {
-    if (!name || !metric || threshold === "" || threshold === null) {
+    if (!name || !metric || threshold === "" || threshold == null) {
       toast({ title: "Fill all required fields", variant: "destructive" });
       return;
     }

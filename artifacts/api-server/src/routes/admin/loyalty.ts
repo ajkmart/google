@@ -250,7 +250,7 @@ function _assertRecord(value: unknown, field: string): Record<string, unknown> {
   if (typeof value === "string") {
     try {
       const parsed = JSON.parse(value);
-      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      if (typeof parsed !== "object" || parsed == null || Array.isArray(parsed)) {
         throw new Error();
       }
       return parsed as Record<string, unknown>;
@@ -265,7 +265,7 @@ function _assertRecord(value: unknown, field: string): Record<string, unknown> {
       throw new Error(`${field} must be a valid JSON object`);
     }
   }
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+  if (typeof value !== "object" || value == null || Array.isArray(value)) {
     throw new Error(`${field} must be a valid JSON object`);
   }
   return value as Record<string, unknown>;
@@ -291,7 +291,7 @@ function validateCampaignInput(payload: Record<string, unknown>): string[] {
   }
   if (
     payload.minOrderAmount !== undefined &&
-    payload.minOrderAmount !== null &&
+    payload.minOrderAmount != null &&
     isNaN(Number(payload.minOrderAmount))
   ) {
     errors.push("minOrderAmount must be a valid number");
@@ -317,7 +317,7 @@ function validateRewardInput(payload: Record<string, unknown>): string[] {
   if (payload.rewardValue === undefined || isNaN(Number(payload.rewardValue))) {
     errors.push("rewardValue must be a valid number");
   }
-  if (payload.stock !== undefined && payload.stock !== null && !Number.isInteger(payload.stock)) {
+  if (payload.stock !== undefined && payload.stock != null && !Number.isInteger(payload.stock)) {
     errors.push("stock must be an integer if provided");
   }
   return errors;
@@ -356,7 +356,7 @@ router.post(
         name: String(body.name).trim(),
         description: String(body.description),
         type: "bonus_multiplier",
-        bonusMultiplier: body.pointsReward !== null ? String(Number(body.pointsReward)) : "1.00",
+        bonusMultiplier: body.pointsReward != null ? String(Number(body.pointsReward)) : "1.00",
         startDate: new Date(startDate),
         endDate: new Date(endDate),
         status: body.isActive !== false ? "active" : "inactive",
@@ -417,7 +417,7 @@ router.put(
       .set({
         name: String(body.name).trim(),
         description: String(body.description),
-        bonusMultiplier: body.pointsReward !== null ? String(Number(body.pointsReward)) : "1.00",
+        bonusMultiplier: body.pointsReward != null ? String(Number(body.pointsReward)) : "1.00",
         startDate: new Date(startDate),
         endDate: new Date(endDate),
         status: body.isActive !== false ? "active" : "inactive",
@@ -495,7 +495,7 @@ router.post(
         rewardType: String(body.rewardType).trim(),
         rewardValue: Number(body.rewardValue).toFixed(2),
         isActive: Boolean(body.isActive),
-        stock: body.stock !== undefined && body.stock !== null ? Number(body.stock) : null,
+        stock: body.stock !== undefined && body.stock != null ? Number(body.stock) : null,
       })
       .returning();
 
@@ -550,7 +550,7 @@ router.put(
         rewardType: String(body.rewardType).trim(),
         rewardValue: Number(body.rewardValue).toFixed(2),
         isActive: Boolean(body.isActive),
-        stock: body.stock !== undefined && body.stock !== null ? Number(body.stock) : null,
+        stock: body.stock !== undefined && body.stock != null ? Number(body.stock) : null,
         updatedAt: new Date(),
       })
       .where(eq(loyaltyRewardsTable.id, id))

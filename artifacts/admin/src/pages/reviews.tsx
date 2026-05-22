@@ -1368,7 +1368,7 @@ function VendorRatingsTab() {
                   const rating = parseFloat(v.avgRating ?? "5");
                   const recentRating = v.recentAvg ? parseFloat(v.recentAvg) : null;
                   const trend =
-                    recentRating !== null
+                    recentRating != null
                       ? recentRating > rating + 0.2
                         ? "up"
                         : recentRating < rating - 0.2
@@ -1417,7 +1417,7 @@ function VendorRatingsTab() {
                         </div>
                       </td>
                       <td className="px-3 py-3 text-center">
-                        {recentRating !== null ? (
+                        {recentRating != null ? (
                           <div className="flex items-center justify-center gap-1">
                             <span className="text-xs font-medium">{recentRating.toFixed(1)}</span>
                             {trend === "up" && (

@@ -403,7 +403,7 @@ async function drainQueue(): Promise<void> {
           DRAIN_BACKOFF_MAX_MS
         );
         _warnGps(`batch drain failed (attempt ${_drainRetryCount}) — retry in ${backoffMs}ms`);
-        if (_drainBackoffTimer !== null) clearTimeout(_drainBackoffTimer);
+        if (_drainBackoffTimer != null) clearTimeout(_drainBackoffTimer);
         _drainBackoffTimer = setTimeout(() => {
           _drainBackoffTimer = null;
           void drainQueue();

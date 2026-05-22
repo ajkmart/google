@@ -74,7 +74,7 @@ export default function Products() {
   const saveThreshold = (productId: string, value: number | null) => {
     setProductThresholds((prev) => {
       const next = { ...prev };
-      if (value === null) {
+      if (value == null) {
         delete next[productId];
       } else {
         next[productId] = value;
@@ -255,7 +255,7 @@ export default function Products() {
   }, [products]);
 
   const lowStock = products.filter((p) => {
-    if (p.stock === null || p.stock === undefined || p.stock < 0) return false;
+    if (p.stock == null || p.stock === undefined || p.stock < 0) return false;
     const thresh = p.lowStockThreshold ?? productThresholds[p.id] ?? lowStockThreshold;
     return p.stock <= thresh;
   });
@@ -516,7 +516,7 @@ export default function Products() {
     const valid = bulkRows.filter(
       (r) => r.name.trim() && r.price && !Number.isNaN(Number(r.price)) && Number(r.price) > 0
     );
-    if (totalProductCount === null) {
+    if (totalProductCount == null) {
       showToast("Cannot verify product count — please wait and try again.");
       return;
     }
@@ -582,7 +582,7 @@ export default function Products() {
       const valid = bulkRows.filter(
         (r) => r.name.trim() && r.price && !Number.isNaN(Number(r.price))
       );
-      if (totalProductCount === null)
+      if (totalProductCount == null)
         throw new Error("Cannot verify product count — please wait and try again.");
       if (totalProductCount + valid.length > maxItems) {
         throw new Error(
@@ -712,7 +712,7 @@ export default function Products() {
       <PageHeader
         title={T("products")}
         subtitle={
-          totalProductCount !== null
+          totalProductCount != null
             ? `${totalProductCount}/${maxItems} items used`
             : `—/${maxItems} items`
         }
@@ -735,7 +735,7 @@ export default function Products() {
                 {bulkEditMode ? "✕ Cancel" : "✏️ Bulk Edit"}
               </button>
               <label
-                className={`android-press flex h-9 min-h-0 cursor-pointer items-center justify-center rounded-xl px-3.5 text-xs font-bold ${allDataLoading || totalProductCount === null || totalProductCount >= maxItems ? "pointer-events-none cursor-not-allowed bg-gray-300 text-gray-500" : "bg-white/20 text-white md:bg-green-50 md:text-green-700"}`}
+                className={`android-press flex h-9 min-h-0 cursor-pointer items-center justify-center rounded-xl px-3.5 text-xs font-bold ${allDataLoading || totalProductCount == null || totalProductCount >= maxItems ? "pointer-events-none cursor-not-allowed bg-gray-300 text-gray-500" : "bg-white/20 text-white md:bg-green-50 md:text-green-700"}`}
               >
                 📥 Import CSV
                 <input
@@ -744,7 +744,7 @@ export default function Products() {
                   accept=".csv,text/csv"
                   className="hidden"
                   disabled={
-                    allDataLoading || totalProductCount === null || totalProductCount >= maxItems
+                    allDataLoading || totalProductCount == null || totalProductCount >= maxItems
                   }
                   onChange={(e) => {
                     const file = e.target.files?.[0];
@@ -759,18 +759,18 @@ export default function Products() {
               <button
                 onClick={() => setView("bulk")}
                 disabled={
-                  allDataLoading || totalProductCount === null || totalProductCount >= maxItems
+                  allDataLoading || totalProductCount == null || totalProductCount >= maxItems
                 }
-                className={`android-press h-9 min-h-0 rounded-xl px-3.5 text-xs font-bold ${allDataLoading || totalProductCount === null || totalProductCount >= maxItems ? "cursor-not-allowed bg-gray-300 text-gray-500" : "bg-white/20 text-white md:bg-gray-100 md:text-gray-700"}`}
+                className={`android-press h-9 min-h-0 rounded-xl px-3.5 text-xs font-bold ${allDataLoading || totalProductCount == null || totalProductCount >= maxItems ? "cursor-not-allowed bg-gray-300 text-gray-500" : "bg-white/20 text-white md:bg-gray-100 md:text-gray-700"}`}
               >
                 Bulk Add
               </button>
               <button
                 onClick={() => setShowAdd(true)}
                 disabled={
-                  allDataLoading || totalProductCount === null || totalProductCount >= maxItems
+                  allDataLoading || totalProductCount == null || totalProductCount >= maxItems
                 }
-                className={`android-press h-9 min-h-0 rounded-xl px-3.5 text-sm font-bold ${allDataLoading || totalProductCount === null || totalProductCount >= maxItems ? "cursor-not-allowed bg-gray-300 text-gray-500" : "bg-white text-blue-500 md:bg-blue-600 md:text-white"}`}
+                className={`android-press h-9 min-h-0 rounded-xl px-3.5 text-sm font-bold ${allDataLoading || totalProductCount == null || totalProductCount >= maxItems ? "cursor-not-allowed bg-gray-300 text-gray-500" : "bg-white text-blue-500 md:bg-blue-600 md:text-white"}`}
               >
                 + Add
               </button>
@@ -955,7 +955,7 @@ export default function Products() {
           <div className="space-y-3 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 lg:grid-cols-3">
             {products.map((p) => {
               const pThresh = p.lowStockThreshold ?? productThresholds[p.id] ?? lowStockThreshold;
-              const isLowStock = p.stock !== null && p.stock >= 0 && p.stock <= pThresh;
+              const isLowStock = p.stock != null && p.stock >= 0 && p.stock <= pThresh;
               const isSelected = bulkEditSelected.has(p.id);
               return (
                 <div
@@ -1005,7 +1005,7 @@ export default function Products() {
                               </span>
                             )}
                             {p.unit && <span className="text-[10px] text-gray-400">/{p.unit}</span>}
-                            {p.stock !== null && (
+                            {p.stock != null && (
                               <span
                                 className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${isLowStock ? "bg-red-100 text-red-600" : "bg-green-100 text-green-700"}`}
                               >
@@ -1055,7 +1055,7 @@ export default function Products() {
                         >
                           🗑️
                         </button>
-                        {p.stock !== null && (
+                        {p.stock != null && (
                           <button
                             onClick={() =>
                               setStockHistoryOpen(stockHistoryOpen === p.id ? null : p.id)

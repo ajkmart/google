@@ -60,7 +60,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
      `language` is treated as a default for first-run only; once the rider has
      made a deliberate pick (either via setLanguage or by a previous local
      storage entry), we leave it alone. */
-  const localPickRef = useRef<boolean>(getStoredLanguage() !== null);
+  const localPickRef = useRef<boolean>(getStoredLanguage() != null);
 
   useEffect(() => {
     const local = getStoredLanguage();

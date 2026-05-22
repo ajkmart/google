@@ -47,7 +47,7 @@ export default function RemittanceModal({
   const { user } = useAuth();
   const { symbol: currencySymbol } = useCurrency();
   const fc = (n: string | number | null | undefined) =>
-    _sharedFcR(n !== null ? String(n) : (n as null | undefined), currencySymbol);
+    _sharedFcR(n != null ? String(n) : (n as null | undefined), currencySymbol);
   const [step, setStep] = useState<"method" | "details" | "confirm" | "done">("method");
   const [method, setMethod] = useState<PayMethod | null>(null);
   const [amount, setAmount] = useState(String(Math.ceil(netOwed)));
@@ -106,7 +106,7 @@ export default function RemittanceModal({
       setErr(`Amount kam az kam ${currencySymbol} 1 hona chahiye`);
       return;
     }
-    if (codCollected !== null && amt > codCollected) {
+    if (codCollected != null && amt > codCollected) {
       setErr(`Amount ${fc(amt)} aapke collected COD ${fc(codCollected)} se zyada nahi ho sakta`);
       return;
     }

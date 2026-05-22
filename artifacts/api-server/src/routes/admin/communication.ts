@@ -781,7 +781,7 @@ router.get("/communication/export/:type", async (req, res) => {
         headers
           .map((h) => {
             const val = (r as Record<string, unknown>)[h];
-            if (val === null || val === undefined) return "";
+            if (val == null || val === undefined) return "";
             const str = String(val);
             return str.includes(",") || str.includes('"') || str.includes("\n")
               ? `"${str.replace(/"/g, '""')}"`

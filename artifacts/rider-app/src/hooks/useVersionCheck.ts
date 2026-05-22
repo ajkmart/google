@@ -57,7 +57,7 @@ export function useVersionCheck() {
          reload loops during active sessions.                             */
       if (appVersion) {
         const storedVersion = localStorage.getItem(VERSION_KEY);
-        if (storedVersion === null) {
+        if (storedVersion == null) {
           localStorage.setItem(VERSION_KEY, appVersion);
           log.debug(`initial appVersion stored: ${appVersion}`);
         } else if (storedVersion !== appVersion) {
@@ -80,7 +80,7 @@ export function useVersionCheck() {
       /* ── Epoch-based fallback (non-version deploys) ────────────────── */
       if (typeof epoch !== "number") return;
       const storedEpoch = localStorage.getItem(STORAGE_KEY);
-      if (storedEpoch === null) {
+      if (storedEpoch == null) {
         localStorage.setItem(STORAGE_KEY, String(epoch));
         return;
       }

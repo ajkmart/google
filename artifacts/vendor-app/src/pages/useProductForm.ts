@@ -216,7 +216,7 @@ export function useProductForm({
         showToast(storageMsg ? storageMsg.slice(5) : "📥 Saved offline — will sync when connected");
         return Promise.resolve(null);
       }
-      if (totalProductCount === null)
+      if (totalProductCount == null)
         throw new Error("Cannot verify product count — please wait and try again.");
       if (totalProductCount >= maxItems)
         throw new Error(
@@ -233,7 +233,7 @@ export function useProductForm({
       });
     },
     onSuccess: (result) => {
-      if (result === null) return;
+      if (result == null) return;
       void qc.invalidateQueries({ queryKey: ["vendor-products"] });
       void qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
       setShowAdd(false);
@@ -282,7 +282,7 @@ export function useProductForm({
       });
     },
     onSuccess: (result) => {
-      if (result === null) return;
+      if (result == null) return;
       if (editProd) {
         if (editThreshold !== "") {
           const t = Number(editThreshold);
@@ -333,7 +333,7 @@ export function useProductForm({
       originalPrice: p.originalPrice ? String(p.originalPrice) : "",
       category: p.category || "",
       unit: p.unit || "",
-      stock: p.stock !== null ? String(p.stock) : "",
+      stock: p.stock != null ? String(p.stock) : "",
       image: p.image || "",
       type: p.type || "mart",
       videoUrl: p.videoUrl || "",
@@ -341,9 +341,9 @@ export function useProductForm({
       isHidden: !!p.isHidden,
     });
     setEditThreshold(
-      p.lowStockThreshold !== null
+      p.lowStockThreshold != null
         ? String(p.lowStockThreshold)
-        : productThresholds[p.id] !== null
+        : productThresholds[p.id] != null
           ? String(productThresholds[p.id])
           : ""
     );

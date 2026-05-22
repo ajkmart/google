@@ -227,8 +227,8 @@ export const MiniMap = memo(function MiniMap({
   dropLat?: number | null;
   dropLng?: number | null;
 }) {
-  const hasPick = pickupLat !== null && pickupLng !== null;
-  const hasDrop = dropLat !== null && dropLng !== null;
+  const hasPick = pickupLat != null && pickupLng != null;
+  const hasDrop = dropLat != null && dropLng != null;
   const { tileUrl, attribution } = useMiniMapTileConfig();
   const [fullscreen, setFullscreen] = useState(false);
 

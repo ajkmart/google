@@ -354,7 +354,7 @@ export function stopDispatchEngine() {
 }
 
 export function isDispatchEngineRunning(): boolean {
-  return dispatchInterval !== null;
+  return dispatchInterval != null;
 }
 
 export async function dispatchScheduledRides(): Promise<void> {

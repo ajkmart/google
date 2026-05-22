@@ -227,7 +227,7 @@ function classifyImpact(errorType: ErrorType, severity: string): string {
 
 function metadataDepth(value: unknown, depth = 0): number {
   if (depth > 10) return depth;
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return depth;
+  if (value == null || typeof value !== "object" || Array.isArray(value)) return depth;
   const children = Object.values(value as Record<string, unknown>);
   if (children.length === 0) return depth;
   return Math.max(...children.map((v) => metadataDepth(v, depth + 1)));
@@ -1679,7 +1679,7 @@ function extractFileReferences(stackTrace: string): Array<{ file: string; line: 
   const re = /(?:at\s+\S+\s+\()?([^\s()\n]+\.(ts|tsx|js|mjs)):(\d+)/g;
   let m: RegExpExecArray | null;
   const seen = new Set<string>();
-  while ((m = re.exec(stackTrace)) !== null) {
+  while ((m = re.exec(stackTrace)) != null) {
     const file = m[1]!;
     const line = parseInt(m[3]!, 10);
     const key = `${file}:${line}`;

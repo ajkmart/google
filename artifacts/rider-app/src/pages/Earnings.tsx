@@ -73,7 +73,7 @@ export default function Earnings() {
   const T = (key: Parameters<typeof tDual>[0]) => tDual(key, language);
   const currency = config.platform.currencySymbol ?? "Rs.";
   const formatCurrency = (n: string | number | null | undefined) =>
-    _sharedFcE(n !== null ? String(n) : (n as null | undefined), currency);
+    _sharedFcE(n != null ? String(n) : (n as null | undefined), currency);
   const riderKeepPct = config.rider?.keepPct ?? config.finance.riderEarningPct ?? 80;
   const [period, setPeriod] = useState<Period>("week");
   const qc = useQueryClient();
@@ -105,7 +105,7 @@ export default function Earnings() {
   const adminDailyGoal = config.rider?.dailyGoal ?? 0;
   const personalDailyGoal: number | null = data?.dailyGoal ?? user?.dailyGoal ?? null;
   const dailyGoal = personalDailyGoal ?? adminDailyGoal;
-  const isPersonalGoal = personalDailyGoal !== null && personalDailyGoal !== undefined;
+  const isPersonalGoal = personalDailyGoal != null && personalDailyGoal !== undefined;
 
   const todayPct =
     dailyGoal > 0 ? Math.min(100, Math.round(((data?.today?.earnings || 0) / dailyGoal) * 100)) : 0;

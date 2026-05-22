@@ -140,7 +140,7 @@ router.post("/apply", customerAuth, async (req, res) => {
       return;
     }
 
-    if (referralCode.maxUses !== null && referralCode.usedCount >= referralCode.maxUses) {
+    if (referralCode.maxUses != null && referralCode.usedCount >= referralCode.maxUses) {
       sendError(res, "This referral code has reached its usage limit", 400);
       return;
     }

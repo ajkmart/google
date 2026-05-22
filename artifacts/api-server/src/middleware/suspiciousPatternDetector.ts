@@ -168,7 +168,7 @@ export function suspiciousPatternDetector(req: Request, _res: Response, next: Ne
   /* Increment counter — prefer Redis, fall back to in-memory */
   redisIncrCounter(ip)
     .then(async (redisCount) => {
-      const count = redisCount !== null ? redisCount : fallbackIncrCounter(ip);
+      const count = redisCount != null ? redisCount : fallbackIncrCounter(ip);
 
       const settings = await getCachedSettings();
       const threshold = Math.max(
