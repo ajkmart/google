@@ -157,6 +157,7 @@ ADMIN_SEED_PASSWORD = "Admin@123"
 ENCRYPTION_MASTER_KEY = "PL}4kyr74D>BI>5(,*zS#_$yS-{fm[.?h8%XmdOng<6"
 ERROR_REPORT_HMAC_SECRET = "M7;B_bOKAYKZoktz>)}U]s6PFkt,U?p;w8G5*ITrrMw"
 JWT_SECRET = "rOg5FUY&D5A3!G6Yus#$s$;|DGe[Y3X*PM[8otK=lUC"
+VAPID_PRIVATE_KEY = "QGC5hBbO?uth)8[+<Y,pqNI{+-8<t=XUvFWHZfz!=C%"
 
 [userenv.development]
 
