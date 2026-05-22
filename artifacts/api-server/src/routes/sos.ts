@@ -9,7 +9,7 @@ import { logger } from "../lib/logger.js";
 import { sendError, sendNotFound, sendSuccess } from "../lib/response.js";
 import { emitSosAcknowledged, emitSosNew, emitSosResolved } from "../lib/socketio.js";
 import { customerAuth, getCachedSettings } from "../middleware/security.js";
-import { adminAuth } from "./admin.js";
+import { adminAuth } from "./admin-shared.js";
 
 const router: IRouter = Router();
 
