@@ -3065,7 +3065,7 @@ function FleetAnalyticsTab() {
 export default function Rides() {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
-  const { _toast } = useToast();
+  const { toast: _toast } = useToast();
   const queryClient = useQueryClient();
 
   const [tab, setTab] = useState<Tab>("rides");
@@ -3098,7 +3098,7 @@ export default function Rides() {
     return () => clearTimeout(t);
   }, [riderFilter]);
 
-  const { data, _isLoading, dataUpdatedAt, refetch, isFetching } = useRidesEnriched({
+  const { data, isLoading: _isLoading, dataUpdatedAt, refetch, isFetching } = useRidesEnriched({
     page,
     limit: PAGE_SIZE,
     status: statusFilter,

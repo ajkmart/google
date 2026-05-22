@@ -298,7 +298,7 @@ function ReviewRow({
 /* ── Moderation Queue Modal ── */
 function ModerationModal({
   onClose,
-  _T,
+  T: _T,
 }: {
   onClose: () => void;
   T: (k: TranslationKey) => string;

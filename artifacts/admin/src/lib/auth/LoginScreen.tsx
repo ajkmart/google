@@ -39,7 +39,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const theme = useTheme();
   const [, setLocation] = useLocation();
   const { state, logout } = useAdminAuth();
-  const { _toast } = useToast();
+  const { toast: _toast } = useToast();
   const totpInputRef = useRef<HTMLInputElement>(null);
 
   const [username, setUsername] = useState("");

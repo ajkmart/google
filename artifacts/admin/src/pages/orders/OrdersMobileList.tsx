@@ -26,7 +26,7 @@ export function OrdersMobileList({
   hasActiveFilters,
   clearAll,
   pageSize,
-  _page,
+  page: _page,
   setPage,
   totalPages,
   safePage,

@@ -56,11 +56,11 @@ interface Setting {
 }
 
 export function SystemSection({
-  _localValues = {},
-  _dirtyKeys = new Set<string>(),
-  _handleChange = () => {},
-  _handleToggle = () => {},
-  _settings = [],
+  localValues: _localValues = {},
+  dirtyKeys: _dirtyKeys = new Set<string>(),
+  handleChange: _handleChange = () => {},
+  handleToggle: _handleToggle = () => {},
+  settings: _settings = [],
 }: {
   localValues?: Record<string, string>;
   dirtyKeys?: Set<string>;

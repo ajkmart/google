@@ -56,7 +56,7 @@ interface ProviderPanelProps {
 }
 
 function ProviderPanel({
-  _name,
+  name: _name,
   label,
   color,
   enabledKey,

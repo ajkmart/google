@@ -43,7 +43,7 @@ import { useCallback, useState } from "react";
 function ApplyConditionModal({
   onClose,
   prefillUserId,
-  _prefillRole,
+  prefillRole: _prefillRole,
 }: {
   onClose: () => void;
   prefillUserId?: string;
