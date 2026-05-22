@@ -1,5 +1,6 @@
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
+import importPlugin from "eslint-plugin-import";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
@@ -101,6 +102,23 @@ export default [
       eqeqeq: ["error", "always", { null: "ignore" }],
       "no-var": "error",
       "prefer-const": "error",
+    },
+  },
+  // ─── API Server: import cycle detection ───────────────────────────
+  // Catches circular imports (e.g. sos.ts ↔ admin.ts) at lint time
+  // before they surface as runtime failures or CI errors.
+  {
+    files: ["artifacts/api-server/src/**/*.ts"],
+    plugins: { import: importPlugin },
+    settings: {
+      "import/resolver": {
+        typescript: {
+          project: "artifacts/api-server/tsconfig.json",
+        },
+      },
+    },
+    rules: {
+      "import/no-cycle": "error",
     },
   },
   // ─── React files (admin, vendor-app, rider-app, lib UI packages) ──
