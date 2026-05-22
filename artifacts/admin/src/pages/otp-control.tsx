@@ -371,7 +371,6 @@ export default function OtpControl() {
       setRlIp(perIp);
       setRlWindow(winMin);
     } catch (err) {
-       
       console.warn("[otp-control] Failed to load rate-limit settings:", err);
     }
   }, []);

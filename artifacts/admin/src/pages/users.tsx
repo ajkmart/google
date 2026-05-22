@@ -2064,7 +2064,6 @@ function parseUserDocuments(user: any): {
         }
       }
     } catch (err) {
-       
       console.warn("[parseUserDocuments] JSON parse failed:", err);
     }
   }

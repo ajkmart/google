@@ -6,8 +6,10 @@ export function GpsStampCard({ order }: { order: any }) {
   const cLat = Number(order.customerLat);
   const cLng = Number(order.customerLng);
 
-  const dLat = order.deliveryLat != null && order.deliveryLat !== undefined ? Number(order.deliveryLat) : null;
-  const dLng = order.deliveryLng != null && order.deliveryLng !== undefined ? Number(order.deliveryLng) : null;
+  const dLat =
+    order.deliveryLat != null && order.deliveryLat !== undefined ? Number(order.deliveryLat) : null;
+  const dLng =
+    order.deliveryLng != null && order.deliveryLng !== undefined ? Number(order.deliveryLng) : null;
   const hasDual = dLat != null && dLng != null && Number.isFinite(dLat) && Number.isFinite(dLng);
   const isMismatch = !!order.gpsMismatch;
   const [placeName, setPlaceName] = useState<string | null>(null);

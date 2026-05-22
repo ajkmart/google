@@ -58,7 +58,6 @@ function ReturnPanel({
     setLoadingReqs(false);
   };
 
-   
   useEffect(() => {
     void loadRequests();
   }, [order.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -266,7 +265,6 @@ function DisputePanel({ order }: { order: any }) {
     setLoadingDisp(false);
   };
 
-   
   useEffect(() => {
     void loadDisputes();
   }, [order.id]); // eslint-disable-line react-hooks/exhaustive-deps

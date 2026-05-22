@@ -665,7 +665,6 @@ export default function ErrorMonitor() {
       void queryClient.invalidateQueries({ queryKey: ["error-count"] });
     },
     onError: (err: unknown) => {
-       
       console.error(
         "[error-monitor] updateMutation failed:",
         err instanceof Error ? err.message : err
@@ -689,7 +688,6 @@ export default function ErrorMonitor() {
       void queryClient.invalidateQueries({ queryKey: ["customer-reports-count"] });
     },
     onError: (err: unknown) => {
-       
       console.error(
         "[error-monitor] updateCustomerReportMutation failed:",
         err instanceof Error ? err.message : err
@@ -723,7 +721,6 @@ export default function ErrorMonitor() {
       void queryClient.invalidateQueries({ queryKey: ["error-count"] });
     },
     onError: (err: unknown) => {
-       
       console.error(
         "[error-monitor] resolveMutation failed:",
         err instanceof Error ? err.message : err
@@ -743,7 +740,6 @@ export default function ErrorMonitor() {
       void queryClient.invalidateQueries({ queryKey: ["error-count"] });
     },
     onError: (err: unknown) => {
-       
       console.error(
         "[error-monitor] undoMutation failed:",
         err instanceof Error ? err.message : err
@@ -774,7 +770,6 @@ export default function ErrorMonitor() {
       void refetchAutoSettings();
     },
     onError: (err: unknown) => {
-       
       console.error(
         "[error-monitor] updateAutoSettingsMutation failed:",
         err instanceof Error ? err.message : err
@@ -802,7 +797,6 @@ export default function ErrorMonitor() {
       void refetchAutoLog();
     },
     onError: (err: unknown) => {
-       
       console.error(
         "[error-monitor] runAutoResolveMutation failed:",
         err instanceof Error ? err.message : err
@@ -896,7 +890,7 @@ export default function ErrorMonitor() {
     const now = new Date().toISOString();
     setViewedErrorTimestamps((prev) => {
       const next = { ...prev, [id]: now };
-       
+
       try {
         localStorage.setItem("ajkmart_viewed_errors_ts", JSON.stringify(next));
       } catch (_e) {
@@ -998,7 +992,6 @@ export default function ErrorMonitor() {
       setActiveTab("completed");
       setPage(1);
     } catch (err) {
-       
       console.error(
         "[error-monitor] handleFixAll failed:",
         err instanceof Error ? err.message : err
@@ -4415,7 +4408,6 @@ export default function ErrorMonitor() {
                         ta.select();
                         document.execCommand("copy");
                         document.body.removeChild(ta);
-                         
                       } catch (clipErr) {
                         // eslint-disable-next-line no-console
                         console.debug("[error-monitor] clipboard fallback failed:", clipErr);
@@ -4564,7 +4556,6 @@ export default function ErrorMonitor() {
                           ta.select();
                           document.execCommand("copy");
                           document.body.removeChild(ta);
-                           
                         } catch (clipErr) {
                           // eslint-disable-next-line no-console
                           console.debug("[error-monitor] clipboard fallback failed:", clipErr);

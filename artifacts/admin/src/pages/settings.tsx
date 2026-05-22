@@ -561,7 +561,10 @@ export default function SettingsPage() {
 
   /* Children of the active top-10 group + total settings rendered in this view. */
   const activeChildren = activeCfg.children;
-  const _totalChildSettingsCount = activeChildren.reduce((n, c) => n + (grouped[c]?.length ?? 0), 0);
+  const _totalChildSettingsCount = activeChildren.reduce(
+    (n, c) => n + (grouped[c]?.length ?? 0),
+    0
+  );
 
   /* Renders one legacy sub-section inside the active top-10 group. */
   const renderLegacyChild = (cat: CatKey) => {

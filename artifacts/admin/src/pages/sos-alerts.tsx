@@ -388,7 +388,6 @@ export default function SosAlerts() {
         setActiveCount(typeof data.activeCount === "number" ? data.activeCount : 0);
         setPage(p);
       } catch (err) {
-         
         console.warn("[sos-alerts] Failed to load alerts:", err);
       }
       setLastUpdatedAt(Date.now());

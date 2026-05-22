@@ -690,7 +690,6 @@ function ConversationsTab() {
         setTotal((d.total as number) || 0);
       })
       .catch((err: unknown) => {
-         
         console.error("[communication] conversations fetch failed:", err);
         setListError("Failed to load conversations. Please try again.");
       });
@@ -914,7 +913,6 @@ function CallHistoryTab() {
         setTotal((d.total as number) || 0);
       })
       .catch((err: unknown) => {
-         
         console.error("[communication] calls fetch failed:", err);
         setListError("Failed to load call history. Please try again.");
       });
@@ -1061,7 +1059,6 @@ function AILogsTab() {
         setTotal((d.total as number) || 0);
       })
       .catch((err: unknown) => {
-         
         console.error("[communication] ai-logs fetch failed:", err);
         setListError("Failed to load AI logs. Please try again.");
       });
@@ -1170,7 +1167,7 @@ function FlaggedTab() {
   const load = useCallback(() => {
     adminFetch(`/communication/flags?status=${status}`)
       .then((d: FlagItem[] | { data: FlagItem[] }) => setFlags(Array.isArray(d) ? d : d.data))
-       
+
       .catch((err: unknown) => {
         console.error("[communication] flags fetch failed:", err);
         setFlags([]);
@@ -1675,7 +1672,6 @@ function RoleTemplatesTab() {
     adminFetch("/communication/roles")
       .then((d: RoleItem[] | { data: RoleItem[] }) => setRoles(Array.isArray(d) ? d : d.data))
       .catch((err: unknown) => {
-         
         console.error("[communication] roles fetch failed:", err);
         setListError("Failed to load role templates. Please try again.");
       });
@@ -1856,7 +1852,7 @@ function AjkIdsTab() {
         setUsers((d.data as UserItem[]) || []);
         setTotal((d.total as number) || 0);
       })
-       
+
       .catch((err: unknown) => {
         console.error("[communication] ajk-ids fetch failed:", err);
       });

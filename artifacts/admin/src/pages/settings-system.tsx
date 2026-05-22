@@ -220,7 +220,6 @@ export function SystemSection({
     try {
       await apiFetch(`/snapshots/${id}`, { method: "DELETE" });
     } catch (err) {
-       
       console.warn("[settings-system] Failed to delete undo snapshot:", err);
     }
     setPendingUndos((prev) => prev.filter((u) => u.id !== id));
@@ -277,7 +276,6 @@ export function SystemSection({
       const data = await apiFetch("/demo-backups");
       setDemoBackups(data.data ?? data);
     } catch (err) {
-       
       console.warn("[settings-system] Failed to load demo backups:", err);
     }
     setDemoBackupsLoading(false);
@@ -1479,7 +1477,6 @@ function MaintenanceScheduleSection({
         setMsg(data.scheduledMsg || "");
       })
       .catch((err) => {
-         
         console.error(
           "[settings-system] maintenance-schedule fetch failed:",
           err instanceof Error ? err.message : err
@@ -1662,7 +1659,6 @@ function DataRetentionSection({
         });
       })
       .catch((err) => {
-         
         console.error(
           "[settings-system] retention-policies fetch failed:",
           err instanceof Error ? err.message : err

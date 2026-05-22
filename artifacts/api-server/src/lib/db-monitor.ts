@@ -38,7 +38,7 @@ export function wrapDbWithMonitoring<T extends AnyDb>(db: T): T {
 
       return function (...args: unknown[]) {
         const start = Date.now();
-         
+
         const result = (original as (...a: unknown[]) => unknown).apply(target, args);
 
         if (result instanceof Promise) {

@@ -1,4 +1,3 @@
- 
 import { getAdminTiming } from "./adminTiming";
 
 const SOURCE_APP = "admin";
