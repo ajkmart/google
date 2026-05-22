@@ -349,7 +349,7 @@ router.get("/users", requirePermission("users.view"), async (req, res) => {
         isMpinLocked: !!(u.walletPinLockedUntil && u.walletPinLockedUntil.getTime() > Date.now()),
         hasMpin: !!u.walletPinHash,
         vendorProfile:
-          vendorProfile?.userId != null
+          vendorProfile?.userId !== null
             ? {
                 storeName: vendorProfile.storeName,
                 businessType: vendorProfile.businessType,
@@ -360,7 +360,7 @@ router.get("/users", requirePermission("users.view"), async (req, res) => {
               }
             : null,
         riderProfile:
-          riderProfile?.userId != null
+          riderProfile?.userId !== null
             ? {
                 vehicleType: riderProfile.vehicleType,
                 vehiclePlate: riderProfile.vehiclePlate,
@@ -647,7 +647,7 @@ router.get("/users/pending", requirePermission("users.view"), async (_req, res) 
         createdAt: u.createdAt.toISOString(),
         updatedAt: u.updatedAt.toISOString(),
         vendorProfile:
-          vendorProfile?.userId != null
+          vendorProfile?.userId !== null
             ? {
                 storeName: vendorProfile.storeName,
                 businessType: vendorProfile.businessType,
@@ -658,7 +658,7 @@ router.get("/users/pending", requirePermission("users.view"), async (_req, res) 
               }
             : null,
         riderProfile:
-          riderProfile?.userId != null
+          riderProfile?.userId !== null
             ? {
                 vehicleType: riderProfile.vehicleType,
                 vehiclePlate: riderProfile.vehiclePlate,

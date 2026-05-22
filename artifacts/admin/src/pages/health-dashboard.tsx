@@ -329,7 +329,7 @@ function SystemChecksSection() {
         : "error";
   const apiStatus: CheckStatus = healthLoading
     ? "loading"
-    : apiMs == null
+    : apiMs === null
       ? "error"
       : apiMs < 500
         ? "ok"
@@ -349,13 +349,13 @@ function SystemChecksSection() {
       ? "ok"
       : "not_configured";
 
-  const usersStatus: CheckStatus = usersLoading ? "loading" : activeUsers != null ? "ok" : "error";
-  const socketStatus: CheckStatus = socketLoading ? "loading" : socketData != null ? "ok" : "error";
+  const usersStatus: CheckStatus = usersLoading ? "loading" : activeUsers !== null ? "ok" : "error";
+  const socketStatus: CheckStatus = socketLoading ? "loading" : socketData !== null ? "ok" : "error";
 
   const storagePct = storageData?.usedPct ?? null;
   const storageStatus: CheckStatus = storageLoading
     ? "loading"
-    : storagePct == null
+    : storagePct === null
       ? "not_configured"
       : storagePct > 90
         ? "error"
@@ -366,7 +366,7 @@ function SystemChecksSection() {
   const queuePending = queueData?.pending ?? null;
   const queueStatus: CheckStatus = queueLoading
     ? "loading"
-    : queuePending == null
+    : queuePending === null
       ? "error"
       : queuePending > 500
         ? "warning"
@@ -409,7 +409,7 @@ function SystemChecksSection() {
           label="Database Connection"
           status={dbStatus}
           detail={
-            checks?.database?.latencyMs != null
+            checks?.database?.latencyMs !== null
               ? `${checks.database.latencyMs}ms latency`
               : undefined
           }
@@ -419,7 +419,7 @@ function SystemChecksSection() {
           icon={Gauge}
           label="API Response Time"
           status={apiStatus}
-          detail={apiMs != null ? `${apiMs}ms` : undefined}
+          detail={apiMs !== null ? `${apiMs}ms` : undefined}
           sub="GET /api/health round-trip"
         />
         <CheckCard
@@ -427,7 +427,7 @@ function SystemChecksSection() {
           label="Active Users (Online)"
           status={usersStatus}
           detail={
-            activeUsers != null
+            activeUsers !== null
               ? `${activeUsers.online} online / ${activeUsers.total} total`
               : undefined
           }
@@ -437,7 +437,7 @@ function SystemChecksSection() {
           icon={Radio}
           label="Socket.IO Connections"
           status={socketStatus}
-          detail={socketData != null ? `${socketData.connected} connected` : undefined}
+          detail={socketData !== null ? `${socketData.connected} connected` : undefined}
           sub="Real-time clients"
         />
         <CheckCard
@@ -445,9 +445,9 @@ function SystemChecksSection() {
           label="Storage Usage"
           status={storageStatus}
           detail={
-            storageData?.usedGb != null && storageData.freeGb != null
-              ? `${storageData.usedGb} GB used · ${storageData.freeGb} GB free${storagePct != null ? ` (${storagePct}%)` : ""}`
-              : storagePct != null
+            storageData?.usedGb !== null && storageData.freeGb !== null
+              ? `${storageData.usedGb} GB used · ${storageData.freeGb} GB free${storagePct !== null ? ` (${storagePct}%)` : ""}`
+              : storagePct !== null
                 ? `${storagePct}% used`
                 : undefined
           }
@@ -474,7 +474,7 @@ function SystemChecksSection() {
           icon={Package}
           label="Pending Queue Jobs"
           status={queueStatus}
-          detail={queuePending != null ? `${queuePending} pending notifications` : undefined}
+          detail={queuePending !== null ? `${queuePending} pending notifications` : undefined}
           sub="Unread notification queue"
         />
       </div>
@@ -768,7 +768,7 @@ export default function HealthDashboard() {
                   value={
                     <span className="flex items-center gap-1.5">
                       <Cpu size={13} className="text-slate-500" />
-                      {d?.server?.memoryMb != null ? `${d.server.memoryMb} MB` : "—"}
+                      {d?.server?.memoryMb !== null ? `${d.server.memoryMb} MB` : "—"}
                     </span>
                   }
                 />
@@ -1234,10 +1234,10 @@ function PerformanceSection({ data: d, isLoading }: { data: any; isLoading: bool
                 { label: "p95", value: p95Ms, threshold: thresholds.p95Ms },
                 { label: "p99 (tail)", value: p99Ms },
               ].map(({ label, value, threshold }) => {
-                const isAlert = threshold != null && value != null && value >= threshold;
+                const isAlert = threshold !== null && value !== null && value >= threshold;
                 const isWarning =
-                  threshold != null &&
-                  value != null &&
+                  threshold !== null &&
+                  value !== null &&
                   value >= threshold * 0.8 &&
                   value < threshold;
                 const color = isAlert
@@ -1251,12 +1251,12 @@ function PerformanceSection({ data: d, isLoading }: { data: any; isLoading: bool
                     className={`rounded-lg border p-2 text-center ${isAlert ? "border-red-500/30 bg-red-500/5" : isWarning ? "border-amber-500/30 bg-amber-500/5" : "border-slate-700/50 bg-slate-800/40"}`}
                   >
                     <p
-                      className={`font-mono text-base font-bold ${value == null ? "text-slate-600" : color}`}
+                      className={`font-mono text-base font-bold ${value === null ? "text-slate-600" : color}`}
                     >
-                      {value != null ? `${value}ms` : "—"}
+                      {value !== null ? `${value}ms` : "—"}
                     </p>
                     <p className="mt-0.5 text-[10px] text-slate-500">{label}</p>
-                    {threshold != null && value != null && (
+                    {threshold !== null && value !== null && (
                       <p className="text-[9px] text-slate-700">limit {threshold}ms</p>
                     )}
                   </div>

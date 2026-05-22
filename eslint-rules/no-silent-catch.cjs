@@ -73,6 +73,16 @@ const rule = {
       if (arg.type !== "ArrowFunctionExpression" && arg.type !== "FunctionExpression") {
         return null;
       }
+      // Allow handlers with underscore-prefixed first param (signals intentional silence).
+      // e.g. .catch((_e) => {}) or .catch((_e) => ({}))
+      const firstParam = arg.params && arg.params[0];
+      if (
+        firstParam &&
+        firstParam.type === "Identifier" &&
+        firstParam.name.startsWith("_")
+      ) {
+        return null;
+      }
       if (isEmptyBlock(arg.body)) return "silentCatch";
       if (!allowEmptyObject && isEmptyObjectExpression(arg.body)) return "emptyObjectCatch";
       return null;
@@ -98,10 +108,19 @@ const rule = {
       },
 
       // Catches: try { } catch (e) {} and try { } catch {}
+      // Exemption: catch (_e) {} — underscore prefix signals intentional silence.
       CatchClause(node) {
-        if (isEmptyBlock(node.body)) {
-          context.report({ node, messageId: "emptyCatchClause" });
+        if (!isEmptyBlock(node.body)) return;
+        // Allow catch (_e) / catch (_) / catch (_anything) as intentional silences.
+        const param = node.param;
+        if (
+          param &&
+          param.type === "Identifier" &&
+          param.name.startsWith("_")
+        ) {
+          return;
         }
+        context.report({ node, messageId: "emptyCatchClause" });
       },
     };
   },

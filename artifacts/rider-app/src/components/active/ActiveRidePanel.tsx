@@ -236,7 +236,7 @@ export function ActiveRidePanel({
           <ChatButton name={ride.customerName as string} />
         </div>
 
-        {riderPos && status === "accepted" && ride.pickupLat != null && ride.pickupLng != null && (
+        {riderPos && status === "accepted" && ride.pickupLat !== null && ride.pickupLng !== null && (
           <MapErrorBoundary>
             <TurnByTurnPanel
               fromLat={riderPos.lat}
@@ -251,8 +251,8 @@ export function ActiveRidePanel({
         )}
         {riderPos &&
           (status === "arrived" || status === "in_transit") &&
-          ride.dropLat != null &&
-          ride.dropLng != null && (
+          ride.dropLat !== null &&
+          ride.dropLng !== null && (
             <MapErrorBoundary>
               <TurnByTurnPanel
                 fromLat={riderPos.lat}
@@ -266,10 +266,10 @@ export function ActiveRidePanel({
             </MapErrorBoundary>
           )}
 
-        {ride.pickupLat != null &&
-          ride.pickupLng != null &&
-          ride.dropLat != null &&
-          ride.dropLng != null && (
+        {ride.pickupLat !== null &&
+          ride.pickupLng !== null &&
+          ride.dropLat !== null &&
+          ride.dropLng !== null && (
             <MapErrorBoundary fallbackMsg="Route map unavailable">
               <RideRouteMap
                 pickupLat={ride.pickupLat as number}

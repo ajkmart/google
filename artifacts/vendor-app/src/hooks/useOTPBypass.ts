@@ -34,7 +34,7 @@ export const useOTPBypass = (phone?: string) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let abortController = new AbortController();
+    const abortController = new AbortController();
     const cacheKey = phone ? `otpBypassCache_${phone}` : "authConfigCache";
     const cacheTimeKey = phone ? `otpBypassCacheTime_${phone}` : "authConfigCacheTime";
 

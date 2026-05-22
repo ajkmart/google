@@ -395,7 +395,7 @@ export async function issueTokensForUser(
   req?: Request,
   res?: Response
 ) {
-  if (user.tokenVersion == null) {
+  if (user.tokenVersion === null) {
     throw new Error(
       `[issueTokensForUser] tokenVersion is null for user ${user.id} — DB row may be corrupted`
     );

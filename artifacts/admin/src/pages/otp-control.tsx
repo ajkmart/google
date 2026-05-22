@@ -371,7 +371,7 @@ export default function OtpControl() {
       setRlIp(perIp);
       setRlWindow(winMin);
     } catch (err) {
-      // eslint-disable-next-line no-console
+       
       console.warn("[otp-control] Failed to load rate-limit settings:", err);
     }
   }, []);
@@ -633,7 +633,7 @@ export default function OtpControl() {
         () => setGeneratedOtp((prev) => (prev ? { ...prev, copiedCode: false } : null)),
         2000
       );
-    } catch (_) {
+    } catch (_e) {
       /* ignore */
     }
   };

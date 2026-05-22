@@ -277,7 +277,7 @@ export default function Promos() {
                         )}
                       </p>
                     )}
-                    {promo.usedCount != null && (
+                    {promo.usedCount !== null && (
                       <p className="text-[10px] text-gray-400">
                         Used {promo.usedCount} time{promo.usedCount !== 1 ? "s" : ""}
                       </p>

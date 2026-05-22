@@ -169,7 +169,7 @@ export function LoginScreen({
       const result = await initiateLogin(identifier.trim(), customValues);
       if (result.method === "password") setStep("password");
       else setStep("otp");
-    } catch {
+    } catch (_e) {
       // error is in the hook state
     }
   }
@@ -177,7 +177,7 @@ export function LoginScreen({
   async function handleOtpComplete(otp: string) {
     try {
       await verifyOtp(otp);
-    } catch {
+    } catch (_e) {
       /* handled by hook */
     }
   }
@@ -191,7 +191,7 @@ export function LoginScreen({
     clearError();
     try {
       await verifyPassword(password);
-    } catch {
+    } catch (_e) {
       /* handled by hook */
     }
   }
@@ -199,7 +199,7 @@ export function LoginScreen({
   async function handleTwoFactor(otp: string) {
     try {
       await twoFactorVerify(otp);
-    } catch {
+    } catch (_e) {
       /* handled by hook */
     }
   }
@@ -210,7 +210,7 @@ export function LoginScreen({
     try {
       await onMagicLink?.(identifier.trim());
       setMagicLinkSent(true);
-    } catch {
+    } catch (_e) {
       /* caller handles errors */
     } finally {
       setMagicLinkLoading(false);

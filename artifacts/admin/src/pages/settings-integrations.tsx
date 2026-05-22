@@ -144,7 +144,7 @@ function computeHealth(localValues: Record<string, string>): IntegrationHealth[]
   const smsEnabled = on("integration_sms");
   const smsProvider = v("sms_provider") || "console";
   const smsIsConsole = smsProvider === "console";
-  let smsMissing: string[] = [];
+  const smsMissing: string[] = [];
   if (!smsIsConsole) {
     if (smsProvider === "twilio") {
       if (!v("sms_account_sid")) smsMissing.push("Account SID");

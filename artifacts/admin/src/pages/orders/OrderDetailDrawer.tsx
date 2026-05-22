@@ -58,7 +58,7 @@ function ReturnPanel({
     setLoadingReqs(false);
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => {
     void loadRequests();
   }, [order.id]);
@@ -266,7 +266,7 @@ function DisputePanel({ order }: { order: any }) {
     setLoadingDisp(false);
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => {
     void loadDisputes();
   }, [order.id]);
@@ -593,7 +593,7 @@ export function OrderDetailDrawer({
                 </div>
               </section>
 
-              {selectedOrder.customerLat != null && selectedOrder.customerLng != null && (
+              {selectedOrder.customerLat !== null && selectedOrder.customerLng !== null && (
                 <GpsStampCard order={selectedOrder} />
               )}
 

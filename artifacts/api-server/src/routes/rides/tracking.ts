@@ -545,8 +545,8 @@ router.post(
         rideId,
         riderId,
         event,
-        lat: lat != null ? String(lat) : null,
-        lng: lng != null ? String(lng) : null,
+        lat: lat !== null ? String(lat) : null,
+        lng: lng !== null ? String(lng) : null,
         notes: notes ?? null,
         createdAt: new Date(),
       });
@@ -571,8 +571,8 @@ router.get("/:id/event-logs", adminAuth, async (req, res, next) => {
       rideId: l.rideId,
       riderId: l.riderId,
       event: l.event,
-      lat: l.lat != null ? parseFloat(String(l.lat)) : null,
-      lng: l.lng != null ? parseFloat(String(l.lng)) : null,
+      lat: l.lat !== null ? parseFloat(String(l.lat)) : null,
+      lng: l.lng !== null ? parseFloat(String(l.lng)) : null,
       notes: l.notes,
       createdAt: l.createdAt instanceof Date ? l.createdAt.toISOString() : l.createdAt,
     }));

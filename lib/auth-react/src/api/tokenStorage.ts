@@ -133,14 +133,14 @@ class NativeStorage implements TokenStorage {
     if (cap) {
       try {
         const [accessResult, refreshResult] = await Promise.all([
-          cap.get({ key: ACCESS_TOKEN_KEY }).catch(() => ({ value: null })),
-          cap.get({ key: REFRESH_TOKEN_KEY }).catch(() => ({ value: null })),
+          cap.get({ key: ACCESS_TOKEN_KEY }).catch((_e) => ({ value: null })),
+          cap.get({ key: REFRESH_TOKEN_KEY }).catch((_e) => ({ value: null })),
         ]);
         if (accessResult.value && !this.mem.getAccessToken())
           this.mem.setAccessToken(accessResult.value);
         if (refreshResult.value && !this.mem.getRefreshToken())
           this.mem.setRefreshToken(refreshResult.value);
-      } catch {
+      } catch (_e) {
         // Capacitor Preferences unavailable — fall through to memory
       }
       return;
@@ -150,12 +150,12 @@ class NativeStorage implements TokenStorage {
     if (!ss) return;
     try {
       const [access, refresh] = await Promise.all([
-        ss.getItemAsync(ACCESS_TOKEN_KEY).catch(() => null),
-        ss.getItemAsync(REFRESH_TOKEN_KEY).catch(() => null),
+        ss.getItemAsync(ACCESS_TOKEN_KEY).catch((_e) => null),
+        ss.getItemAsync(REFRESH_TOKEN_KEY).catch((_e) => null),
       ]);
       if (access && !this.mem.getAccessToken()) this.mem.setAccessToken(access);
       if (refresh && !this.mem.getRefreshToken()) this.mem.setRefreshToken(refresh);
-    } catch {
+    } catch (_e) {
       // SecureStore unavailable on this device — memory-only fallback is fine
     }
   }
@@ -168,24 +168,24 @@ class NativeStorage implements TokenStorage {
     this.mem.setAccessToken(token);
     const cap = getCapacitorPreferences();
     if (cap) {
-      cap.set({ key: ACCESS_TOKEN_KEY, value: token }).catch(() => {});
+      cap.set({ key: ACCESS_TOKEN_KEY, value: token }).catch((_e) => {});
       return;
     }
     getSecureStore()
       ?.setItemAsync(ACCESS_TOKEN_KEY, token)
-      .catch(() => {});
+      .catch((_e) => {});
   }
 
   removeAccessToken(): void {
     this.mem.removeAccessToken();
     const cap = getCapacitorPreferences();
     if (cap) {
-      cap.remove({ key: ACCESS_TOKEN_KEY }).catch(() => {});
+      cap.remove({ key: ACCESS_TOKEN_KEY }).catch((_e) => {});
       return;
     }
     getSecureStore()
       ?.deleteItemAsync(ACCESS_TOKEN_KEY)
-      .catch(() => {});
+      .catch((_e) => {});
   }
 
   getRefreshToken(): string | null {
@@ -196,40 +196,40 @@ class NativeStorage implements TokenStorage {
     this.mem.setRefreshToken(token);
     const cap = getCapacitorPreferences();
     if (cap) {
-      cap.set({ key: REFRESH_TOKEN_KEY, value: token }).catch(() => {});
+      cap.set({ key: REFRESH_TOKEN_KEY, value: token }).catch((_e) => {});
       return;
     }
     getSecureStore()
       ?.setItemAsync(REFRESH_TOKEN_KEY, token)
-      .catch(() => {});
+      .catch((_e) => {});
   }
 
   removeRefreshToken(): void {
     this.mem.removeRefreshToken();
     const cap = getCapacitorPreferences();
     if (cap) {
-      cap.remove({ key: REFRESH_TOKEN_KEY }).catch(() => {});
+      cap.remove({ key: REFRESH_TOKEN_KEY }).catch((_e) => {});
       return;
     }
     getSecureStore()
       ?.deleteItemAsync(REFRESH_TOKEN_KEY)
-      .catch(() => {});
+      .catch((_e) => {});
   }
 
   clear(): void {
     this.mem.clear();
     const cap = getCapacitorPreferences();
     if (cap) {
-      cap.remove({ key: ACCESS_TOKEN_KEY }).catch(() => {});
-      cap.remove({ key: REFRESH_TOKEN_KEY }).catch(() => {});
+      cap.remove({ key: ACCESS_TOKEN_KEY }).catch((_e) => {});
+      cap.remove({ key: REFRESH_TOKEN_KEY }).catch((_e) => {});
       return;
     }
     getSecureStore()
       ?.deleteItemAsync(ACCESS_TOKEN_KEY)
-      .catch(() => {});
+      .catch((_e) => {});
     getSecureStore()
       ?.deleteItemAsync(REFRESH_TOKEN_KEY)
-      .catch(() => {});
+      .catch((_e) => {});
   }
 }
 

@@ -680,7 +680,7 @@ router.post("/condition-rules", async (req, res) => {
           threshold: String(threshold),
           conditionType: conditionType as "warning_l1",
           severity: sev as "warning",
-          cooldownHours: cooldownHours != null ? Number(cooldownHours) : 24,
+          cooldownHours: cooldownHours !== null ? Number(cooldownHours) : 24,
           modeApplicability: modeApplicability ?? "default,ai_recommended,custom",
           isActive: isActive ?? true,
         })
@@ -1084,7 +1084,7 @@ export async function evaluateRulesForUser(userId: string) {
 
   for (const rule of rules) {
     const value = await computeUserMetric(userId, rule.metric);
-    if (value == null) {
+    if (value === null) {
       skipped.push({ ruleId: rule.id, ruleName: rule.name, reason: "metric_not_implemented" });
       continue;
     }

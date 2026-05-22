@@ -56,7 +56,7 @@ export const PAGE = "min-h-screen bg-[#0A0F1A]";
 
 /* ── Helpers ── */
 export function fc(n: string | number | null | undefined, currencySymbol = "Rs."): string {
-  return _sharedFcV(n != null ? String(n) : (n as null | undefined), currencySymbol);
+  return _sharedFcV(n !== null ? String(n) : (n as null | undefined), currencySymbol);
 }
 export function fd(d: string | Date): string {
   return new Date(d).toLocaleString("en-PK", {

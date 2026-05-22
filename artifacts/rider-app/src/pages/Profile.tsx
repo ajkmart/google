@@ -49,7 +49,7 @@ import { useTheme } from "../lib/useTheme";
 const log = createLogger("[Profile]");
 
 const fc = (n: string | number | null | undefined, currencySymbol = "Rs.") =>
-  _sharedFcP(n != null ? String(n) : (n as null | undefined), currencySymbol);
+  _sharedFcP(n !== null ? String(n) : (n as null | undefined), currencySymbol);
 
 const CITIES_FALLBACK = [
   "Muzaffarabad",

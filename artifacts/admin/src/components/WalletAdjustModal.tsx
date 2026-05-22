@@ -109,7 +109,7 @@ export function WalletAdjustModal({ mode, subject, onClose }: WalletAdjustModalP
       {
         onSuccess: (d: { newBalance?: number } | undefined) => {
           const desc =
-            d?.newBalance != null ? `New balance: ${formatCurrency(d.newBalance)}` : undefined;
+            d?.newBalance !== null ? `New balance: ${formatCurrency(d.newBalance)}` : undefined;
           toast({ title: actionToastTitle(mode, action), description: desc });
           onClose();
         },

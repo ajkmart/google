@@ -38,7 +38,7 @@ export function wrapDbWithMonitoring<T extends AnyDb>(db: T): T {
 
       return function (...args: unknown[]) {
         const start = Date.now();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         const result = (original as (...a: unknown[]) => unknown).apply(target, args);
 
         if (result instanceof Promise) {

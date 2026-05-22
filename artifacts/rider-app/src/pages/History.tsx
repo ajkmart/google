@@ -51,7 +51,7 @@ function formatDate(d: string | Date, tz?: string) {
 }
 
 function formatCurrency(n: string | number | null | undefined) {
-  return _sharedFcH(n != null ? String(n) : (n as null | undefined));
+  return _sharedFcH(n !== null ? String(n) : (n as null | undefined));
 }
 
 type FilterPeriod = "today" | "week" | "all";
@@ -359,7 +359,7 @@ export default function History() {
                                 </span>
                               </div>
                             )}
-                            {item.fare != null && (
+                            {item.fare !== null && (
                               <div className="flex items-center gap-2">
                                 <span className="w-16 flex-shrink-0 text-[10px] font-bold tracking-wider text-gray-400 uppercase">
                                   Fare
@@ -369,7 +369,7 @@ export default function History() {
                                 </span>
                               </div>
                             )}
-                            {item.distance != null && (
+                            {item.distance !== null && (
                               <div className="flex items-center gap-2">
                                 <span className="w-16 flex-shrink-0 text-[10px] font-bold tracking-wider text-gray-400 uppercase">
                                   Distance
@@ -381,7 +381,7 @@ export default function History() {
                                 </span>
                               </div>
                             )}
-                            {item.duration != null && (
+                            {item.duration !== null && (
                               <div className="flex items-center gap-2">
                                 <span className="w-16 flex-shrink-0 text-[10px] font-bold tracking-wider text-gray-400 uppercase">
                                   Duration

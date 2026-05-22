@@ -37,7 +37,7 @@ function FileUploadBox({
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const busy = optimising || uploading;
-  const pct = uploading && progress != null ? Math.max(0, Math.min(100, progress)) : 0;
+  const pct = uploading && progress !== null ? Math.max(0, Math.min(100, progress)) : 0;
 
   return (
     <div>

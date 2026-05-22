@@ -118,7 +118,7 @@ function WithdrawModal({
       );
       return;
     }
-    if (maxPayout != null && amt > maxPayout) {
+    if (maxPayout !== null && amt > maxPayout) {
       setErr(
         `Zyada se zyada ${fcLocal(maxPayout)} / Maximum single withdrawal is ${fcLocal(maxPayout)}`
       );
@@ -832,7 +832,7 @@ export default function Wallet() {
               <p className="mt-0.5 text-xs leading-relaxed text-amber-700">
                 Earnings are settled every <strong>{settleDays} days</strong> after order
                 completion. Min. withdrawal is <strong>{fc(minPayout, currencySymbol)}</strong>
-                {maxPayout != null ? (
+                {maxPayout !== null ? (
                   <>
                     {" "}
                     · Max. <strong>{fc(maxPayout, currencySymbol)}</strong> per request
@@ -882,7 +882,7 @@ export default function Wallet() {
                 <span>Min. withdrawal</span>
                 <span className="font-bold">{fc(minPayout, currencySymbol)}</span>
               </div>
-              {maxPayout != null && (
+              {maxPayout !== null && (
                 <div className="flex justify-between">
                   <span>Max. per request</span>
                   <span className="font-bold">{fc(maxPayout, currencySymbol)}</span>
@@ -913,7 +913,7 @@ export default function Wallet() {
               <p className="mt-0.5 text-xs leading-relaxed text-blue-600">
                 All withdrawal requests are reviewed by admin. Funds transferred within{" "}
                 {processingText}. Min: {fc(minPayout, currencySymbol)}
-                {maxPayout != null
+                {maxPayout !== null
                   ? ` – Max: ${fc(maxPayout, currencySymbol)} per request`
                   : " · No maximum limit configured"}
                 .

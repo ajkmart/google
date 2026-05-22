@@ -44,7 +44,7 @@ export function parseIntegrationTestResponse(
   raw: unknown,
   defaultMessage: string
 ): IntegrationTestResponse {
-  if (raw == null || typeof raw !== "object") {
+  if (raw === null || typeof raw !== "object") {
     return { ok: true, message: defaultMessage };
   }
   const r = raw as RawTestResponse;

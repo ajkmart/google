@@ -357,7 +357,7 @@ export default function Analytics() {
             },
             {
               label: "Avg Rating",
-              value: customerRatings.avgRating != null ? `${customerRatings.avgRating} ★` : "—",
+              value: customerRatings.avgRating !== null ? `${customerRatings.avgRating} ★` : "—",
               icon: "⭐",
               sub: `${customerRatings.count} review${customerRatings.count !== 1 ? "s" : ""}`,
               bg: "bg-yellow-50",
@@ -365,7 +365,7 @@ export default function Analytics() {
             },
             {
               label: "Cancel Rate",
-              value: cancellationRate != null ? `${cancellationRate}%` : "—",
+              value: cancellationRate !== null ? `${cancellationRate}%` : "—",
               icon: "❌",
               sub: "of all orders",
               bg: "bg-red-50",
@@ -374,7 +374,7 @@ export default function Analytics() {
             {
               label: "Avg Response",
               value:
-                responseTime != null
+                responseTime !== null
                   ? responseTime < 1
                     ? `${Math.round(responseTime * 60)}s`
                     : `${responseTime} min`

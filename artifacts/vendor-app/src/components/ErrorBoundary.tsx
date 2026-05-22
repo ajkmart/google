@@ -45,7 +45,7 @@ export class ErrorBoundary extends Component<Props, State> {
       if (typeof fallback === "function") {
         return (fallback as FallbackFn)(this.reset, this.state.error);
       }
-      if (fallback != null) return fallback;
+      if (fallback !== null) return fallback;
       return (
         <div
           role="alert"

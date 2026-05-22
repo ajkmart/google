@@ -247,7 +247,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         } else if (status === 429) {
           title = "Rate Limited";
           description = "Too many requests. Please wait a moment before trying again.";
-        } else if (status != null && status >= 500) {
+        } else if (status !== null && status >= 500) {
           title = "Server Error";
           description = "The server encountered an error. Please try again later.";
         } else if (!navigator.onLine) {

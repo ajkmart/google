@@ -145,7 +145,7 @@ export class UserService {
       if (!strengthCheck.ok) {
         throw new Error(`Weak password: ${strengthCheck.message}`);
       }
-      passwordHash = await hashPassword(input.tempPassword);
+      passwordHash = hashPassword(input.tempPassword);
     }
 
     const userId = generateId();
@@ -385,7 +385,7 @@ export class UserService {
       throw new Error("Admin secret must be at least 8 characters");
     }
 
-    const passwordHash = await hashPassword(input.secret);
+    const passwordHash = hashPassword(input.secret);
 
     const adminId = generateId();
 

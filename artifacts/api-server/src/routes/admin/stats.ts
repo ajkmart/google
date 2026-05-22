@@ -80,7 +80,7 @@ async function getProcessCounts(): Promise<{
       vite: lines.filter((l) => l.includes("vite")).length,
       expo: lines.filter((l) => l.includes("expo") || l.includes("metro")).length,
     };
-  } catch {
+  } catch (_e) {
     return { nodeTotal: 0, tsx: 0, vite: 0, expo: 0 };
   }
 }
@@ -102,7 +102,7 @@ router.get("/system/health-dashboard", adminAuth, async (_req, res, next) => {
       await db.execute(sql`SELECT 1`);
       const t1 = Date.now();
       dbQueryMs = t1 - t0;
-    } catch {
+    } catch (_e) {
       dbStatus = "error";
       issues.push({ level: "error", message: "Database connection failed", code: "DB_DOWN" });
     }
@@ -189,7 +189,7 @@ router.get("/system/health-dashboard", adminAuth, async (_req, res, next) => {
       try {
         const parsed = JSON.parse(rawPatterns) as unknown[];
         customPatternsCount = Array.isArray(parsed) ? parsed.length : 0;
-      } catch {
+      } catch (_e) {
         customPatternsValid = false;
         issues.push({
           level: "warning",
@@ -282,7 +282,7 @@ router.get("/system/health-dashboard", adminAuth, async (_req, res, next) => {
             Math.ceil((lockoutMin * 60 * 1000 - (now - (r.firstAt?.getTime() ?? now))) / 60000)
           ),
         }));
-      } catch {
+      } catch (_e) {
         /* non-fatal */
       }
     }
@@ -431,17 +431,17 @@ router.get("/stats/storage", adminAuth, (_req, res, next) => {
   try {
     const freeGb = getDiskFreeGb();
     const pct = getDiskPct();
-    const totalGb = freeGb != null && pct != null && pct > 0 ? freeGb / (1 - pct / 100) : null;
-    const usedGb = totalGb != null && freeGb != null ? totalGb - freeGb : null;
-    const status = pct == null ? "unknown" : pct > 90 ? "critical" : pct > 80 ? "warning" : "ok";
+    const totalGb = freeGb !== null && pct !== null && pct > 0 ? freeGb / (1 - pct / 100) : null;
+    const usedGb = totalGb !== null && freeGb !== null ? totalGb - freeGb : null;
+    const status = pct === null ? "unknown" : pct > 90 ? "critical" : pct > 80 ? "warning" : "ok";
 
     sendSuccess(res, {
       status,
-      usedGb: usedGb != null ? Math.round(usedGb * 10) / 10 : null,
-      freeGb: freeGb != null ? Math.round(freeGb * 10) / 10 : null,
-      totalGb: totalGb != null ? Math.round(totalGb * 10) / 10 : null,
-      usedMb: usedGb != null ? Math.round(usedGb * 1024) : null,
-      totalMb: totalGb != null ? Math.round(totalGb * 1024) : null,
+      usedGb: usedGb !== null ? Math.round(usedGb * 10) / 10 : null,
+      freeGb: freeGb !== null ? Math.round(freeGb * 10) / 10 : null,
+      totalGb: totalGb !== null ? Math.round(totalGb * 10) / 10 : null,
+      usedMb: usedGb !== null ? Math.round(usedGb * 1024) : null,
+      totalMb: totalGb !== null ? Math.round(totalGb * 1024) : null,
       usedPct: pct,
     });
   } catch (err) {
@@ -474,7 +474,7 @@ router.get("/stats/performance", adminAuth, async (_req, res, next) => {
       const t0 = Date.now();
       await db.execute(sql`SELECT 1`);
       dbQueryMs = Date.now() - t0;
-    } catch {
+    } catch (_e) {
       dbQueryMs = null;
     }
 

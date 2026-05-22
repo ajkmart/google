@@ -224,14 +224,14 @@ export default function OverviewAnalytics() {
               <StatCard
                 icon={TrendingUp}
                 label="Total Revenue"
-                value={totalRevenue != null ? formatCurrency(totalRevenue) : "—"}
+                value={totalRevenue !== null ? formatCurrency(totalRevenue) : "—"}
                 iconBg="bg-green-100"
                 iconColor="text-green-600"
               />
               <StatCard
                 icon={Bike}
                 label="Active Riders"
-                value={activeRiders != null ? activeRiders.toLocaleString() : "—"}
+                value={activeRiders !== null ? activeRiders.toLocaleString() : "—"}
                 iconBg="bg-purple-100"
                 iconColor="text-purple-600"
               />

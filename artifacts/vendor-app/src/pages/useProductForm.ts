@@ -333,7 +333,7 @@ export function useProductForm({
       originalPrice: p.originalPrice ? String(p.originalPrice) : "",
       category: p.category || "",
       unit: p.unit || "",
-      stock: p.stock != null ? String(p.stock) : "",
+      stock: p.stock !== null ? String(p.stock) : "",
       image: p.image || "",
       type: p.type || "mart",
       videoUrl: p.videoUrl || "",
@@ -341,9 +341,9 @@ export function useProductForm({
       isHidden: !!p.isHidden,
     });
     setEditThreshold(
-      p.lowStockThreshold != null
+      p.lowStockThreshold !== null
         ? String(p.lowStockThreshold)
-        : productThresholds[p.id] != null
+        : productThresholds[p.id] !== null
           ? String(productThresholds[p.id])
           : ""
     );

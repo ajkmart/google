@@ -77,24 +77,24 @@ export const RideRequestCard = memo(function RideRequestCard({
   const acceptTimeoutSec =
     config.rides.acceptTimeoutSec ?? config.dispatch?.broadcastTimeoutSec ?? ACCEPT_TIMEOUT_SEC;
 
-  const isBargain = r.status === "bargaining" && r.offeredFare != null;
+  const isBargain = r.status === "bargaining" && r.offeredFare !== null;
   const isDispatched = r.dispatchedRiderId === userId;
   const offeredFare = r.offeredFare ?? r.fare;
   const effectiveFare = isBargain ? offeredFare : r.fare;
   const rideExpired = (Date.now() - new Date(r.createdAt).getTime()) / 1000 >= acceptTimeoutSec;
 
   const riderEarningPct = config.finance.riderEarningPct ?? PRICING_DEFAULTS.defaultRiderEarningPct;
-  const earnings = effectiveFare != null ? Number(effectiveFare) * (riderEarningPct / 100) : null;
+  const earnings = effectiveFare !== null ? Number(effectiveFare) * (riderEarningPct / 100) : null;
 
   const svcName = SVC_NAMES[r.type ?? ""] ?? r.type?.replace(/_/g, " ") ?? "Ride";
-  const rideDistKm = r.distance != null ? parseFloat(String(r.distance)) : null;
+  const rideDistKm = r.distance !== null ? parseFloat(String(r.distance)) : null;
   const etaMin =
-    rideDistKm != null && rideDistKm > 0 ? Math.max(1, Math.round((rideDistKm / 30) * 60)) : null;
+    rideDistKm !== null && rideDistKm > 0 ? Math.max(1, Math.round((rideDistKm / 30) * 60)) : null;
 
   /* Map link — prefer drop coords, fall back to pickup, then address */
   const mapsUrl = buildMapsDeepLink(
-    r.dropLat != null ? parseFloat(String(r.dropLat)) : null,
-    r.dropLng != null ? parseFloat(String(r.dropLng)) : null,
+    r.dropLat !== null ? parseFloat(String(r.dropLat)) : null,
+    r.dropLng !== null ? parseFloat(String(r.dropLng)) : null,
     r.dropAddress ?? r.pickupAddress ?? null
   );
 
@@ -131,14 +131,14 @@ export const RideRequestCard = memo(function RideRequestCard({
     setShowCounterForm(false);
   };
 
-  const pickupLat = r.pickupLat != null ? parseFloat(String(r.pickupLat)) : null;
-  const pickupLng = r.pickupLng != null ? parseFloat(String(r.pickupLng)) : null;
-  const dropLat = r.dropLat != null ? parseFloat(String(r.dropLat)) : null;
-  const dropLng = r.dropLng != null ? parseFloat(String(r.dropLng)) : null;
+  const pickupLat = r.pickupLat !== null ? parseFloat(String(r.pickupLat)) : null;
+  const pickupLng = r.pickupLng !== null ? parseFloat(String(r.pickupLng)) : null;
+  const dropLat = r.dropLat !== null ? parseFloat(String(r.dropLat)) : null;
+  const dropLng = r.dropLng !== null ? parseFloat(String(r.dropLng)) : null;
   const hasValidPickupCoords =
-    pickupLat != null &&
+    pickupLat !== null &&
     Number.isFinite(pickupLat) &&
-    pickupLng != null &&
+    pickupLng !== null &&
     Number.isFinite(pickupLng);
 
   return (
@@ -205,9 +205,9 @@ export const RideRequestCard = memo(function RideRequestCard({
             )}
             <RequestAge createdAt={r.createdAt} />
           </div>
-          {(r.riderDistanceKm != null || r.riderEtaMin != null) && (
+          {(r.riderDistanceKm !== null || r.riderEtaMin !== null) && (
             <div className="mt-1 mb-1 flex items-center gap-2">
-              {r.riderDistanceKm != null && (
+              {r.riderDistanceKm !== null && (
                 <span className="flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600">
                   <Navigation size={9} />{" "}
                   {r.riderDistanceKm < 1
@@ -216,7 +216,7 @@ export const RideRequestCard = memo(function RideRequestCard({
                   away
                 </span>
               )}
-              {r.riderEtaMin != null && (
+              {r.riderEtaMin !== null && (
                 <span className="flex items-center gap-1 rounded-full border border-purple-100 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-600">
                   <Clock size={9} /> {r.riderEtaMin} min ETA
                 </span>
@@ -234,7 +234,7 @@ export const RideRequestCard = memo(function RideRequestCard({
             </p>
           </div>
           <div className="mt-2.5 flex flex-wrap items-center gap-3">
-            {earnings != null && earnings > 0 ? (
+            {earnings !== null && earnings > 0 ? (
               <div
                 className={`rounded-xl border px-3 py-1.5 ${isBargain ? "border-orange-100 bg-orange-50" : "border-green-100 bg-green-50"}`}
               >
@@ -246,7 +246,7 @@ export const RideRequestCard = memo(function RideRequestCard({
                 <p className="text-[9px] font-semibold text-gray-400">{T("yourEarnings")}</p>
               </div>
             ) : null}
-            {isBargain && offeredFare != null && (
+            {isBargain && offeredFare !== null && (
               <div>
                 <p className="text-sm font-bold text-orange-700">
                   {formatCurrency(offeredFare, currency)}
@@ -254,19 +254,19 @@ export const RideRequestCard = memo(function RideRequestCard({
                 <p className="text-[9px] font-medium text-gray-400">{T("customerOffer")}</p>
               </div>
             )}
-            {rideDistKm != null && rideDistKm > 0 && (
+            {rideDistKm !== null && rideDistKm > 0 && (
               <div>
                 <p className="text-sm font-bold text-gray-700">{rideDistKm.toFixed(1)} km</p>
                 <p className="text-[9px] font-medium text-gray-400">{T("distance")}</p>
               </div>
             )}
-            {etaMin != null && (
+            {etaMin !== null && (
               <div>
                 <p className="text-sm font-bold text-blue-600">{etaMin} min</p>
                 <p className="text-[9px] font-medium text-gray-400">ETA</p>
               </div>
             )}
-            {r.fare != null && (
+            {r.fare !== null && (
               <div>
                 <p className="text-sm font-bold text-gray-300 line-through">
                   {formatCurrency(r.fare, currency)}

@@ -279,7 +279,7 @@ export function ActiveOrderPanel({
               )}
             </div>
 
-            {riderPos && order.vendorLat != null && order.vendorLng != null && (
+            {riderPos && order.vendorLat !== null && order.vendorLng !== null && (
               <MapErrorBoundary>
                 <TurnByTurnPanel
                   fromLat={riderPos.lat}
@@ -293,7 +293,7 @@ export function ActiveOrderPanel({
               </MapErrorBoundary>
             )}
 
-            {order.vendorLat != null && order.vendorLng != null && riderPos && (
+            {order.vendorLat !== null && order.vendorLng !== null && riderPos && (
               <MapErrorBoundary fallbackMsg="Route map unavailable">
                 <RideRouteMap
                   pickupLat={riderPos.lat}
@@ -401,7 +401,7 @@ export function ActiveOrderPanel({
               <ChatButton name={order.customerName as string} />
             </div>
 
-            {riderPos && order.deliveryLat != null && order.deliveryLng != null && (
+            {riderPos && order.deliveryLat !== null && order.deliveryLng !== null && (
               <MapErrorBoundary>
                 <TurnByTurnPanel
                   fromLat={riderPos.lat}
@@ -415,7 +415,7 @@ export function ActiveOrderPanel({
               </MapErrorBoundary>
             )}
 
-            {order.deliveryLat != null && order.deliveryLng != null && riderPos && (
+            {order.deliveryLat !== null && order.deliveryLng !== null && riderPos && (
               <MapErrorBoundary fallbackMsg="Route map unavailable">
                 <RideRouteMap
                   pickupLat={riderPos.lat}

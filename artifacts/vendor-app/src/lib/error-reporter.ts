@@ -3,7 +3,7 @@ import { getVendorApiBase } from "./envValidation";
 
 const SOURCE_APP = "vendor";
 let _initialized = false;
-let _queue: Array<Record<string, unknown>> = [];
+const _queue: Array<Record<string, unknown>> = [];
 let _flushing = false;
 
 function getApiBase(): string {

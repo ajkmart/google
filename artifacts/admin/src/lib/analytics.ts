@@ -19,7 +19,7 @@ let _ready = false;
  * reports for FCP / TTFB that fire during the initial page load) are held
  * here and flushed in FIFO order once the analytics backend initialises.
  */
-let _queue: Array<{ name: string; params?: Record<string, unknown> }> = [];
+const _queue: Array<{ name: string; params?: Record<string, unknown> }> = [];
 
 export function initAnalytics(platform: string, trackingId: string, debug: boolean): void {
   if (!trackingId || _ready) return;

@@ -254,7 +254,7 @@ router.post("/", customerAuth, async (req, res, next) => {
 
     /* ── Geofence: check pickup coordinates if provided ── */
     if ((s["security_geo_fence"] ?? "off") === "on") {
-      if (pickupLat != null && pickupLng != null) {
+      if (pickupLat !== null && pickupLng !== null) {
         const pLat = parseFloat(String(pickupLat));
         const pLng = parseFloat(String(pickupLng));
         if (Number.isFinite(pLat) && Number.isFinite(pLng)) {
@@ -269,7 +269,7 @@ router.post("/", customerAuth, async (req, res, next) => {
           }
         }
       }
-      if (dropLat != null && dropLng != null) {
+      if (dropLat !== null && dropLng !== null) {
         const dLat = parseFloat(String(dropLat));
         const dLng = parseFloat(String(dropLng));
         if (Number.isFinite(dLat) && Number.isFinite(dLng)) {

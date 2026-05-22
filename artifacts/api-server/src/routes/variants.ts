@@ -180,7 +180,7 @@ router.patch("/:id", adminAuth, async (req, res) => {
     if (fields.type !== undefined) updates.type = fields.type;
     if (fields.price !== undefined) updates.price = String(fields.price);
     if (fields.originalPrice !== undefined)
-      updates.originalPrice = fields.originalPrice != null ? String(fields.originalPrice) : null;
+      updates.originalPrice = fields.originalPrice !== null ? String(fields.originalPrice) : null;
     if (fields.sku !== undefined) updates.sku = fields.sku;
     if (fields.stock !== undefined) updates.stock = fields.stock;
     if (fields.inStock !== undefined) updates.inStock = fields.inStock;

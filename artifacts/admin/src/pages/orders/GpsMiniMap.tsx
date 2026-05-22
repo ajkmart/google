@@ -33,7 +33,7 @@ export function GpsMiniMap({
             html: `<div style="width:14px;height:14px;background:#3b82f6;border:2px solid white;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></div>`,
           });
           L.marker([cLat, cLng], { icon: customerIcon }).addTo(map).bindPopup("Placed from");
-          if (dLat != null && dLng != null && Number.isFinite(dLat) && Number.isFinite(dLng)) {
+          if (dLat !== null && dLng !== null && Number.isFinite(dLat) && Number.isFinite(dLng)) {
             const deliveryIcon = L.divIcon({
               className: "",
               iconSize: [14, 14],

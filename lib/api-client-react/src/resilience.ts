@@ -104,7 +104,7 @@ export function createResilientFetcher(config: ResilientFetcherConfig): Resilien
 
     if (!res.ok) {
       if (res.status >= 500) circuitBreaker.onFailure(path);
-      const body = await res.json().catch(() => ({ error: res.statusText }));
+      const body = await res.json().catch((_e) => ({ error: res.statusText }));
       throw Object.assign(new Error((body as { error?: string }).error ?? "Request failed"), {
         status: res.status,
         responseData: body,
@@ -112,7 +112,7 @@ export function createResilientFetcher(config: ResilientFetcherConfig): Resilien
     }
 
     circuitBreaker.onSuccess(path);
-    const json = await res.json().catch(() => ({}));
+    const json = await res.json().catch((_e) => ({}));
     /* Notify the caller about the raw envelope before unwrapping.
        Consumers can use this to capture top-level fields (e.g. csrfToken). */
     if (onRawJson) onRawJson(json);

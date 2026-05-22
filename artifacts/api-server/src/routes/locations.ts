@@ -552,7 +552,7 @@ router.post("/update", gpsAntiSpoofMiddleware, async (req, res, next: NextFuncti
 
     const { latitude, longitude, accuracy, speed, heading, batteryLevel, action, mockProvider } =
       req.body;
-    if (latitude == null || longitude == null) {
+    if (latitude === null || longitude === null) {
       res.status(400).json({ error: "latitude and longitude are required" });
       return;
     }

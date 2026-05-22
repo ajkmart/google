@@ -10,7 +10,7 @@ let _modeCache: DeliveryAccessMode | null = null;
 let _modeCacheAt = 0;
 const MODE_CACHE_TTL = 30_000;
 
-let _whitelistCache = new Map<string, { eligible: boolean; deliveryLabel?: string }>();
+const _whitelistCache = new Map<string, { eligible: boolean; deliveryLabel?: string }>();
 let _whitelistCacheAt = 0;
 const WHITELIST_CACHE_TTL = 5 * 60_000;
 

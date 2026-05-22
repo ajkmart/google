@@ -6,7 +6,7 @@ import { Link } from "wouter";
 import { api } from "../../lib/api";
 
 const fc = (n: string | number | null | undefined, currencySymbol = "Rs.") =>
-  _sharedFcP(n != null ? String(n) : (n as null | undefined), currencySymbol);
+  _sharedFcP(n !== null ? String(n) : (n as null | undefined), currencySymbol);
 
 interface ProfilePenaltyHistoryProps {
   currency: string;

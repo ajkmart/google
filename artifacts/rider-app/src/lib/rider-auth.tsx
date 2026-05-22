@@ -235,7 +235,7 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
     executeLogoutSequence(api, () => {
       try {
         sessionStorage.clear();
-      } catch {}
+      } catch (_e) {}
       sharedAuth.logout();
       setToken(null);
       setUser(null);

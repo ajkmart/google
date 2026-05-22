@@ -2708,7 +2708,7 @@ router.patch("/rides/:id/status", rideStatusLimiter, async (req, res) => {
         riderLng = parseFloat(storedLoc.longitude);
       }
 
-      if (riderLat == null || riderLng == null) {
+      if (riderLat === null || riderLng === null) {
         sendValidationError(
           res,
           "Unable to verify your location. Please enable GPS and try again."
@@ -3311,8 +3311,8 @@ router.post("/rides/:id/event-log", async (req, res) => {
       rideId,
       riderId,
       event,
-      lat: lat != null ? String(lat) : null,
-      lng: lng != null ? String(lng) : null,
+      lat: lat !== null ? String(lat) : null,
+      lng: lng !== null ? String(lng) : null,
     });
 
     sendSuccess(res, { id: logId, rideId, event }, "Event logged");
@@ -4843,9 +4843,9 @@ router.post("/location/batch", async (req, res) => {
       /* ── Speed-based spoof detection within the batch ── */
       if (
         settings["security_spoof_detection"] === "on" &&
-        prevBatchLat != null &&
-        prevBatchLng != null &&
-        prevBatchTs != null
+        prevBatchLat !== null &&
+        prevBatchLng !== null &&
+        prevBatchTs !== null
       ) {
         /* Stale grace period: if gap between consecutive batch pings exceeds threshold, skip speed check */
         const gapMs = ts.getTime() - prevBatchTs.getTime();
@@ -5363,8 +5363,8 @@ router.post("/sos", async (req, res) => {
     const parsedLng = longitude ?? null;
 
     const validCoords =
-      parsedLat != null &&
-      parsedLng != null &&
+      parsedLat !== null &&
+      parsedLng !== null &&
       isFinite(parsedLat) &&
       isFinite(parsedLng) &&
       !(Math.abs(parsedLat) < 0.001 && Math.abs(parsedLng) < 0.001);

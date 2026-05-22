@@ -67,7 +67,7 @@ export function TwoFactorSetup({
       await navigator.clipboard.writeText(secret);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
+    } catch (_e) {
       /* fallback: already visible */
     }
   }, [secret]);
@@ -77,7 +77,7 @@ export function TwoFactorSetup({
       await navigator.clipboard.writeText(backupCodes.join("\n"));
       setBackupsCopied(true);
       setTimeout(() => setBackupsCopied(false), 2000);
-    } catch {
+    } catch (_e) {
       /* noop */
     }
   }, [backupCodes]);

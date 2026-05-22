@@ -261,7 +261,7 @@ router.post(
   sharedValidateBody(forgotPasswordSchema),
   async (req, res) => {
     try {
-      let { phone, email, identifier } = req.body;
+      const { phone, email, identifier } = req.body;
       const ip = getClientIp(req);
       const settings = await getCachedSettings();
 
@@ -446,7 +446,7 @@ router.post(
   sharedValidateBody(VerifyResetOtpSchema),
   async (req, res) => {
     try {
-      let { phone, email, otp } = req.body;
+      const { phone, email, otp } = req.body;
       const ip = getClientIp(req);
 
       if (!otp || typeof otp !== "string" || !/^\d{6}$/.test(otp)) {
@@ -544,7 +544,7 @@ router.post(
   sharedValidateBody(ResetPasswordSchema),
   async (req, res) => {
     try {
-      let { phone, email, identifier, resetToken, newPassword, totpCode } = req.body;
+      const { phone, email, identifier, resetToken, newPassword, totpCode } = req.body;
       const ip = getClientIp(req);
       const settings = await getCachedSettings();
 

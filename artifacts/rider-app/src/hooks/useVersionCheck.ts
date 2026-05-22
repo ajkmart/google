@@ -43,8 +43,6 @@ export function useVersionCheck() {
   const reloadScheduled = useRef(false);
 
   useEffect(() => {
-    let timer: ReturnType<typeof setInterval>;
-
     async function check() {
       if (reloadScheduled.current) return;
 
@@ -104,7 +102,7 @@ export function useVersionCheck() {
     }
 
     check();
-    timer = setInterval(check, POLL_INTERVAL_MS);
+    const timer = setInterval(check, POLL_INTERVAL_MS);
 
     return () => clearInterval(timer);
   }, []);

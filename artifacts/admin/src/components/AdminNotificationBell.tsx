@@ -153,7 +153,7 @@ export function AdminNotificationBell() {
     const onOrder = (data: OrderPayload) => {
       if (data?.status && data.status !== "pending") return;
       const itemCount = data.items ? (data.items as unknown[]).length : (data.itemCount ?? 0);
-      const total = data.total != null ? `Rs. ${Number(data.total).toFixed(0)}` : "";
+      const total = data.total !== null ? `Rs. ${Number(data.total).toFixed(0)}` : "";
       const n: AdminNotif = {
         id: `order-${data.id ?? Date.now()}`,
         type: "order",

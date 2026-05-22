@@ -35,7 +35,7 @@ export function auditAdminEnv(): AdminEnv {
     typeof env["BASE_URL"] === "string" && (env["BASE_URL"] as string).length > 0
       ? (env["BASE_URL"] as string)
       : "/";
-  if (env["BASE_URL"] == null) {
+  if (env["BASE_URL"] === null) {
     warnings.push("BASE_URL missing — defaulting to '/'");
   } else if (typeof env["BASE_URL"] !== "string") {
     warnings.push(`BASE_URL has unexpected type ${typeof env["BASE_URL"]} — defaulting to '/'`);

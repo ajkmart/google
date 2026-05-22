@@ -138,7 +138,7 @@ router.get("/", async (_req, res) => {
 
     const diskPct2 = diskPct ?? null;
     const usedGb =
-      diskFreeGb != null && diskPct2 != null && diskPct2 > 0
+      diskFreeGb !== null && diskPct2 !== null && diskPct2 > 0
         ? (diskFreeGb / (1 - diskPct2 / 100)) * (diskPct2 / 100)
         : null;
 
@@ -153,12 +153,12 @@ router.get("/", async (_req, res) => {
       storage:
         diskFreeGb !== null
           ? {
-              status: diskPct2 != null && diskPct2 > 90 ? "warning" : "ok",
+              status: diskPct2 !== null && diskPct2 > 90 ? "warning" : "ok",
               freeGb: Math.round(diskFreeGb * 10) / 10,
-              usedGb: usedGb != null ? Math.round(usedGb * 10) / 10 : null,
-              usedMb: usedGb != null ? Math.round(usedGb * 1024) : null,
+              usedGb: usedGb !== null ? Math.round(usedGb * 10) / 10 : null,
+              usedMb: usedGb !== null ? Math.round(usedGb * 1024) : null,
               totalMb:
-                diskFreeGb != null && diskPct2 != null && diskPct2 > 0
+                diskFreeGb !== null && diskPct2 !== null && diskPct2 > 0
                   ? Math.round((diskFreeGb / (1 - diskPct2 / 100)) * 1024)
                   : null,
               usedPct: diskPct2,

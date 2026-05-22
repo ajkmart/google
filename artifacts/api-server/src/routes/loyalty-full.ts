@@ -213,7 +213,7 @@ router.post("/campaigns", adminAuth, async (req, res) => {
           name,
           description: description ?? null,
           type,
-          bonusMultiplier: bonusMultiplier != null ? String(bonusMultiplier) : "1.00",
+          bonusMultiplier: bonusMultiplier !== null ? String(bonusMultiplier) : "1.00",
           startDate: startDate ? new Date(startDate) : null,
           endDate: endDate ? new Date(endDate) : null,
           status,

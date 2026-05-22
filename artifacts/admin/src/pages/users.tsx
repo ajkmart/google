@@ -2064,7 +2064,7 @@ function parseUserDocuments(user: any): {
         }
       }
     } catch (err) {
-      // eslint-disable-next-line no-console
+       
       console.warn("[parseUserDocuments] JSON parse failed:", err);
     }
   }

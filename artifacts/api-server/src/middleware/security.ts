@@ -195,7 +195,7 @@ const TOR_STATIC_FALLBACK: readonly string[] = [
 
 let torExitNodes: Set<string> = new Set(TOR_STATIC_FALLBACK);
 let torListFetchedAt = 0; /* 0 = only the static fallback is loaded */
-let TOR_LIST_TTL_MS = 60 * 60 * 1000;
+const TOR_LIST_TTL_MS = 60 * 60 * 1000;
 
 async function refreshTorExitNodes(): Promise<void> {
   try {
@@ -270,7 +270,7 @@ async function isTorExitNode(ip: string): Promise<boolean> {
    VPN / PROXY DETECTION  (with circuit-breaker)
    ══════════════════════════════════════════════════════════════ */
 const vpnCache: Map<string, { isVpn: boolean; cachedAt: number }> = new Map();
-let VPN_CACHE_TTL_MS = 10 * 60 * 1000;
+const VPN_CACHE_TTL_MS = 10 * 60 * 1000;
 
 /* Circuit-breaker state for ip-api.com */
 let _vpnCbFailures = 0;

@@ -225,11 +225,11 @@ export default function FlashDealsPage() {
       productId: d.productId,
       title: d.title || "",
       badge: d.badge,
-      discountPct: d.discountPct != null ? String(d.discountPct) : "",
-      discountFlat: d.discountFlat != null ? String(d.discountFlat) : "",
+      discountPct: d.discountPct !== null ? String(d.discountPct) : "",
+      discountFlat: d.discountFlat !== null ? String(d.discountFlat) : "",
       startTime: d.startTime.slice(0, 16),
       endTime: d.endTime.slice(0, 16),
-      dealStock: d.dealStock != null ? String(d.dealStock) : "",
+      dealStock: d.dealStock !== null ? String(d.dealStock) : "",
       isActive: d.isActive,
     });
     setDealDialog(true);

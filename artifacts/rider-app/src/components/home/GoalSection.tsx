@@ -149,7 +149,7 @@ export function GoalSection({
                 {goalMutation.isPending ? "Saving…" : T("saveGoal")}
               </button>
             </div>
-            {personalGoal != null && (
+            {personalGoal !== null && (
               <button
                 onClick={() => goalMutation.mutate(null)}
                 disabled={goalMutation.isPending}

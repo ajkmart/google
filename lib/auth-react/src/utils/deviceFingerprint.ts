@@ -7,7 +7,7 @@ export function getDeviceFingerprint(): string {
   try {
     const stored = sessionStorage.getItem("_dfp");
     if (stored) return stored;
-  } catch {
+  } catch (_e) {
     // sessionStorage may be disabled (e.g. private mode with storage blocked)
   }
 
@@ -29,7 +29,7 @@ export function getDeviceFingerprint(): string {
 
   try {
     sessionStorage.setItem("_dfp", id);
-  } catch {
+  } catch (_e) {
     // best-effort
   }
 

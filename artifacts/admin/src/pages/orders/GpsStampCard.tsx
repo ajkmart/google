@@ -6,15 +6,14 @@ export function GpsStampCard({ order }: { order: any }) {
   const cLat = Number(order.customerLat);
   const cLng = Number(order.customerLng);
 
-  if (!Number.isFinite(cLat) || !Number.isFinite(cLng)) return null;
-
-  const dLat = order.deliveryLat != null ? Number(order.deliveryLat) : null;
-  const dLng = order.deliveryLng != null ? Number(order.deliveryLng) : null;
-  const hasDual = dLat != null && dLng != null && Number.isFinite(dLat) && Number.isFinite(dLng);
+  const dLat = order.deliveryLat !== null && order.deliveryLat !== undefined ? Number(order.deliveryLat) : null;
+  const dLng = order.deliveryLng !== null && order.deliveryLng !== undefined ? Number(order.deliveryLng) : null;
+  const hasDual = dLat !== null && dLng !== null && Number.isFinite(dLat) && Number.isFinite(dLng);
   const isMismatch = !!order.gpsMismatch;
   const [placeName, setPlaceName] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!Number.isFinite(cLat) || !Number.isFinite(cLng)) return;
     let cancelled = false;
     fetch(
       `https://nominatim.openstreetmap.org/reverse?lat=${cLat}&lon=${cLng}&format=json&zoom=16&addressdetails=1`,
@@ -40,6 +39,8 @@ export function GpsStampCard({ order }: { order: any }) {
       cancelled = true;
     };
   }, [cLat, cLng]);
+
+  if (!Number.isFinite(cLat) || !Number.isFinite(cLng)) return null;
 
   return (
     <section
@@ -80,7 +81,7 @@ export function GpsStampCard({ order }: { order: any }) {
             Delivery to: {dLat!.toFixed(5)}, {dLng!.toFixed(5)}
           </p>
         )}
-        {order.gpsAccuracy != null && (
+        {order.gpsAccuracy !== null && order.gpsAccuracy !== undefined && (
           <p className="text-muted-foreground text-[10px]">
             GPS Accuracy: +/-{Math.round(Number(order.gpsAccuracy))}m
           </p>

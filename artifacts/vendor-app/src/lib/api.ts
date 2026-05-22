@@ -250,7 +250,7 @@ async function authPost(path: string, body?: unknown): Promise<unknown> {
   }
 
   /* Unwrap server envelope { data: T } → T, or return the raw parsed body */
-  return parsed != null && typeof parsed === "object" && "data" in parsed ? parsed.data : parsed;
+  return parsed !== null && typeof parsed === "object" && "data" in parsed ? parsed.data : parsed;
 }
 
 function clearTokens() {

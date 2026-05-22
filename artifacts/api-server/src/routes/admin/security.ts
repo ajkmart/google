@@ -333,7 +333,7 @@ router.get("/security/token-export/:userId", adminAuth, async (req, res) => {
 
     /* CSV escape — wrap field in quotes and double-up any internal quotes */
     const esc = (v: string | null | undefined): string => {
-      if (v == null) return "";
+      if (v === null) return "";
       return `"${String(v).replace(/"/g, '""')}"`;
     };
 

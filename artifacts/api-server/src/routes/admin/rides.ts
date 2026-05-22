@@ -1527,10 +1527,10 @@ router.get("/fleet-analytics", async (req, res) => {
   const ridesAvgMs = ridesResponseRow?.avgMs ? Number(ridesResponseRow.avgMs) : null;
   const ordersAvgMs = ordersResponseRow?.avgMs ? Number(ordersResponseRow.avgMs) : null;
   const blendedMs =
-    ridesAvgMs != null && ordersAvgMs != null
+    ridesAvgMs !== null && ordersAvgMs !== null
       ? (ridesAvgMs + ordersAvgMs) / 2
       : (ridesAvgMs ?? ordersAvgMs);
-  const avgResponseTimeMin = blendedMs != null ? Math.round((blendedMs / 60000) * 10) / 10 : null;
+  const avgResponseTimeMin = blendedMs !== null ? Math.round((blendedMs / 60000) * 10) / 10 : null;
 
   /* Per-rider distance estimation from location logs */
   const riderLogs = await db
@@ -1552,7 +1552,7 @@ router.get("/fleet-analytics", async (req, res) => {
     .limit(50000);
 
   const riderDistanceMap = new Map<string, number>();
-  let prevByRider = new Map<string, { lat: number; lng: number }>();
+  const prevByRider = new Map<string, { lat: number; lng: number }>();
 
   for (const log of riderLogs) {
     const lat = parseFloat(String(log.latitude));

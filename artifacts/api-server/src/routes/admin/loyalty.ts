@@ -356,7 +356,7 @@ router.post(
         name: String(body.name).trim(),
         description: String(body.description),
         type: "bonus_multiplier",
-        bonusMultiplier: body.pointsReward != null ? String(Number(body.pointsReward)) : "1.00",
+        bonusMultiplier: body.pointsReward !== null ? String(Number(body.pointsReward)) : "1.00",
         startDate: new Date(startDate),
         endDate: new Date(endDate),
         status: body.isActive !== false ? "active" : "inactive",
@@ -417,7 +417,7 @@ router.put(
       .set({
         name: String(body.name).trim(),
         description: String(body.description),
-        bonusMultiplier: body.pointsReward != null ? String(Number(body.pointsReward)) : "1.00",
+        bonusMultiplier: body.pointsReward !== null ? String(Number(body.pointsReward)) : "1.00",
         startDate: new Date(startDate),
         endDate: new Date(endDate),
         status: body.isActive !== false ? "active" : "inactive",

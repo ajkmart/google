@@ -120,7 +120,7 @@ export function computeOfferStatus(
 }
 
 export function parseDecimal(v: string | null | undefined): number | null {
-  return v != null ? parseFloat(String(v)) : null;
+  return v !== null ? parseFloat(String(v)) : null;
 }
 
 export function mapOffer(o: OfferRow) {

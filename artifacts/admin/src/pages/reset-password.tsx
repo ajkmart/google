@@ -63,7 +63,7 @@ export default function ResetPassword() {
         const res = await fetch(
           `/api/admin/auth/reset-password/validate?token=${encodeURIComponent(token)}`
         );
-        const data = (await res.json().catch(() => ({}))) as {
+        const data = (await res.json().catch((_e) => ({}))) as {
           valid?: boolean;
           reason?: string;
           expiresAt?: string;
@@ -110,7 +110,7 @@ export default function ResetPassword() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, newPassword: password }),
       });
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json().catch((_e) => ({}));
       if (!res.ok) {
         setError(data?.error || "We couldn't reset your password.");
         return;

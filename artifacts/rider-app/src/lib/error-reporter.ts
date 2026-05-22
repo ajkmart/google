@@ -3,7 +3,7 @@ import { api, getApiBase } from "./api";
 
 const SOURCE_APP = "rider";
 let _initialized = false;
-let _queue: Array<Record<string, unknown>> = [];
+const _queue: Array<Record<string, unknown>> = [];
 let _flushing = false;
 let _flushTimer: ReturnType<typeof setTimeout> | null =
   null; /* PF7: Single debounced flush (COMPLETED) */

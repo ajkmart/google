@@ -240,7 +240,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
   };
 
   useEffect(() => {
-    if (vendorLocData?.latitude != null && vendorLocData?.longitude != null) {
+    if (vendorLocData?.latitude !== null && vendorLocData?.longitude !== null) {
       setVendorLat(vendorLocData.latitude);
       setVendorLng(vendorLocData.longitude);
     } else if (navigator.geolocation) {
@@ -727,7 +727,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
                 const timerRed = minsLeft <= 2 && isPendingTimer;
                 const isOrderPending = pendingOrderIds.has(o.id);
                 const orderDeliveryFee =
-                  o.deliveryFee != null ? o.deliveryFee : (dlvFeeMap[o.type] ?? dlvFeeMap.mart);
+                  o.deliveryFee !== null ? o.deliveryFee : (dlvFeeMap[o.type] ?? dlvFeeMap.mart);
                 /* Cancel window: vendor can only cancel within 5 minutes */
                 const msSincePlacedForCancel = o.createdAt
                   ? Date.now() - new Date(o.createdAt).getTime()

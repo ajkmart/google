@@ -32,7 +32,7 @@ export const useOTPBypass = (phone?: string) => {
       return;
     }
 
-    let abortController = new AbortController();
+    const abortController = new AbortController();
     const cacheKey = `otpBypassCache_${phone}`;
     const cacheTimeKey = `otpBypassCacheTime_${phone}`;
 

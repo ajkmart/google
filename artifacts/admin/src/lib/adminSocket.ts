@@ -60,7 +60,7 @@ export function getAdminSocket(accessToken: string): Socket {
       const count = current + 1;
       localStorage.setItem(SOS_LS_KEY, String(count));
       window.dispatchEvent(new CustomEvent("sos:badge:update", { detail: { count } }));
-    } catch {
+    } catch (_e) {
       // localStorage unavailable
     }
   });
@@ -72,7 +72,7 @@ export function resetSosBadge(): void {
   try {
     localStorage.setItem(SOS_LS_KEY, "0");
     window.dispatchEvent(new CustomEvent("sos:badge:update", { detail: { count: 0 } }));
-  } catch {
+  } catch (_e) {
     // localStorage unavailable
   }
 }
@@ -80,7 +80,7 @@ export function resetSosBadge(): void {
 export function getSosBadgeCount(): number {
   try {
     return parseInt(localStorage.getItem(SOS_LS_KEY) ?? "0", 10) || 0;
-  } catch {
+  } catch (_e) {
     return 0;
   }
 }

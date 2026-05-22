@@ -4,7 +4,7 @@
  * (Leaflet/Mapbox marker labels, chart CSS variable keys, etc.).
  */
 export function escapeHtml(input: unknown): string {
-  if (input == null) return "";
+  if (input === null) return "";
   return String(input)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

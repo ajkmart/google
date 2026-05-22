@@ -955,7 +955,7 @@ export default function Products() {
           <div className="space-y-3 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 lg:grid-cols-3">
             {products.map((p) => {
               const pThresh = p.lowStockThreshold ?? productThresholds[p.id] ?? lowStockThreshold;
-              const isLowStock = p.stock != null && p.stock >= 0 && p.stock <= pThresh;
+              const isLowStock = p.stock !== null && p.stock >= 0 && p.stock <= pThresh;
               const isSelected = bulkEditSelected.has(p.id);
               return (
                 <div
@@ -1005,7 +1005,7 @@ export default function Products() {
                               </span>
                             )}
                             {p.unit && <span className="text-[10px] text-gray-400">/{p.unit}</span>}
-                            {p.stock != null && (
+                            {p.stock !== null && (
                               <span
                                 className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${isLowStock ? "bg-red-100 text-red-600" : "bg-green-100 text-green-700"}`}
                               >
@@ -1055,7 +1055,7 @@ export default function Products() {
                         >
                           🗑️
                         </button>
-                        {p.stock != null && (
+                        {p.stock !== null && (
                           <button
                             onClick={() =>
                               setStockHistoryOpen(stockHistoryOpen === p.id ? null : p.id)

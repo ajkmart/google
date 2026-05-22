@@ -55,7 +55,7 @@ export async function captureDeviceMeta(includeLocation = false): Promise<Device
       );
       meta.lat = pos.coords.latitude;
       meta.lng = pos.coords.longitude;
-    } catch {
+    } catch (_e) {
       /* Permission denied or timeout — silently omit location */
     }
   }

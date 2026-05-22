@@ -1,9 +1,9 @@
-/* eslint-disable no-console */
+ 
 import { getAdminTiming } from "./adminTiming";
 
 const SOURCE_APP = "admin";
 let _initialized = false;
-let _queue: Array<Record<string, unknown>> = [];
+const _queue: Array<Record<string, unknown>> = [];
 let _flushing = false;
 
 /** Deduplicate window.error and unhandledrejection events (not just console.error) */

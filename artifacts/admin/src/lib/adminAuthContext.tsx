@@ -101,7 +101,7 @@ function getJwtExpiry(token: string): number | null {
     if (!payload) return null;
     const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
     return typeof decoded.exp === "number" ? decoded.exp * 1000 : null;
-  } catch {
+  } catch (_e) {
     return null;
   }
 }
@@ -473,7 +473,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       Object.keys(localStorage)
         .filter((k) => k.startsWith("admin_sidebar_") || k.startsWith("admin_nav_"))
         .forEach((k) => localStorage.removeItem(k));
-    } catch {}
+    } catch (_e) {}
     // Immediately null user + token so the authenticated layout is hidden
     // before the logout API call completes (prevents content flash).
     setState((prev) => ({
@@ -678,13 +678,13 @@ export function readCsrfFromCookie(): string {
       if (key === "csrf_token") {
         try {
           return decodeURIComponent(rawValue);
-        } catch {
+        } catch (_e) {
           return rawValue;
         }
       }
     }
     // eslint-disable-next-line ajk-local/no-silent-catch -- cookie parse failure is expected for malformed cookies; falls through to empty string
-  } catch {
+  } catch (_e) {
     /* ignore - fall through to empty string */
   }
   return "";

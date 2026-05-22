@@ -103,12 +103,12 @@ export function AuthProvider({
   const logout = useCallback(() => {
     try {
       tokenStorage.removeAccessToken();
-    } catch {
+    } catch (_e) {
       // best-effort
     }
     try {
       tokenStorage.removeRefreshToken();
-    } catch {
+    } catch (_e) {
       // best-effort
     }
     setUser(null);
@@ -184,7 +184,7 @@ export function AuthProvider({
             } = {};
             try {
               data = JSON.parse(text);
-            } catch {
+            } catch (_e) {
               /* ignore */
             }
 
@@ -246,7 +246,7 @@ export function AuthProvider({
             tokenStorage.removeAccessToken();
             tokenStorage.removeRefreshToken();
           }
-        } catch {
+        } catch (_e) {
           // Network error during silent refresh — stay logged out
           tokenStorage.removeAccessToken();
           tokenStorage.removeRefreshToken();

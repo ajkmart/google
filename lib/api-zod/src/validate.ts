@@ -46,7 +46,7 @@ function isDevEnv(): boolean {
     const g = globalThis as Record<string, unknown>;
     const proc = g["process"] as { env?: Record<string, string> } | undefined;
     return proc?.env?.["NODE_ENV"] !== "production";
-  } catch {
+  } catch (_e) {
     return false;
   }
 }
@@ -75,7 +75,7 @@ export function validateApiResponse<T>(
   if (options?.onFailure) {
     try {
       options.onFailure(err, context);
-    } catch {
+    } catch (_e) {
       // never let the reporter crash the request
     }
   }

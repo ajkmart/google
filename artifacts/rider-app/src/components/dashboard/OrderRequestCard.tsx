@@ -68,14 +68,14 @@ export const OrderRequestCard = memo(function OrderRequestCard({
     typeof earnings === "number" && Number.isFinite(earnings) ? earnings : configDeliveryFee;
 
   /* Coordinates — parse safely */
-  const vendorLat = o.vendorLat != null ? parseFloat(String(o.vendorLat)) : null;
-  const vendorLng = o.vendorLng != null ? parseFloat(String(o.vendorLng)) : null;
-  const deliveryLat = o.deliveryLat != null ? parseFloat(String(o.deliveryLat)) : null;
-  const deliveryLng = o.deliveryLng != null ? parseFloat(String(o.deliveryLng)) : null;
+  const vendorLat = o.vendorLat !== null ? parseFloat(String(o.vendorLat)) : null;
+  const vendorLng = o.vendorLng !== null ? parseFloat(String(o.vendorLng)) : null;
+  const deliveryLat = o.deliveryLat !== null ? parseFloat(String(o.deliveryLat)) : null;
+  const deliveryLng = o.deliveryLng !== null ? parseFloat(String(o.deliveryLng)) : null;
   const hasValidVendorCoords =
-    vendorLat != null &&
+    vendorLat !== null &&
     Number.isFinite(vendorLat) &&
-    vendorLng != null &&
+    vendorLng !== null &&
     Number.isFinite(vendorLng);
 
   return (
@@ -121,9 +121,9 @@ export const OrderRequestCard = memo(function OrderRequestCard({
         )}
       </div>
 
-      {(orderTotal != null || itemCount != null || distanceKm != null) && (
+      {(orderTotal !== null || itemCount !== null || distanceKm !== null) && (
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          {orderTotal != null && Number.isFinite(orderTotal) && (
+          {orderTotal !== null && Number.isFinite(orderTotal) && (
             <div className="rounded-xl border border-gray-100 bg-gray-50 px-2.5 py-1">
               <p className="text-xs font-bold text-gray-700">
                 {formatCurrency(orderTotal, currency)}
@@ -131,13 +131,13 @@ export const OrderRequestCard = memo(function OrderRequestCard({
               <p className="text-[9px] text-gray-400">{T("orderTotal")}</p>
             </div>
           )}
-          {itemCount != null && Number(itemCount) > 0 && (
+          {itemCount !== null && Number(itemCount) > 0 && (
             <div className="rounded-xl border border-gray-100 bg-gray-50 px-2.5 py-1">
               <p className="text-xs font-bold text-gray-700">{Number(itemCount)} items</p>
               <p className="text-[9px] text-gray-400">{T("toCollect")}</p>
             </div>
           )}
-          {distanceKm != null && parseFloat(String(distanceKm)) > 0 && (
+          {distanceKm !== null && parseFloat(String(distanceKm)) > 0 && (
             <div className="rounded-xl border border-blue-100 bg-blue-50 px-2.5 py-1">
               <p className="text-xs font-bold text-blue-700">
                 {parseFloat(String(distanceKm)).toFixed(1)} km

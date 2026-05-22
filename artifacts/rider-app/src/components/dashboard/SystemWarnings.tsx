@@ -267,7 +267,7 @@ export function InlineWarnings({
                         ? " — 1 left before penalty!"
                         : ""}
                   </p>
-                  {cancelStatsData.dailyLimit != null && (
+                  {cancelStatsData.dailyLimit !== null && (
                     <p className="mt-0.5 text-[10px] font-medium text-amber-600">
                       Limit: {cancelStatsData.dailyLimit}/day · {cancelStatsData.remaining}{" "}
                       remaining
@@ -277,7 +277,7 @@ export function InlineWarnings({
                   )}
                 </div>
               </div>
-              {cancelRate != null && (
+              {cancelRate !== null && (
                 <div className="mt-2.5 flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-1.5 rounded-xl border border-amber-200/60 bg-white/70 px-2.5 py-1.5">
                     <span className="text-[10px] font-semibold text-gray-500">Cancel rate</span>
@@ -319,7 +319,7 @@ export function InlineWarnings({
                         ? " — 1 left before penalty!"
                         : ""}
                   </p>
-                  {ignoreStatsData.dailyLimit != null && (
+                  {ignoreStatsData.dailyLimit !== null && (
                     <p className="mt-0.5 text-[10px] font-medium text-amber-600">
                       Limit: {ignoreStatsData.dailyLimit}/day · {ignoreStatsData.remaining}{" "}
                       remaining

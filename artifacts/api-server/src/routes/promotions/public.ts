@@ -426,7 +426,7 @@ router.post("/validate", customerAuth, async (req: Request, res) => {
         }
       }
 
-      if (rules["minOrders"] != null && userId) {
+      if (rules["minOrders"] !== null && userId) {
         const [orderCount] = await db
           .select({ c: count() })
           .from(ordersTable)
