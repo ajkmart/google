@@ -95,6 +95,11 @@ export default [
 
       // ── Silent error swallowing ────────────────────────────────────
       "ajk-local/no-silent-catch": "error",
+      // ── Destructuring correctness ──────────────────────────────────
+      // Catches `{ _foo }` (reads literal prop "_foo") when the intent
+      // was `{ foo: _foo }` (rename "foo" to local var "_foo").
+      // Auto-fixable: eslint --fix converts `_foo` → `foo: _foo`.
+      "ajk-local/no-underscore-shorthand-destructure": "error",
 
       // ── General ───────────────────────────────────────────────────
       "no-console": ["warn", { allow: ["warn", "error"] }],
