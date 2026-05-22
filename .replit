@@ -34,6 +34,10 @@ args = "All Services"
 task = "workflow.run"
 args = "AJKMart App"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "format"
+
   [[workflows.workflow]]
 name = "DB Migrate"
 author = "agent"
@@ -128,6 +132,17 @@ outputType = "console"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd artifacts/ajkmart && PORT=8081 pnpm dev"
+
+[[workflows.workflow]]
+name = "format"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm format:check"
+
+[workflows.workflow.metadata]
+isValidation = true
 
   [agent]
 stack = "BEST_EFFORT_FALLBACK"

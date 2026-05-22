@@ -10,3 +10,4 @@ lib/db/migrations/
 *.md
 .replit_integration_files/
 .local/
+pnpm-lock.yaml
