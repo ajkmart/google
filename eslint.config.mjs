@@ -8,6 +8,7 @@ import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
 const { rules: localRules } = require("./eslint-rules/no-silent-catch.cjs");
+const { rules: destructureRules } = require("./eslint-rules/no-underscore-shorthand-destructure.cjs");
 
 export default [
   // ─── Global ignores (replaces .eslintignore) ──────────────────────
@@ -55,7 +56,7 @@ export default [
     },
     plugins: {
       "@typescript-eslint": tseslint,
-      "ajk-local": { rules: localRules },
+      "ajk-local": { rules: { ...localRules, ...destructureRules } },
     },
     rules: {
       // ── Type safety ───────────────────────────────────────────────
